@@ -50,18 +50,33 @@ export interface AuthResponse {
 
 export const authAPI = {
   register: async (data: RegisterData): Promise<AuthResponse> => {
-    const response = await api.post('/api/auth/register', data);
-    return response.data;
+    try {
+      const response = await api.post('/api/auth/register', data);
+      return response.data;
+    } catch (error: any) {
+      console.error('Registration API error:', error);
+      throw error;
+    }
   },
 
   login: async (data: LoginData): Promise<AuthResponse> => {
-    const response = await api.post('/api/auth/login', data);
-    return response.data;
+    try {
+      const response = await api.post('/api/auth/login', data);
+      return response.data;
+    } catch (error: any) {
+      console.error('Login API error:', error);
+      throw error;
+    }
   },
 
   getMe: async () => {
-    const response = await api.get('/api/auth/me');
-    return response.data;
+    try {
+      const response = await api.get('/api/auth/me');
+      return response.data;
+    } catch (error: any) {
+      console.error('GetMe API error:', error);
+      throw error;
+    }
   },
 };
 

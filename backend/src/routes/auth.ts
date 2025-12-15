@@ -2,6 +2,7 @@ import express, { Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { UserModel, UserInput } from '../models/User';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
+import pool from '../db/connection';
 
 const router = express.Router();
 
@@ -10,39 +11,65 @@ router.post('/register', async (req: Request, res: Response) => {
   try {
     const { email, username, password, player_name, gender, age, starting_state }: UserInput = req.body;
 
+    // Validate required fields
     if (!email || !username || !password) {
       return res.status(400).json({ error: 'Email, username, and password are required' });
+    }
+
+    // Trim and validate email
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail || !trimmedEmail.includes('@')) {
+      return res.status(400).json({ error: 'Valid email is required' });
+    }
+
+    // Trim and validate username
+    const trimmedUsername = username.trim();
+    if (!trimmedUsername || trimmedUsername.length < 3) {
+      return res.status(400).json({ error: 'Username must be at least 3 characters' });
     }
 
     if (password.length < 6) {
       return res.status(400).json({ error: 'Password must be at least 6 characters' });
     }
 
-    // Validate gender if provided
-    if (gender && !['m', 'f', 'nonbinary'].includes(gender)) {
+    // Validate required registration fields
+    if (!player_name || player_name.trim() === '') {
+      return res.status(400).json({ error: 'Player name is required' });
+    }
+
+    if (!gender || !['m', 'f', 'nonbinary'].includes(gender)) {
       return res.status(400).json({ error: 'Gender must be m, f, or nonbinary' });
     }
 
-    // Validate age if provided
-    if (age !== undefined && (age < 18 || age > 80)) {
+    if (!age || age < 18 || age > 80) {
       return res.status(400).json({ error: 'Age must be between 18 and 80' });
     }
 
+    if (!starting_state || starting_state.trim() === '') {
+      return res.status(400).json({ error: 'Starting state is required' });
+    }
+
     // Check if user already exists
-    const existingUser = await UserModel.findByEmail(email);
+    const existingUser = await UserModel.findByEmail(trimmedEmail);
     if (existingUser) {
       return res.status(400).json({ error: 'User with this email already exists' });
     }
 
+    // Check if username already exists
+    const existingUsername = await pool.query('SELECT id FROM users WHERE username = $1', [trimmedUsername]);
+    if (existingUsername.rows.length > 0) {
+      return res.status(400).json({ error: 'Username already taken' });
+    }
+
     // Create new user
     const user = await UserModel.create({ 
-      email, 
-      username, 
+      email: trimmedEmail, 
+      username: trimmedUsername, 
       password,
-      player_name,
+      player_name: player_name.trim(),
       gender,
       age,
-      starting_state
+      starting_state: starting_state.trim()
     });
 
     // Generate JWT token
@@ -82,8 +109,11 @@ router.post('/login', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Email and password are required' });
     }
 
+    // Trim email
+    const trimmedEmail = email.trim();
+
     // Find user by email
-    const user = await UserModel.findByEmail(email);
+    const user = await UserModel.findByEmail(trimmedEmail);
     if (!user) {
       return res.status(401).json({ error: 'Invalid email or password' });
     }

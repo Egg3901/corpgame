@@ -65,7 +65,15 @@ export default function AuthForm({ mode }: AuthFormProps) {
   const router = useRouter();
   const [formData, setFormData] = useState<RegisterData | LoginData>(
     mode === 'register'
-      ? { email: '', username: '', password: '', player_name: '', gender: undefined, age: undefined, starting_state: undefined }
+      ? { 
+          email: '', 
+          username: '', 
+          password: '', 
+          player_name: '', 
+          gender: undefined, 
+          age: undefined, 
+          starting_state: undefined 
+        }
       : { email: '', password: '' }
   );
   const [error, setError] = useState('');
@@ -79,26 +87,70 @@ export default function AuthForm({ mode }: AuthFormProps) {
     try {
       let response;
       if (mode === 'register') {
-        response = await authAPI.register(formData as RegisterData);
+        const registerData = formData as RegisterData;
+        // Ensure required fields are not empty strings
+        if (!registerData.email?.trim() || !registerData.username?.trim() || !registerData.password || 
+            !registerData.player_name?.trim() || !registerData.gender || 
+            registerData.age === undefined || registerData.age === null || 
+            !registerData.starting_state?.trim()) {
+          setError('All fields are required');
+          setLoading(false);
+          return;
+        }
+        // Clean up the data before sending
+        const cleanedData: RegisterData = {
+          email: registerData.email.trim(),
+          username: registerData.username.trim(),
+          password: registerData.password,
+          player_name: registerData.player_name.trim(),
+          gender: registerData.gender,
+          age: registerData.age,
+          starting_state: registerData.starting_state.trim()
+        };
+        response = await authAPI.register(cleanedData);
       } else {
-        response = await authAPI.login(formData as LoginData);
+        const loginData = formData as LoginData;
+        if (!loginData.email?.trim() || !loginData.password) {
+          setError('Email and password are required');
+          setLoading(false);
+          return;
+        }
+        // Clean up the data before sending
+        const cleanedData: LoginData = {
+          email: loginData.email.trim(),
+          password: loginData.password
+        };
+        response = await authAPI.login(cleanedData);
       }
 
       // Store token
       localStorage.setItem('token', response.token);
       localStorage.setItem('user', JSON.stringify(response.user));
 
-      // Redirect to overview
-      router.push('/overview');
+      // Redirect to home page
+      router.push('/home');
     } catch (err: any) {
-      setError(err.response?.data?.error || 'An error occurred');
+      console.error('Auth error:', err);
+      const errorMessage = err.response?.data?.error || err.message || 'An error occurred';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const value = e.target.type === 'number' ? parseInt(e.target.value) || undefined : e.target.value;
+    let value: string | number | undefined = e.target.value;
+    
+    if (e.target.type === 'number') {
+      value = e.target.value === '' ? undefined : parseInt(e.target.value);
+      if (isNaN(value as number)) {
+        value = undefined;
+      }
+    } else if (e.target.tagName === 'SELECT') {
+      // For select elements, empty string means no selection
+      value = e.target.value === '' ? undefined : e.target.value;
+    }
+    
     setFormData({
       ...formData,
       [e.target.name]: value,
@@ -126,7 +178,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
               required
               value={(formData as RegisterData).username || ''}
               onChange={handleChange}
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-corporate-blue focus:border-corporate-blue"
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-corporate-blue focus:border-corporate-blue text-gray-900 bg-white"
             />
             <p className="mt-1 text-xs text-gray-500">Used for logging into your account</p>
           </div>
@@ -142,7 +194,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
               required
               value={(formData as RegisterData).player_name || ''}
               onChange={handleChange}
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-corporate-blue focus:border-corporate-blue"
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-corporate-blue focus:border-corporate-blue text-gray-900 bg-white"
             />
             <p className="mt-1 text-xs text-gray-500">This name will be displayed to other players in-game</p>
           </div>
@@ -157,7 +209,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
               required
               value={(formData as RegisterData).gender || ''}
               onChange={handleChange}
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-corporate-blue focus:border-corporate-blue"
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-corporate-blue focus:border-corporate-blue text-gray-900 bg-white"
             >
               <option value="">Select gender</option>
               <option value="m">Male</option>
@@ -179,7 +231,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
               max={80}
               value={(formData as RegisterData).age || ''}
               onChange={handleChange}
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-corporate-blue focus:border-corporate-blue"
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-corporate-blue focus:border-corporate-blue text-gray-900 bg-white"
             />
             <p className="mt-1 text-xs text-gray-500">Must be between 18 and 80</p>
           </div>
@@ -194,7 +246,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
               required
               value={(formData as RegisterData).starting_state || ''}
               onChange={handleChange}
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-corporate-blue focus:border-corporate-blue"
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-corporate-blue focus:border-corporate-blue text-gray-900 bg-white"
             >
               <option value="">Select a state</option>
               {US_STATES.map((state) => (
@@ -218,7 +270,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
           required
           value={formData.email}
           onChange={handleChange}
-          className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-corporate-blue focus:border-corporate-blue"
+          className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-corporate-blue focus:border-corporate-blue text-gray-900 bg-white"
         />
       </div>
 
@@ -234,7 +286,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
           minLength={6}
           value={formData.password}
           onChange={handleChange}
-          className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-corporate-blue focus:border-corporate-blue"
+          className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-corporate-blue focus:border-corporate-blue text-gray-900 bg-white"
         />
         {mode === 'register' && (
           <p className="mt-1 text-sm text-gray-500">Must be at least 6 characters</p>

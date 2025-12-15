@@ -28,9 +28,15 @@ export class UserModel {
     const { email, username, password, player_name, gender, age, starting_state } = userData;
     const password_hash = await bcrypt.hash(password, 10);
     
+    // Convert empty strings to null for optional fields
+    const cleanPlayerName = player_name && player_name.trim() !== '' ? player_name.trim() : null;
+    const cleanGender = gender && gender.trim() !== '' ? gender.trim() : null;
+    const cleanAge = age !== undefined && age !== null ? age : null;
+    const cleanStartingState = starting_state && starting_state.trim() !== '' ? starting_state.trim() : null;
+    
     const result = await pool.query(
       'INSERT INTO users (email, username, password_hash, player_name, gender, age, starting_state) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, email, username, player_name, gender, age, starting_state, created_at',
-      [email, username, password_hash, player_name || null, gender || null, age || null, starting_state || null]
+      [email.trim(), username.trim(), password_hash, cleanPlayerName, cleanGender, cleanAge, cleanStartingState]
     );
     
     return {
