@@ -7,7 +7,7 @@ import gameRoutes from './routes/game';
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = parseInt(process.env.PORT || '3001', 10);
 
 // Middleware
 // CORS: Allow requests from frontend URL (must include port number if not 80/443)
