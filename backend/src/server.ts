@@ -10,10 +10,13 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // Middleware
+// CORS: Allow requests from frontend URL (must include port number if not 80/443)
+const corsOrigin = process.env.FRONTEND_URL || 'http://localhost:3000';
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  origin: corsOrigin,
   credentials: true,
 }));
+console.log(`CORS enabled for origin: ${corsOrigin}`);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
