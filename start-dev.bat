@@ -29,3 +29,4 @@ if %ERRORLEVEL% EQU 0 (
     REM Fallback to npm dev script
     call npm run dev
 )
+

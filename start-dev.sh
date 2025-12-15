@@ -29,3 +29,4 @@ else
     # Fallback to npm dev script
     npm run dev
 fi
+

@@ -7,3 +7,4 @@ ADD COLUMN IF NOT EXISTS starting_state VARCHAR(2);
 
 -- Create index on player_name for faster lookups
 CREATE INDEX IF NOT EXISTS idx_users_player_name ON users(player_name);
+

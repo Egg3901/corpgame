@@ -56,3 +56,4 @@ else
     echo -e "${GREEN}Starting development servers...${NC}"
     npm run dev
 fi
+
