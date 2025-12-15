@@ -18,17 +18,36 @@ const getApiUrl = (): string => {
   return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 };
 
-const API_URL = getApiUrl();
-
+// Create axios instance - baseURL will be set dynamically per request
 const api = axios.create({
-  baseURL: API_URL,
   headers: {
     'Content-Type': 'application/json',
   },
   timeout: 10000, // 10 second timeout
 });
 
-// Add response interceptor for better error handling
+// Request interceptor: Set baseURL dynamically and add auth token
+api.interceptors.request.use((config) => {
+  // Dynamically set baseURL based on current window location (for browser requests)
+  if (typeof window !== 'undefined' && !config.baseURL) {
+    config.baseURL = getApiUrl();
+  } else if (!config.baseURL) {
+    // Fallback for SSR
+    config.baseURL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+  }
+  
+  // Add auth token if available
+  if (typeof window !== 'undefined') {
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+  }
+  
+  return config;
+});
+
+// Response interceptor for better error handling
 api.interceptors.response.use(
   (response) => response,
   (error) => {
@@ -41,17 +60,6 @@ api.interceptors.response.use(
     return Promise.reject(error);
   }
 );
-
-// Add token to requests if available
-api.interceptors.request.use((config) => {
-  if (typeof window !== 'undefined') {
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-  }
-  return config;
-});
 
 export interface RegisterData {
   email: string;
