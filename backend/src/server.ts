@@ -28,8 +28,9 @@ console.log(`  FRONTEND_URL: ${frontendUrl}`);
 console.log(`  Base Origin (any port): ${baseOrigin}`);
 console.log(`  NODE_ENV: ${process.env.NODE_ENV || 'not set'}`);
 
-app.use(cors({
-  origin: (origin, callback) => {
+// CORS configuration
+const corsOptions = {
+  origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) {
       console.log('CORS: Allowing request with no origin');
@@ -61,9 +62,17 @@ app.use(cors({
     }
   },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-}));
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  exposedHeaders: ['Content-Type', 'Authorization'],
+  preflightContinue: false,
+  optionsSuccessStatus: 204
+};
+
+app.use(cors(corsOptions));
+
+// Explicit OPTIONS handler as fallback (though cors middleware should handle this)
+app.options('*', cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -74,6 +83,16 @@ app.use('/api/game', gameRoutes);
 // Health check
 app.get('/health', (req, res) => {
   res.json({ status: 'ok' });
+});
+
+// CORS test endpoint
+app.get('/api/cors-test', (req, res) => {
+  res.json({ 
+    status: 'ok', 
+    message: 'CORS is working',
+    origin: req.headers.origin,
+    timestamp: new Date().toISOString()
+  });
 });
 
 app.listen(PORT, '0.0.0.0', () => {

@@ -1,4 +1,4 @@
-# Corporate Sim - EC2 Deployment Guide (Amazon Linux)
+# Corpgame - EC2 Deployment Guide (Amazon Linux)
 
 Complete guide from git clone to running application on Amazon Linux EC2.
 
@@ -67,8 +67,8 @@ sudo dnf install -y git
 
 ```bash
 cd ~
-git clone https://github.com/your-username/corporate-sim.git
-cd corporate-sim
+git clone https://github.com/your-username/corpgame.git
+cd corpgame
 ```
 
 **If repository is private:**
@@ -78,7 +78,7 @@ cd corporate-sim
 ssh-keygen -t ed25519 -C "your_email@example.com"
 cat ~/.ssh/id_ed25519.pub
 # Copy output and add to GitHub → Settings → SSH keys
-git clone git@github.com:your-username/corporate-sim.git
+git clone git@github.com:your-username/corpgame.git
 ```
 
 ## Step 4: Set Up PostgreSQL Database
@@ -130,14 +130,14 @@ sudo systemctl restart postgresql
 sudo systemctl status postgresql
 
 # Run database migration
-cd ~/corporate-sim
+cd ~/corpgame
 sudo -u postgres psql -d corporate_sim -f backend/migrations/001_initial.sql
 ```
 
 ## Step 5: Install Project Dependencies
 
 ```bash
-cd ~/corporate-sim
+cd ~/corpgame
 npm run install:all
 ```
 
@@ -146,7 +146,7 @@ npm run install:all
 ### Backend Environment
 
 ```bash
-cd ~/corporate-sim/backend
+cd ~/corpgame/backend
 nano .env
 ```
 
@@ -171,7 +171,7 @@ Save: `Ctrl+X`, then `Y`, then `Enter`
 ### Frontend Environment
 
 ```bash
-cd ~/corporate-sim/frontend
+cd ~/corpgame/frontend
 nano .env.local
 ```
 
@@ -185,7 +185,7 @@ Save: `Ctrl+X`, then `Y`, then `Enter`
 ## Step 7: Build Application
 
 ```bash
-cd ~/corporate-sim
+cd ~/corpgame
 
 # Build backend TypeScript
 cd backend
@@ -199,15 +199,15 @@ npm run build
 ## Step 8: Start with PM2
 
 ```bash
-cd ~/corporate-sim
+cd ~/corpgame
 
 # Start backend
 cd backend
-pm2 start dist/server.js --name corporate-sim-backend
+pm2 start dist/server.js --name corpgame-backend
 
 # Start frontend
 cd ../frontend
-pm2 start npm --name corporate-sim-frontend -- start
+pm2 start npm --name corpgame-frontend -- start
 
 # Save PM2 configuration
 pm2 save
@@ -265,7 +265,7 @@ sudo systemctl start nginx
 sudo systemctl enable nginx
 
 # Create site configuration
-sudo nano /etc/nginx/conf.d/corporate-sim.conf
+sudo nano /etc/nginx/conf.d/corpgame.conf
 ```
 
 Add:
@@ -311,7 +311,7 @@ pm2 stop all
 pm2 status
 
 # Update code
-cd ~/corporate-sim
+cd ~/corpgame
 git pull
 cd backend && npm run build
 cd ../frontend && npm run build
@@ -328,8 +328,8 @@ sudo -u postgres psql -d corporate_sim
 
 ### PM2 Process Not Starting
 ```bash
-pm2 logs corporate-sim-backend
-pm2 logs corporate-sim-frontend
+pm2 logs corpgame-backend
+pm2 logs corpgame-frontend
 ```
 
 ### Database Connection Error
@@ -356,7 +356,7 @@ sudo kill -9 <PID>
 ### Permission Denied Errors
 ```bash
 # Fix file permissions
-sudo chown -R ec2-user:ec2-user ~/corporate-sim
+sudo chown -R ec2-user:ec2-user ~/corpgame
 ```
 
 ### CORS Errors (Access-Control-Allow-Origin)
@@ -365,7 +365,7 @@ If you see CORS errors in the browser console like "blocked by CORS policy":
 
 1. **Check backend environment variable**:
 ```bash
-cd ~/corporate-sim/backend
+cd ~/corpgame/backend
 cat .env | grep FRONTEND_URL
 ```
 
@@ -377,16 +377,16 @@ cat .env | grep FRONTEND_URL
 
 3. **Check backend logs for CORS requests**:
 ```bash
-pm2 logs corporate-sim-backend
+pm2 logs corpgame-backend
 # Look for "CORS request from origin" messages
 ```
 
 4. **Rebuild and restart backend after code changes**:
 ```bash
-cd ~/corporate-sim/backend
+cd ~/corpgame/backend
 npm run build
-pm2 restart corporate-sim-backend
-pm2 logs corporate-sim-backend --lines 50
+pm2 restart corpgame-backend
+pm2 logs corpgame-backend --lines 50
 ```
 
 5. **Verify backend is receiving requests**:
@@ -394,12 +394,18 @@ pm2 logs corporate-sim-backend --lines 50
 # Test health endpoint
 curl http://localhost:3001/health
 
-# Test with CORS headers
-curl -H "Origin: http://your-ec2-ip:3000" \
+# Test CORS endpoint (should return CORS headers)
+curl -H "Origin: http://ec2-98-89-26-163.compute-1.amazonaws.com:3000" \
+     http://localhost:3001/api/cors-test
+
+# Test OPTIONS preflight request
+curl -H "Origin: http://ec2-98-89-26-163.compute-1.amazonaws.com:3000" \
      -H "Access-Control-Request-Method: POST" \
      -H "Access-Control-Request-Headers: Content-Type" \
      -X OPTIONS \
+     -v \
      http://localhost:3001/api/auth/register
+# Look for "Access-Control-Allow-Origin" in the response headers
 ```
 
 6. **If still having issues, temporarily allow all origins** (for testing only):
