@@ -159,6 +159,8 @@ FRONTEND_URL=http://your-ec2-ip
 NODE_ENV=production
 ```
 
+**Important**: Replace `your-ec2-ip` with your actual EC2 instance's public IP or hostname (e.g., `ec2-98-89-26-163.compute-1.amazonaws.com`). You can include or omit the port - the CORS configuration will match any port on the same hostname.
+
 Generate JWT secret:
 ```bash
 openssl rand -hex 32
@@ -356,6 +358,57 @@ sudo kill -9 <PID>
 # Fix file permissions
 sudo chown -R ec2-user:ec2-user ~/corporate-sim
 ```
+
+### CORS Errors (Access-Control-Allow-Origin)
+
+If you see CORS errors in the browser console like "blocked by CORS policy":
+
+1. **Check backend environment variable**:
+```bash
+cd ~/corporate-sim/backend
+cat .env | grep FRONTEND_URL
+```
+
+2. **Verify FRONTEND_URL is set correctly**:
+   - It should be set to your EC2 hostname/IP (with or without port)
+   - Example: `FRONTEND_URL=http://ec2-98-89-26-163.compute-1.amazonaws.com`
+   - Or: `FRONTEND_URL=http://ec2-98-89-26-163.compute-1.amazonaws.com:3000`
+   - The CORS configuration will match any port on the same hostname
+
+3. **Check backend logs for CORS requests**:
+```bash
+pm2 logs corporate-sim-backend
+# Look for "CORS request from origin" messages
+```
+
+4. **Rebuild and restart backend after code changes**:
+```bash
+cd ~/corporate-sim/backend
+npm run build
+pm2 restart corporate-sim-backend
+pm2 logs corporate-sim-backend --lines 50
+```
+
+5. **Verify backend is receiving requests**:
+```bash
+# Test health endpoint
+curl http://localhost:3001/health
+
+# Test with CORS headers
+curl -H "Origin: http://your-ec2-ip:3000" \
+     -H "Access-Control-Request-Method: POST" \
+     -H "Access-Control-Request-Headers: Content-Type" \
+     -X OPTIONS \
+     http://localhost:3001/api/auth/register
+```
+
+6. **If still having issues, temporarily allow all origins** (for testing only):
+   - Edit `backend/src/server.ts` and change CORS to allow all:
+   ```typescript
+   app.use(cors({ origin: true, credentials: true }));
+   ```
+   - Rebuild and restart
+   - **Note**: Only for debugging! Restore proper CORS after testing.
 
 ## Next Steps
 

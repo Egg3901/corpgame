@@ -13,30 +13,57 @@ const PORT = parseInt(process.env.PORT || '3001', 10);
 // CORS: Allow requests from frontend URL
 const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
 // Extract base URL (protocol + hostname, without port)
-const urlObj = new URL(frontendUrl);
-const baseOrigin = `${urlObj.protocol}//${urlObj.hostname}`;
+let baseOrigin: string;
+try {
+  const urlObj = new URL(frontendUrl);
+  baseOrigin = `${urlObj.protocol}//${urlObj.hostname}`;
+} catch (error) {
+  console.error('Invalid FRONTEND_URL in environment:', frontendUrl);
+  baseOrigin = 'http://localhost';
+}
+
+// Log CORS configuration for debugging
+console.log(`CORS Configuration:`);
+console.log(`  FRONTEND_URL: ${frontendUrl}`);
+console.log(`  Base Origin (any port): ${baseOrigin}`);
+console.log(`  NODE_ENV: ${process.env.NODE_ENV || 'not set'}`);
 
 app.use(cors({
   origin: (origin, callback) => {
     // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
+    if (!origin) {
+      console.log('CORS: Allowing request with no origin');
+      return callback(null, true);
+    }
     
-    // Allow if origin matches base (any port is acceptable)
-    const originUrl = new URL(origin);
-    const originBase = `${originUrl.protocol}//${originUrl.hostname}`;
-    
-    if (originBase === baseOrigin || origin === frontendUrl) {
-      callback(null, true);
-    } else if (process.env.NODE_ENV !== 'production' && origin.includes('localhost')) {
-      // In development, allow localhost
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
+    try {
+      // Allow if origin matches base (any port is acceptable)
+      const originUrl = new URL(origin);
+      const originBase = `${originUrl.protocol}//${originUrl.hostname}`;
+      
+      // Log all CORS requests for debugging
+      console.log(`CORS request from origin: ${origin} (base: ${originBase})`);
+      
+      if (originBase === baseOrigin || origin === frontendUrl) {
+        console.log(`CORS: Allowed - origin matches base`);
+        callback(null, true);
+      } else if (process.env.NODE_ENV !== 'production' && origin.includes('localhost')) {
+        // In development, allow localhost
+        console.log(`CORS: Allowed - localhost in development`);
+        callback(null, true);
+      } else {
+        console.log(`CORS: Blocked - origin does not match allowed origins`);
+        callback(new Error(`Not allowed by CORS. Origin: ${origin}, Allowed base: ${baseOrigin}`));
+      }
+    } catch (error) {
+      console.error('CORS: Error parsing origin:', origin, error);
+      callback(new Error('Invalid origin'));
     }
   },
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
 }));
-console.log(`CORS enabled for origin base: ${baseOrigin} (any port)`);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
