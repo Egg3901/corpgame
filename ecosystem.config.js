@@ -27,6 +27,7 @@ module.exports = {
       env: {
         NODE_ENV: process.env.NODE_ENV || 'development',
         PORT: 3000,
+        HOSTNAME: '0.0.0.0',
       },
       error_file: './logs/frontend-error.log',
       out_file: './logs/frontend-out.log',
