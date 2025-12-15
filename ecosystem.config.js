@@ -3,8 +3,8 @@ module.exports = {
     {
       name: 'corpgame-backend',
       cwd: './backend',
-      script: process.env.NODE_ENV === 'production' ? 'npm' : 'npm',
-      args: process.env.NODE_ENV === 'production' ? 'start' : 'run dev',
+      script: process.env.NODE_ENV === 'production' ? 'node' : 'npm',
+      args: process.env.NODE_ENV === 'production' ? 'dist/server.js' : 'run dev',
       env: {
         NODE_ENV: process.env.NODE_ENV || 'development',
         PORT: 3001,
@@ -41,4 +41,5 @@ module.exports = {
     },
   ],
 };
+
 
