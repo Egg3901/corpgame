@@ -18,6 +18,23 @@ const getApiUrl = (): string => {
   return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 };
 
+// Debug function - logs API URL detection
+const debugApiUrl = (): void => {
+  if (typeof window !== 'undefined') {
+    console.log('API URL Detection:', {
+      protocol: window.location.protocol,
+      hostname: window.location.hostname,
+      port: window.location.port,
+      detectedUrl: getApiUrl()
+    });
+  }
+};
+
+// Call debug function (only in browser)
+if (typeof window !== 'undefined') {
+  debugApiUrl();
+}
+
 // Create axios instance - baseURL will be set dynamically per request
 const api = axios.create({
   headers: {
