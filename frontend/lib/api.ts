@@ -7,7 +7,22 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  timeout: 10000, // 10 second timeout
 });
+
+// Add response interceptor for better error handling
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    // Log full error for debugging
+    if (error.code === 'ECONNREFUSED') {
+      console.error('Connection refused - is the backend server running?');
+    } else if (error.message === 'Network Error') {
+      console.error('Network error - check CORS settings and server availability');
+    }
+    return Promise.reject(error);
+  }
+);
 
 // Add token to requests if available
 api.interceptors.request.use((config) => {

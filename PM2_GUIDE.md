@@ -9,7 +9,27 @@ Install PM2 globally:
 npm install -g pm2
 ```
 
-## Initial Setup
+## Quick Start (Development Mode)
+
+**Easiest way to run both frontend and backend:**
+
+```bash
+# Option 1: Simple npm command (uses concurrently)
+npm run dev
+
+# Option 2: Use PM2 for better process management
+npm run start:pm2
+# or
+pm2 start ecosystem.config.js
+
+# Option 3: Use the start script (auto-detects PM2)
+bash start-dev.sh        # Linux/Mac
+start-dev.bat            # Windows
+```
+
+This will start both backend (port 3001) and frontend (port 3000) in development mode with auto-reload.
+
+## Production Setup
 
 ### 1. Build the Application
 
@@ -30,13 +50,15 @@ cd frontend && npm install && npm run build && cd ..
 mkdir -p logs
 ```
 
-### 3. Start with PM2
+### 3. Start with PM2 (Production)
 
 ```bash
-pm2 start ecosystem.config.js
+npm run start:pm2:prod
+# or
+NODE_ENV=production pm2 start ecosystem.config.js
 ```
 
-This will start both backend and frontend processes.
+This will start both backend and frontend processes in production mode.
 
 ## Common PM2 Commands
 

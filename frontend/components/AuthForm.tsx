@@ -131,7 +131,22 @@ export default function AuthForm({ mode }: AuthFormProps) {
       router.push('/home');
     } catch (err: any) {
       console.error('Auth error:', err);
-      const errorMessage = err.response?.data?.error || err.message || 'An error occurred';
+      
+      // More detailed error handling
+      let errorMessage = 'An error occurred';
+      
+      if (err.code === 'ECONNREFUSED' || err.message?.includes('Network Error')) {
+        errorMessage = 'Cannot connect to server. Please ensure the backend server is running on port 3001.';
+      } else if (err.response) {
+        // Server responded with error status
+        errorMessage = err.response.data?.error || err.response.data?.message || `Server error: ${err.response.status}`;
+      } else if (err.request) {
+        // Request made but no response received
+        errorMessage = 'No response from server. Please check your connection and ensure the backend is running.';
+      } else {
+        errorMessage = err.message || 'An unexpected error occurred';
+      }
+      
       setError(errorMessage);
     } finally {
       setLoading(false);
