@@ -24,6 +24,10 @@ export interface RegisterData {
   email: string;
   username: string;
   password: string;
+  player_name?: string;
+  gender?: 'm' | 'f' | 'nonbinary';
+  age?: number;
+  starting_state?: string;
 }
 
 export interface LoginData {
@@ -37,6 +41,10 @@ export interface AuthResponse {
     id: number;
     email: string;
     username: string;
+    player_name?: string;
+    gender?: 'm' | 'f' | 'nonbinary';
+    age?: number;
+    starting_state?: string;
   };
 }
 

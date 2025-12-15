@@ -5,6 +5,10 @@ export interface User {
   id: number;
   email: string;
   username: string;
+  player_name?: string;
+  gender?: 'm' | 'f' | 'nonbinary';
+  age?: number;
+  starting_state?: string;
   password_hash: string;
   created_at: Date;
 }
@@ -13,16 +17,20 @@ export interface UserInput {
   email: string;
   username: string;
   password: string;
+  player_name?: string;
+  gender?: 'm' | 'f' | 'nonbinary';
+  age?: number;
+  starting_state?: string;
 }
 
 export class UserModel {
   static async create(userData: UserInput): Promise<User> {
-    const { email, username, password } = userData;
+    const { email, username, password, player_name, gender, age, starting_state } = userData;
     const password_hash = await bcrypt.hash(password, 10);
     
     const result = await pool.query(
-      'INSERT INTO users (email, username, password_hash) VALUES ($1, $2, $3) RETURNING id, email, username, created_at',
-      [email, username, password_hash]
+      'INSERT INTO users (email, username, password_hash, player_name, gender, age, starting_state) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, email, username, player_name, gender, age, starting_state, created_at',
+      [email, username, password_hash, player_name || null, gender || null, age || null, starting_state || null]
     );
     
     return {
@@ -42,7 +50,7 @@ export class UserModel {
 
   static async findById(id: number): Promise<User | null> {
     const result = await pool.query(
-      'SELECT id, email, username, created_at FROM users WHERE id = $1',
+      'SELECT id, email, username, player_name, gender, age, starting_state, created_at FROM users WHERE id = $1',
       [id]
     );
     

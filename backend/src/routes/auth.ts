@@ -8,7 +8,7 @@ const router = express.Router();
 // Register new user
 router.post('/register', async (req: Request, res: Response) => {
   try {
-    const { email, username, password }: UserInput = req.body;
+    const { email, username, password, player_name, gender, age, starting_state }: UserInput = req.body;
 
     if (!email || !username || !password) {
       return res.status(400).json({ error: 'Email, username, and password are required' });
@@ -18,6 +18,16 @@ router.post('/register', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Password must be at least 6 characters' });
     }
 
+    // Validate gender if provided
+    if (gender && !['m', 'f', 'nonbinary'].includes(gender)) {
+      return res.status(400).json({ error: 'Gender must be m, f, or nonbinary' });
+    }
+
+    // Validate age if provided
+    if (age !== undefined && (age < 18 || age > 80)) {
+      return res.status(400).json({ error: 'Age must be between 18 and 80' });
+    }
+
     // Check if user already exists
     const existingUser = await UserModel.findByEmail(email);
     if (existingUser) {
@@ -25,7 +35,15 @@ router.post('/register', async (req: Request, res: Response) => {
     }
 
     // Create new user
-    const user = await UserModel.create({ email, username, password });
+    const user = await UserModel.create({ 
+      email, 
+      username, 
+      password,
+      player_name,
+      gender,
+      age,
+      starting_state
+    });
 
     // Generate JWT token
     const token = jwt.sign(
@@ -40,6 +58,10 @@ router.post('/register', async (req: Request, res: Response) => {
         id: user.id,
         email: user.email,
         username: user.username,
+        player_name: user.player_name,
+        gender: user.gender,
+        age: user.age,
+        starting_state: user.starting_state,
       },
     });
   } catch (error: any) {
@@ -85,6 +107,10 @@ router.post('/login', async (req: Request, res: Response) => {
         id: user.id,
         email: user.email,
         username: user.username,
+        player_name: user.player_name,
+        gender: user.gender,
+        age: user.age,
+        starting_state: user.starting_state,
       },
     });
   } catch (error) {
@@ -105,6 +131,10 @@ router.get('/me', authenticateToken, async (req: AuthRequest, res: Response) => 
       id: user.id,
       email: user.email,
       username: user.username,
+      player_name: user.player_name,
+      gender: user.gender,
+      age: user.age,
+      starting_state: user.starting_state,
       created_at: user.created_at,
     });
   } catch (error) {
