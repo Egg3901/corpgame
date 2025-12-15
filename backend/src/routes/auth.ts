@@ -93,10 +93,37 @@ router.post('/register', async (req: Request, res: Response) => {
     });
   } catch (error: any) {
     console.error('Registration error:', error);
+    console.error('Error stack:', error.stack);
+    console.error('Error details:', {
+      message: error.message,
+      code: error.code,
+      detail: error.detail,
+      constraint: error.constraint,
+      table: error.table,
+      column: error.column
+    });
+    
     if (error.code === '23505') {
       return res.status(400).json({ error: 'Username or email already exists' });
     }
-    res.status(500).json({ error: 'Internal server error' });
+    
+    // Provide more helpful error messages
+    if (error.code === '42P01') {
+      return res.status(500).json({ error: 'Database table does not exist. Please run migrations.' });
+    }
+    if (error.code === '42703') {
+      return res.status(500).json({ error: 'Database column does not exist. Please run migration 002.' });
+    }
+    if (error.code === '28P01' || error.code === '3D000') {
+      return res.status(500).json({ error: 'Database connection failed. Check DATABASE_URL in .env' });
+    }
+    
+    // Log full error for debugging
+    const errorMessage = error.message || 'Unknown error';
+    res.status(500).json({ 
+      error: 'Internal server error',
+      details: process.env.NODE_ENV !== 'production' ? errorMessage : undefined
+    });
   }
 });
 

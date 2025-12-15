@@ -129,9 +129,14 @@ sudo systemctl restart postgresql
 # Verify PostgreSQL is running
 sudo systemctl status postgresql
 
-# Run database migration
+# Run database migrations (both are required!)
 cd ~/corpgame
 sudo -u postgres psql -d corporate_sim -f backend/migrations/001_initial.sql
+sudo -u postgres psql -d corporate_sim -f backend/migrations/002_add_user_profile_fields.sql
+
+# Verify migrations ran successfully
+sudo -u postgres psql -d corporate_sim -c "\d users"
+# Should show columns: id, email, username, password_hash, player_name, gender, age, starting_state, created_at
 ```
 
 ## Step 5: Install Project Dependencies
@@ -150,18 +155,41 @@ cd ~/corpgame/backend
 nano .env
 ```
 
-Add (replace with your values):
+Add the complete configuration (replace with your values):
 ```env
-DATABASE_URL=postgresql://corporatesim_user:your_secure_password_here@localhost:5432/corporate_sim
-JWT_SECRET=generate-random-secret-here
+# Database Configuration
+# Format: postgresql://username:password@host:port/database
+DATABASE_URL=postgresql://corporatesim_user:turtlemode@localhost:5432/corporate_sim
+
+# JWT Secret Key
+# Generate a secure random secret with: openssl rand -hex 32
+# NEVER commit this to version control!
+JWT_SECRET=turtlemode
+
+# Server Port
+# Default: 3001
 PORT=3001
-FRONTEND_URL=http://your-ec2-ip
+
+# Frontend URL for CORS Configuration
+# Replace with your actual EC2 hostname (e.g., ec2-98-89-26-163.compute-1.amazonaws.com)
+# Can include or omit the port - CORS will match any port on the same hostname
+FRONTEND_URL=http://ec2-98-89-26-163.compute-1.amazonaws.com
+
+# Optional: Additional Allowed Origins (comma-separated)
+# If you have multiple frontend URLs or need to allow specific origins
+# Example: ALLOWED_ORIGINS=http://example.com,http://staging.example.com
+# ALLOWED_ORIGINS=
+
+# Environment
+# Set to 'production' for production deployments
+# When not 'production', localhost origins are allowed for development
 NODE_ENV=production
 ```
 
-**Important**: Replace `your-ec2-ip` with your actual EC2 instance's public IP or hostname (e.g., `ec2-98-89-26-163.compute-1.amazonaws.com`). You can include or omit the port - the CORS configuration will match any port on the same hostname.
-
-Generate JWT secret:
+**Important**: 
+- Replace `your_secure_password_here` with your actual PostgreSQL password
+- Replace `ec2-98-89-26-163.compute-1.amazonaws.com` with your actual EC2 hostname
+- Generate JWT secret:
 ```bash
 openssl rand -hex 32
 ```
@@ -415,6 +443,56 @@ curl -H "Origin: http://ec2-98-89-26-163.compute-1.amazonaws.com:3000" \
    ```
    - Rebuild and restart
    - **Note**: Only for debugging! Restore proper CORS after testing.
+
+### 500 Internal Server Error (Registration/Login)
+
+If you see 500 errors when trying to register or login:
+
+1. **Check backend logs for detailed error messages**:
+```bash
+pm2 logs corpgame-backend --lines 100
+# Look for "Registration error:" or "Login error:" messages
+```
+
+2. **Verify database migrations have been run**:
+```bash
+# Check if all required columns exist
+cd ~/corpgame/backend
+psql $DATABASE_URL -c "\d users"
+
+# Should show these columns:
+# - id, email, username, password_hash, created_at (from migration 001)
+# - player_name, gender, age, starting_state (from migration 002)
+```
+
+3. **Run missing migrations if needed**:
+```bash
+cd ~/corpgame/backend
+# Run migration 002 if you see missing columns
+psql $DATABASE_URL -f migrations/002_add_user_profile_fields.sql
+```
+
+4. **Check database connection**:
+```bash
+# Test database connection
+cd ~/corpgame/backend
+psql $DATABASE_URL -c "SELECT 1;"
+```
+
+5. **Verify DATABASE_URL in .env**:
+```bash
+cd ~/corpgame/backend
+cat .env | grep DATABASE_URL
+# Should match: postgresql://username:password@localhost:5432/corporate_sim
+```
+
+6. **Rebuild and restart after fixing**:
+```bash
+cd ~/corpgame/backend
+npm run build
+pm2 restart corpgame-backend
+pm2 logs corpgame-backend --lines 50
+```
 
 ## Next Steps
 

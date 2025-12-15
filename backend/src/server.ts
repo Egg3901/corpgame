@@ -14,18 +14,34 @@ const PORT = parseInt(process.env.PORT || '3001', 10);
 const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
 // Extract base URL (protocol + hostname, without port)
 let baseOrigin: string;
+let allowedOrigins: string[] = [];
 try {
   const urlObj = new URL(frontendUrl);
   baseOrigin = `${urlObj.protocol}//${urlObj.hostname}`;
+  
+  // Also parse ALLOWED_ORIGINS if set (comma-separated list)
+  if (process.env.ALLOWED_ORIGINS) {
+    allowedOrigins = process.env.ALLOWED_ORIGINS.split(',').map(o => {
+      try {
+        const u = new URL(o.trim());
+        return `${u.protocol}//${u.hostname}`;
+      } catch {
+        return o.trim();
+      }
+    });
+  }
+  allowedOrigins.push(baseOrigin); // Always include FRONTEND_URL
 } catch (error) {
   console.error('Invalid FRONTEND_URL in environment:', frontendUrl);
   baseOrigin = 'http://localhost';
+  allowedOrigins = ['http://localhost'];
 }
 
 // Log CORS configuration for debugging
 console.log(`CORS Configuration:`);
 console.log(`  FRONTEND_URL: ${frontendUrl}`);
 console.log(`  Base Origin (any port): ${baseOrigin}`);
+console.log(`  Allowed Origins: ${allowedOrigins.join(', ')}`);
 console.log(`  NODE_ENV: ${process.env.NODE_ENV || 'not set'}`);
 
 // CORS configuration
@@ -45,8 +61,13 @@ const corsOptions = {
       // Log all CORS requests for debugging
       console.log(`CORS request from origin: ${origin} (base: ${originBase})`);
       
-      if (originBase === baseOrigin || origin === frontendUrl) {
-        console.log(`CORS: Allowed - origin matches base`);
+      // Check if origin matches any allowed origin
+      const isAllowed = allowedOrigins.some(allowed => {
+        return originBase === allowed || origin === frontendUrl || origin.startsWith(allowed + ':');
+      });
+      
+      if (isAllowed) {
+        console.log(`CORS: Allowed - origin matches allowed origins`);
         callback(null, true);
       } else if (process.env.NODE_ENV !== 'production' && origin.includes('localhost')) {
         // In development, allow localhost
@@ -54,7 +75,9 @@ const corsOptions = {
         callback(null, true);
       } else {
         console.log(`CORS: Blocked - origin does not match allowed origins`);
-        callback(new Error(`Not allowed by CORS. Origin: ${origin}, Allowed base: ${baseOrigin}`));
+        console.log(`  Requested: ${originBase}`);
+        console.log(`  Allowed: ${allowedOrigins.join(', ')}`);
+        callback(new Error(`Not allowed by CORS. Origin: ${origin}, Allowed bases: ${allowedOrigins.join(', ')}`));
       }
     } catch (error) {
       console.error('CORS: Error parsing origin:', origin, error);
