@@ -76,7 +76,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
           registration_secret: '',
           admin_secret: ''
         }
-      : { username: '', password: '' }
+      : { email: '', password: '' }
   );
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -114,14 +114,14 @@ export default function AuthForm({ mode }: AuthFormProps) {
         response = await authAPI.register(cleanedData);
       } else {
         const loginData = formData as LoginData;
-        if (!loginData.username?.trim() || !loginData.password) {
-          setError('Username and password are required');
+        if (!loginData.email?.trim() || !loginData.password) {
+          setError('Email and password are required');
           setLoading(false);
           return;
         }
         // Clean up the data before sending
         const cleanedData: LoginData = {
-          username: loginData.username.trim(),
+          email: loginData.email.trim(),
           password: loginData.password
         };
         response = await authAPI.login(cleanedData);
