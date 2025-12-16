@@ -94,6 +94,87 @@ Administrators (users with `is_admin = true`) can manage security via:
 
 All admin routes require a valid JWT with admin privileges.
 
+## Deployment Guide (Start → Finish)
+
+Follow these steps to go from a fresh EC2/VM to a running production stack managed by PM2.
+
+1. **Prep the server**
+   - Install system packages: `sudo dnf install -y git nodejs npm postgresql15` (adjust for your distro).
+   - Install PM2 globally: `sudo npm install -g pm2`.
+   - Open the required ports in your security group/firewall (SSH 22, backend 3001, frontend 3000 or your custom ports).
+
+2. **Clone the repo and install dependencies**
+   ```bash
+   git clone <repo-url> corporate-sim && cd corporate-sim
+   npm run install:all
+   ```
+
+3. **Create environment files**
+   - `backend/.env`
+     ```ini
+     DATABASE_URL=postgresql://user:pass@db-host:5432/corporate_sim
+     JWT_SECRET=replace-me
+     REGISTRATION_SECRET=shared-signup-code
+     ADMIN_SECRET=optional-admin-code
+     FRONTEND_URL=http://your-domain-or-ip:3000
+     PORT=3001
+     NODE_ENV=production
+     ```
+   - `frontend/.env.local`
+     ```ini
+     NEXT_PUBLIC_API_URL=http://your-domain-or-ip:3001
+     ```
+
+4. **Run database migrations**
+   ```bash
+   cd backend
+   psql -U user -d corporate_sim -f migrations/001_initial.sql   # plus later migrations if present
+   cd ..
+   ```
+
+5. **Build production artifacts**
+   ```bash
+   NODE_ENV=production bash scripts/build-and-start.sh
+   ```
+   This installs any missing packages inside `frontend/` and `backend/` and produces `backend/dist` + `frontend/.next`.
+
+6. **Start everything with PM2**
+   ```bash
+   NODE_ENV=production pm2 start ecosystem.config.js
+   pm2 status   # confirm corpgame-backend and corpgame-frontend show "online"
+   ```
+   The ecosystem file runs `node dist/server.js` for the backend and `next start` for the frontend (no dev watchers).
+
+7. **Verify**
+   - Backend health: `curl http://<server-ip>:3001/health` → expect `{"status":"ok"}`.
+   - Frontend: load `http://<server-ip>:3000` in a browser.
+   - Logs: `pm2 logs corpgame-backend` / `pm2 logs corpgame-frontend`.
+
+8. **Persist across reboots (optional after verifying)**
+   ```bash
+   pm2 save
+   pm2 startup systemd
+   # follow the command PM2 prints, e.g.
+   sudo env PATH=$PATH:/usr/bin pm2 startup systemd -u ec2-user --hp /home/ec2-user
+   ```
+   To disable later, run `pm2 unstartup systemd` and delete `~/.pm2/dump.pm2`.
+
+9. **Deploying updates**
+   ```bash
+   git pull
+   NODE_ENV=production bash scripts/build-and-start.sh
+   pm2 reload ecosystem.config.js
+   ```
+   Reload gives zero-downtime restarts with the new build.
+
+10. **Emergency stop / cleanup**
+    ```bash
+    pm2 stop all
+    pm2 delete all
+    rm ~/.pm2/dump.pm2    # prevents PM2 from auto-starting on the next boot
+    ```
+    Use this if you need the server to boot without any apps (e.g., for troubleshooting).
+
 ## License
 
 MIT
