@@ -5,13 +5,20 @@ import fs from 'fs';
 dotenv.config();
 
 const ssl = (() => {
-  const rootCertPath = process.env.PGSSLROOTCERT;
-  if (rootCertPath) {
-    return { ca: fs.readFileSync(rootCertPath, 'utf8'), rejectUnauthorized: true };
-  }
-
   if (process.env.PGSSLINSECURE === 'true') {
     return { rejectUnauthorized: false };
+  }
+
+  const rootCertPath = process.env.PGSSLROOTCERT;
+  if (rootCertPath) {
+    const ca = fs.readFileSync(rootCertPath, 'utf8');
+    let servername: string | undefined;
+    try {
+      servername = new URL(process.env.DATABASE_URL || '').hostname;
+    } catch {
+      servername = undefined;
+    }
+    return { ca, rejectUnauthorized: true, servername };
   }
 
   return undefined;
@@ -28,5 +35,4 @@ pool.on('error', (err) => {
 });
 
 export default pool;
-
 

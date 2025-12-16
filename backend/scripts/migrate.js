@@ -15,17 +15,23 @@ if (!DATABASE_URL) {
 const migrationsDir = path.join(__dirname, '..', 'migrations');
 
 function buildSslConfig() {
+  // Escape hatch for debugging only. Do not use in production.
+  if (process.env.PGSSLINSECURE === 'true') {
+    return { rejectUnauthorized: false };
+  }
+
   // Prefer explicit CA bundle if provided (works well for AWS RDS/Aurora).
   // This env var is our convention (not libpq). It can be set in backend/.env.
   const rootCertPath = process.env.PGSSLROOTCERT;
   if (rootCertPath) {
     const ca = fs.readFileSync(rootCertPath, 'utf8');
-    return { ca, rejectUnauthorized: true };
-  }
-
-  // Escape hatch for debugging only. Do not use in production.
-  if (process.env.PGSSLINSECURE === 'true') {
-    return { rejectUnauthorized: false };
+    let servername;
+    try {
+      servername = new URL(DATABASE_URL).hostname;
+    } catch {
+      servername = undefined;
+    }
+    return { ca, rejectUnauthorized: true, servername };
   }
 
   // Default: rely on system trust store.

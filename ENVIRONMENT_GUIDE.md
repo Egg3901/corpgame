@@ -22,7 +22,7 @@ Corporate Sim uses `.env` files to keep secrets per service. This guide document
 |----------|-----------|-------------|
 | `DATABASE_URL` | Yes | PostgreSQL connection string: `postgresql://user:pass@host:5432/database` |
 | `PGSSLROOTCERT` | Optional (recommended for RDS/Aurora) | Path to a PEM CA bundle file to trust for Postgres TLS connections (used by the app + migration runner) |
-| `PGSSLINSECURE` | Optional | Set to `true` to disable TLS cert validation (debug only; do not use in production) |
+| `PGSSLINSECURE` | Optional | Set to `true` to disable TLS cert validation (debug only; do not use in production). When `true`, it overrides `PGSSLROOTCERT`. |
 | `JWT_SECRET` | Yes | 32+ char random string used to sign auth tokens |
 | `REGISTRATION_SECRET` | Optional (recommended) | Shared code required to create accounts; blank disables the gate |
 | `ADMIN_SECRET` | Optional | Passphrase that allows a registrant to become `is_admin=true` |

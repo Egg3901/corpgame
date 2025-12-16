@@ -104,6 +104,15 @@ chmod 600 /home/ec2-user/rds-ca-bundle.pem
 
 Then set `PGSSLROOTCERT=/home/ec2-user/rds-ca-bundle.pem` in `backend/.env` and restart the backend (and rerun `npm run migrate` if needed).
 
+If you still see cert-chain errors, try the region-specific bundle (example for us-east-1):
+
+```bash
+curl -fsSL -o /home/ec2-user/rds-ca-bundle.pem https://truststore.pki.rds.amazonaws.com/us-east-1/us-east-1-bundle.pem
+chmod 600 /home/ec2-user/rds-ca-bundle.pem
+```
+
+As a last-resort debugging step only, you can set `PGSSLINSECURE=true` to disable certificate validation.
+
 ---
 
 ## 7. Environment Variables
