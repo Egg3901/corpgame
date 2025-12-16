@@ -2,6 +2,6 @@
 
 import ProfileDashboard from '@/components/ProfileDashboard';
 
-export default function HomePage() {
+export default function ProfilePage() {
   return <ProfileDashboard />;
 }

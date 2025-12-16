@@ -9,6 +9,7 @@ export interface User {
   gender?: 'm' | 'f' | 'nonbinary';
   age?: number;
   starting_state?: string;
+  is_admin?: boolean;
   password_hash: string;
   created_at: Date;
 }
@@ -21,11 +22,12 @@ export interface UserInput {
   gender?: 'm' | 'f' | 'nonbinary';
   age?: number;
   starting_state?: string;
+  is_admin?: boolean;
 }
 
 export class UserModel {
   static async create(userData: UserInput): Promise<User> {
-    const { email, username, password, player_name, gender, age, starting_state } = userData;
+    const { email, username, password, player_name, gender, age, starting_state, is_admin = false } = userData;
     const password_hash = await bcrypt.hash(password, 10);
     
     // Convert empty strings to null for optional fields
@@ -35,8 +37,8 @@ export class UserModel {
     const cleanStartingState = starting_state && starting_state.trim() !== '' ? starting_state.trim() : null;
     
     const result = await pool.query(
-      'INSERT INTO users (email, username, password_hash, player_name, gender, age, starting_state) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, email, username, player_name, gender, age, starting_state, created_at',
-      [email.trim(), username.trim(), password_hash, cleanPlayerName, cleanGender, cleanAge, cleanStartingState]
+      'INSERT INTO users (email, username, password_hash, player_name, gender, age, starting_state, is_admin) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id, email, username, player_name, gender, age, starting_state, is_admin, created_at',
+      [email.trim(), username.trim(), password_hash, cleanPlayerName, cleanGender, cleanAge, cleanStartingState, is_admin]
     );
     
     return {
@@ -56,7 +58,7 @@ export class UserModel {
 
   static async findById(id: number): Promise<User | null> {
     const result = await pool.query(
-      'SELECT id, email, username, player_name, gender, age, starting_state, created_at FROM users WHERE id = $1',
+      'SELECT id, email, username, player_name, gender, age, starting_state, is_admin, created_at FROM users WHERE id = $1',
       [id]
     );
     
@@ -67,5 +69,4 @@ export class UserModel {
     return bcrypt.compare(password, hash);
   }
 }
-
 

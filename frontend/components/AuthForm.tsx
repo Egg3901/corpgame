@@ -72,7 +72,9 @@ export default function AuthForm({ mode }: AuthFormProps) {
           player_name: '', 
           gender: undefined, 
           age: undefined, 
-          starting_state: undefined 
+          starting_state: undefined,
+          registration_secret: '',
+          admin_secret: ''
         }
       : { email: '', password: '' }
   );
@@ -92,7 +94,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
         if (!registerData.email?.trim() || !registerData.username?.trim() || !registerData.password || 
             !registerData.player_name?.trim() || !registerData.gender || 
             registerData.age === undefined || registerData.age === null || 
-            !registerData.starting_state?.trim()) {
+            !registerData.starting_state?.trim() || !registerData.registration_secret?.trim()) {
           setError('All fields are required');
           setLoading(false);
           return;
@@ -105,7 +107,9 @@ export default function AuthForm({ mode }: AuthFormProps) {
           player_name: registerData.player_name.trim(),
           gender: registerData.gender,
           age: registerData.age,
-          starting_state: registerData.starting_state.trim()
+          starting_state: registerData.starting_state.trim(),
+          registration_secret: registerData.registration_secret?.trim(),
+          admin_secret: registerData.admin_secret?.trim() || undefined
         };
         response = await authAPI.register(cleanedData);
       } else {
@@ -271,6 +275,37 @@ export default function AuthForm({ mode }: AuthFormProps) {
               ))}
             </select>
           </div>
+
+          <div>
+            <label htmlFor="registration_secret" className="block text-sm font-medium text-gray-700">
+              Registration Secret
+            </label>
+            <input
+              id="registration_secret"
+              name="registration_secret"
+              type="text"
+              required
+              value={(formData as RegisterData).registration_secret || ''}
+              onChange={handleChange}
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-corporate-blue focus:border-corporate-blue text-gray-900 bg-white"
+            />
+            <p className="mt-1 text-xs text-gray-500">Enter the registration secret provided to you.</p>
+          </div>
+
+          <div>
+            <label htmlFor="admin_secret" className="block text-sm font-medium text-gray-700">
+              Admin Secret <span className="text-gray-500 text-xs">(optional)</span>
+            </label>
+            <input
+              id="admin_secret"
+              name="admin_secret"
+              type="text"
+              value={(formData as RegisterData).admin_secret || ''}
+              onChange={handleChange}
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-corporate-blue focus:border-corporate-blue text-gray-900 bg-white"
+            />
+            <p className="mt-1 text-xs text-gray-500">Provide the admin secret if you should have admin access.</p>
+          </div>
         </>
       )}
 
@@ -318,5 +353,3 @@ export default function AuthForm({ mode }: AuthFormProps) {
     </form>
   );
 }
-
-

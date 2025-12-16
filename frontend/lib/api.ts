@@ -86,6 +86,8 @@ export interface RegisterData {
   gender?: 'm' | 'f' | 'nonbinary';
   age?: number;
   starting_state?: string;
+  registration_secret?: string;
+  admin_secret?: string;
 }
 
 export interface LoginData {
@@ -103,6 +105,7 @@ export interface AuthResponse {
     gender?: 'm' | 'f' | 'nonbinary';
     age?: number;
     starting_state?: string;
+    is_admin?: boolean;
   };
 }
 
@@ -139,4 +142,3 @@ export const authAPI = {
 };
 
 export default api;
-

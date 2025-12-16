@@ -37,6 +37,8 @@ Create `backend/.env`:
 ```
 DATABASE_URL=postgresql://username:password@localhost:5432/corporate_sim
 JWT_SECRET=your-secret-key-here
+REGISTRATION_SECRET=choose-a-shared-registration-code
+ADMIN_SECRET=optional-admin-code
 PORT=3001
 ```
 
@@ -79,5 +81,4 @@ corporate-sim/
 ## License
 
 MIT
-
 

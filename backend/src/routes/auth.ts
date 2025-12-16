@@ -10,6 +10,8 @@ const router = express.Router();
 router.post('/register', async (req: Request, res: Response) => {
   try {
     const { email, username, password, player_name, gender, age, starting_state }: UserInput = req.body;
+    const registrationSecret = (req.body?.registration_secret as string | undefined)?.trim();
+    const adminSecretAttempt = (req.body?.admin_secret as string | undefined)?.trim();
 
     // Validate required fields
     if (!email || !username || !password) {
@@ -49,6 +51,19 @@ router.post('/register', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Starting state is required' });
     }
 
+    const requiredRegistrationSecret = (process.env.REGISTRATION_SECRET || '').trim();
+    if (requiredRegistrationSecret && requiredRegistrationSecret.length > 0) {
+      if (!registrationSecret) {
+        return res.status(403).json({ error: 'Registration secret is required' });
+      }
+      if (registrationSecret !== requiredRegistrationSecret) {
+        return res.status(403).json({ error: 'Invalid registration secret' });
+      }
+    }
+
+    const adminSecretEnv = (process.env.ADMIN_SECRET || '').trim();
+    const isAdmin = !!(adminSecretEnv && adminSecretEnv.length > 0 && adminSecretAttempt === adminSecretEnv);
+
     // Check if user already exists
     const existingUser = await UserModel.findByEmail(trimmedEmail);
     if (existingUser) {
@@ -69,7 +84,8 @@ router.post('/register', async (req: Request, res: Response) => {
       player_name: player_name.trim(),
       gender,
       age,
-      starting_state: starting_state.trim()
+      starting_state: starting_state.trim(),
+      is_admin: isAdmin
     });
 
     // Generate JWT token
@@ -89,6 +105,7 @@ router.post('/register', async (req: Request, res: Response) => {
         gender: user.gender,
         age: user.age,
         starting_state: user.starting_state,
+        is_admin: user.is_admin,
       },
     });
   } catch (error: any) {
@@ -168,6 +185,7 @@ router.post('/login', async (req: Request, res: Response) => {
         gender: user.gender,
         age: user.age,
         starting_state: user.starting_state,
+        is_admin: user.is_admin,
       },
     });
   } catch (error) {
@@ -192,6 +210,7 @@ router.get('/me', authenticateToken, async (req: AuthRequest, res: Response) => 
       gender: user.gender,
       age: user.age,
       starting_state: user.starting_state,
+      is_admin: user.is_admin,
       created_at: user.created_at,
     });
   } catch (error) {
@@ -201,5 +220,4 @@ router.get('/me', authenticateToken, async (req: AuthRequest, res: Response) => 
 });
 
 export default router;
-
 
