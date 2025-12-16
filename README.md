@@ -78,6 +78,12 @@ corporate-sim/
 - Backend: `npm run dev:backend`
 - Both: `npm run dev`
 
+## Deployment & Ops Docs
+
+- `DEPLOYMENT_GUIDE.md` ƒ?" step-by-step AWS/PM2 deployment instructions plus current stack summary.
+- `ENVIRONMENT_GUIDE.md` ƒ?" canonical list of backend/frontend environment variables and per-environment templates.
+- `STARTUP_GUIDE.md`, `PM2_GUIDE.md`, and `DEBUG_COMMANDS.md` cover local bootstrapping, process management, and EC2 debug commands respectively.
+
 ## Admin APIs
 
 Administrators (users with `is_admin = true`) can manage security via:
