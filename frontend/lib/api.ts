@@ -1,21 +1,30 @@
 import axios from 'axios';
 
 // Automatically detect API URL based on current location
-// In browser, use same hostname but port 3001
-// Falls back to environment variable or localhost for SSR/build time
+// In production (behind nginx), use same origin and proxy /api to backend.
+// In local dev, default to backend on port 3001.
+// Falls back to environment variable or localhost for SSR/build time.
 const getApiUrl = (): string => {
-  if (typeof window !== 'undefined') {
-    // In browser: use same hostname but port 3001
-    const protocol = window.location.protocol;
-    const hostname = window.location.hostname;
-    // Only change port if not already 3001
-    if (window.location.port === '3001') {
-      return `${protocol}//${hostname}:${window.location.port}`;
-    }
-    return `${protocol}//${hostname}:3001`;
+  // If explicitly set, always respect it (works for both browser + SSR)
+  if (process.env.NEXT_PUBLIC_API_URL) {
+    return process.env.NEXT_PUBLIC_API_URL;
   }
-  // SSR/build time: use environment variable or default
-  return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+
+  if (typeof window !== 'undefined') {
+    const { hostname, port, origin, protocol } = window.location;
+
+    // Local development: frontend on 3000, backend on 3001 (no nginx)
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+      if (port === '3001') return origin;
+      return `${protocol}//${hostname}:3001`;
+    }
+
+    // Production: same-origin requests (nginx proxies /api to backend)
+    return origin;
+  }
+
+  // SSR/build time: default to local backend unless overridden
+  return 'http://localhost:3001';
 };
 
 // Debug function - logs API URL detection
