@@ -46,7 +46,7 @@ if [ ${PIPESTATUS[0]} -eq 0 ]; then
     echo -e "${YELLOW}Step 3: Verifying required columns...${NC}"
     
     # Check for required columns
-    REQUIRED_COLS=("id" "email" "username" "password_hash" "player_name" "gender" "age" "starting_state" "created_at")
+    REQUIRED_COLS=("id" "email" "username" "password_hash" "player_name" "gender" "age" "starting_state" "created_at" "is_admin" "profile_slug" "registration_ip" "last_login_ip" "last_login_at" "is_banned" "banned_at" "banned_reason" "banned_by")
     MISSING_COLS=()
     
     for col in "${REQUIRED_COLS[@]}"; do
@@ -65,9 +65,9 @@ if [ ${PIPESTATUS[0]} -eq 0 ]; then
     else
         echo -e "${RED}✗ Missing columns: ${MISSING_COLS[*]}${NC}"
         echo ""
-        echo -e "${YELLOW}To fix, run migration 002:${NC}"
+        echo -e "${YELLOW}To fix, run migrations:${NC}"
         echo "cd ~/corpgame/backend"
-        echo "psql \$DATABASE_URL -f migrations/002_add_user_profile_fields.sql"
+        echo "npm run migrate"
     fi
 else
     echo -e "${RED}✗ Failed to connect to database${NC}"
@@ -79,5 +79,4 @@ fi
 
 echo ""
 echo "========================================="
-
 

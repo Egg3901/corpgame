@@ -88,8 +88,7 @@ The backend serves from port `3001`, the Next.js frontend from `3000`. When pair
 
 ```bash
 cd backend
-psql "$DATABASE_URL" -f migrations/001_initial.sql
-# Repeat for subsequent migrations, keeping them idempotent.
+npm run migrate
 ```
 
 Keep credentials inside `DATABASE_URL` (username/password/host/port/database). Allow only TLS/SSL connections if your Postgres tier supports it.
@@ -151,4 +150,3 @@ Also sign up a user using the production UI to confirm the registration-secret g
 - **PM2 restarts repeatedly**: Ensure `backend/dist/server.js` and `frontend/.next` exist (build step succeeded) and that Node can bind to 3000/3001 (no port collision).
 
 Keep this guide close to your deployment run book so each release follows the exact same, predictable steps.
-

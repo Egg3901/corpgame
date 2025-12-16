@@ -54,7 +54,7 @@ if psql "$DATABASE_URL" -c "\d users" 2>&1 | grep -q "Table"; then
     echo -e "${YELLOW}Checking required columns...${NC}"
     COLUMNS=$(psql "$DATABASE_URL" -t -c "SELECT column_name FROM information_schema.columns WHERE table_name='users' ORDER BY column_name;" 2>/dev/null)
     
-    REQUIRED=("id" "email" "username" "password_hash" "player_name" "gender" "age" "starting_state" "created_at")
+    REQUIRED=("id" "email" "username" "password_hash" "player_name" "gender" "age" "starting_state" "created_at" "is_admin" "profile_slug" "registration_ip" "last_login_ip" "last_login_at" "is_banned" "banned_at" "banned_reason" "banned_by")
     for col in "${REQUIRED[@]}"; do
         if echo "$COLUMNS" | grep -qi "$col"; then
             echo -e "${GREEN}  ✓ Column '$col' exists${NC}"
@@ -65,8 +65,7 @@ if psql "$DATABASE_URL" -c "\d users" 2>&1 | grep -q "Table"; then
 else
     echo -e "${RED}✗ Users table does not exist${NC}"
     echo -e "${YELLOW}Run migrations:${NC}"
-    echo "  psql \$DATABASE_URL -f migrations/001_initial.sql"
-    echo "  psql \$DATABASE_URL -f migrations/002_add_user_profile_fields.sql"
+    echo "  npm run migrate   # from backend/"
 fi
 echo ""
 
@@ -89,5 +88,4 @@ echo "1. If all tests passed, restart backend: pm2 restart corpgame-backend"
 echo "2. Check logs: pm2 logs corpgame-backend --lines 50"
 echo "3. Try registering a user from the frontend"
 echo ""
-
 

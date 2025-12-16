@@ -50,7 +50,7 @@ NEXT_PUBLIC_API_URL=http://localhost:3001
 3. Run database migrations:
 ```bash
 cd backend
-psql -U username -d corporate_sim -f migrations/001_initial.sql
+npm run migrate
 ```
 
 4. Start development servers:
@@ -122,13 +122,15 @@ Follow these steps to go from a fresh EC2/VM to a running production stack manag
      ```
    - `frontend/.env.local`
      ```ini
-     NEXT_PUBLIC_API_URL=http://your-domain-or-ip:3001
+     # Leave blank when using nginx proxying /api on the same origin (recommended).
+     # Set only if your API is on a different domain/subdomain.
+     # NEXT_PUBLIC_API_URL=https://api.yourdomain.com
      ```
 
 4. **Run database migrations**
    ```bash
    cd backend
-   psql -U user -d corporate_sim -f migrations/001_initial.sql   # plus later migrations if present
+   npm run migrate
    cd ..
    ```
 
@@ -178,4 +180,3 @@ Follow these steps to go from a fresh EC2/VM to a running production stack manag
 ## License
 
 MIT
-
