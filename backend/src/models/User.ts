@@ -193,3 +193,4 @@ export class UserModel {
     return bcrypt.compare(password, hash);
   }
 }
+

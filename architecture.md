@@ -429,3 +429,4 @@ Future tables to consider:
 This architecture provides a solid foundation for a multiplayer corporate simulation game. The separation of concerns between frontend and backend, along with JWT-based authentication, enables scalable development. As the game grows, the architecture can be extended with real-time features, caching layers, and optimized database schemas for game entities.
 
 
+

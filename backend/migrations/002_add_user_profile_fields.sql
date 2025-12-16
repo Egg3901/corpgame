@@ -9,3 +9,4 @@ ADD COLUMN IF NOT EXISTS starting_state VARCHAR(2);
 CREATE INDEX IF NOT EXISTS idx_users_player_name ON users(player_name);
 
 
+

@@ -168,3 +168,4 @@ echo "3. Test registration from your browser"
 echo "4. If still failing, check security group allows port 3001"
 echo ""
 
+

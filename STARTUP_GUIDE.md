@@ -311,3 +311,4 @@ psql -U username -d corporate_sim
 | Build frontend | `cd frontend && npm run build` |
 
 
+
