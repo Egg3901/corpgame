@@ -106,7 +106,20 @@ export interface AuthResponse {
     age?: number;
     starting_state?: string;
     is_admin?: boolean;
+    profile_slug: string;
   };
+}
+
+export interface ProfileResponse {
+  id: number;
+  username: string;
+  player_name?: string;
+  gender?: 'm' | 'f' | 'nonbinary';
+  age?: number;
+  starting_state?: string;
+  profile_slug: string;
+  is_admin?: boolean;
+  created_at: string;
 }
 
 export const authAPI = {
@@ -138,6 +151,13 @@ export const authAPI = {
       console.error('GetMe API error:', error);
       throw error;
     }
+  },
+};
+
+export const profileAPI = {
+  getBySlug: async (slug: string): Promise<ProfileResponse> => {
+    const response = await api.get(`/api/profile/${slug}`);
+    return response.data;
   },
 };
 

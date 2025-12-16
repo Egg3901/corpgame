@@ -3,6 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import authRoutes from './routes/auth';
 import gameRoutes from './routes/game';
+import profileRoutes from './routes/profile';
 
 dotenv.config();
 
@@ -102,6 +103,7 @@ app.use(express.urlencoded({ extended: true }));
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/game', gameRoutes);
+app.use('/api/profile', profileRoutes);
 
 // Health check
 app.get('/health', (req, res) => {
@@ -122,4 +124,3 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on http://0.0.0.0:${PORT}`);
   console.log(`Accessible at http://localhost:${PORT} and from external IPs`);
 });
-

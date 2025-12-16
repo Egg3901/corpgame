@@ -15,14 +15,14 @@ import {
   ChevronRight,
   ClipboardList,
   Briefcase,
-  Shield
+  Shield,
+  X
 } from 'lucide-react';
-import { authAPI } from '@/lib/api';
+import { authAPI, profileAPI, ProfileResponse } from '@/lib/api';
 
-const placeholderHistory = [
-  { ceo: 'C.E.O. SAMPLE CORP', dateRange: '12/01/25 - 12/15/25' },
-  { ceo: 'Acting CEO Placeholder Inc.', dateRange: '11/10/25 - 11/30/25' },
-];
+interface ProfileDashboardProps {
+  slug: string;
+}
 
 const navSections = [
   { id: 'overview', label: 'Overview' },
@@ -31,61 +31,104 @@ const navSections = [
   { id: 'actions', label: 'Actions' },
 ];
 
-export default function ProfileDashboard() {
+const corporateHistory = [
+  { ceo: 'C.E.O. SAMPLE CORP', dateRange: '12/01/25 - 12/15/25' },
+  { ceo: 'Acting CEO Placeholder Inc.', dateRange: '11/10/25 - 11/30/25' },
+];
+
+export default function ProfileDashboard({ slug }: ProfileDashboardProps) {
   const router = useRouter();
-  const [user, setUser] = useState<any>(null);
+  const [profile, setProfile] = useState<ProfileResponse | null>(null);
+  const [viewerSlug, setViewerSlug] = useState<string | null>(null);
+  const [viewerAdmin, setViewerAdmin] = useState<boolean>(false);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [navOpen, setNavOpen] = useState(false);
   const [expandedNav, setExpandedNav] = useState<string | null>(null);
 
   useEffect(() => {
-    const checkAuth = async () => {
-      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-      if (!token) {
-        router.push('/login');
-        return;
-      }
-
+    const fetchProfile = async () => {
+      setLoading(true);
+      setError('');
       try {
-        const userData = await authAPI.getMe();
-        setUser(userData);
-      } catch (error) {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        router.push('/login');
+        const data = await profileAPI.getBySlug(slug);
+        setProfile(data);
+      } catch (err) {
+        console.error('Profile load error:', err);
+        setError('Unable to load this profile.');
       } finally {
         setLoading(false);
       }
     };
 
-    checkAuth();
-  }, [router]);
+    fetchProfile();
+  }, [slug]);
+
+  useEffect(() => {
+    const loadViewer = async () => {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      if (!token) return;
+
+      try {
+        const me = await authAPI.getMe();
+        setViewerSlug(me.profile_slug);
+        setViewerAdmin(!!me.is_admin);
+      } catch (err) {
+        console.warn('Viewer not authenticated:', err);
+      }
+    };
+
+    loadViewer();
+  }, []);
 
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-lg text-gray-600">Loading dashboard…</div>
+        <div className="text-lg text-gray-600">Loading profile...</div>
       </div>
     );
   }
 
-  const displayName = user?.player_name || user?.username || 'Executive';
-  const displayState = user?.starting_state || 'N/A';
+  if (error || !profile) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center space-y-4 text-center">
+        <p className="text-xl text-gray-700">{error || 'Profile not found.'}</p>
+        <button
+          onClick={() => router.push('/')}
+          className="px-4 py-2 bg-corporate-blue text-white rounded-md"
+        >
+          Return Home
+        </button>
+      </div>
+    );
+  }
+
+  const displayName = profile.player_name || profile.username || 'Executive';
+  const displayState = profile.starting_state || 'N/A';
+  const isOwner = viewerSlug === profile.profile_slug;
+  const shareUrl =
+    typeof window !== 'undefined'
+      ? `${window.location.origin}/profile/${profile.profile_slug}`
+      : `/profile/${profile.profile_slug}`;
 
   const corpSummary = {
-    name: user?.corporation?.name || 'Sample Corp',
-    revenue: user?.corporation?.revenue || '$0',
-    profit: user?.corporation?.profit || '$0',
-    ownership: user?.corporation?.ownership_share || '0%',
-    marketCap: user?.corporation?.market_cap || '$0',
+    name: 'Sample Corp',
+    revenue: '$0',
+    profit: '$0',
+    ownership: '0%',
+    marketCap: '$0',
   };
 
-  const fillerPortfolio = user?.portfolio_value || '$0';
-  const fillerTitle = user?.title || 'Executive';
+  const fillerPortfolio = '$0';
+  const fillerTitle = profile.is_admin ? 'Administrator' : 'Executive';
+  const handleOpenSettings = () => {
+    setNavOpen(false);
+    router.push('/settings');
+  };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 dark:text-gray-100">
+      <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-40 dark:bg-gray-800 dark:border-gray-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <button
@@ -104,9 +147,6 @@ export default function ProfileDashboard() {
             </div>
 
             <div className="flex items-center space-x-2">
-              <button className="p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100" aria-label="Settings">
-                <Settings className="w-5 h-5" />
-              </button>
               <button className="p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100" aria-label="User panel">
                 <UserIcon className="w-5 h-5" />
               </button>
@@ -118,25 +158,26 @@ export default function ProfileDashboard() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
         <div className="bg-white rounded-lg shadow px-6 py-4 flex flex-wrap items-center justify-between gap-4">
           <div>
-            <p className="text-sm text-gray-500 uppercase tracking-wide">Direct profile link</p>
-            <p className="text-gray-900 font-medium">
-              {typeof window !== 'undefined'
-                ? `${window.location.origin}/profile`
-                : 'your-domain.com/profile'}
-            </p>
+            <p className="text-sm text-gray-500 uppercase tracking-wide">Profile link</p>
+            <p className="text-gray-900 font-medium break-all">{shareUrl}</p>
           </div>
           <div className="text-sm text-gray-600">
-            <span className="font-semibold text-gray-900">Status:</span>{' '}
-            {user?.is_admin ? 'Administrator' : 'Player'}
+            <span className="font-semibold text-gray-900">Viewed as:</span>{' '}
+            {isOwner ? 'Your profile' : viewerSlug ? 'Another player' : 'Guest'}
           </div>
         </div>
 
         <div className="grid gap-6 lg:grid-cols-[220px_1fr_280px]">
-          {/* Navigation Column */}
           <aside className="bg-white rounded-lg shadow p-4 space-y-4">
             <div className="flex items-center justify-between">
               <p className="text-sm font-semibold text-gray-900 uppercase">Navigation</p>
-              <Settings className="w-4 h-4 text-gray-400" />
+              <button
+                onClick={handleOpenSettings}
+                className="inline-flex items-center gap-1 text-xs font-semibold text-corporate-blue hover:text-corporate-blue-dark"
+              >
+                <Settings className="w-3 h-3" />
+                Settings
+              </button>
             </div>
 
             <div className="space-y-2">
@@ -171,7 +212,6 @@ export default function ProfileDashboard() {
             </div>
           </aside>
 
-          {/* Main Content */}
           <section className="space-y-6">
             <div className="bg-white rounded-lg shadow-md p-6">
               <div className="flex items-start gap-6">
@@ -256,7 +296,7 @@ export default function ProfileDashboard() {
                 <ClipboardList className="w-5 h-5 text-gray-400" />
               </div>
               <div className="space-y-3">
-                {placeholderHistory.map((history, idx) => (
+                {corporateHistory.map((history, idx) => (
                   <div
                     key={idx}
                     className="border border-gray-200 rounded-lg p-4 hover:border-corporate-blue/40 transition-colors"
@@ -269,7 +309,6 @@ export default function ProfileDashboard() {
             </div>
           </section>
 
-          {/* Right Panel */}
           <aside className="space-y-6">
             <div className="bg-white rounded-lg shadow-md p-6">
               <div className="flex items-center justify-between mb-4">
@@ -280,16 +319,18 @@ export default function ProfileDashboard() {
                 <div className="flex items-center justify-between">
                   <span>Status</span>
                   <span className="font-semibold text-corporate-blue">
-                    {user?.is_admin ? 'Admin' : 'Player'}
+                    {profile.is_admin ? 'Admin' : 'Player'}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span>Notifications</span>
-                  <span className="text-gray-500">Placeholder</span>
+                  <span>Viewer</span>
+                  <span className="text-gray-500">
+                    {isOwner ? 'You' : viewerSlug ? 'Authenticated' : 'Guest'}
+                  </span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span>Next Action</span>
-                  <span className="text-gray-500">Pending</span>
+                  <span>Viewer Admin</span>
+                  <span className="text-gray-500">{viewerAdmin ? 'Yes' : 'No'}</span>
                 </div>
               </div>
             </div>
@@ -324,10 +365,10 @@ export default function ProfileDashboard() {
       {navOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50" onClick={() => setNavOpen(false)}>
           <div
-            className="fixed left-0 top-0 bottom-0 w-80 bg-white shadow-xl overflow-y-auto"
+            className="fixed left-0 top-0 bottom-0 w-80 bg-white shadow-xl overflow-y-auto dark:bg-gray-900"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+            <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between dark:bg-gray-800 dark:border-gray-700">
               <div>
                 <p className="text-sm text-gray-500 uppercase">User</p>
                 <p className="text-lg font-semibold text-gray-900">{displayName}</p>
@@ -336,7 +377,7 @@ export default function ProfileDashboard() {
                 onClick={() => setNavOpen(false)}
                 className="p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100"
               >
-                <Settings className="w-5 h-5" />
+                <X className="w-5 h-5" />
               </button>
             </div>
 
@@ -349,6 +390,13 @@ export default function ProfileDashboard() {
                   {item.label}
                 </button>
               ))}
+              <button
+                onClick={handleOpenSettings}
+                className="mt-2 w-full text-left px-4 py-3 rounded-md text-gray-700 hover:bg-gray-100 hover:text-corporate-blue transition-colors font-medium inline-flex items-center gap-2"
+              >
+                <Settings className="w-4 h-4" />
+                Settings
+              </button>
 
               <div className="pt-2 border-t border-gray-200">
                 <button

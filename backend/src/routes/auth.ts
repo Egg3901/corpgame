@@ -90,7 +90,7 @@ router.post('/register', async (req: Request, res: Response) => {
 
     // Generate JWT token
     const token = jwt.sign(
-      { userId: user.id, email: user.email },
+      { userId: user.id, email: user.email, username: user.username },
       process.env.JWT_SECRET || 'fallback-secret',
       { expiresIn: '24h' }
     );
@@ -106,6 +106,7 @@ router.post('/register', async (req: Request, res: Response) => {
         age: user.age,
         starting_state: user.starting_state,
         is_admin: user.is_admin,
+        profile_slug: user.profile_slug,
       },
     });
   } catch (error: any) {
@@ -147,30 +148,33 @@ router.post('/register', async (req: Request, res: Response) => {
 // Login user
 router.post('/login', async (req: Request, res: Response) => {
   try {
-    const { email, password } = req.body;
+    const { username, password } = req.body;
 
-    if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password are required' });
+    if (!username || !password) {
+      return res.status(400).json({ error: 'Username and password are required' });
     }
 
-    // Trim email
-    const trimmedEmail = email.trim();
+    // Trim username
+    const trimmedUsername = username.trim();
+    if (!trimmedUsername) {
+      return res.status(400).json({ error: 'Username and password are required' });
+    }
 
-    // Find user by email
-    const user = await UserModel.findByEmail(trimmedEmail);
+    // Find user by username
+    const user = await UserModel.findByUsername(trimmedUsername);
     if (!user) {
-      return res.status(401).json({ error: 'Invalid email or password' });
+      return res.status(401).json({ error: 'Invalid username or password' });
     }
 
     // Verify password
     const isValidPassword = await UserModel.verifyPassword(password, user.password_hash);
     if (!isValidPassword) {
-      return res.status(401).json({ error: 'Invalid email or password' });
+      return res.status(401).json({ error: 'Invalid username or password' });
     }
 
     // Generate JWT token
     const token = jwt.sign(
-      { userId: user.id, email: user.email },
+      { userId: user.id, email: user.email, username: user.username },
       process.env.JWT_SECRET || 'fallback-secret',
       { expiresIn: '24h' }
     );
@@ -186,6 +190,7 @@ router.post('/login', async (req: Request, res: Response) => {
         age: user.age,
         starting_state: user.starting_state,
         is_admin: user.is_admin,
+        profile_slug: user.profile_slug,
       },
     });
   } catch (error) {
@@ -211,6 +216,7 @@ router.get('/me', authenticateToken, async (req: AuthRequest, res: Response) => 
       age: user.age,
       starting_state: user.starting_state,
       is_admin: user.is_admin,
+      profile_slug: user.profile_slug,
       created_at: user.created_at,
     });
   } catch (error) {
@@ -220,4 +226,3 @@ router.get('/me', authenticateToken, async (req: AuthRequest, res: Response) => 
 });
 
 export default router;
-

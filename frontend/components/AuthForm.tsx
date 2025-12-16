@@ -76,7 +76,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
           registration_secret: '',
           admin_secret: ''
         }
-      : { email: '', password: '' }
+      : { username: '', password: '' }
   );
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -114,14 +114,14 @@ export default function AuthForm({ mode }: AuthFormProps) {
         response = await authAPI.register(cleanedData);
       } else {
         const loginData = formData as LoginData;
-        if (!loginData.email?.trim() || !loginData.password) {
-          setError('Email and password are required');
+        if (!loginData.username?.trim() || !loginData.password) {
+          setError('Username and password are required');
           setLoading(false);
           return;
         }
         // Clean up the data before sending
         const cleanedData: LoginData = {
-          email: loginData.email.trim(),
+          username: loginData.username.trim(),
           password: loginData.password
         };
         response = await authAPI.login(cleanedData);
@@ -184,7 +184,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
         </div>
       )}
 
-      {mode === 'register' && (
+      {mode === 'register' ? (
         <>
           <div>
             <label htmlFor="username" className="block text-sm font-medium text-gray-700">
@@ -200,6 +200,21 @@ export default function AuthForm({ mode }: AuthFormProps) {
               className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-corporate-blue focus:border-corporate-blue text-gray-900 bg-white"
             />
             <p className="mt-1 text-xs text-gray-500">Used for logging into your account</p>
+          </div>
+
+          <div>
+            <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+              Email
+            </label>
+            <input
+              id="email"
+              name="email"
+              type="email"
+              required
+              value={(formData as RegisterData).email}
+              onChange={handleChange}
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-corporate-blue focus:border-corporate-blue text-gray-900 bg-white"
+            />
           </div>
 
           <div>
@@ -307,22 +322,22 @@ export default function AuthForm({ mode }: AuthFormProps) {
             <p className="mt-1 text-xs text-gray-500">Provide the admin secret if you should have admin access.</p>
           </div>
         </>
+      ) : (
+        <div>
+          <label htmlFor="username" className="block text-sm font-medium text-gray-700">
+            Username
+          </label>
+          <input
+            id="username"
+            name="username"
+            type="text"
+            required
+            value={(formData as LoginData).username || ''}
+            onChange={handleChange}
+            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-corporate-blue focus:border-corporate-blue text-gray-900 bg-white"
+          />
+        </div>
       )}
-
-      <div>
-        <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-          Email
-        </label>
-        <input
-          id="email"
-          name="email"
-          type="email"
-          required
-          value={formData.email}
-          onChange={handleChange}
-          className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-corporate-blue focus:border-corporate-blue text-gray-900 bg-white"
-        />
-      </div>
 
       <div>
         <label htmlFor="password" className="block text-sm font-medium text-gray-700">
