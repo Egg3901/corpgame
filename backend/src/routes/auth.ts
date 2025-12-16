@@ -3,6 +3,8 @@ import jwt from 'jsonwebtoken';
 import { UserModel, UserInput } from '../models/User';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 import pool from '../db/connection';
+import { BannedIpModel } from '../models/BannedIp';
+import { getClientIp } from '../utils/requestIp';
 
 const router = express.Router();
 
