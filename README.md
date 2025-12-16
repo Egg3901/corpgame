@@ -78,7 +78,16 @@ corporate-sim/
 - Backend: `npm run dev:backend`
 - Both: `npm run dev`
 
+## Admin APIs
+
+Administrators (users with `is_admin = true`) can manage security via:
+
+- `POST /api/admin/ban-ip` `{ ip, reason }` — blocks registrations/logins from an IP and flags existing accounts using it.
+- `POST /api/admin/users/:id/ban` `{ reason }` — bans a specific user.
+- `DELETE /api/admin/users/:id` — deletes a user account.
+
+All admin routes require a valid JWT with admin privileges.
+
 ## License
 
 MIT
-

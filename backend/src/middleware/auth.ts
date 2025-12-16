@@ -1,8 +1,10 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import { UserModel, User } from '../models/User';
 
 export interface AuthRequest extends Request {
   userId?: number;
+  user?: User | null;
 }
 
 export const authenticateToken = (
@@ -27,4 +29,21 @@ export const authenticateToken = (
   });
 };
 
+export const requireAdmin = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  if (!req.userId) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+
+  try {
+    const user = await UserModel.findById(req.userId);
+    req.user = user;
+    if (!user?.is_admin) {
+      return res.status(403).json({ error: 'Admin privileges required' });
+    }
+    next();
+  } catch (error) {
+    console.error('Admin check failed:', error);
+    res.status(500).json({ error: 'Failed to verify admin access' });
+  }
+};
 

@@ -91,7 +91,7 @@ export interface RegisterData {
 }
 
 export interface LoginData {
-  email: string;
+  username: string;
   password: string;
 }
 
@@ -107,6 +107,10 @@ export interface AuthResponse {
     starting_state?: string;
     is_admin?: boolean;
     profile_slug: string;
+    is_banned?: boolean;
+    registration_ip?: string;
+    last_login_ip?: string;
+    last_login_at?: string;
   };
 }
 
@@ -119,6 +123,7 @@ export interface ProfileResponse {
   starting_state?: string;
   profile_slug: string;
   is_admin?: boolean;
+  is_banned?: boolean;
   created_at: string;
 }
 

@@ -12,6 +12,7 @@ router.post('/register', async (req: Request, res: Response) => {
     const { email, username, password, player_name, gender, age, starting_state }: UserInput = req.body;
     const registrationSecret = (req.body?.registration_secret as string | undefined)?.trim();
     const adminSecretAttempt = (req.body?.admin_secret as string | undefined)?.trim();
+    const clientIp = getClientIp(req);
 
     // Validate required fields
     if (!email || !username || !password) {
@@ -51,6 +52,10 @@ router.post('/register', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Starting state is required' });
     }
 
+    if (await BannedIpModel.isIpBanned(clientIp)) {
+      return res.status(403).json({ error: 'Registrations from this IP are blocked' });
+    }
+
     const requiredRegistrationSecret = (process.env.REGISTRATION_SECRET || '').trim();
     if (requiredRegistrationSecret && requiredRegistrationSecret.length > 0) {
       if (!registrationSecret) {
@@ -85,7 +90,10 @@ router.post('/register', async (req: Request, res: Response) => {
       gender,
       age,
       starting_state: starting_state.trim(),
-      is_admin: isAdmin
+      is_admin: isAdmin,
+      registration_ip: clientIp,
+      last_login_ip: clientIp,
+      last_login_at: new Date()
     });
 
     // Generate JWT token
@@ -107,6 +115,10 @@ router.post('/register', async (req: Request, res: Response) => {
         starting_state: user.starting_state,
         is_admin: user.is_admin,
         profile_slug: user.profile_slug,
+        registration_ip: user.registration_ip,
+        last_login_ip: user.last_login_ip,
+        last_login_at: user.last_login_at,
+        is_banned: user.is_banned,
       },
     });
   } catch (error: any) {
@@ -148,31 +160,43 @@ router.post('/register', async (req: Request, res: Response) => {
 // Login user
 router.post('/login', async (req: Request, res: Response) => {
   try {
-    const { username, password } = req.body;
+    const { username, email, password } = req.body;
+    const clientIp = getClientIp(req);
 
-    if (!username || !password) {
-      return res.status(400).json({ error: 'Username and password are required' });
+    if (!password) {
+      return res.status(400).json({ error: 'Password is required' });
     }
 
-    // Trim username
-    const trimmedUsername = username.trim();
-    if (!trimmedUsername) {
-      return res.status(400).json({ error: 'Username and password are required' });
+    if (await BannedIpModel.isIpBanned(clientIp)) {
+      return res.status(403).json({ error: 'This IP is banned' });
     }
 
-    // Find user by username
-    const user = await UserModel.findByUsername(trimmedUsername);
+    const identifier = (email || username || '').trim();
+    if (!identifier) {
+      return res.status(400).json({ error: 'Email or username is required' });
+    }
+
+    // Find user by email first, fallback to username
+    let user = email ? await UserModel.findByEmail(identifier) : null;
     if (!user) {
-      return res.status(401).json({ error: 'Invalid username or password' });
+      user = await UserModel.findByUsername(identifier);
     }
 
-    // Verify password
+    if (!user) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    if (user.is_banned) {
+      return res.status(403).json({ error: user.banned_reason || 'Account is banned' });
+    }
+
     const isValidPassword = await UserModel.verifyPassword(password, user.password_hash);
     if (!isValidPassword) {
-      return res.status(401).json({ error: 'Invalid username or password' });
+      return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    // Generate JWT token
+    await UserModel.updateLastLogin(user.id, clientIp);
+
     const token = jwt.sign(
       { userId: user.id, email: user.email, username: user.username },
       process.env.JWT_SECRET || 'fallback-secret',
@@ -191,6 +215,7 @@ router.post('/login', async (req: Request, res: Response) => {
         starting_state: user.starting_state,
         is_admin: user.is_admin,
         profile_slug: user.profile_slug,
+        is_banned: user.is_banned,
       },
     });
   } catch (error) {
@@ -217,6 +242,12 @@ router.get('/me', authenticateToken, async (req: AuthRequest, res: Response) => 
       starting_state: user.starting_state,
       is_admin: user.is_admin,
       profile_slug: user.profile_slug,
+      registration_ip: user.registration_ip,
+      last_login_ip: user.last_login_ip,
+      last_login_at: user.last_login_at,
+      is_banned: user.is_banned,
+      banned_at: user.banned_at,
+      banned_reason: user.banned_reason,
       created_at: user.created_at,
     });
   } catch (error) {
