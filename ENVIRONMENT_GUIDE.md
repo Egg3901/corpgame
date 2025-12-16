@@ -21,6 +21,8 @@ Corporate Sim uses `.env` files to keep secrets per service. This guide document
 | Variable | Required? | Description |
 |----------|-----------|-------------|
 | `DATABASE_URL` | Yes | PostgreSQL connection string: `postgresql://user:pass@host:5432/database` |
+| `PGSSLROOTCERT` | Optional (recommended for RDS/Aurora) | Path to a PEM CA bundle file to trust for Postgres TLS connections (used by the app + migration runner) |
+| `PGSSLINSECURE` | Optional | Set to `true` to disable TLS cert validation (debug only; do not use in production) |
 | `JWT_SECRET` | Yes | 32+ char random string used to sign auth tokens |
 | `REGISTRATION_SECRET` | Optional (recommended) | Shared code required to create accounts; blank disables the gate |
 | `ADMIN_SECRET` | Optional | Passphrase that allows a registrant to become `is_admin=true` |
@@ -62,6 +64,7 @@ NODE_ENV=development
 
 ```env
 DATABASE_URL=postgresql://corpgame_prod:<password>@<rds-endpoint>:5432/corpgame_prod
+PGSSLROOTCERT=/home/ec2-user/rds-ca-bundle.pem
 JWT_SECRET=<long random secret from Secrets Manager>
 REGISTRATION_SECRET=<invite-only code>
 ADMIN_SECRET=<admin-elevation code>
@@ -106,4 +109,3 @@ NODE_ENV=production pm2 start ecosystem.config.js
 - **Admin flag never set**: `ADMIN_SECRET` must match the `admin_secret` field passed during registration; ensure there are no trailing spaces in the `.env` file.
 
 Keep this guide synchronized with code changes whenever new environment variables are introduced.
-

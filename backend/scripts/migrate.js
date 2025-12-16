@@ -14,6 +14,24 @@ if (!DATABASE_URL) {
 
 const migrationsDir = path.join(__dirname, '..', 'migrations');
 
+function buildSslConfig() {
+  // Prefer explicit CA bundle if provided (works well for AWS RDS/Aurora).
+  // This env var is our convention (not libpq). It can be set in backend/.env.
+  const rootCertPath = process.env.PGSSLROOTCERT;
+  if (rootCertPath) {
+    const ca = fs.readFileSync(rootCertPath, 'utf8');
+    return { ca, rejectUnauthorized: true };
+  }
+
+  // Escape hatch for debugging only. Do not use in production.
+  if (process.env.PGSSLINSECURE === 'true') {
+    return { rejectUnauthorized: false };
+  }
+
+  // Default: rely on system trust store.
+  return undefined;
+}
+
 function listMigrationFiles() {
   return fs
     .readdirSync(migrationsDir, { withFileTypes: true })
@@ -54,7 +72,8 @@ async function applyMigration(client, filename) {
 }
 
 async function main() {
-  const pool = new Pool({ connectionString: DATABASE_URL });
+  const ssl = buildSslConfig();
+  const pool = new Pool({ connectionString: DATABASE_URL, ssl });
   const client = await pool.connect();
 
   try {
@@ -90,4 +109,3 @@ main().catch((err) => {
   console.error(err);
   process.exit(1);
 });
-

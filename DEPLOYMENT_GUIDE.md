@@ -93,6 +93,17 @@ npm run migrate
 
 Keep credentials inside `DATABASE_URL` (username/password/host/port/database). Allow only TLS/SSL connections if your Postgres tier supports it.
 
+### AWS RDS/Aurora TLS note
+
+If you see `UNABLE_TO_GET_ISSUER_CERT_LOCALLY` from Node/pg, download the AWS RDS CA bundle on the server and point `PGSSLROOTCERT` at it:
+
+```bash
+curl -fsSL -o /home/ec2-user/rds-ca-bundle.pem https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem
+chmod 600 /home/ec2-user/rds-ca-bundle.pem
+```
+
+Then set `PGSSLROOTCERT=/home/ec2-user/rds-ca-bundle.pem` in `backend/.env` and restart the backend (and rerun `npm run migrate` if needed).
+
 ---
 
 ## 7. Environment Variables
