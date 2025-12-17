@@ -17,6 +17,11 @@ router.get('/:idOrSlug', async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Profile not found' });
     }
 
+    // Determine if user is online (active within last 5 minutes)
+    const isOnline = user.last_seen_at 
+      ? (Date.now() - new Date(user.last_seen_at).getTime()) < 5 * 60 * 1000
+      : false;
+
     res.json({
       id: user.id,
       profile_id: user.profile_id,
@@ -30,6 +35,8 @@ router.get('/:idOrSlug', async (req: Request, res: Response) => {
       bio: user.bio,
       cash: user.cash || 0,
       is_admin: user.is_admin,
+      last_seen_at: user.last_seen_at,
+      is_online: isOnline,
       created_at: user.created_at,
     });
   } catch (error) {
@@ -57,6 +64,11 @@ router.patch('/update', authenticateToken, async (req: AuthRequest, res: Respons
       return res.status(404).json({ error: 'User not found' });
     }
 
+    // Determine if user is online (active within last 5 minutes)
+    const isOnline = updatedUser.last_seen_at 
+      ? (Date.now() - new Date(updatedUser.last_seen_at).getTime()) < 5 * 60 * 1000
+      : false;
+
     res.json({
       id: updatedUser.id,
       profile_id: updatedUser.profile_id,
@@ -70,6 +82,8 @@ router.patch('/update', authenticateToken, async (req: AuthRequest, res: Respons
       bio: updatedUser.bio,
       cash: updatedUser.cash || 0,
       is_admin: updatedUser.is_admin,
+      last_seen_at: updatedUser.last_seen_at,
+      is_online: isOnline,
       created_at: updatedUser.created_at,
     });
   } catch (error) {

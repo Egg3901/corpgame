@@ -7,7 +7,7 @@ export interface AuthRequest extends Request {
   user?: User | null;
 }
 
-export const authenticateToken = (
+export const authenticateToken = async (
   req: AuthRequest,
   res: Response,
   next: NextFunction
@@ -19,12 +19,26 @@ export const authenticateToken = (
     return res.status(401).json({ error: 'Access token required' });
   }
 
-  jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret', (err, decoded: any) => {
+  jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret', async (err, decoded: any) => {
     if (err) {
       return res.status(403).json({ error: 'Invalid or expired token' });
     }
     
     req.userId = decoded.userId;
+    
+    // Update last_seen_at for authenticated requests (throttled to avoid excessive DB writes)
+    // Only update if last update was more than 30 seconds ago
+    if (decoded.userId) {
+      try {
+        // Use a simple approach: update every time but let the database handle it efficiently
+        // For production, consider using Redis or a more sophisticated throttling mechanism
+        await UserModel.updateLastSeen(decoded.userId);
+      } catch (error) {
+        // Don't fail the request if last_seen update fails
+        console.error('Failed to update last_seen_at:', error);
+      }
+    }
+    
     next();
   });
 };

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, DollarSign, AlertCircle } from 'lucide-react';
+import { X, DollarSign, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { cashAPI, authAPI } from '@/lib/api';
 
 interface SendCashModalProps {
@@ -9,7 +9,7 @@ interface SendCashModalProps {
   onClose: () => void;
   recipientId: number;
   recipientName: string;
-  onSuccess?: () => void;
+  onSuccess?: (newBalance: number) => void;
 }
 
 export default function SendCashModal({
@@ -23,24 +23,48 @@ export default function SendCashModal({
   const [note, setNote] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState(false);
+  const [transferredAmount, setTransferredAmount] = useState<number>(0);
   const [userCash, setUserCash] = useState<number | null>(null);
 
   // Fetch user's cash balance when modal opens
-  useState(() => {
+  useEffect(() => {
     if (isOpen && userCash === null) {
       const fetchCash = async () => {
         try {
           const me = await authAPI.getMe();
-          // Note: We'll need to get cash from user data - for now using a placeholder
-          // In a real implementation, cash should be included in getMe response or fetched separately
-          setUserCash(10000); // Placeholder
+          // Try to get cash from profile API if available
+          if (me.profile_id) {
+            try {
+              const { profileAPI } = await import('@/lib/api');
+              const profile = await profileAPI.getById(me.profile_id.toString());
+              if (profile.cash !== undefined) {
+                setUserCash(profile.cash);
+              }
+            } catch (err) {
+              console.warn('Could not fetch cash from profile, using placeholder');
+              setUserCash(10000); // Placeholder
+            }
+          }
         } catch (err) {
           console.error('Failed to fetch cash:', err);
         }
       };
       fetchCash();
     }
-  });
+  }, [isOpen, userCash]);
+
+  // Reset form state when modal closes
+  useEffect(() => {
+    if (!isOpen) {
+      setAmount('');
+      setNote('');
+      setError('');
+      setSuccess(false);
+      setLoading(false);
+      setTransferredAmount(0);
+    }
+  }, [isOpen]);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -70,24 +94,40 @@ export default function SendCashModal({
     }
 
     try {
-      await cashAPI.transfer({
+      const response = await cashAPI.transfer({
         recipient_id: recipientId,
         amount: transferAmount,
         note: note.trim() || undefined,
       });
 
-      // Reset form
-      setAmount('');
-      setNote('');
-      setError('');
+      // Store transferred amount for success message
+      setTransferredAmount(transferAmount);
 
-      if (onSuccess) {
-        onSuccess();
+      // Update cash balance with new balance from response
+      if (response.sender_new_balance !== undefined) {
+        setUserCash(response.sender_new_balance);
       }
 
-      onClose();
+      // Show success message
+      setSuccess(true);
+      setError('');
+
+      // Call onSuccess with new balance
+      if (onSuccess && response.sender_new_balance !== undefined) {
+        onSuccess(response.sender_new_balance);
+      }
+
+      // Reset form and close modal after a short delay
+      setTimeout(() => {
+        setAmount('');
+        setNote('');
+        setSuccess(false);
+        setTransferredAmount(0);
+        onClose();
+      }, 2000);
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to send cash. Please try again.');
+      setSuccess(false);
     } finally {
       setLoading(false);
     }
@@ -162,6 +202,15 @@ export default function SendCashModal({
               <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{note.length}/500</p>
             </div>
 
+            {success && (
+              <div className="flex items-center gap-2 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 p-3">
+                <CheckCircle2 className="w-5 h-5 text-green-600 dark:text-green-400 flex-shrink-0" />
+                <p className="text-sm text-green-600 dark:text-green-400">
+                  Successfully sent {formatCurrency(transferredAmount)} to {recipientName}!
+                </p>
+              </div>
+            )}
+
             {error && (
               <div className="flex items-center gap-2 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-3">
                 <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0" />
@@ -180,13 +229,18 @@ export default function SendCashModal({
               </button>
               <button
                 type="submit"
-                disabled={loading || !amount || parseFloat(amount) <= 0}
+                disabled={loading || success || !amount || parseFloat(amount) <= 0}
                 className="flex-1 px-4 py-2 bg-corporate-blue text-white rounded-lg hover:bg-corporate-blue-dark disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-semibold flex items-center justify-center gap-2"
               >
                 {loading ? (
                   <>
                     <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                     Sending...
+                  </>
+                ) : success ? (
+                  <>
+                    <CheckCircle2 className="w-4 h-4" />
+                    Sent!
                   </>
                 ) : (
                   <>

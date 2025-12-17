@@ -255,7 +255,13 @@ export class MessageModel {
           'profile_id', u.profile_id,
           'username', u.username,
           'player_name', u.player_name,
-          'profile_image_url', u.profile_image_url
+          'profile_image_url', u.profile_image_url,
+          'last_seen_at', u.last_seen_at,
+          'is_online', CASE 
+            WHEN u.last_seen_at IS NOT NULL AND (EXTRACT(EPOCH FROM (NOW() - u.last_seen_at)) * 1000) < 300000 
+            THEN true 
+            ELSE false 
+          END
         ) as other_user,
         row_to_json(lm) as last_message,
         COALESCE(uc.unread_count, 0)::int as unread_count

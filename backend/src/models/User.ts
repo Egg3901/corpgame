@@ -18,6 +18,7 @@ export interface User {
   registration_ip?: string;
   last_login_ip?: string;
   last_login_at?: Date;
+  last_seen_at?: Date;
   is_banned?: boolean;
   banned_at?: Date;
   banned_reason?: string;
@@ -131,7 +132,7 @@ export class UserModel {
     const result = await pool.query(
       `SELECT id, profile_id, email, username, player_name, gender, age, starting_state, is_admin,
         profile_slug, profile_image_url, bio, cash, registration_ip, last_login_ip, last_login_at,
-        is_banned, banned_at, banned_reason, banned_by, created_at
+        last_seen_at, is_banned, banned_at, banned_reason, banned_by, created_at
       FROM users WHERE id = $1`,
       [id]
     );
@@ -155,7 +156,7 @@ export class UserModel {
     const result = await pool.query(
       `SELECT id, profile_id, email, username, player_name, gender, age, starting_state, is_admin,
         profile_slug, profile_image_url, bio, cash, registration_ip, last_login_ip, last_login_at,
-        is_banned, banned_at, banned_reason, banned_by, created_at
+        last_seen_at, is_banned, banned_at, banned_reason, banned_by, created_at
       FROM users WHERE profile_slug = $1`,
       [slug]
     );

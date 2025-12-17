@@ -140,6 +140,8 @@ export interface ProfileResponse {
   cash?: number;
   is_admin?: boolean;
   is_banned?: boolean;
+  last_seen_at?: string;
+  is_online?: boolean;
   created_at: string;
 }
 
@@ -509,6 +511,8 @@ export interface ConversationResponse {
     username: string;
     player_name?: string;
     profile_image_url?: string | null;
+    last_seen_at?: string;
+    is_online?: boolean;
   };
   last_message: MessageResponse;
   unread_count: number;

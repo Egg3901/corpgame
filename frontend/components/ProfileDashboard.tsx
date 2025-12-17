@@ -19,6 +19,7 @@ import {
   Activity,
   Settings,
   Trophy,
+  Circle,
 } from 'lucide-react';
 import { authAPI, profileAPI, corporationAPI, portfolioAPI, ProfileResponse, CorporationResponse, PortfolioResponse } from '@/lib/api';
 import SendCashModal from './SendCashModal';
@@ -192,6 +193,37 @@ export default function ProfileDashboard({ profileId }: ProfileDashboardProps) {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     }).format(value);
+  };
+
+  const formatLastSeen = (lastSeenAt?: string, isOnline?: boolean): string => {
+    if (isOnline) {
+      return 'Online now';
+    }
+    if (!lastSeenAt) {
+      return 'Never seen';
+    }
+    
+    const lastSeen = new Date(lastSeenAt);
+    const now = new Date();
+    const diffMs = now.getTime() - lastSeen.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+    const diffWeeks = Math.floor(diffDays / 7);
+    const diffMonths = Math.floor(diffDays / 30);
+
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays < 7) return `${diffDays}d ago`;
+    if (diffWeeks < 4) return `${diffWeeks}w ago`;
+    if (diffMonths < 12) return `${diffMonths}mo ago`;
+    
+    return lastSeen.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: lastSeen.getFullYear() !== now.getFullYear() ? 'numeric' : undefined,
+    });
   };
 
   const corpSummary = primaryCorporation ? {
@@ -368,6 +400,18 @@ export default function ProfileDashboard({ profileId }: ProfileDashboardProps) {
                     <Clock3 className="h-3 w-3" />
                     <span>Joined {joinedLabel}</span>
                   </div>
+                  {profile.last_seen_at !== undefined && (
+                    <div className={`flex items-center justify-center gap-2 text-xs ${
+                      profile.is_online 
+                        ? 'text-green-600 dark:text-green-400' 
+                        : 'text-gray-500 dark:text-gray-400'
+                    }`}>
+                      <Circle 
+                        className={`h-2 w-2 ${profile.is_online ? 'fill-green-500' : 'fill-gray-400'}`} 
+                      />
+                      <span>{formatLastSeen(profile.last_seen_at, profile.is_online)}</span>
+                    </div>
+                  )}
                 </div>
               </div>
               {profile.bio && (
@@ -564,9 +608,28 @@ export default function ProfileDashboard({ profileId }: ProfileDashboardProps) {
               onClose={() => setSendCashOpen(false)}
               recipientId={profile.id}
               recipientName={displayName}
-              onSuccess={() => {
-                // Refresh user cash if needed
-                setSendCashOpen(false);
+              onSuccess={(newBalance) => {
+                // Update cash balance
+                setUserCash(newBalance);
+                
+                // If viewing own profile, also update the profile data
+                if (isOwner && viewerProfile) {
+                  setViewerProfile({ ...viewerProfile, cash: newBalance });
+                }
+                
+                // Refresh profile data to get updated cash
+                const refreshProfile = async () => {
+                  try {
+                    const updatedProfile = await profileAPI.getById(profileId);
+                    setProfile(updatedProfile);
+                    if (updatedProfile.cash !== undefined) {
+                      setUserCash(updatedProfile.cash);
+                    }
+                  } catch (err) {
+                    console.warn('Failed to refresh profile after cash transfer:', err);
+                  }
+                };
+                refreshProfile();
               }}
             />
             <ComposeMessage

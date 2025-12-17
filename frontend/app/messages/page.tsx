@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import AppNavigation from '@/components/AppNavigation';
 import ComposeMessage from '@/components/ComposeMessage';
 import { messagesAPI, ConversationResponse, MessageResponse, authAPI } from '@/lib/api';
-import { MessageSquare, Send, Plus, ChevronLeft, User, Clock, Flag, X } from 'lucide-react';
+import { MessageSquare, Send, Plus, ChevronLeft, User, Clock, Flag, X, Circle } from 'lucide-react';
 import Link from 'next/link';
 
 function MessagesPageContent() {
@@ -204,9 +204,26 @@ function MessagesPageContent() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between mb-1">
-                            <p className="font-semibold text-gray-900 dark:text-white truncate">
-                              {conversation.other_user.player_name || conversation.other_user.username}
-                            </p>
+                            <div className="flex items-center gap-2 flex-1 min-w-0">
+                              <p className="font-semibold text-gray-900 dark:text-white truncate">
+                                {conversation.other_user.player_name || conversation.other_user.username}
+                              </p>
+                              {conversation.other_user.last_seen_at !== undefined && (
+                                <div className={`flex items-center gap-1 flex-shrink-0 ${
+                                  conversation.other_user.is_online 
+                                    ? 'text-green-600 dark:text-green-400' 
+                                    : 'text-gray-400 dark:text-gray-500'
+                                }`}>
+                                  <Circle 
+                                    className={`h-1.5 w-1.5 ${
+                                      conversation.other_user.is_online 
+                                        ? 'fill-green-500' 
+                                        : 'fill-gray-400'
+                                    }`} 
+                                  />
+                                </div>
+                              )}
+                            </div>
                             <span className="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0 ml-2">
                               {formatDate(conversation.last_message.created_at)}
                             </span>
@@ -248,12 +265,30 @@ function MessagesPageContent() {
                       }}
                     />
                     <div>
-                      <Link
-                        href={`/profile/${selectedConversationData.other_user.profile_id}`}
-                        className="font-semibold text-gray-900 dark:text-white hover:text-corporate-blue transition-colors"
-                      >
-                        {selectedConversationData.other_user.player_name || selectedConversationData.other_user.username}
-                      </Link>
+                      <div className="flex items-center gap-2">
+                        <Link
+                          href={`/profile/${selectedConversationData.other_user.profile_id}`}
+                          className="font-semibold text-gray-900 dark:text-white hover:text-corporate-blue transition-colors"
+                        >
+                          {selectedConversationData.other_user.player_name || selectedConversationData.other_user.username}
+                        </Link>
+                        {selectedConversationData.other_user.last_seen_at !== undefined && (
+                          <div className={`flex items-center gap-1 text-xs ${
+                            selectedConversationData.other_user.is_online 
+                              ? 'text-green-600 dark:text-green-400' 
+                              : 'text-gray-500 dark:text-gray-400'
+                          }`}>
+                            <Circle 
+                              className={`h-1.5 w-1.5 ${
+                                selectedConversationData.other_user.is_online 
+                                  ? 'fill-green-500' 
+                                  : 'fill-gray-400'
+                              }`} 
+                            />
+                            <span>{formatLastSeen(selectedConversationData.other_user.last_seen_at, selectedConversationData.other_user.is_online)}</span>
+                          </div>
+                        )}
+                      </div>
                       <p className="text-xs text-gray-500 dark:text-gray-400">
                         Profile #{selectedConversationData.other_user.profile_id}
                       </p>
