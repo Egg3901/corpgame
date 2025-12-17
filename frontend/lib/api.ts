@@ -363,6 +363,7 @@ export interface IssueReportResponse {
   issue_id?: number;
   github_issue_url?: string;
   message: string;
+  report_id?: number;
 }
 
 export const issueAPI = {
@@ -395,6 +396,37 @@ export interface AdminUser {
   created_at: string;
 }
 
+export interface ReportedChat {
+  id: number;
+  reporter_id: number;
+  reported_user_id: number;
+  reason?: string | null;
+  reviewed: boolean;
+  reviewed_by?: number | null;
+  reviewed_at?: string | null;
+  created_at: string;
+  reporter?: {
+    id: number;
+    profile_id: number;
+    username: string;
+    player_name?: string;
+    profile_image_url?: string | null;
+  };
+  reported_user?: {
+    id: number;
+    profile_id: number;
+    username: string;
+    player_name?: string;
+    profile_image_url?: string | null;
+  };
+  reviewed_by_user?: {
+    id: number;
+    profile_id: number;
+    username: string;
+    player_name?: string;
+  } | null;
+}
+
 export const adminAPI = {
   getAllUsers: async (): Promise<AdminUser[]> => {
     const response = await api.get('/api/admin/users');
@@ -406,6 +438,17 @@ export const adminAPI = {
   },
   deleteUser: async (userId: number): Promise<void> => {
     await api.delete(`/api/admin/users/${userId}`);
+  },
+  getReportedChats: async (includeReviewed?: boolean): Promise<ReportedChat[]> => {
+    const params = new URLSearchParams();
+    if (includeReviewed) params.append('include_reviewed', 'true');
+    const query = params.toString();
+    const response = await api.get(`/api/admin/reported-chats${query ? `?${query}` : ''}`);
+    return response.data;
+  },
+  clearReportedChat: async (reportId: number): Promise<{ message: string; report: ReportedChat }> => {
+    const response = await api.delete(`/api/admin/reported-chats/${reportId}`);
+    return response.data;
   },
 };
 
@@ -509,6 +552,10 @@ export const messagesAPI = {
   },
   delete: async (id: number): Promise<{ success: boolean }> => {
     const response = await api.delete(`/api/messages/${id}`);
+    return response.data;
+  },
+  reportConversation: async (userId: number, reason?: string): Promise<{ success: boolean; report_id: number; message: string }> => {
+    const response = await api.post(`/api/messages/conversation/${userId}/report`, { reason });
     return response.data;
   },
 };

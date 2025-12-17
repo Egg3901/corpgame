@@ -159,7 +159,7 @@ export default function OverviewPage() {
                 <Zap className="w-5 h-5 text-emerald-500" />
               </div>
               <h3 className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Game Status</h3>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">Active</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">Turns Paused</p>
             </div>
           </div>
         </div>

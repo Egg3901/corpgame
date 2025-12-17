@@ -18,6 +18,9 @@ export default function MessagesPage() {
   const [composeOpen, setComposeOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
+  const [reportDialogOpen, setReportDialogOpen] = useState(false);
+  const [reportReason, setReportReason] = useState('');
+  const [reporting, setReporting] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -81,6 +84,23 @@ export default function MessagesPage() {
     
     const unreadData = await messagesAPI.getUnreadCount();
     setUnreadCount(unreadData.count);
+  };
+
+  const handleReportConversation = async () => {
+    if (!selectedConversation) return;
+
+    try {
+      setReporting(true);
+      await messagesAPI.reportConversation(selectedConversation, reportReason.trim() || undefined);
+      setReportDialogOpen(false);
+      setReportReason('');
+      alert('Conversation reported successfully. Administrators will review it.');
+    } catch (err: any) {
+      console.error('Failed to report conversation:', err);
+      alert(err.response?.data?.error || 'Failed to report conversation');
+    } finally {
+      setReporting(false);
+    }
   };
 
   const formatDate = (dateString: string) => {
@@ -228,15 +248,25 @@ export default function MessagesPage() {
                       </p>
                     </div>
                   </div>
-                  <button
-                    onClick={() => {
-                      setComposeOpen(true);
-                    }}
-                    className="rounded-lg px-3 py-1.5 text-sm font-semibold bg-corporate-blue text-white hover:bg-corporate-blue-dark transition-colors flex items-center gap-2"
-                  >
-                    <Send className="w-4 h-4" />
-                    Reply
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setReportDialogOpen(true)}
+                      className="rounded-lg px-3 py-1.5 text-sm font-semibold text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors flex items-center gap-2"
+                      title="Report this conversation"
+                    >
+                      <Flag className="w-4 h-4" />
+                      Report
+                    </button>
+                    <button
+                      onClick={() => {
+                        setComposeOpen(true);
+                      }}
+                      className="rounded-lg px-3 py-1.5 text-sm font-semibold bg-corporate-blue text-white hover:bg-corporate-blue-dark transition-colors flex items-center gap-2"
+                    >
+                      <Send className="w-4 h-4" />
+                      Reply
+                    </button>
+                  </div>
                 </div>
 
                 {/* Messages */}
@@ -301,6 +331,68 @@ export default function MessagesPage() {
           recipientName={selectedConversationData?.other_user.player_name || selectedConversationData?.other_user.username}
           onSuccess={handleComposeSuccess}
         />
+
+        {/* Report Dialog */}
+        {reportDialogOpen && selectedConversationData && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 p-6 max-w-md mx-4 w-full">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Report Conversation</h3>
+                <button
+                  onClick={() => {
+                    setReportDialogOpen(false);
+                    setReportReason('');
+                  }}
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                Reporting conversation with <strong>{selectedConversationData.other_user.player_name || selectedConversationData.other_user.username}</strong>
+              </p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
+                <strong>Note:</strong> This is for reporting inappropriate content or behavior. For game suggestions or bugs, please use the "Report Issue" page instead.
+              </p>
+              <div className="mb-4">
+                <label htmlFor="report-reason" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Reason (optional)
+                </label>
+                <textarea
+                  id="report-reason"
+                  value={reportReason}
+                  onChange={(e) => setReportReason(e.target.value)}
+                  rows={4}
+                  maxLength={2000}
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-corporate-blue focus:border-transparent resize-y"
+                  placeholder="Please provide details about why you're reporting this conversation..."
+                />
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  {reportReason.length} / 2000 characters
+                </p>
+              </div>
+              <div className="flex gap-3 justify-end">
+                <button
+                  onClick={() => {
+                    setReportDialogOpen(false);
+                    setReportReason('');
+                  }}
+                  className="px-4 py-2 text-sm font-medium rounded-md border border-gray-200 text-gray-700 hover:bg-gray-100 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-700"
+                  disabled={reporting}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleReportConversation}
+                  disabled={reporting}
+                  className="px-4 py-2 text-sm font-medium rounded-md bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {reporting ? 'Reporting...' : 'Report Conversation'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </AppNavigation>
   );

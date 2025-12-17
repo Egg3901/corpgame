@@ -1,6 +1,7 @@
 import express, { Request, Response } from 'express';
 import { MessageModel } from '../models/Message';
 import { UserModel } from '../models/User';
+import { ReportedChatModel } from '../models/ReportedChat';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { normalizeImageUrl } from '../utils/imageUrl';
 
@@ -225,6 +226,51 @@ router.patch('/conversation/:userId/read', authenticateToken, async (req: AuthRe
   } catch (error: any) {
     console.error('Mark conversation as read error:', error);
     res.status(500).json({ error: error.message || 'Failed to mark conversation as read' });
+  }
+});
+
+// POST /api/messages/conversation/:userId/report - Report a conversation
+router.post('/conversation/:userId/report', authenticateToken, async (req: AuthRequest, res: Response) => {
+  try {
+    const reporterId = req.userId!;
+    const reportedUserId = parseInt(req.params.userId, 10);
+    const { reason } = req.body;
+
+    if (isNaN(reportedUserId)) {
+      return res.status(400).json({ error: 'Invalid user ID' });
+    }
+
+    if (reporterId === reportedUserId) {
+      return res.status(400).json({ error: 'Cannot report yourself' });
+    }
+
+    // Validate reported user exists
+    const reportedUser = await UserModel.findById(reportedUserId);
+    if (!reportedUser) {
+      return res.status(404).json({ error: 'Reported user not found' });
+    }
+
+    // Validate reason length if provided
+    if (reason !== undefined && reason !== null) {
+      if (typeof reason !== 'string' || reason.length > 2000) {
+        return res.status(400).json({ error: 'Reason cannot exceed 2000 characters' });
+      }
+    }
+
+    const report = await ReportedChatModel.create({
+      reporter_id: reporterId,
+      reported_user_id: reportedUserId,
+      reason: reason ? reason.trim() : null,
+    });
+
+    res.status(201).json({
+      success: true,
+      report_id: report.id,
+      message: 'Conversation reported successfully',
+    });
+  } catch (error: any) {
+    console.error('Report conversation error:', error);
+    res.status(500).json({ error: error.message || 'Failed to report conversation' });
   }
 });
 

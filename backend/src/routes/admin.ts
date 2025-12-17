@@ -2,6 +2,8 @@ import express, { Request, Response } from 'express';
 import { authenticateToken, requireAdmin, AuthRequest } from '../middleware/auth';
 import { BannedIpModel } from '../models/BannedIp';
 import { UserModel } from '../models/User';
+import { ReportedChatModel } from '../models/ReportedChat';
+import { normalizeImageUrl } from '../utils/imageUrl';
 
 const router = express.Router();
 
@@ -92,6 +94,54 @@ router.delete('/users/:id', async (req: AuthRequest, res: Response) => {
   } catch (error) {
     console.error('Delete user error:', error);
     res.status(500).json({ error: 'Failed to delete user' });
+  }
+});
+
+// GET /api/admin/reported-chats - Get all reported chats
+router.get('/reported-chats', async (req: AuthRequest, res: Response) => {
+  try {
+    const { include_reviewed } = req.query;
+    const includeReviewed = include_reviewed === 'true';
+    
+    const reportedChats = await ReportedChatModel.findAll(includeReviewed);
+    
+    // Normalize image URLs
+    const normalizedChats = reportedChats.map(chat => ({
+      ...chat,
+      reporter: chat.reporter ? {
+        ...chat.reporter,
+        profile_image_url: normalizeImageUrl(chat.reporter.profile_image_url),
+      } : null,
+      reported_user: chat.reported_user ? {
+        ...chat.reported_user,
+        profile_image_url: normalizeImageUrl(chat.reported_user.profile_image_url),
+      } : null,
+    }));
+    
+    res.json(normalizedChats);
+  } catch (error) {
+    console.error('Get reported chats error:', error);
+    res.status(500).json({ error: 'Failed to get reported chats' });
+  }
+});
+
+// DELETE /api/admin/reported-chats/:id - Mark reported chat as reviewed (clear from display)
+router.delete('/reported-chats/:id', async (req: AuthRequest, res: Response) => {
+  try {
+    const reportId = parseInt(req.params.id, 10);
+    if (isNaN(reportId)) {
+      return res.status(400).json({ error: 'Invalid report id' });
+    }
+
+    const reviewed = await ReportedChatModel.markAsReviewed(reportId, req.userId!);
+    if (!reviewed) {
+      return res.status(404).json({ error: 'Report not found' });
+    }
+
+    res.json({ message: 'Report marked as reviewed', report: reviewed });
+  } catch (error) {
+    console.error('Mark report as reviewed error:', error);
+    res.status(500).json({ error: 'Failed to mark report as reviewed' });
   }
 });
 

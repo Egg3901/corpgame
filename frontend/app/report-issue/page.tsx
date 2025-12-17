@@ -15,6 +15,8 @@ export default function ReportIssuePage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const [reportId, setReportId] = useState<number | null>(null);
+  const [githubUrl, setGithubUrl] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,17 +54,42 @@ export default function ReportIssuePage() {
       <div className="relative mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 py-10">
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-2">Report Issue</h1>
-          <p className="text-gray-600 dark:text-gray-400">
+          <p className="text-gray-600 dark:text-gray-400 mb-2">
             Found a bug or have a suggestion? Let us know and we'll look into it.
+          </p>
+          <p className="text-sm text-amber-600 dark:text-amber-400 font-medium">
+            ⚠️ <strong>Note:</strong> This form is for game suggestions, bugs, and technical issues. For moderation concerns or reporting inappropriate user behavior, please use the report button in messages.
           </p>
         </div>
 
         {success && (
-          <div className="mb-6 p-4 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg flex items-center gap-3">
-            <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-            <p className="text-emerald-600 dark:text-emerald-400">
-              Issue reported successfully! We'll review it soon.
-            </p>
+          <div className="mb-6 p-4 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg">
+            <div className="flex items-start gap-3 mb-3">
+              <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400 flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <p className="text-emerald-600 dark:text-emerald-400 font-semibold mb-2">
+                  Issue reported successfully! We'll review it soon.
+                </p>
+                {githubUrl && (
+                  <div className="mt-2">
+                    <a
+                      href={githubUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 text-emerald-700 dark:text-emerald-300 hover:text-emerald-800 dark:hover:text-emerald-200 underline font-medium"
+                    >
+                      <span>Track your report on GitHub</span>
+                      <ExternalLink className="w-4 h-4" />
+                    </a>
+                  </div>
+                )}
+                {reportId && !githubUrl && (
+                  <p className="text-sm text-emerald-600 dark:text-emerald-400 mt-2">
+                    Report ID: <strong>#{reportId}</strong>
+                  </p>
+                )}
+              </div>
+            </div>
           </div>
         )}
 
