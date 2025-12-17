@@ -15,6 +15,9 @@ export default function AdminPage() {
   const [revealedUsers, setRevealedUsers] = useState<Set<number>>(new Set());
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [reportedChats, setReportedChats] = useState<ReportedChat[]>([]);
+  const [showReviewed, setShowReviewed] = useState(false);
+  const [clearingReport, setClearingReport] = useState<number | null>(null);
 
   useEffect(() => {
     const loadData = async () => {
