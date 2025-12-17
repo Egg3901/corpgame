@@ -47,6 +47,7 @@ export default function ProfileDashboard({ profileId }: ProfileDashboardProps) {
   const [profile, setProfile] = useState<ProfileResponse | null>(null);
   const [viewerProfileId, setViewerProfileId] = useState<number | null>(null);
   const [viewerAdmin, setViewerAdmin] = useState<boolean>(false);
+  const [viewerProfile, setViewerProfile] = useState<ProfileResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [navOpen, setNavOpen] = useState(false);
@@ -80,6 +81,12 @@ export default function ProfileDashboard({ profileId }: ProfileDashboardProps) {
         const me = await authAPI.getMe();
         setViewerProfileId(me.profile_id);
         setViewerAdmin(!!me.is_admin);
+
+        // Fetch viewer's full profile data for navigation
+        if (me.profile_id) {
+          const viewerData = await profileAPI.getById(me.profile_id.toString());
+          setViewerProfile(viewerData);
+        }
       } catch (err) {
         console.warn('Viewer not authenticated:', err);
       }
@@ -224,9 +231,9 @@ export default function ProfileDashboard({ profileId }: ProfileDashboardProps) {
                 className="group inline-flex items-center gap-3 rounded-2xl border border-white/70 bg-gradient-to-r from-white/90 to-white/60 px-3 py-2 text-left shadow-md transition hover:-translate-y-0.5 hover:shadow-lg dark:border-gray-800 dark:from-gray-800/90 dark:to-gray-900/80"
               >
                 <div className="relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl border border-white/60 bg-corporate-blue/10 dark:border-gray-700 dark:bg-gray-800">
-                  {profile.profile_image_url ? (
+                  {viewerProfile?.profile_image_url ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={profile.profile_image_url} alt="Profile avatar" className="h-full w-full object-cover" />
+                    <img src={viewerProfile.profile_image_url} alt="Your profile avatar" className="h-full w-full object-cover" />
                   ) : (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src="/commonassets/defaultpfp.jpg" alt="Default profile avatar" className="h-full w-full object-cover" />
@@ -235,9 +242,9 @@ export default function ProfileDashboard({ profileId }: ProfileDashboardProps) {
                 <div className="leading-tight">
                   <p className="text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400">Profile</p>
                   <p className="text-sm font-semibold text-gray-900 dark:text-white">
-                    {isOwner ? 'Your profile' : displayName}
+                    Your Profile
                   </p>
-                  <p className="text-[11px] text-gray-500 dark:text-gray-400">#{viewerProfileId ?? canonicalProfileId}</p>
+                  <p className="text-[11px] text-gray-500 dark:text-gray-400">#{viewerProfileId}</p>
                 </div>
               </button>
             </div>
@@ -327,6 +334,15 @@ export default function ProfileDashboard({ profileId }: ProfileDashboardProps) {
                   </div>
                 </div>
               </div>
+              {profile.bio && (
+                <div className="mt-4 rounded-xl border border-white/60 bg-white/70 p-4 shadow-sm dark:border-gray-800/70 dark:bg-gray-800/70">
+                  <div className="flex items-center gap-2 text-xs font-semibold uppercase text-gray-500 dark:text-gray-400 mb-2">
+                    <UserIcon className="h-4 w-4" />
+                    Bio
+                  </div>
+                  <p className="text-sm text-gray-700 dark:text-gray-300">{profile.bio}</p>
+                </div>
+              )}
               <div className="relative border-t border-gray-200/70 px-6 py-4 dark:border-gray-800">
                 <div className="flex flex-wrap items-center gap-3">
                   <span className="inline-flex items-center gap-2 rounded-full bg-corporate-blue/10 px-3 py-1 text-xs font-semibold text-corporate-blue dark:bg-corporate-blue/20">
@@ -506,8 +522,8 @@ export default function ProfileDashboard({ profileId }: ProfileDashboardProps) {
               <div className="space-y-1">
                 <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Menu</p>
                 <button type="button" onClick={handleOpenProfile} className="text-left">
-                  <p className="text-lg font-semibold text-gray-900 dark:text-white">{displayName}</p>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">Profile #{viewerProfileId ?? canonicalProfileId}</p>
+                  <p className="text-lg font-semibold text-gray-900 dark:text-white">{viewerProfile?.player_name || viewerProfile?.username || 'Your Profile'}</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Profile #{viewerProfileId}</p>
                 </button>
               </div>
               <button

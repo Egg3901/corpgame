@@ -105,14 +105,18 @@ app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Static file serving
+const commonAssetsDir = path.join(__dirname, '..', '..', '..', 'commonassets');
+app.use('/commonassets', express.static(commonAssetsDir));
 app.use('/uploads', express.static(uploadsDir));
 
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/game', gameRoutes);
+app.use('/api/profile', avatarRoutes); // Mount avatar routes first to avoid conflict with profile catch-all
 app.use('/api/profile', profileRoutes);
 app.use('/api/admin', adminRoutes);
-app.use('/api/profile', avatarRoutes);
 
 // Health check
 app.get('/health', (req, res) => {
