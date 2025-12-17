@@ -62,8 +62,9 @@ export default function SettingsPage() {
     if (!user) return;
     setSavingBio(true);
     try {
-      const updatedUser = await profileAPI.updateProfile({ bio });
-      setUser(updatedUser);
+      await profileAPI.updateProfile({ bio });
+      // Update the local user state with the new bio
+      setUser(prev => prev ? { ...prev, bio } : null);
     } catch (err: any) {
       console.error('Bio update failed:', err);
       // Reset to original value on error
