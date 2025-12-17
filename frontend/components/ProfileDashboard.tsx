@@ -1,9 +1,8 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  Menu,
   Settings,
   User as UserIcon,
   Building2,
@@ -11,12 +10,15 @@ import {
   DollarSign,
   PieChart,
   BarChart3,
-  ChevronDown,
-  ChevronRight,
   ClipboardList,
   Briefcase,
   Shield,
-  X
+  Link2,
+  Copy,
+  CheckCircle2,
+  Clock3,
+  Activity,
+  MapPin,
 } from 'lucide-react';
 import { authAPI, profileAPI, ProfileResponse } from '@/lib/api';
 
@@ -24,16 +26,9 @@ interface ProfileDashboardProps {
   slug: string;
 }
 
-const navSections = [
-  { id: 'overview', label: 'Overview' },
-  { id: 'corporations', label: 'Corporations' },
-  { id: 'states', label: 'States' },
-  { id: 'actions', label: 'Actions' },
-];
-
 const corporateHistory = [
-  { ceo: 'C.E.O. SAMPLE CORP', dateRange: '12/01/25 - 12/15/25' },
-  { ceo: 'Acting CEO Placeholder Inc.', dateRange: '11/10/25 - 11/30/25' },
+  { title: 'C.E.O. SAMPLE CORP', period: '12/01/25 - 12/15/25' },
+  { title: 'Acting CEO Placeholder Inc.', period: '11/10/25 - 11/30/25' },
 ];
 
 export default function ProfileDashboard({ slug }: ProfileDashboardProps) {
@@ -43,8 +38,7 @@ export default function ProfileDashboard({ slug }: ProfileDashboardProps) {
   const [viewerAdmin, setViewerAdmin] = useState<boolean>(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [navOpen, setNavOpen] = useState(false);
-  const [expandedNav, setExpandedNav] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -83,16 +77,16 @@ export default function ProfileDashboard({ slug }: ProfileDashboardProps) {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-lg text-gray-600">Loading profile...</div>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center dark:bg-gray-900 dark:text-gray-100">
+        <div className="text-lg text-gray-600 dark:text-gray-200">Loading profile...</div>
       </div>
     );
   }
 
   if (error || !profile) {
     return (
-      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center space-y-4 text-center">
-        <p className="text-xl text-gray-700">{error || 'Profile not found.'}</p>
+      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center space-y-4 text-center dark:bg-gray-900 dark:text-gray-100">
+        <p className="text-xl text-gray-700 dark:text-gray-200">{error || 'Profile not found.'}</p>
         <button
           onClick={() => router.push('/')}
           className="px-4 py-2 bg-corporate-blue text-white rounded-md"
@@ -106,10 +100,11 @@ export default function ProfileDashboard({ slug }: ProfileDashboardProps) {
   const displayName = profile.player_name || profile.username || 'Executive';
   const displayState = profile.starting_state || 'N/A';
   const isOwner = viewerSlug === profile.profile_slug;
+  const canonicalSlug = profile.profile_slug || `${profile.id}`;
   const shareUrl =
     typeof window !== 'undefined'
-      ? `${window.location.origin}/profile/${profile.profile_slug}`
-      : `/profile/${profile.profile_slug}`;
+      ? `${window.location.origin}/profile/${canonicalSlug}`
+      : `/profile/${canonicalSlug}`;
 
   const corpSummary = {
     name: 'Sample Corp',
@@ -121,197 +116,265 @@ export default function ProfileDashboard({ slug }: ProfileDashboardProps) {
 
   const fillerPortfolio = '$0';
   const fillerTitle = profile.is_admin ? 'Administrator' : 'Executive';
-  const handleOpenSettings = () => {
-    setNavOpen(false);
-    router.push('/settings');
+  const viewerContext = isOwner ? 'Owner' : viewerSlug ? 'Authenticated viewer' : 'Guest';
+  const joinedLabel = profile.created_at
+    ? new Date(profile.created_at).toLocaleDateString(undefined, {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+      })
+    : 'Date unavailable';
+
+  const handleOpenSettings = () => router.push('/settings');
+
+  const handleCopyLink = async () => {
+    if (!shareUrl || typeof navigator === 'undefined') return;
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    } catch (copyError) {
+      console.error('Copy link failed:', copyError);
+    }
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 dark:text-gray-100">
-      <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-40 dark:bg-gray-800 dark:border-gray-700">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <button
-              onClick={() => setNavOpen(true)}
-              className="p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100"
-              aria-label="Open navigation"
-            >
-              <Menu className="w-6 h-6" />
-            </button>
+    <div className="relative min-h-screen bg-gradient-to-b from-gray-50 via-white to-gray-100 text-gray-900 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 dark:text-gray-100">
+      <div className="pointer-events-none absolute inset-0 opacity-80">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(59,130,246,0.12),transparent_35%),radial-gradient(circle_at_80%_0%,rgba(30,64,175,0.1),transparent_30%),radial-gradient(circle_at_50%_80%,rgba(15,23,42,0.06),transparent_40%)] dark:bg-[radial-gradient(circle_at_20%_20%,rgba(59,130,246,0.08),transparent_45%),radial-gradient(circle_at_80%_0%,rgba(30,64,175,0.12),transparent_42%),radial-gradient(circle_at_50%_80%,rgba(148,163,184,0.05),transparent_45%)]" />
+      </div>
 
-            <div className="flex-1 text-center">
-              <p className="text-xs uppercase text-gray-500 tracking-wide">Welcome</p>
-              <p className="text-lg font-semibold text-gray-900">
-                {displayName} &bull; {displayState}
-              </p>
-            </div>
-
-            <div className="flex items-center space-x-2">
-              <button className="p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100" aria-label="User panel">
-                <UserIcon className="w-5 h-5" />
-              </button>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-        <div className="bg-white rounded-lg shadow px-6 py-4 flex flex-wrap items-center justify-between gap-4">
+      <div className="relative mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8 space-y-8">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="text-sm text-gray-500 uppercase tracking-wide">Profile link</p>
-            <p className="text-gray-900 font-medium break-all">{shareUrl}</p>
+            <p className="text-xs uppercase tracking-[0.25em] text-gray-500 dark:text-gray-400">Profile</p>
+            <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
+              {displayName} &middot; {displayState}
+            </h1>
           </div>
-          <div className="text-sm text-gray-600">
-            <span className="font-semibold text-gray-900">Viewed as:</span>{' '}
-            {isOwner ? 'Your profile' : viewerSlug ? 'Another player' : 'Guest'}
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={handleCopyLink}
+              className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white/80 px-4 py-2 text-sm font-semibold text-gray-800 shadow-sm transition hover:-translate-y-0.5 hover:border-corporate-blue hover:shadow-md dark:border-gray-700 dark:bg-gray-900/80 dark:text-gray-100"
+            >
+              <Link2 className="w-4 h-4" />
+              {copied ? 'Copied profile link' : 'Copy profile link'}
+              {!copied && <Copy className="w-4 h-4 text-gray-400" />}
+              {copied && <CheckCircle2 className="w-4 h-4 text-corporate-blue" />}
+            </button>
+            <button
+              onClick={handleOpenSettings}
+              className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-corporate-blue to-corporate-blue-light px-4 py-2 text-sm font-semibold text-white shadow-md transition hover:-translate-y-0.5 hover:shadow-lg dark:from-corporate-blue/90 dark:to-corporate-blue-light/90"
+            >
+              <Settings className="w-4 h-4" />
+              Settings
+            </button>
           </div>
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-[220px_1fr_280px]">
-          <aside className="bg-white rounded-lg shadow p-4 space-y-4">
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold text-gray-900 uppercase">Navigation</p>
-              <button
-                onClick={handleOpenSettings}
-                className="inline-flex items-center gap-1 text-xs font-semibold text-corporate-blue hover:text-corporate-blue-dark"
-              >
-                <Settings className="w-3 h-3" />
-                Settings
-              </button>
-            </div>
-
-            <div className="space-y-2">
-              {navSections.map((item) => (
-                <button
-                  key={item.id}
-                  className="w-full text-left px-3 py-2 rounded-md text-gray-700 hover:bg-gray-100 hover:text-corporate-blue transition-colors text-sm font-medium"
-                >
-                  {item.label}
-                </button>
-              ))}
-
-              <div className="border-t border-gray-200 pt-3">
-                <button
-                  onClick={() => setExpandedNav(expandedNav === 'corp' ? null : 'corp')}
-                  className="w-full flex items-center justify-between px-3 py-2 rounded-md text-gray-700 hover:bg-gray-100 hover:text-corporate-blue transition-colors text-sm font-semibold"
-                >
-                  My Corporation
-                  {expandedNav === 'corp' ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-                </button>
-                {expandedNav === 'corp' && (
-                  <div className="pl-4 mt-2 space-y-1">
-                    <button className="w-full text-left px-3 py-2 rounded-md text-gray-600 hover:bg-gray-50 hover:text-corporate-blue text-sm">
-                      Finances
-                    </button>
-                    <button className="w-full text-left px-3 py-2 rounded-md text-gray-600 hover:bg-gray-50 hover:text-corporate-blue text-sm">
-                      Operations
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-          </aside>
-
+        <div className="grid gap-6 lg:grid-cols-[1.25fr_0.75fr]">
           <section className="space-y-6">
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <div className="flex items-start gap-6">
+            <div className="relative overflow-hidden rounded-2xl border border-white/60 bg-white/80 shadow-2xl backdrop-blur dark:border-gray-800/60 dark:bg-gray-900/70">
+              <div className="absolute inset-0 bg-gradient-to-br from-corporate-blue/12 via-transparent to-corporate-blue-light/20 dark:from-corporate-blue/18 dark:via-transparent dark:to-corporate-blue-dark/30" />
+              <div className="relative flex flex-col gap-6 p-6 md:flex-row md:items-center">
                 <div className="flex-shrink-0">
-                  <div className="w-24 h-24 bg-gray-200 rounded-lg flex items-center justify-center text-gray-400 text-xs overflow-hidden">
-                    {profile.profile_image_url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={profile.profile_image_url}
-                        alt="Profile"
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      'No image'
-                    )}
+                  <div className="relative">
+                    <div className="absolute -inset-1 rounded-2xl bg-gradient-to-br from-corporate-blue/30 to-corporate-blue-light/40 blur-xl dark:from-corporate-blue/40 dark:to-corporate-blue-dark/40" />
+                    <div className="relative flex h-28 w-28 items-center justify-center overflow-hidden rounded-2xl border border-white/60 bg-white/70 shadow-lg dark:border-gray-800/80 dark:bg-gray-800/70">
+                      {profile.profile_image_url ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={profile.profile_image_url} alt="Profile" className="h-full w-full object-cover" />
+                      ) : (
+                        <div className="flex flex-col items-center justify-center text-xs text-gray-500 dark:text-gray-400">
+                          <UserIcon className="h-8 w-8 text-gray-400" />
+                          <span>No image</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
 
-                <div className="flex-1 grid md:grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-xs text-gray-500 uppercase font-medium">Name</p>
-                    <p className="text-xl font-semibold text-gray-900">{displayName}</p>
+                <div className="flex-1 space-y-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="rounded-full bg-corporate-blue/10 px-3 py-1 text-xs font-semibold text-corporate-blue dark:bg-corporate-blue/20">
+                      {fillerTitle}
+                    </span>
+                    <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-700 dark:bg-gray-800 dark:text-gray-200">
+                      {profile.is_admin ? 'Admin access' : 'Player access'}
+                    </span>
+                    <span className="rounded-full bg-gray-50 px-3 py-1 text-xs font-semibold text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+                      Viewing as {viewerContext}
+                    </span>
                   </div>
-                  <div>
-                    <p className="text-xs text-gray-500 uppercase font-medium">Title</p>
-                    <p className="text-gray-700">{fillerTitle}</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-300">
+                    Executive summary placeholder for <span className="font-semibold text-gray-900 dark:text-white">{corpSummary.name}</span>.
+                    This profile uses a slug-based route for sharing; usernames stay private.
+                  </p>
+                  <div className="grid gap-4 sm:grid-cols-3">
+                    <div className="rounded-xl border border-white/60 bg-white/70 p-3 shadow-sm dark:border-gray-800/70 dark:bg-gray-800/70">
+                      <div className="flex items-center gap-2 text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">
+                        <MapPin className="h-4 w-4" />
+                        State
+                      </div>
+                      <p className="mt-2 text-lg font-semibold text-gray-900 dark:text-white">{displayState}</p>
+                    </div>
+                    <div className="rounded-xl border border-white/60 bg-white/70 p-3 shadow-sm dark:border-gray-800/70 dark:bg-gray-800/70">
+                      <div className="flex items-center gap-2 text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">
+                        <DollarSign className="h-4 w-4" />
+                        Portfolio
+                      </div>
+                      <p className="mt-2 text-lg font-semibold text-gray-900 dark:text-white">{fillerPortfolio}</p>
+                    </div>
+                    <div className="rounded-xl border border-white/60 bg-white/70 p-3 shadow-sm dark:border-gray-800/70 dark:bg-gray-800/70">
+                      <div className="flex items-center gap-2 text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">
+                        <Clock3 className="h-4 w-4" />
+                        Joined
+                      </div>
+                      <p className="mt-2 text-lg font-semibold text-gray-900 dark:text-white">{joinedLabel}</p>
+                    </div>
                   </div>
+                </div>
+              </div>
+              <div className="relative border-t border-gray-200/70 px-6 py-4 dark:border-gray-800">
+                <div className="flex flex-wrap items-center gap-3">
+                  <span className="inline-flex items-center gap-2 rounded-full bg-corporate-blue/10 px-3 py-1 text-xs font-semibold text-corporate-blue dark:bg-corporate-blue/20">
+                    <Link2 className="h-4 w-4" />
+                    Profile slug #{canonicalSlug}
+                  </span>
+                  <span className="text-xs text-gray-600 dark:text-gray-400">
+                    Shareable link uses the slug only—no usernames exposed.
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid gap-6 md:grid-cols-2">
+              <div className="rounded-2xl border border-white/60 bg-white/80 p-6 shadow-xl backdrop-blur dark:border-gray-800/60 dark:bg-gray-900/70">
+                <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="text-xs text-gray-500 uppercase font-medium">State</p>
-                    <p className="text-gray-700">{displayState}</p>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                      Primary corporation
+                    </p>
+                    <p className="text-lg font-semibold text-gray-900 dark:text-white">{corpSummary.name}</p>
                   </div>
+                  <span className="rounded-full bg-corporate-blue/10 px-3 py-1 text-xs font-semibold text-corporate-blue dark:bg-corporate-blue/20">
+                    Stable
+                  </span>
+                </div>
+                <div className="mt-4 grid grid-cols-2 gap-4">
+                  <div className="rounded-xl border border-white/60 bg-white/70 p-4 shadow-sm dark:border-gray-800/70 dark:bg-gray-800/60">
+                    <div className="flex items-center gap-2 text-sm font-semibold text-gray-700 dark:text-gray-200">
+                      <DollarSign className="h-4 w-4 text-corporate-blue" />
+                      Revenue
+                    </div>
+                    <p className="mt-2 text-gray-600 dark:text-gray-300">{corpSummary.revenue}</p>
+                  </div>
+                  <div className="rounded-xl border border-white/60 bg-white/70 p-4 shadow-sm dark:border-gray-800/70 dark:bg-gray-800/60">
+                    <div className="flex items-center gap-2 text-sm font-semibold text-gray-700 dark:text-gray-200">
+                      <TrendingUp className="h-4 w-4 text-corporate-blue" />
+                      Profit
+                    </div>
+                    <p className="mt-2 text-gray-600 dark:text-gray-300">{corpSummary.profit}</p>
+                  </div>
+                  <div className="rounded-xl border border-white/60 bg-white/70 p-4 shadow-sm dark:border-gray-800/70 dark:bg-gray-800/60">
+                    <div className="flex items-center gap-2 text-sm font-semibold text-gray-700 dark:text-gray-200">
+                      <PieChart className="h-4 w-4 text-corporate-blue" />
+                      Ownership
+                    </div>
+                    <p className="mt-2 text-gray-600 dark:text-gray-300">{corpSummary.ownership}</p>
+                  </div>
+                  <div className="rounded-xl border border-white/60 bg-white/70 p-4 shadow-sm dark:border-gray-800/70 dark:bg-gray-800/60">
+                    <div className="flex items-center gap-2 text-sm font-semibold text-gray-700 dark:text-gray-200">
+                      <BarChart3 className="h-4 w-4 text-corporate-blue" />
+                      Market cap
+                    </div>
+                    <p className="mt-2 text-gray-600 dark:text-gray-300">{corpSummary.marketCap}</p>
+                  </div>
+                </div>
+                <div className="mt-5 rounded-xl border border-dashed border-corporate-blue/30 bg-corporate-blue/5 p-4 text-sm text-corporate-blue dark:border-corporate-blue/30 dark:bg-corporate-blue/10">
+                  <div className="flex items-center gap-2">
+                    <Activity className="h-4 w-4" />
+                    Operations baseline is placeholder until live data is wired.
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-white/60 bg-white/80 p-6 shadow-xl backdrop-blur dark:border-gray-800/60 dark:bg-gray-900/70">
+                <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="text-xs text-gray-500 uppercase font-medium">Portfolio</p>
-                    <p className="text-gray-700">{fillerPortfolio}</p>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                      Access & signals
+                    </p>
+                    <p className="text-lg font-semibold text-gray-900 dark:text-white">Account standing</p>
                   </div>
-                  <div className="md:col-span-2">
-                    <p className="text-xs text-gray-500 uppercase font-medium">Primary Corporation</p>
-                    <p className="text-gray-700">{corpSummary.name}</p>
+                  <Shield className="h-5 w-5 text-corporate-blue" />
+                </div>
+                <div className="mt-4 space-y-3 text-sm text-gray-700 dark:text-gray-300">
+                  <div className="flex items-center justify-between rounded-xl border border-white/60 bg-white/70 p-3 shadow-sm dark:border-gray-800/70 dark:bg-gray-800/60">
+                    <span className="flex items-center gap-2 font-semibold">
+                      <UserIcon className="h-4 w-4 text-corporate-blue" />
+                      Role
+                    </span>
+                    <span className="text-gray-600 dark:text-gray-300">{profile.is_admin ? 'Admin' : 'Player'}</span>
+                  </div>
+                  <div className="flex items-center justify-between rounded-xl border border-white/60 bg-white/70 p-3 shadow-sm dark:border-gray-800/70 dark:bg-gray-800/60">
+                    <span className="flex items-center gap-2 font-semibold">
+                      <Briefcase className="h-4 w-4 text-corporate-blue" />
+                      Viewer
+                    </span>
+                    <span className="text-gray-600 dark:text-gray-300">{viewerContext}</span>
+                  </div>
+                  <div className="flex items-center justify-between rounded-xl border border-white/60 bg-white/70 p-3 shadow-sm dark:border-gray-800/70 dark:bg-gray-800/60">
+                    <span className="flex items-center gap-2 font-semibold">
+                      <Shield className="h-4 w-4 text-corporate-blue" />
+                      Viewer admin
+                    </span>
+                    <span className="text-gray-600 dark:text-gray-300">{viewerAdmin ? 'Yes' : 'No'}</span>
+                  </div>
+                  <div className="rounded-xl border border-dashed border-gray-200/80 bg-gray-50/70 p-3 text-xs text-gray-500 dark:border-gray-800 dark:bg-gray-800/70 dark:text-gray-400">
+                    Personal, team, and guest contexts are visually separated for clarity.
                   </div>
                 </div>
               </div>
             </div>
 
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <div className="flex items-start gap-6">
-                <div className="flex-shrink-0">
-                  <div className="w-16 h-16 bg-corporate-blue rounded-lg flex items-center justify-center">
-                    <Building2 className="w-8 h-8 text-white" />
+            <div className="rounded-2xl border border-white/60 bg-white/80 p-6 shadow-xl backdrop-blur dark:border-gray-800/60 dark:bg-gray-900/70">
+              <div className="mb-4 flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                    Corporate history
+                  </p>
+                  <p className="text-lg font-semibold text-gray-900 dark:text-white">Timeline</p>
+                </div>
+                <ClipboardList className="h-5 w-5 text-corporate-blue" />
+              </div>
+              <div className="space-y-4">
+                <div className="flex gap-3">
+                  <div className="relative">
+                    <div className="absolute inset-x-1/2 top-5 h-full w-px -translate-x-1/2 bg-gray-200 dark:bg-gray-800" />
+                    <div className="relative flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-corporate-blue to-corporate-blue-light text-white shadow-lg text-sm font-bold">
+                      <Clock3 className="h-4 w-4" />
+                    </div>
+                  </div>
+                  <div className="flex-1 rounded-xl border border-white/60 bg-white/70 p-4 shadow-sm dark:border-gray-800/70 dark:bg-gray-800/60">
+                    <p className="text-sm font-semibold text-gray-900 dark:text-white">Profile created</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">{joinedLabel}</p>
                   </div>
                 </div>
-                <div className="flex-1 grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-xs uppercase text-gray-500 font-medium">Corp Name</p>
-                    <p className="text-lg font-semibold text-gray-900">{corpSummary.name}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs uppercase text-gray-500 font-medium">Revenue</p>
-                    <p className="text-gray-700 flex items-center gap-1">
-                      <DollarSign className="w-4 h-4" />
-                      {corpSummary.revenue}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs uppercase text-gray-500 font-medium">Profit</p>
-                    <p className="text-gray-700 flex items-center gap-1">
-                      <TrendingUp className="w-4 h-4" />
-                      {corpSummary.profit}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs uppercase text-gray-500 font-medium">Ownership Share</p>
-                    <p className="text-gray-700 flex items-center gap-1">
-                      <PieChart className="w-4 h-4" />
-                      {corpSummary.ownership}
-                    </p>
-                  </div>
-                  <div className="col-span-2">
-                    <p className="text-xs uppercase text-gray-500 font-medium">Market Cap</p>
-                    <p className="text-gray-700 flex items-center gap-1">
-                      <BarChart3 className="w-4 h-4" />
-                      {corpSummary.marketCap}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-semibold uppercase text-gray-900">Corporate History</h3>
-                <ClipboardList className="w-5 h-5 text-gray-400" />
-              </div>
-              <div className="space-y-3">
                 {corporateHistory.map((history, idx) => (
-                  <div
-                    key={idx}
-                    className="border border-gray-200 rounded-lg p-4 hover:border-corporate-blue/40 transition-colors"
-                  >
-                    <p className="text-sm font-semibold text-gray-900">{history.ceo}</p>
-                    <p className="text-xs text-gray-500">{history.dateRange}</p>
+                  <div key={history.title + idx} className="flex gap-3">
+                    <div className="relative">
+                      {idx < corporateHistory.length - 1 && (
+                        <div className="absolute inset-x-1/2 top-5 h-full w-px -translate-x-1/2 bg-gray-200 dark:bg-gray-800" />
+                      )}
+                      <div className="relative flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-gray-700 shadow-sm dark:bg-gray-800 dark:text-gray-200">
+                        <Building2 className="h-4 w-4" />
+                      </div>
+                    </div>
+                    <div className="flex-1 rounded-xl border border-white/60 bg-white/70 p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-gray-800/70 dark:bg-gray-800/60">
+                      <p className="text-sm font-semibold text-gray-900 dark:text-white">{history.title}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">{history.period}</p>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -319,124 +382,67 @@ export default function ProfileDashboard({ slug }: ProfileDashboardProps) {
           </section>
 
           <aside className="space-y-6">
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-semibold uppercase text-gray-900">User Panel</h3>
-                <UserIcon className="w-5 h-5 text-gray-400" />
+            <div className="rounded-2xl border border-white/60 bg-white/80 p-6 shadow-xl backdrop-blur dark:border-gray-800/60 dark:bg-gray-900/70">
+              <div className="mb-4 flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                    User panel
+                  </p>
+                  <p className="text-lg font-semibold text-gray-900 dark:text-white">Signals</p>
+                </div>
+                <UserIcon className="h-5 w-5 text-corporate-blue" />
               </div>
-              <div className="space-y-3 text-sm text-gray-700">
-                <div className="flex items-center justify-between">
+              <div className="space-y-3 text-sm text-gray-700 dark:text-gray-300">
+                <div className="flex items-center justify-between rounded-xl border border-white/60 bg-white/70 p-3 shadow-sm dark:border-gray-800/70 dark:bg-gray-800/60">
                   <span>Status</span>
                   <span className="font-semibold text-corporate-blue">
                     {profile.is_admin ? 'Admin' : 'Player'}
                   </span>
                 </div>
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between rounded-xl border border-white/60 bg-white/70 p-3 shadow-sm dark:border-gray-800/70 dark:bg-gray-800/60">
                   <span>Viewer</span>
-                  <span className="text-gray-500">
+                  <span className="text-gray-500 dark:text-gray-300">
                     {isOwner ? 'You' : viewerSlug ? 'Authenticated' : 'Guest'}
                   </span>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span>Viewer Admin</span>
-                  <span className="text-gray-500">{viewerAdmin ? 'Yes' : 'No'}</span>
+                <div className="flex items-center justify-between rounded-xl border border-white/60 bg-white/70 p-3 shadow-sm dark:border-gray-800/70 dark:bg-gray-800/60">
+                  <span>Viewer admin</span>
+                  <span className="text-gray-500 dark:text-gray-300">{viewerAdmin ? 'Yes' : 'No'}</span>
                 </div>
               </div>
             </div>
 
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-semibold uppercase text-gray-900">Settings Panel</h3>
-                <Settings className="w-5 h-5 text-gray-400" />
+            <div className="rounded-2xl border border-white/60 bg-white/80 p-6 shadow-xl backdrop-blur dark:border-gray-800/60 dark:bg-gray-900/70">
+              <div className="mb-4 flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                    Settings panel
+                  </p>
+                  <p className="text-lg font-semibold text-gray-900 dark:text-white">Quick actions</p>
+                </div>
+                <Settings className="h-5 w-5 text-corporate-blue" />
               </div>
-              <div className="space-y-4 text-sm text-gray-700">
-                <div className="flex items-center justify-between">
+              <div className="space-y-4 text-sm text-gray-700 dark:text-gray-300">
+                <div className="flex items-center justify-between rounded-xl border border-white/60 bg-white/70 p-3 shadow-sm dark:border-gray-800/70 dark:bg-gray-800/60">
                   <span>Alerts</span>
-                  <Shield className="w-4 h-4 text-gray-400" />
+                  <Shield className="h-4 w-4 text-gray-400" />
                 </div>
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between rounded-xl border border-white/60 bg-white/70 p-3 shadow-sm dark:border-gray-800/70 dark:bg-gray-800/60">
                   <span>Capital</span>
-                  <Briefcase className="w-4 h-4 text-gray-400" />
+                  <Briefcase className="h-4 w-4 text-gray-400" />
                 </div>
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between rounded-xl border border-white/60 bg-white/70 p-3 shadow-sm dark:border-gray-800/70 dark:bg-gray-800/60">
                   <span>Boards</span>
-                  <ClipboardList className="w-4 h-4 text-gray-400" />
+                  <ClipboardList className="h-4 w-4 text-gray-400" />
                 </div>
-                <p className="text-xs text-gray-500">
-                  Placeholder controls for upcoming customization features.
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  Updated layout removes the side navigation while keeping the top-level controls within reach.
                 </p>
               </div>
             </div>
           </aside>
         </div>
       </div>
-
-      {navOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50" onClick={() => setNavOpen(false)}>
-          <div
-            className="fixed left-0 top-0 bottom-0 w-80 bg-white shadow-xl overflow-y-auto dark:bg-gray-900"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between dark:bg-gray-800 dark:border-gray-700">
-              <div>
-                <p className="text-sm text-gray-500 uppercase">User</p>
-                <p className="text-lg font-semibold text-gray-900">{displayName}</p>
-              </div>
-              <button
-                onClick={() => setNavOpen(false)}
-                className="p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="p-6 space-y-2">
-              {navSections.map((item) => (
-                <button
-                  key={item.id}
-                  className="w-full text-left px-4 py-3 rounded-md text-gray-700 hover:bg-gray-100 hover:text-corporate-blue transition-colors font-medium"
-                >
-                  {item.label}
-                </button>
-              ))}
-              <button
-                onClick={handleOpenSettings}
-                className="mt-2 w-full text-left px-4 py-3 rounded-md text-gray-700 hover:bg-gray-100 hover:text-corporate-blue transition-colors font-medium inline-flex items-center gap-2"
-              >
-                <Settings className="w-4 h-4" />
-                Settings
-              </button>
-
-              <div className="pt-2 border-t border-gray-200">
-                <button
-                  onClick={() => setExpandedNav(expandedNav === 'corp' ? null : 'corp')}
-                  className="w-full text-left px-4 py-3 rounded-md text-gray-700 hover:bg-gray-100 hover:text-corporate-blue transition-colors font-medium flex items-center justify-between"
-                >
-                  My Corporation
-                  {expandedNav === 'corp' ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-                </button>
-                {expandedNav === 'corp' && (
-                  <div className="pl-8 space-y-1 mt-1">
-                    <button className="w-full text-left px-4 py-2 rounded-md text-gray-600 hover:bg-gray-50 hover:text-corporate-blue transition-colors">
-                      Finances
-                    </button>
-                    <button className="w-full text-left px-4 py-2 rounded-md text-gray-600 hover:bg-gray-50 hover:text-corporate-blue transition-colors">
-                      Operations
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="p-6 border-t border-gray-200">
-              <div className="bg-gray-50 rounded-lg p-6 text-center text-gray-500 text-sm">
-                <p className="font-medium text-gray-900 mb-2">Page Content Placeholder</p>
-                <p>Use the navigation to explore corporate sections.</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
