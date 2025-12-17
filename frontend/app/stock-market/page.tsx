@@ -204,14 +204,14 @@ export default function StockMarketPage() {
                           {/* Hover glow effect */}
                           <div className="absolute inset-0 bg-gradient-to-r from-corporate-blue/0 via-corporate-blue/5 to-corporate-blue/0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none" />
                           
-                          <td className="py-5 px-6 align-middle">
+                          <td className="py-5 px-6 text-left align-middle">
                             <div className="flex items-center">
                               <span className="inline-flex items-center justify-center w-12 h-12 rounded-lg bg-gradient-to-br from-corporate-blue/10 to-corporate-blue-light/20 dark:from-corporate-blue/20 dark:to-corporate-blue-dark/30 font-mono text-sm font-bold text-corporate-blue dark:text-corporate-blue-light shadow-sm border border-corporate-blue/20 dark:border-corporate-blue/30">
                                 {symbol}
                               </span>
                             </div>
                           </td>
-                          <td className="py-5 px-6 align-middle">
+                          <td className="py-5 px-6 text-left align-middle">
                             <div className="flex items-center gap-4">
                               <div className="relative flex-shrink-0">
                                 {corp.logo ? (

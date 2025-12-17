@@ -105,14 +105,28 @@ export default function CreateCorporationPage() {
               <label htmlFor="type" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Corporation Type / Industry
               </label>
-              <input
-                type="text"
+              <select
                 id="type"
                 value={type}
                 onChange={(e) => setType(e.target.value)}
                 className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-corporate-blue focus:border-transparent"
-                placeholder="e.g., Technology, Finance, Manufacturing"
-              />
+              >
+                <option value="">Select a type...</option>
+                <option value="retail">Retail</option>
+                <option value="manufacturing">Manufacturing</option>
+                <option value="technology">Technology</option>
+                <option value="transportation">Transportation</option>
+                <option value="banking">Banking</option>
+                <option value="insurance">Insurance</option>
+                <option value="utilities">Utilities</option>
+                <option value="construction">Construction</option>
+                <option value="automobiles">Automobiles</option>
+                <option value="defense">Defense</option>
+                <option value="energy">Energy</option>
+                <option value="oil and gas">Oil and Gas</option>
+                <option value="nuclear/renewable energy">Nuclear/Renewable Energy</option>
+                <option value="mining">Mining</option>
+              </select>
             </div>
 
             <div>
