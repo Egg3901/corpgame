@@ -145,7 +145,7 @@ router.post('/', authenticateToken, async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ error: 'Corporation name is required' });
     }
 
-    // Create corporation with defaults: 500k shares, 100k public, $1.00 price
+    // Create corporation with defaults: 500k shares, 100k public, $1.00 price, 500k capital
     const corporation = await CorporationModel.create({
       ceo_id: userId,
       name: name.trim(),
@@ -153,6 +153,7 @@ router.post('/', authenticateToken, async (req: AuthRequest, res: Response) => {
       shares: 500000,
       public_shares: 100000,
       share_price: 1.00,
+      capital: 500000.00,
     });
 
     // Create shareholder record for CEO with 400,000 shares (80%)

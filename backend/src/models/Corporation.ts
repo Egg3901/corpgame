@@ -8,6 +8,7 @@ export interface Corporation {
   shares: number;
   public_shares: number;
   share_price: number;
+  capital: number;
   type?: string | null;
   created_at: Date;
 }
@@ -19,6 +20,7 @@ export interface CorporationInput {
   shares?: number;
   public_shares?: number;
   share_price?: number;
+  capital?: number;
   type?: string | null;
 }
 
@@ -31,14 +33,15 @@ export class CorporationModel {
       shares = 500000,
       public_shares = 100000,
       share_price = 1.00,
+      capital = 500000.00,
       type = null,
     } = corpData;
 
     const result = await pool.query(
-      `INSERT INTO corporations (ceo_id, name, logo, shares, public_shares, share_price, type)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `INSERT INTO corporations (ceo_id, name, logo, shares, public_shares, share_price, capital, type)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING *`,
-      [ceo_id, name.trim(), logo, shares, public_shares, share_price, type]
+      [ceo_id, name.trim(), logo, shares, public_shares, share_price, capital, type]
     );
 
     return result.rows[0];
@@ -63,7 +66,7 @@ export class CorporationModel {
   }
 
   static async update(id: number, updates: Partial<CorporationInput>): Promise<Corporation | null> {
-    const allowedFields = ['name', 'logo', 'type', 'share_price'];
+    const allowedFields = ['name', 'logo', 'type', 'share_price', 'capital', 'public_shares'];
     const fields: string[] = [];
     const values: any[] = [];
     let paramIndex = 1;

@@ -150,6 +150,7 @@ export interface CorporationResponse {
   shares: number;
   public_shares: number;
   share_price: number;
+  capital?: number;
   type?: string | null;
   created_at: string;
   ceo?: {
@@ -291,6 +292,48 @@ export const corporationAPI = {
 export const portfolioAPI = {
   getByUserId: async (userId: number): Promise<PortfolioResponse> => {
     const response = await api.get(`/api/portfolio/${userId}`);
+    return response.data;
+  },
+};
+
+export interface ShareTransactionResponse {
+  success: boolean;
+  shares: number;
+  price_per_share: number;
+  total_cost?: number;
+  total_revenue?: number;
+  new_share_price: number;
+}
+
+export interface SharePriceHistoryResponse {
+  id: number;
+  corporation_id: number;
+  share_price: number;
+  capital: number;
+  recorded_at: string;
+}
+
+export const sharesAPI = {
+  buy: async (corporationId: number, shares: number): Promise<ShareTransactionResponse> => {
+    const response = await api.post(`/api/shares/${corporationId}/buy`, { shares });
+    return response.data;
+  },
+  sell: async (corporationId: number, shares: number): Promise<ShareTransactionResponse> => {
+    const response = await api.post(`/api/shares/${corporationId}/sell`, { shares });
+    return response.data;
+  },
+  getPriceHistory: async (
+    corporationId: number,
+    hours?: number,
+    limit?: number
+  ): Promise<SharePriceHistoryResponse[]> => {
+    const params = new URLSearchParams();
+    if (hours) params.append('hours', hours.toString());
+    if (limit) params.append('limit', limit.toString());
+    const query = params.toString();
+    const response = await api.get(
+      `/api/shares/${corporationId}/history${query ? `?${query}` : ''}`
+    );
     return response.data;
   },
 };

@@ -4,8 +4,8 @@ import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import AppNavigation from '@/components/AppNavigation';
-import { corporationAPI, CorporationResponse, authAPI } from '@/lib/api';
-import { Building2, Edit, Trash2, TrendingUp, DollarSign, Users, User, Calendar } from 'lucide-react';
+import { corporationAPI, CorporationResponse, authAPI, sharesAPI } from '@/lib/api';
+import { Building2, Edit, Trash2, TrendingUp, DollarSign, Users, User, Calendar, ArrowUp, ArrowDown } from 'lucide-react';
 
 export default function CorporationDetailPage() {
   const router = useRouter();
@@ -28,6 +28,9 @@ export default function CorporationDetailPage() {
         setCorporation(corpData);
         if (userData) {
           setViewerUserId(userData.id);
+          // Find user's shares in this corporation
+          const userShareholder = corpData.shareholders?.find(sh => sh.user_id === userData.id);
+          setUserOwnedShares(userShareholder?.shares || 0);
         }
       } catch (err: any) {
         console.error('Failed to fetch corporation:', err);
@@ -76,6 +79,76 @@ export default function CorporationDetailPage() {
       month: 'long',
       day: 'numeric',
     });
+  };
+
+  const handleBuyShares = async () => {
+    if (!corporation || !buyShares) return;
+    
+    const shares = parseInt(buyShares, 10);
+    if (isNaN(shares) || shares <= 0) {
+      alert('Please enter a valid number of shares');
+      return;
+    }
+
+    if (shares > corporation.public_shares) {
+      alert(`Only ${corporation.public_shares.toLocaleString()} public shares available`);
+      return;
+    }
+
+    setTrading(true);
+    try {
+      const result = await sharesAPI.buy(corporation.id, shares);
+      alert(`Successfully purchased ${shares.toLocaleString()} shares at ${formatCurrency(result.price_per_share)} each. Total: ${formatCurrency(result.total_cost!)}`);
+      
+      // Refresh corporation data
+      const updatedCorp = await corporationAPI.getById(corporation.id);
+      setCorporation(updatedCorp);
+      
+      // Update user's owned shares
+      const userShareholder = updatedCorp.shareholders?.find(sh => sh.user_id === viewerUserId);
+      setUserOwnedShares(userShareholder?.shares || 0);
+      
+      setBuyShares('');
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Failed to buy shares');
+    } finally {
+      setTrading(false);
+    }
+  };
+
+  const handleSellShares = async () => {
+    if (!corporation || !sellShares) return;
+    
+    const shares = parseInt(sellShares, 10);
+    if (isNaN(shares) || shares <= 0) {
+      alert('Please enter a valid number of shares');
+      return;
+    }
+
+    if (shares > userOwnedShares) {
+      alert(`You only own ${userOwnedShares.toLocaleString()} shares`);
+      return;
+    }
+
+    setTrading(true);
+    try {
+      const result = await sharesAPI.sell(corporation.id, shares);
+      alert(`Successfully sold ${shares.toLocaleString()} shares at ${formatCurrency(result.price_per_share)} each. Total: ${formatCurrency(result.total_revenue!)}`);
+      
+      // Refresh corporation data
+      const updatedCorp = await corporationAPI.getById(corporation.id);
+      setCorporation(updatedCorp);
+      
+      // Update user's owned shares
+      const userShareholder = updatedCorp.shareholders?.find(sh => sh.user_id === viewerUserId);
+      setUserOwnedShares(userShareholder?.shares || 0);
+      
+      setSellShares('');
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Failed to sell shares');
+    } finally {
+      setTrading(false);
+    }
   };
 
   if (loading) {
@@ -361,21 +434,102 @@ export default function CorporationDetailPage() {
               <div className="absolute inset-0 ring-1 ring-inset ring-white/20 dark:ring-gray-700/30 pointer-events-none" />
               <div className="relative p-6">
                 <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Quick Actions</h3>
-                <div className="space-y-2">
-                  <Link
-                    href="/stock-market"
-                    className="block w-full px-4 py-2 text-center border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors shadow-sm hover:shadow-md font-semibold"
-                  >
-                    View Stock Market
-                  </Link>
-                  {corporation.ceo && (
+                <div className="space-y-4">
+                  {/* Buy/Sell Shares */}
+                  <div className="space-y-3">
+                    <div className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                      Trade Shares
+                    </div>
+                    
+                    {/* Buy Shares */}
+                    <div className="space-y-2">
+                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400">
+                        Buy Shares (1.01x price)
+                      </label>
+                      <div className="flex gap-2">
+                        <input
+                          type="number"
+                          min="1"
+                          max={corporation.public_shares}
+                          value={buyShares}
+                          onChange={(e) => setBuyShares(e.target.value)}
+                          placeholder="Shares"
+                          className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-corporate-blue focus:border-transparent"
+                          disabled={trading || !viewerUserId}
+                        />
+                        <button
+                          onClick={handleBuyShares}
+                          disabled={trading || !buyShares || !viewerUserId}
+                          className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1 text-sm font-semibold"
+                        >
+                          <ArrowUp className="w-4 h-4" />
+                          Buy
+                        </button>
+                      </div>
+                      {buyShares && !isNaN(parseInt(buyShares, 10)) && corporation && (
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                          Cost: {formatCurrency(parseInt(buyShares, 10) * corporation.share_price * 1.01)}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Sell Shares */}
+                    {userOwnedShares > 0 && (
+                      <div className="space-y-2">
+                        <label className="block text-xs font-medium text-gray-600 dark:text-gray-400">
+                          Sell Shares (0.99x price) - You own {userOwnedShares.toLocaleString()}
+                        </label>
+                        <div className="flex gap-2">
+                          <input
+                            type="number"
+                            min="1"
+                            max={userOwnedShares}
+                            value={sellShares}
+                            onChange={(e) => setSellShares(e.target.value)}
+                            placeholder="Shares"
+                            className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-corporate-blue focus:border-transparent"
+                            disabled={trading || !viewerUserId}
+                          />
+                          <button
+                            onClick={handleSellShares}
+                            disabled={trading || !sellShares || !viewerUserId}
+                            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1 text-sm font-semibold"
+                          >
+                            <ArrowDown className="w-4 h-4" />
+                            Sell
+                          </button>
+                        </div>
+                        {sellShares && !isNaN(parseInt(sellShares, 10)) && corporation && (
+                          <p className="text-xs text-gray-500 dark:text-gray-400">
+                            Revenue: {formatCurrency(parseInt(sellShares, 10) * corporation.share_price * 0.99)}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                    
+                    {!viewerUserId && (
+                      <p className="text-xs text-gray-500 dark:text-gray-400 italic">
+                        Please log in to trade shares
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="border-t border-gray-200 dark:border-gray-700 pt-4 space-y-2">
                     <Link
-                      href={`/profile/${corporation.ceo.profile_id}`}
+                      href="/stock-market"
                       className="block w-full px-4 py-2 text-center border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors shadow-sm hover:shadow-md font-semibold"
                     >
-                      View CEO Profile
+                      View Stock Market
                     </Link>
-                  )}
+                    {corporation.ceo && (
+                      <Link
+                        href={`/profile/${corporation.ceo.profile_id}`}
+                        className="block w-full px-4 py-2 text-center border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors shadow-sm hover:shadow-md font-semibold"
+                      >
+                        View CEO Profile
+                      </Link>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>

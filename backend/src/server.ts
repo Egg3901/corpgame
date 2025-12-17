@@ -144,6 +144,7 @@ app.use('/api/profile', profileRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/corporation', corporationRoutes);
 app.use('/api/portfolio', portfolioRoutes);
+app.use('/api/shares', sharesRoutes);
 
 // Health check
 app.get('/health', (req, res) => {
