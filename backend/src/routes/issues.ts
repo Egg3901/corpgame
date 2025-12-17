@@ -11,6 +11,13 @@ interface IssueReportData {
   priority: 'low' | 'medium' | 'high' | 'critical';
 }
 
+// GitHub API response interface
+interface GitHubIssueResponse {
+  html_url: string;
+  number: number;
+  [key: string]: any; // Allow other properties
+}
+
 // Helper function to create GitHub issue
 async function createGitHubIssue(
   title: string,
@@ -53,7 +60,7 @@ async function createGitHubIssue(
       return null;
     }
 
-    const issue = await response.json();
+    const issue = await response.json() as GitHubIssueResponse;
     return {
       url: issue.html_url,
       number: issue.number,
