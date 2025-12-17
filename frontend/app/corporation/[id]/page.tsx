@@ -511,6 +511,7 @@ export default function CorporationDetailPage() {
             )}
 
             {activeTab === 'finance' && (
+              <>
               <div className="relative rounded-2xl border border-gray-200/50 dark:border-gray-700/50 bg-gradient-to-br from-white via-white to-gray-50/50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800/50 shadow-2xl overflow-hidden backdrop-blur-sm">
                 <div className="absolute inset-0 bg-gradient-to-br from-corporate-blue/5 via-transparent to-corporate-blue-light/5 dark:from-corporate-blue/10 dark:via-transparent dark:to-corporate-blue-dark/10 pointer-events-none" />
                 <div className="absolute inset-0 ring-1 ring-inset ring-white/20 dark:ring-gray-700/30 pointer-events-none" />
@@ -798,6 +799,7 @@ export default function CorporationDetailPage() {
                   </div>
                 </div>
               </div>
+              </>
             )}
           </div>
 

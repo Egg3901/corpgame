@@ -350,3 +350,4 @@ export default function StockMarketPage() {
     </AppNavigation>
   );
 }
+

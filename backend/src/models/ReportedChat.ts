@@ -128,3 +128,4 @@ export class ReportedChatModel {
     return result.rows.length > 0;
   }
 }
+
