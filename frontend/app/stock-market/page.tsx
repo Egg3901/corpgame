@@ -190,15 +190,15 @@ export default function StockMarketPage() {
             {/* Inner shadow effect */}
             <div className="absolute inset-0 ring-1 ring-inset ring-white/20 dark:ring-gray-700/30 pointer-events-none" />
             
-            <div className="relative overflow-hidden">
-              <table className="w-full border-collapse table-fixed">
+            <div className="relative overflow-x-auto">
+              <table className="w-full border-collapse">
                 <colgroup>
-                  <col className="w-[10%]" />
-                  <col className="w-[30%]" />
-                  <col className="w-[12%]" />
-                  <col className="w-[15%]" />
-                  <col className="w-[15%]" />
-                  <col className="w-[18%]" />
+                  <col className="w-auto" />
+                  <col className="w-auto" />
+                  <col className="w-auto" />
+                  <col className="w-auto" />
+                  <col className="w-auto" />
+                  <col className="w-auto" />
                 </colgroup>
                 <thead>
                   <tr className="border-b-2 border-gray-200/80 dark:border-gray-700/80 bg-gradient-to-b from-gray-50/80 to-gray-100/60 dark:from-gray-800/60 dark:to-gray-800/40 backdrop-blur-sm">
@@ -282,12 +282,12 @@ export default function StockMarketPage() {
                                   </div>
                                 )}
                               </div>
-                              <div className="min-w-0 flex-1 truncate">
-                                <div className="font-bold text-sm text-gray-900 dark:text-white group-hover:text-corporate-blue dark:group-hover:text-corporate-blue-light transition-colors truncate">
+                              <div className="min-w-0 flex-1">
+                                <div className="font-bold text-sm text-gray-900 dark:text-white group-hover:text-corporate-blue dark:group-hover:text-corporate-blue-light transition-colors">
                                   {corp.name}
                                 </div>
                                 {corp.type && (
-                                  <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mt-0.5 truncate">
+                                  <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mt-0.5">
                                     {corp.type}
                                   </div>
                                 )}

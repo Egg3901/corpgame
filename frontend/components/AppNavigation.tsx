@@ -131,9 +131,9 @@ export default function AppNavigation({ children }: AppNavigationProps) {
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(59,130,246,0.12),transparent_35%),radial-gradient(circle_at_80%_0%,rgba(30,64,175,0.1),transparent_30%),radial-gradient(circle_at_50%_80%,rgba(15,23,42,0.06),transparent_40%)] dark:bg-[radial-gradient(circle_at_20%_20%,rgba(59,130,246,0.08),transparent_45%),radial-gradient(circle_at_80%_0%,rgba(30,64,175,0.12),transparent_42%),radial-gradient(circle_at_50%_80%,rgba(148,163,184,0.05),transparent_45%)]" />
       </div>
 
-      <header className="relative z-20">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pt-6">
-          <div className="flex items-center justify-between rounded-2xl border border-white/60 bg-white/80 px-4 py-3 shadow-xl backdrop-blur dark:border-gray-800/60 dark:bg-gray-900/80">
+      <header className="sticky top-0 z-40 pb-2">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pt-4">
+          <div className="flex items-center justify-between rounded-2xl border border-white/60 bg-white/90 px-4 py-3 shadow-xl backdrop-blur-md dark:border-gray-800/60 dark:bg-gray-900/90">
             <div className="flex items-center gap-3">
               <button
                 type="button"
