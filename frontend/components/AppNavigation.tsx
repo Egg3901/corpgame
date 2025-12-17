@@ -416,7 +416,7 @@ export default function AppNavigation({ children }: AppNavigationProps) {
                 className="w-full flex items-center gap-2 rounded-lg border border-orange-200 bg-orange-50 px-4 py-3 text-sm font-semibold text-orange-800 shadow-sm transition hover:-translate-y-0.5 hover:border-orange-400 hover:text-orange-900 dark:border-orange-800 dark:bg-orange-900/20 dark:text-orange-300"
               >
                 <AlertCircle className="h-4 w-4" />
-                Report Issue
+                Feedback & Issues
               </button>
               <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 p-4 text-sm text-gray-700 shadow-sm dark:border-gray-800 dark:bg-gray-800/60 dark:text-gray-200">
                 <p className="font-semibold text-gray-900 dark:text-white">Command Center</p>

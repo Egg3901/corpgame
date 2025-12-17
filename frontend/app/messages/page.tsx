@@ -420,7 +420,7 @@ function MessagesPageContent() {
                 Reporting conversation with <strong>{selectedConversationData.other_user.player_name || selectedConversationData.other_user.username}</strong>
               </p>
               <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
-                <strong>Note:</strong> This is for reporting inappropriate content or behavior. For game suggestions or bugs, please use the "Report Issue" page instead.
+                <strong>Note:</strong> This is for reporting inappropriate content or behavior. For game suggestions or bugs, please use the "Feedback & Issues" page instead.
               </p>
               <div className="mb-4">
                 <label htmlFor="report-reason" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
