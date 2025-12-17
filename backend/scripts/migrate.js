@@ -14,6 +14,19 @@ if (!DATABASE_URL) {
 
 const migrationsDir = path.join(__dirname, '..', 'migrations');
 
+function sanitizeConnectionString(connectionString) {
+  try {
+    const url = new URL(connectionString);
+    // Avoid node-postgres connection-string sslmode parsing overriding explicit ssl options.
+    url.searchParams.delete('sslmode');
+    url.searchParams.delete('ssl');
+    url.searchParams.delete('sslrootcert');
+    return url.toString();
+  } catch {
+    return connectionString;
+  }
+}
+
 function buildSslConfig() {
   // Escape hatch for debugging only. Do not use in production.
   const insecure = (process.env.PGSSLINSECURE || '').trim().toLowerCase();
@@ -80,7 +93,8 @@ async function applyMigration(client, filename) {
 
 async function main() {
   const ssl = buildSslConfig();
-  const pool = new Pool({ connectionString: DATABASE_URL, ssl });
+  const connectionString = sanitizeConnectionString(DATABASE_URL);
+  const pool = new Pool({ connectionString, ssl });
   const client = await pool.connect();
 
   try {

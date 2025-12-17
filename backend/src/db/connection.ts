@@ -4,6 +4,19 @@ import fs from 'fs';
 
 dotenv.config();
 
+const sanitizeConnectionString = (connectionString: string | undefined): string | undefined => {
+  if (!connectionString) return connectionString;
+  try {
+    const url = new URL(connectionString);
+    url.searchParams.delete('sslmode');
+    url.searchParams.delete('ssl');
+    url.searchParams.delete('sslrootcert');
+    return url.toString();
+  } catch {
+    return connectionString;
+  }
+};
+
 const ssl = (() => {
   const insecure = (process.env.PGSSLINSECURE || '').trim().toLowerCase();
   if (insecure === 'true' || insecure === '1' || insecure === 'yes') {
@@ -26,7 +39,7 @@ const ssl = (() => {
 })();
 
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  connectionString: sanitizeConnectionString(process.env.DATABASE_URL),
   ssl,
 });
 
