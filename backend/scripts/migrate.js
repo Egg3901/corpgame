@@ -16,7 +16,8 @@ const migrationsDir = path.join(__dirname, '..', 'migrations');
 
 function buildSslConfig() {
   // Escape hatch for debugging only. Do not use in production.
-  if (process.env.PGSSLINSECURE === 'true') {
+  const insecure = (process.env.PGSSLINSECURE || '').trim().toLowerCase();
+  if (insecure === 'true' || insecure === '1' || insecure === 'yes') {
     return { rejectUnauthorized: false };
   }
 
@@ -24,7 +25,7 @@ function buildSslConfig() {
   // This env var is our convention (not libpq). It can be set in backend/.env.
   const rootCertPath = process.env.PGSSLROOTCERT;
   if (rootCertPath) {
-    const ca = fs.readFileSync(rootCertPath, 'utf8');
+    const ca = fs.readFileSync(rootCertPath.trim(), 'utf8');
     let servername;
     try {
       servername = new URL(DATABASE_URL).hostname;
