@@ -47,9 +47,11 @@ export default function ProfileDashboard({ profileId }: ProfileDashboardProps) {
   const router = useRouter();
   const [profile, setProfile] = useState<ProfileResponse | null>(null);
   const [viewerProfileId, setViewerProfileId] = useState<number | null>(null);
+  const [viewerUserId, setViewerUserId] = useState<number | null>(null);
   const [viewerAdmin, setViewerAdmin] = useState<boolean>(false);
   const [viewerProfile, setViewerProfile] = useState<ProfileResponse | null>(null);
   const [primaryCorporation, setPrimaryCorporation] = useState<CorporationResponse | null>(null);
+  const [isCeo, setIsCeo] = useState<boolean>(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [navOpen, setNavOpen] = useState(false);
@@ -65,11 +67,14 @@ export default function ProfileDashboard({ profileId }: ProfileDashboardProps) {
         setProfile(data);
         
         // Fetch user's corporations (if they are CEO of any)
+        // Note: This checks corporations for the profile being viewed, not the viewer
+        // We'll need the user's id to properly check CEO status, but ProfileResponse doesn't include it
+        // For now, we'll check by CEO profile_id if available
         try {
           const corporations = await corporationAPI.getAll();
           const userCorps = corporations.filter(corp => {
-            // Match by CEO profile_id or ceo_id (user id)
-            return corp.ceo?.profile_id === data.profile_id || corp.ceo_id === data.id;
+            // Match by CEO profile_id
+            return corp.ceo?.profile_id === data.profile_id;
           });
           if (userCorps.length > 0) {
             // Use the first corporation as primary (already has CEO data from getAll)
@@ -171,7 +176,7 @@ export default function ProfileDashboard({ profileId }: ProfileDashboardProps) {
     name: primaryCorporation.name,
     revenue: '$0', // Placeholder until revenue system is implemented
     profit: '$0', // Placeholder until profit system is implemented
-    ownership: primaryCorporation.ceo_id === profile?.id ? '80%' : '0%',
+    ownership: primaryCorporation.ceo?.profile_id === profile?.profile_id ? '80%' : '0%',
     marketCap: formatCurrency(primaryCorporation.shares * primaryCorporation.share_price),
     id: primaryCorporation.id,
   } : {
