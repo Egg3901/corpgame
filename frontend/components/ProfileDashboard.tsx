@@ -216,8 +216,17 @@ export default function ProfileDashboard({ slug }: ProfileDashboardProps) {
             <div className="bg-white rounded-lg shadow-md p-6">
               <div className="flex items-start gap-6">
                 <div className="flex-shrink-0">
-                  <div className="w-24 h-24 bg-gray-200 rounded-lg flex items-center justify-center text-gray-400 text-xs">
-                    IMAGE
+                  <div className="w-24 h-24 bg-gray-200 rounded-lg flex items-center justify-center text-gray-400 text-xs overflow-hidden">
+                    {profile.profile_image_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={profile.profile_image_url}
+                        alt="Profile"
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      'No image'
+                    )}
                   </div>
                 </div>
 

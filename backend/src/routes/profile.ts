@@ -20,6 +20,7 @@ router.get('/:slug', async (req: Request, res: Response) => {
       gender: user.gender,
       age: user.age,
       profile_slug: user.profile_slug,
+      profile_image_url: user.profile_image_url,
       is_admin: user.is_admin,
       created_at: user.created_at,
     });

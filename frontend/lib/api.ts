@@ -116,6 +116,7 @@ export interface AuthResponse {
     starting_state?: string;
     is_admin?: boolean;
     profile_slug: string;
+    profile_image_url?: string | null;
     is_banned?: boolean;
     registration_ip?: string;
     last_login_ip?: string;
@@ -131,6 +132,7 @@ export interface ProfileResponse {
   age?: number;
   starting_state?: string;
   profile_slug: string;
+  profile_image_url?: string | null;
   is_admin?: boolean;
   is_banned?: boolean;
   created_at: string;
@@ -171,6 +173,15 @@ export const authAPI = {
 export const profileAPI = {
   getBySlug: async (slug: string): Promise<ProfileResponse> => {
     const response = await api.get(`/api/profile/${slug}`);
+    return response.data;
+  },
+  uploadAvatar: async (file: File): Promise<{ profile_image_url: string }> => {
+    const formData = new FormData();
+    formData.append('avatar', file);
+
+    const response = await api.post('/api/profile/avatar', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
     return response.data;
   },
 };

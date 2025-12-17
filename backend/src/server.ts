@@ -1,15 +1,20 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import path from 'path';
+import fs from 'fs';
 import authRoutes from './routes/auth';
 import gameRoutes from './routes/game';
 import profileRoutes from './routes/profile';
 import adminRoutes from './routes/admin';
+import avatarRoutes from './routes/avatar';
 
 dotenv.config();
 
 const app = express();
 const PORT = parseInt(process.env.PORT || '3001', 10);
+const uploadsDir = path.join(__dirname, 'uploads');
+fs.mkdirSync(uploadsDir, { recursive: true });
 
 // Middleware
 // CORS: Allow requests from frontend URL
@@ -100,12 +105,14 @@ app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use('/uploads', express.static(uploadsDir));
 
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/game', gameRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/profile', avatarRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

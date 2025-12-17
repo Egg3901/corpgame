@@ -117,6 +117,7 @@ router.post('/register', async (req: Request, res: Response) => {
         starting_state: user.starting_state,
         is_admin: user.is_admin,
         profile_slug: user.profile_slug,
+        profile_image_url: user.profile_image_url,
         registration_ip: user.registration_ip,
         last_login_ip: user.last_login_ip,
         last_login_at: user.last_login_at,
@@ -217,6 +218,7 @@ router.post('/login', async (req: Request, res: Response) => {
         starting_state: user.starting_state,
         is_admin: user.is_admin,
         profile_slug: user.profile_slug,
+        profile_image_url: user.profile_image_url,
         is_banned: user.is_banned,
       },
     });
@@ -244,6 +246,7 @@ router.get('/me', authenticateToken, async (req: AuthRequest, res: Response) => 
       starting_state: user.starting_state,
       is_admin: user.is_admin,
       profile_slug: user.profile_slug,
+      profile_image_url: user.profile_image_url,
       registration_ip: user.registration_ip,
       last_login_ip: user.last_login_ip,
       last_login_at: user.last_login_at,

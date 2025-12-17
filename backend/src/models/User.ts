@@ -11,6 +11,7 @@ export interface User {
   starting_state?: string;
   is_admin?: boolean;
   profile_slug: string;
+  profile_image_url?: string | null;
   registration_ip?: string;
   last_login_ip?: string;
   last_login_at?: Date;
@@ -32,6 +33,7 @@ export interface UserInput {
   starting_state?: string;
   is_admin?: boolean;
   profile_slug?: string;
+  profile_image_url?: string | null;
   registration_ip?: string;
   last_login_ip?: string;
   last_login_at?: Date;
@@ -121,7 +123,7 @@ export class UserModel {
   static async findById(id: number): Promise<User | null> {
     const result = await pool.query(
       `SELECT id, email, username, player_name, gender, age, starting_state, is_admin,
-        profile_slug, registration_ip, last_login_ip, last_login_at,
+        profile_slug, profile_image_url, registration_ip, last_login_ip, last_login_at,
         is_banned, banned_at, banned_reason, banned_by, created_at
       FROM users WHERE id = $1`,
       [id]
@@ -133,7 +135,7 @@ export class UserModel {
   static async findBySlug(slug: string): Promise<User | null> {
     const result = await pool.query(
       `SELECT id, email, username, player_name, gender, age, starting_state, is_admin,
-        profile_slug, registration_ip, last_login_ip, last_login_at,
+        profile_slug, profile_image_url, registration_ip, last_login_ip, last_login_at,
         is_banned, banned_at, banned_reason, banned_by, created_at
       FROM users WHERE profile_slug = $1`,
       [slug]
@@ -192,5 +194,11 @@ export class UserModel {
   static async verifyPassword(password: string, hash: string): Promise<boolean> {
     return bcrypt.compare(password, hash);
   }
-}
 
+  static async updateProfileImage(userId: number, imageUrl: string | null): Promise<void> {
+    await pool.query(
+      'UPDATE users SET profile_image_url = $1 WHERE id = $2',
+      [imageUrl, userId]
+    );
+  }
+}
