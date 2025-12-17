@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import AppNavigation from '@/components/AppNavigation';
 import ComposeMessage from '@/components/ComposeMessage';
 import { messagesAPI, ConversationResponse, MessageResponse, authAPI } from '@/lib/api';
-import { MessageSquare, Send, Plus, ChevronLeft, User, Clock } from 'lucide-react';
+import { MessageSquare, Send, Plus, ChevronLeft, User, Clock, Flag, X } from 'lucide-react';
 import Link from 'next/link';
 
 export default function MessagesPage() {
