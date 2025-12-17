@@ -191,25 +191,29 @@ export default function CorporationDetailPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-gray-100 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 flex items-center justify-center">
-        <div className="text-lg text-gray-600 dark:text-gray-200">Loading corporation...</div>
-      </div>
+      <AppNavigation>
+        <div className="min-h-screen bg-gradient-to-br from-blue-50 to-gray-100 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 flex items-center justify-center">
+          <div className="text-lg text-gray-600 dark:text-gray-200">Loading corporation...</div>
+        </div>
+      </AppNavigation>
     );
   }
 
   if (error || !corporation) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-gray-100 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-xl text-red-600 dark:text-red-400 mb-4">{error || 'Corporation not found'}</p>
-          <Link
-            href="/stock-market"
-            className="text-corporate-blue hover:underline"
-          >
-            Return to Stock Market
-          </Link>
+      <AppNavigation>
+        <div className="min-h-screen bg-gradient-to-br from-blue-50 to-gray-100 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 flex items-center justify-center">
+          <div className="text-center">
+            <p className="text-xl text-red-600 dark:text-red-400 mb-4">{error || 'Corporation not found'}</p>
+            <Link
+              href="/stock-market"
+              className="text-corporate-blue hover:underline"
+            >
+              Return to Stock Market
+            </Link>
+          </div>
         </div>
-      </div>
+      </AppNavigation>
     );
   }
 
