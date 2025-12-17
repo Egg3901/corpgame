@@ -215,7 +215,13 @@ export default function StockMarketPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200/60 dark:divide-gray-700/50">
-                  {corporations.map((corp, idx) => {
+                  {corporations
+                    .sort((a, b) => {
+                      const marketCapA = calculateMarketCap(a.shares, a.share_price);
+                      const marketCapB = calculateMarketCap(b.shares, b.share_price);
+                      return marketCapB - marketCapA; // Sort descending (highest first)
+                    })
+                    .map((corp, idx) => {
                     const marketCap = calculateMarketCap(corp.shares, corp.share_price);
                     const change = getChange(corp);
                     const changeFormatted = `${change >= 0 ? '+' : ''}${change.toFixed(2)}%`;
@@ -243,11 +249,9 @@ export default function StockMarketPage() {
                           <div className="absolute inset-0 bg-gradient-to-r from-corporate-blue/0 via-corporate-blue/5 to-corporate-blue/0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none" />
                           
                           <td className="py-5 px-6 text-left align-middle">
-                            <div className="flex items-center">
-                              <span className="inline-flex items-center justify-center w-12 h-12 rounded-lg bg-gradient-to-br from-corporate-blue/10 to-corporate-blue-light/20 dark:from-corporate-blue/20 dark:to-corporate-blue-dark/30 font-mono text-sm font-bold text-corporate-blue dark:text-corporate-blue-light shadow-sm border border-corporate-blue/20 dark:border-corporate-blue/30">
-                                {symbol}
-                              </span>
-                            </div>
+                            <span className="inline-flex items-center justify-center w-12 h-12 rounded-lg bg-gradient-to-br from-corporate-blue/10 to-corporate-blue-light/20 dark:from-corporate-blue/20 dark:to-corporate-blue-dark/30 font-mono text-sm font-bold text-corporate-blue dark:text-corporate-blue-light shadow-sm border border-corporate-blue/20 dark:border-corporate-blue/30">
+                              {symbol}
+                            </span>
                           </td>
                           <td className="py-5 px-6 text-left align-middle">
                             <div className="flex items-center gap-4">

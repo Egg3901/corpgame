@@ -184,38 +184,32 @@ export default function PortfolioPage() {
 
                       {/* Holdings Info */}
                       <div className="grid grid-cols-4 gap-6 text-right">
-                        <div>
-                          <p className="text-xs font-bold uppercase tracking-[0.1em] text-gray-600 dark:text-gray-400 mb-1 flex items-center justify-end gap-1">
-                            <PieChart className="w-3 h-3" />
-                            Shares
-                          </p>
-                          <p className="text-base font-bold text-gray-900 dark:text-white font-mono">
+                        <div className="flex items-center justify-end gap-2">
+                          <PieChart className="w-3 h-3 text-gray-600 dark:text-gray-400" />
+                          <span className="text-xs font-bold uppercase tracking-[0.1em] text-gray-600 dark:text-gray-400">Shares:</span>
+                          <span className="text-base font-bold text-gray-900 dark:text-white font-mono">
                             {holding.shares_owned.toLocaleString()}
-                          </p>
+                          </span>
                         </div>
-                        <div>
-                          <p className="text-xs font-bold uppercase tracking-[0.1em] text-gray-600 dark:text-gray-400 mb-1 flex items-center justify-end gap-1">
-                            <DollarSign className="w-3 h-3" />
-                            Price
-                          </p>
-                          <p className="text-base font-bold text-gray-900 dark:text-white font-mono">
+                        <div className="flex items-center justify-end gap-2">
+                          <DollarSign className="w-3 h-3 text-gray-600 dark:text-gray-400" />
+                          <span className="text-xs font-bold uppercase tracking-[0.1em] text-gray-600 dark:text-gray-400">Price:</span>
+                          <span className="text-base font-bold text-gray-900 dark:text-white font-mono">
                             {formatCurrency(holding.corporation.share_price)}
-                          </p>
+                          </span>
                         </div>
-                        <div>
-                          <p className="text-xs font-bold uppercase tracking-[0.1em] text-gray-600 dark:text-gray-400 mb-1">Ownership</p>
-                          <p className="text-base font-bold text-gray-900 dark:text-white">
+                        <div className="flex items-center justify-end gap-2">
+                          <span className="text-xs font-bold uppercase tracking-[0.1em] text-gray-600 dark:text-gray-400">Ownership:</span>
+                          <span className="text-base font-bold text-gray-900 dark:text-white">
                             {holding.ownership_percentage.toFixed(2)}%
-                          </p>
+                          </span>
                         </div>
-                        <div>
-                          <p className="text-xs font-bold uppercase tracking-[0.1em] text-gray-600 dark:text-gray-400 mb-1 flex items-center justify-end gap-1">
-                            <TrendingUp className="w-3 h-3" />
-                            Value
-                          </p>
-                          <p className="text-xl font-bold text-corporate-blue dark:text-corporate-blue-light font-mono">
+                        <div className="flex items-center justify-end gap-2">
+                          <TrendingUp className="w-3 h-3 text-gray-600 dark:text-gray-400" />
+                          <span className="text-xs font-bold uppercase tracking-[0.1em] text-gray-600 dark:text-gray-400">Value:</span>
+                          <span className="text-xl font-bold text-corporate-blue dark:text-corporate-blue-light font-mono">
                             {formatCurrency(holding.current_value)}
-                          </p>
+                          </span>
                         </div>
                       </div>
                     </div>

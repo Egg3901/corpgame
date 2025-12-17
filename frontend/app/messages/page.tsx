@@ -30,11 +30,11 @@ export default function MessagesPage() {
       try {
         setLoading(true);
         const [conversationsData, unreadData, me] = await Promise.all([
-          messagesAPI.getAll('conversations') as Promise<ConversationResponse[]>,
+          messagesAPI.getAll('conversations'),
           messagesAPI.getUnreadCount(),
           authAPI.getMe(),
         ]);
-        setConversations(conversationsData);
+        setConversations(conversationsData as ConversationResponse[]);
         setUnreadCount(unreadData.count);
         setCurrentUserId(me.id);
       } catch (err) {
@@ -57,8 +57,8 @@ export default function MessagesPage() {
       await messagesAPI.markConversationAsRead(userId);
       
       // Refresh conversations to update unread counts
-      const conversationsData = await messagesAPI.getAll('conversations') as Promise<ConversationResponse[]>;
-      setConversations(await conversationsData);
+      const conversationsData = await messagesAPI.getAll('conversations');
+      setConversations(conversationsData as ConversationResponse[]);
       
       const unreadData = await messagesAPI.getUnreadCount();
       setUnreadCount(unreadData.count);
@@ -76,8 +76,8 @@ export default function MessagesPage() {
 
   const handleComposeSuccess = async () => {
     // Refresh conversations
-    const conversationsData = await messagesAPI.getAll('conversations') as Promise<ConversationResponse[]>;
-    setConversations(await conversationsData);
+    const conversationsData = await messagesAPI.getAll('conversations');
+    setConversations(conversationsData as ConversationResponse[]);
     
     const unreadData = await messagesAPI.getUnreadCount();
     setUnreadCount(unreadData.count);
