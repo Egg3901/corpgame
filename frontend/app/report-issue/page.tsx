@@ -10,8 +10,8 @@ export default function ReportIssuePage() {
   const router = useRouter();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [category, setCategory] = useState('bug');
-  const [priority, setPriority] = useState('medium');
+  const [category, setCategory] = useState<'bug' | 'feature' | 'ui' | 'performance' | 'security' | 'other'>('bug');
+  const [priority, setPriority] = useState<'low' | 'medium' | 'high' | 'critical'>('medium');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
