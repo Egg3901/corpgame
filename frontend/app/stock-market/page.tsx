@@ -14,6 +14,7 @@ export default function StockMarketPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [activeTab, setActiveTab] = useState<'stocks' | 'bonds'>('stocks');
 
   useEffect(() => {
     const fetchCorporations = async () => {
@@ -168,7 +169,7 @@ export default function StockMarketPage() {
 
         {/* Stock Table */}
         {activeTab === 'stocks' && (
-        {corporations.length === 0 ? (
+          corporations.length === 0 ? (
           <div className="rounded-xl border border-white/60 bg-white/80 backdrop-blur shadow-xl dark:border-gray-800/60 dark:bg-gray-900/80 p-12 text-center">
             <Building2 className="w-16 h-16 text-gray-400 mx-auto mb-4" />
             <p className="text-xl text-gray-600 dark:text-gray-400 mb-2">No corporations yet</p>
@@ -316,7 +317,7 @@ export default function StockMarketPage() {
               </table>
             </div>
           </div>
-        )}
+        ))}
 
         {/* Bond Market Placeholder */}
         {activeTab === 'bonds' && (
