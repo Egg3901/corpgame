@@ -180,12 +180,14 @@ export const profileAPI = {
     return response.data;
   },
   uploadAvatar: async (file: File): Promise<{ profile_image_url: string }> => {
+    console.log('API: Starting avatar upload for file:', file.name, 'size:', file.size);
     const formData = new FormData();
     formData.append('avatar', file);
 
     const response = await api.post('/api/profile/avatar', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
+    console.log('API: Avatar upload response:', response.data);
     return response.data;
   },
   updateProfile: async (data: { bio?: string }): Promise<ProfileResponse> => {

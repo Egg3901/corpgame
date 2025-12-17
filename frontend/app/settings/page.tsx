@@ -76,7 +76,16 @@ export default function SettingsPage() {
 
   const handleAvatarChange = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
+    if (!file) {
+      console.log('No file selected');
+      return;
+    }
+
+    console.log('File selected:', {
+      name: file.name,
+      type: file.type,
+      size: file.size
+    });
 
     if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
       setUploadError('Please upload a JPG, PNG, or WEBP image.');
@@ -89,11 +98,15 @@ export default function SettingsPage() {
 
     setUploadError(null);
     setUploading(true);
+    console.log('Starting avatar upload...');
     try {
       const result = await profileAPI.uploadAvatar(file);
+      console.log('Avatar upload result:', result);
       setUser((prev) => (prev ? { ...prev, profile_image_url: result.profile_image_url } : prev));
+      console.log('User state updated with new profile_image_url');
     } catch (err: any) {
       console.error('Avatar upload failed:', err);
+      console.error('Error response:', err?.response?.data);
       setUploadError(err?.response?.data?.error || 'Upload failed. Please try again.');
     } finally {
       setUploading(false);
@@ -137,6 +150,11 @@ export default function SettingsPage() {
                   src={user?.profile_image_url || "/commonassets/defaultpfp.jpg"}
                   alt="Profile"
                   className="w-full h-full object-cover"
+                  onError={(e) => {
+                    console.error('Profile image failed to load:', e.currentTarget.src);
+                    e.currentTarget.src = "/commonassets/defaultpfp.jpg";
+                  }}
+                  onLoad={() => console.log('Profile image loaded successfully:', user?.profile_image_url || "/commonassets/defaultpfp.jpg")}
                 />
               </div>
               <div>
@@ -264,32 +282,6 @@ export default function SettingsPage() {
           </div>
         </section>
 
-        <section className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700/50">
-          <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700/60">
-            <h2 className="text-lg font-semibold">Quick Actions</h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400">Corporate management and investment tools.</p>
-          </div>
-          <div className="px-6 py-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-gray-700 dark:text-gray-200">Buy/Sell Investments</span>
-              <button className="px-4 py-2 text-sm font-medium rounded-md border border-gray-200 text-gray-700 hover:bg-gray-100 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800">
-                Manage
-              </button>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-gray-700 dark:text-gray-200">Build Production Units</span>
-              <button className="px-4 py-2 text-sm font-medium rounded-md border border-gray-200 text-gray-700 hover:bg-gray-100 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800">
-                Build
-              </button>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-gray-700 dark:text-gray-200">Set Corporate Policy</span>
-              <button className="px-4 py-2 text-sm font-medium rounded-md border border-gray-200 text-gray-700 hover:bg-gray-100 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800">
-                Configure
-              </button>
-            </div>
-          </div>
-        </section>
       </div>
     </div>
   );

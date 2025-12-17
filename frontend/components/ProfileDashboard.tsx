@@ -231,13 +231,16 @@ export default function ProfileDashboard({ profileId }: ProfileDashboardProps) {
                 className="group inline-flex items-center gap-3 rounded-2xl border border-white/70 bg-gradient-to-r from-white/90 to-white/60 px-3 py-2 text-left shadow-md transition hover:-translate-y-0.5 hover:shadow-lg dark:border-gray-800 dark:from-gray-800/90 dark:to-gray-900/80"
               >
                 <div className="relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl border border-white/60 bg-corporate-blue/10 dark:border-gray-700 dark:bg-gray-800">
-                  {viewerProfile?.profile_image_url ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={viewerProfile.profile_image_url} alt="Your profile avatar" className="h-full w-full object-cover" />
-                  ) : (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src="/commonassets/defaultpfp.jpg" alt="Default profile avatar" className="h-full w-full object-cover" />
-                  )}
+                  <img
+                    src={viewerProfile?.profile_image_url || "/commonassets/defaultpfp.jpg"}
+                    alt="Your profile avatar"
+                    className="h-full w-full object-cover"
+                    onError={(e) => {
+                      console.error('Viewer profile image failed to load:', e.currentTarget.src);
+                      e.currentTarget.src = "/commonassets/defaultpfp.jpg";
+                    }}
+                    onLoad={() => console.log('Viewer profile image loaded:', viewerProfile?.profile_image_url || "/commonassets/defaultpfp.jpg")}
+                  />
                 </div>
                 <div className="leading-tight">
                   <p className="text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400">Profile</p>
@@ -289,13 +292,16 @@ export default function ProfileDashboard({ profileId }: ProfileDashboardProps) {
                   <div className="relative">
                     <div className="absolute -inset-1 rounded-2xl bg-gradient-to-br from-corporate-blue/30 to-corporate-blue-light/40 blur-xl dark:from-corporate-blue/40 dark:to-corporate-blue-dark/40" />
                     <div className="relative flex h-28 w-28 items-center justify-center overflow-hidden rounded-2xl border border-white/60 bg-white/70 shadow-lg dark:border-gray-800/80 dark:bg-gray-800/70">
-                      {profile.profile_image_url ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={profile.profile_image_url} alt="Profile" className="h-full w-full object-cover" />
-                      ) : (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src="/commonassets/defaultpfp.jpg" alt="Default profile" className="h-full w-full object-cover" />
-                      )}
+                      <img
+                        src={profile.profile_image_url || "/commonassets/defaultpfp.jpg"}
+                        alt="Profile"
+                        className="h-full w-full object-cover"
+                        onError={(e) => {
+                          console.error('Profile image failed to load:', e.currentTarget.src);
+                          e.currentTarget.src = "/commonassets/defaultpfp.jpg";
+                        }}
+                        onLoad={() => console.log('Profile image loaded:', profile.profile_image_url || "/commonassets/defaultpfp.jpg")}
+                      />
                     </div>
                   </div>
                 </div>
@@ -484,28 +490,31 @@ export default function ProfileDashboard({ profileId }: ProfileDashboardProps) {
               <div className="mb-4 flex items-center justify-between">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                    Settings panel
+                    Quick Actions
                   </p>
-                  <p className="text-lg font-semibold text-gray-900 dark:text-white">Quick actions</p>
+                  <p className="text-lg font-semibold text-gray-900 dark:text-white">Corporate Management</p>
                 </div>
                 <Settings className="h-5 w-5 text-corporate-blue" />
               </div>
               <div className="space-y-4 text-sm text-gray-700 dark:text-gray-300">
                 <div className="flex items-center justify-between rounded-xl border border-white/60 bg-white/70 p-3 shadow-sm dark:border-gray-800/70 dark:bg-gray-800/60">
-                  <span>Alerts</span>
-                  <Shield className="h-4 w-4 text-gray-400" />
+                  <span>Buy/Sell Investments</span>
+                  <button className="px-3 py-1 text-xs font-medium rounded-md border border-gray-200 text-gray-700 hover:bg-gray-100 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800">
+                    Manage
+                  </button>
                 </div>
                 <div className="flex items-center justify-between rounded-xl border border-white/60 bg-white/70 p-3 shadow-sm dark:border-gray-800/70 dark:bg-gray-800/60">
-                  <span>Capital</span>
-                  <Briefcase className="h-4 w-4 text-gray-400" />
+                  <span>Build Production Units</span>
+                  <button className="px-3 py-1 text-xs font-medium rounded-md border border-gray-200 text-gray-700 hover:bg-gray-100 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800">
+                    Build
+                  </button>
                 </div>
                 <div className="flex items-center justify-between rounded-xl border border-white/60 bg-white/70 p-3 shadow-sm dark:border-gray-800/70 dark:bg-gray-800/60">
-                  <span>Boards</span>
-                  <ClipboardList className="h-4 w-4 text-gray-400" />
+                  <span>Set Corporate Policy</span>
+                  <button className="px-3 py-1 text-xs font-medium rounded-md border border-gray-200 text-gray-700 hover:bg-gray-100 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800">
+                    Configure
+                  </button>
                 </div>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Updated layout removes the side navigation while keeping the top-level controls within reach.
-                </p>
               </div>
             </div>
           </aside>

@@ -108,8 +108,19 @@ app.use(express.urlencoded({ extended: true }));
 
 // Static file serving
 const commonAssetsDir = path.join(__dirname, '..', '..', '..', 'commonassets');
-app.use('/commonassets', express.static(commonAssetsDir));
-app.use('/uploads', express.static(uploadsDir));
+console.log('Static file directories:');
+console.log('  Common assets:', commonAssetsDir, '- exists:', require('fs').existsSync(commonAssetsDir));
+console.log('  Uploads:', uploadsDir, '- exists:', require('fs').existsSync(uploadsDir));
+
+app.use('/commonassets', (req, res, next) => {
+  console.log('Request for commonassets:', req.path);
+  next();
+}, express.static(commonAssetsDir));
+
+app.use('/uploads', (req, res, next) => {
+  console.log('Request for uploads:', req.path);
+  next();
+}, express.static(uploadsDir));
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -121,6 +132,42 @@ app.use('/api/admin', adminRoutes);
 // Health check
 app.get('/health', (req, res) => {
   res.json({ status: 'ok' });
+});
+
+// Debug endpoint for static files
+app.get('/debug/static', (req, res) => {
+  const fs = require('fs');
+  const path = require('path');
+
+  const commonAssetsDir = path.join(__dirname, '..', '..', '..', 'commonassets');
+  const uploadsDir = path.join(__dirname, '..', 'uploads');
+  const avatarsDir = path.join(uploadsDir, 'avatars');
+
+  const debug = {
+    directories: {
+      commonassets: {
+        path: commonAssetsDir,
+        exists: fs.existsSync(commonAssetsDir),
+        files: fs.existsSync(commonAssetsDir) ? fs.readdirSync(commonAssetsDir) : []
+      },
+      uploads: {
+        path: uploadsDir,
+        exists: fs.existsSync(uploadsDir),
+        files: fs.existsSync(uploadsDir) ? fs.readdirSync(uploadsDir) : []
+      },
+      avatars: {
+        path: avatarsDir,
+        exists: fs.existsSync(avatarsDir),
+        files: fs.existsSync(avatarsDir) ? fs.readdirSync(avatarsDir) : []
+      }
+    },
+    routes: {
+      commonassets: '/commonassets',
+      uploads: '/uploads'
+    }
+  };
+
+  res.json(debug);
 });
 
 // CORS test endpoint
