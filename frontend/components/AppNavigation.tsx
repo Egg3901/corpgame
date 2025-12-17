@@ -11,8 +11,11 @@ import {
   Sun,
   Moon,
   AlertCircle,
+  MessageSquare,
+  User,
+  LogOut,
 } from 'lucide-react';
-import { authAPI, profileAPI, ProfileResponse, corporationAPI } from '@/lib/api';
+import { authAPI, profileAPI, ProfileResponse, corporationAPI, messagesAPI } from '@/lib/api';
 import { useTheme } from './ThemeProvider';
 
 interface AppNavigationProps {
@@ -38,6 +41,9 @@ export default function AppNavigation({ children }: AppNavigationProps) {
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
   const [myCorporationId, setMyCorporationId] = useState<number | null>(null);
   const [investmentsOpen, setInvestmentsOpen] = useState<boolean>(false);
+  const [profileDropdownOpen, setProfileDropdownOpen] = useState<boolean>(false);
+  const [unreadCount, setUnreadCount] = useState<number>(0);
+  const profileDropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const loadViewer = async () => {
@@ -90,9 +96,22 @@ export default function AppNavigation({ children }: AppNavigationProps) {
 
   const handleOpenProfile = () => {
     setNavOpen(false);
+    setProfileDropdownOpen(false);
     if (viewerProfileId) {
       router.push(`/profile/${viewerProfileId}`);
     }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    setProfileDropdownOpen(false);
+    router.push('/login');
+  };
+
+  const handleViewMessages = () => {
+    setProfileDropdownOpen(false);
+    router.push('/messages');
   };
 
   const handleNavClick = (path: string) => {
@@ -144,29 +163,66 @@ export default function AppNavigation({ children }: AppNavigationProps) {
                 )}
               </button>
               {viewerProfileId && (
-                <button
-                  type="button"
-                  onClick={handleOpenProfile}
-                  className="group inline-flex items-center gap-3 rounded-2xl border border-white/70 bg-gradient-to-r from-white/90 to-white/60 px-3 py-2 text-left shadow-md transition hover:-translate-y-0.5 hover:shadow-lg dark:border-gray-800 dark:from-gray-800/90 dark:to-gray-900/80"
-                >
-                  <div className="relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl border border-white/60 bg-corporate-blue/10 dark:border-gray-700 dark:bg-gray-800">
-                    <img
-                      src={viewerProfile?.profile_image_url || "/defaultpfp.jpg"}
-                      alt="Your profile avatar"
-                      className="h-full w-full object-cover"
-                      onError={(e) => {
-                        e.currentTarget.src = "/defaultpfp.jpg";
-                      }}
-                    />
-                  </div>
-                  <div className="leading-tight">
-                    <p className="text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400">Profile</p>
-                    <p className="text-sm font-semibold text-gray-900 dark:text-white">
-                      {viewerProfile?.player_name || viewerProfile?.username || 'Your Profile'}
-                    </p>
-                    <p className="text-[11px] text-gray-500 dark:text-gray-400">#{viewerProfileId}</p>
-                  </div>
-                </button>
+                <div className="relative" ref={profileDropdownRef}>
+                  <button
+                    type="button"
+                    onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
+                    className="group inline-flex items-center gap-3 rounded-2xl border border-white/70 bg-gradient-to-r from-white/90 to-white/60 px-3 py-2 text-left shadow-md transition hover:-translate-y-0.5 hover:shadow-lg dark:border-gray-800 dark:from-gray-800/90 dark:to-gray-900/80"
+                  >
+                    <div className="relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl border border-white/60 bg-corporate-blue/10 dark:border-gray-700 dark:bg-gray-800">
+                      <img
+                        src={viewerProfile?.profile_image_url || "/defaultpfp.jpg"}
+                        alt="Your profile avatar"
+                        className="h-full w-full object-cover"
+                        onError={(e) => {
+                          e.currentTarget.src = "/defaultpfp.jpg";
+                        }}
+                      />
+                    </div>
+                    <div className="leading-tight">
+                      <p className="text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400">Profile</p>
+                      <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                        {viewerProfile?.player_name || viewerProfile?.username || 'Your Profile'}
+                      </p>
+                      <p className="text-[11px] text-gray-500 dark:text-gray-400">#{viewerProfileId}</p>
+                    </div>
+                    <ChevronDown className={`w-4 h-4 text-gray-500 dark:text-gray-400 transition-transform ${profileDropdownOpen ? 'rotate-180' : ''}`} />
+                  </button>
+
+                  {profileDropdownOpen && (
+                    <div className="absolute right-0 mt-2 w-56 rounded-xl border border-gray-200/50 bg-white/95 shadow-2xl backdrop-blur dark:border-gray-700/50 dark:bg-gray-900/95 z-50 overflow-hidden">
+                      <div className="py-1">
+                        <button
+                          onClick={handleViewMessages}
+                          className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                        >
+                          <MessageSquare className="w-4 h-4" />
+                          <span>View Messages</span>
+                          {unreadCount > 0 && (
+                            <span className="ml-auto rounded-full bg-red-500 text-white text-xs font-bold px-2 py-0.5">
+                              {unreadCount > 9 ? '9+' : unreadCount}
+                            </span>
+                          )}
+                        </button>
+                        <button
+                          onClick={handleOpenProfile}
+                          className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                        >
+                          <User className="w-4 h-4" />
+                          <span>View Profile</span>
+                        </button>
+                        <div className="my-1 border-t border-gray-200 dark:border-gray-700" />
+                        <button
+                          onClick={handleLogout}
+                          className="w-full flex items-center gap-3 px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                        >
+                          <LogOut className="w-4 h-4" />
+                          <span>Logout</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               )}
             </div>
           </div>

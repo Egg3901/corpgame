@@ -12,6 +12,8 @@ import corporationRoutes from './routes/corporation';
 import portfolioRoutes from './routes/portfolio';
 import sharesRoutes from './routes/shares';
 import issuesRoutes from './routes/issues';
+import messagesRoutes from './routes/messages';
+import cashRoutes from './routes/cash';
 
 dotenv.config();
 
@@ -148,6 +150,8 @@ app.use('/api/corporation', corporationRoutes);
 app.use('/api/portfolio', portfolioRoutes);
 app.use('/api/shares', sharesRoutes);
 app.use('/api/issues', issuesRoutes);
+app.use('/api/messages', messagesRoutes);
+app.use('/api/cash', cashRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

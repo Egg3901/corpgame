@@ -6,7 +6,7 @@ import Link from 'next/link';
 import AppNavigation from '@/components/AppNavigation';
 import TickerTape from '@/components/TickerTape';
 import { corporationAPI, CorporationResponse } from '@/lib/api';
-import { Building2, Plus, TrendingUp, DollarSign, Users, Clock } from 'lucide-react';
+import { Building2, Plus, TrendingUp, DollarSign, Users, Clock, FileText } from 'lucide-react';
 
 export default function StockMarketPage() {
   const router = useRouter();
@@ -123,14 +123,51 @@ export default function StockMarketPage() {
           </Link>
         </div>
 
-        {/* Ticker Tape */}
-        {corporations.length > 0 && (
+        {/* Tabs */}
+        <div className="relative rounded-2xl border border-gray-200/50 dark:border-gray-700/50 bg-gradient-to-br from-white via-white to-gray-50/50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800/50 shadow-2xl overflow-hidden backdrop-blur-sm">
+          <div className="absolute inset-0 bg-gradient-to-br from-corporate-blue/5 via-transparent to-corporate-blue-light/5 dark:from-corporate-blue/10 dark:via-transparent dark:to-corporate-blue-dark/10 pointer-events-none" />
+          <div className="absolute inset-0 ring-1 ring-inset ring-white/20 dark:ring-gray-700/30 pointer-events-none" />
+          <div className="relative border-b border-gray-200 dark:border-gray-700">
+            <div className="flex">
+              <button
+                onClick={() => setActiveTab('stocks')}
+                className={`flex-1 px-6 py-4 text-sm font-semibold transition-colors ${
+                  activeTab === 'stocks'
+                    ? 'text-corporate-blue dark:text-corporate-blue-light border-b-2 border-corporate-blue dark:border-corporate-blue-light bg-corporate-blue/5 dark:bg-corporate-blue/10'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                }`}
+              >
+                <div className="flex items-center justify-center gap-2">
+                  <TrendingUp className="w-4 h-4" />
+                  Stocks
+                </div>
+              </button>
+              <button
+                onClick={() => setActiveTab('bonds')}
+                className={`flex-1 px-6 py-4 text-sm font-semibold transition-colors ${
+                  activeTab === 'bonds'
+                    ? 'text-corporate-blue dark:text-corporate-blue-light border-b-2 border-corporate-blue dark:border-corporate-blue-light bg-corporate-blue/5 dark:bg-corporate-blue/10'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                }`}
+              >
+                <div className="flex items-center justify-center gap-2">
+                  <FileText className="w-4 h-4" />
+                  Bonds
+                </div>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Ticker Tape - Only show for stocks */}
+        {activeTab === 'stocks' && corporations.length > 0 && (
           <div className="mb-6">
             <TickerTape corporations={corporations} />
           </div>
         )}
 
         {/* Stock Table */}
+        {activeTab === 'stocks' && (
         {corporations.length === 0 ? (
           <div className="rounded-xl border border-white/60 bg-white/80 backdrop-blur shadow-xl dark:border-gray-800/60 dark:bg-gray-900/80 p-12 text-center">
             <Building2 className="w-16 h-16 text-gray-400 mx-auto mb-4" />
@@ -277,6 +314,22 @@ export default function StockMarketPage() {
                   })}
                 </tbody>
               </table>
+            </div>
+          </div>
+        )}
+
+        {/* Bond Market Placeholder */}
+        {activeTab === 'bonds' && (
+          <div className="relative rounded-2xl border border-gray-200/50 dark:border-gray-700/50 bg-gradient-to-br from-white via-white to-gray-50/50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800/50 shadow-2xl overflow-hidden backdrop-blur-sm">
+            <div className="absolute inset-0 bg-gradient-to-br from-corporate-blue/5 via-transparent to-corporate-blue-light/5 dark:from-corporate-blue/10 dark:via-transparent dark:to-corporate-blue-dark/10 pointer-events-none" />
+            <div className="absolute inset-0 ring-1 ring-inset ring-white/20 dark:ring-gray-700/30 pointer-events-none" />
+            <div className="relative p-12 text-center">
+              <FileText className="w-16 h-16 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Bond Market</h2>
+              <p className="text-lg text-gray-600 dark:text-gray-400 mb-2">Coming Soon</p>
+              <p className="text-gray-500 dark:text-gray-500">
+                The bond market will allow you to invest in corporate and government bonds.
+              </p>
             </div>
           </div>
         )}

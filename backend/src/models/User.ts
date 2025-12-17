@@ -14,6 +14,7 @@ export interface User {
   profile_slug: string;
   profile_image_url?: string | null;
   bio?: string;
+  cash?: number;
   registration_ip?: string;
   last_login_ip?: string;
   last_login_at?: Date;
@@ -251,6 +252,32 @@ export class UserModel {
       throw new Error('User not found');
     }
     return result.rows[0];
+  }
+
+  static async updateCash(userId: number, amount: number): Promise<User> {
+    const result = await pool.query(
+      `UPDATE users 
+       SET cash = GREATEST(0, cash + $1)
+       WHERE id = $2
+       RETURNING *`,
+      [amount, userId]
+    );
+    if (result.rows.length === 0) {
+      throw new Error('User not found');
+    }
+    return result.rows[0];
+  }
+
+  static async getCash(userId: number): Promise<number> {
+    const result = await pool.query(
+      'SELECT cash FROM users WHERE id = $1',
+      [userId]
+    );
+    if (result.rows.length === 0) {
+      throw new Error('User not found');
+    }
+    const cash = result.rows[0].cash;
+    return typeof cash === 'string' ? parseFloat(cash) : cash;
   }
 }
 

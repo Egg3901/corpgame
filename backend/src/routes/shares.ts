@@ -4,6 +4,7 @@ import { CorporationModel } from '../models/Corporation';
 import { ShareholderModel } from '../models/Shareholder';
 import { ShareTransactionModel } from '../models/ShareTransaction';
 import { SharePriceHistoryModel } from '../models/SharePriceHistory';
+import { UserModel } from '../models/User';
 
 const router = express.Router();
 
@@ -78,18 +79,22 @@ router.post('/:id/buy', authenticateToken, async (req: AuthRequest, res: Respons
     const buyPrice = Math.round(currentPrice * 1.01 * 100) / 100;
     const totalCost = buyPrice * requestedShares;
 
-    // Check user's cash (placeholder - should come from user model)
-    // For now, we'll assume users have enough cash
-    // TODO: Implement user cash tracking
+    // Check user's cash
+    const userCash = await UserModel.getCash(userId);
+    if (userCash < totalCost) {
+      return res.status(400).json({ 
+        error: `Insufficient funds. You have ${userCash.toLocaleString('en-US', { style: 'currency', currency: 'USD' })} but need ${totalCost.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}` 
+      });
+    }
 
-    // Update corporation: reduce public shares, increase capital
+    // Deduct cash from user
+    await UserModel.updateCash(userId, -totalCost);
+
+    // Update corporation: reduce public shares (no capital change - just transferring ownership)
     const newPublicShares = corporation.public_shares - requestedShares;
-    const currentCapital = typeof corporation.capital === 'string' ? parseFloat(corporation.capital) : corporation.capital;
-    const newCapital = currentCapital + totalCost;
     
     await CorporationModel.update(corporationId, {
       public_shares: newPublicShares,
-      capital: newCapital,
     });
 
     // Update or create shareholder record
@@ -110,7 +115,7 @@ router.post('/:id/buy', authenticateToken, async (req: AuthRequest, res: Respons
       });
     }
 
-    // Record transaction
+    // Record transaction first (so it's included in price calculation)
     await ShareTransactionModel.create({
       corporation_id: corporationId,
       user_id: userId,
@@ -121,28 +126,49 @@ router.post('/:id/buy', authenticateToken, async (req: AuthRequest, res: Respons
     });
 
     // Recalculate and update share price based on new capital and activity
-    const newPrice = await calculateSharePrice(corporationId);
+    // Fetch fresh corporation data to ensure we have updated capital
+    const updatedCorpForPrice = await CorporationModel.findById(corporationId);
+    if (!updatedCorpForPrice) {
+      throw new Error('Corporation not found after update');
+    }
+    
+    // Manually calculate price with updated capital
+    const updatedCapital = typeof updatedCorpForPrice.capital === 'string' ? parseFloat(updatedCorpForPrice.capital) : updatedCorpForPrice.capital;
+    const basePrice = (updatedCapital / updatedCorpForPrice.shares) * 2;
+    
+    // Get recent transactions (including the one we just created)
+    const recentTransactions = await ShareTransactionModel.getRecentActivity(corporationId, 24);
+    let priceImpact = 0;
+    const impactFactor = 0.0001;
+    
+    recentTransactions.forEach(transaction => {
+      if (transaction.transaction_type === 'buy') {
+        priceImpact += transaction.shares * impactFactor;
+      } else {
+        priceImpact -= transaction.shares * impactFactor;
+      }
+    });
+    
+    const newPrice = Math.max(1.00, basePrice + priceImpact);
+    const roundedPrice = Math.round(newPrice * 100) / 100;
+    
     await CorporationModel.update(corporationId, {
-      share_price: newPrice,
+      share_price: roundedPrice,
     });
 
     // Record price history
-    const updatedCorp = await CorporationModel.findById(corporationId);
-    if (updatedCorp) {
-      const updatedCapital = typeof updatedCorp.capital === 'string' ? parseFloat(updatedCorp.capital) : updatedCorp.capital;
-      await SharePriceHistoryModel.create({
-        corporation_id: corporationId,
-        share_price: newPrice,
-        capital: updatedCapital,
-      });
-    }
+    await SharePriceHistoryModel.create({
+      corporation_id: corporationId,
+      share_price: roundedPrice,
+      capital: updatedCapital,
+    });
 
     res.json({
       success: true,
       shares: requestedShares,
       price_per_share: buyPrice,
       total_cost: totalCost,
-      new_share_price: newPrice,
+      new_share_price: roundedPrice,
     });
   } catch (error: any) {
     console.error('Buy shares error:', error);
@@ -195,14 +221,14 @@ router.post('/:id/sell', authenticateToken, async (req: AuthRequest, res: Respon
     const sellPrice = Math.round(currentPrice * 0.99 * 100) / 100;
     const totalRevenue = sellPrice * requestedShares;
 
-    // Update corporation: increase public shares, decrease capital
+    // Add cash to user
+    await UserModel.updateCash(userId, totalRevenue);
+
+    // Update corporation: increase public shares (no capital change - just transferring ownership)
     const newPublicShares = corporation.public_shares + requestedShares;
-    const currentCapital = typeof corporation.capital === 'string' ? parseFloat(corporation.capital) : corporation.capital;
-    const newCapital = Math.max(0, currentCapital - totalRevenue);
     
     await CorporationModel.update(corporationId, {
       public_shares: newPublicShares,
-      capital: newCapital,
     });
 
     // Update shareholder record
@@ -213,7 +239,7 @@ router.post('/:id/sell', authenticateToken, async (req: AuthRequest, res: Respon
       await ShareholderModel.delete(corporationId, userId);
     }
 
-    // Record transaction
+    // Record transaction first (so it's included in price calculation)
     await ShareTransactionModel.create({
       corporation_id: corporationId,
       user_id: userId,
@@ -224,32 +250,164 @@ router.post('/:id/sell', authenticateToken, async (req: AuthRequest, res: Respon
     });
 
     // Recalculate and update share price based on new capital and activity
-    const newPrice = await calculateSharePrice(corporationId);
+    // Fetch fresh corporation data to ensure we have updated capital
+    const updatedCorpForPrice = await CorporationModel.findById(corporationId);
+    if (!updatedCorpForPrice) {
+      throw new Error('Corporation not found after update');
+    }
+    
+    // Manually calculate price with updated capital
+    const updatedCapital = typeof updatedCorpForPrice.capital === 'string' ? parseFloat(updatedCorpForPrice.capital) : updatedCorpForPrice.capital;
+    const basePrice = (updatedCapital / updatedCorpForPrice.shares) * 2;
+    
+    // Get recent transactions (including the one we just created)
+    const recentTransactions = await ShareTransactionModel.getRecentActivity(corporationId, 24);
+    let priceImpact = 0;
+    const impactFactor = 0.0001;
+    
+    recentTransactions.forEach(transaction => {
+      if (transaction.transaction_type === 'buy') {
+        priceImpact += transaction.shares * impactFactor;
+      } else {
+        priceImpact -= transaction.shares * impactFactor;
+      }
+    });
+    
+    const newPrice = Math.max(1.00, basePrice + priceImpact);
+    const roundedPrice = Math.round(newPrice * 100) / 100;
+    
     await CorporationModel.update(corporationId, {
-      share_price: newPrice,
+      share_price: roundedPrice,
     });
 
     // Record price history
-    const updatedCorp = await CorporationModel.findById(corporationId);
-    if (updatedCorp) {
-      const updatedCapital = typeof updatedCorp.capital === 'string' ? parseFloat(updatedCorp.capital) : updatedCorp.capital;
-      await SharePriceHistoryModel.create({
-        corporation_id: corporationId,
-        share_price: newPrice,
-        capital: updatedCapital,
-      });
-    }
+    await SharePriceHistoryModel.create({
+      corporation_id: corporationId,
+      share_price: roundedPrice,
+      capital: updatedCapital,
+    });
 
     res.json({
       success: true,
       shares: requestedShares,
       price_per_share: sellPrice,
       total_revenue: totalRevenue,
-      new_share_price: newPrice,
+      new_share_price: roundedPrice,
     });
   } catch (error: any) {
     console.error('Sell shares error:', error);
     res.status(500).json({ error: error.message || 'Failed to sell shares' });
+  }
+});
+
+// POST /api/shares/:id/issue - Issue new shares (CEO only)
+router.post('/:id/issue', authenticateToken, async (req: AuthRequest, res: Response) => {
+  try {
+    const corporationId = parseInt(req.params.id, 10);
+    const userId = req.userId!;
+    const { shares: requestedShares } = req.body;
+
+    if (isNaN(corporationId)) {
+      return res.status(400).json({ error: 'Invalid corporation ID' });
+    }
+
+    if (!requestedShares || requestedShares <= 0 || !Number.isInteger(requestedShares)) {
+      return res.status(400).json({ error: 'Invalid number of shares' });
+    }
+
+    // Get corporation
+    const corporation = await CorporationModel.findById(corporationId);
+    if (!corporation) {
+      return res.status(404).json({ error: 'Corporation not found' });
+    }
+
+    // Check if user is CEO
+    if (userId !== corporation.ceo_id) {
+      return res.status(403).json({ error: 'Only the CEO can issue new shares' });
+    }
+
+    // Check if issue amount exceeds 10% of current shares
+    const maxIssueable = Math.floor(corporation.shares * 0.1);
+    if (requestedShares > maxIssueable) {
+      return res.status(400).json({ 
+        error: `Cannot issue more than ${maxIssueable.toLocaleString()} shares (10% of ${corporation.shares.toLocaleString()} outstanding)` 
+      });
+    }
+
+    // Calculate current share price
+    const currentPrice = await calculateSharePrice(corporationId);
+    const issuePrice = currentPrice; // Issue at market price
+    const totalCapitalRaised = issuePrice * requestedShares;
+
+    // Update corporation: increase total shares, increase public shares, increase capital
+    const newTotalShares = corporation.shares + requestedShares;
+    const newPublicShares = corporation.public_shares + requestedShares;
+    const currentCapital = typeof corporation.capital === 'string' ? parseFloat(corporation.capital) : corporation.capital;
+    const newCapital = currentCapital + totalCapitalRaised;
+    
+    await CorporationModel.update(corporationId, {
+      shares: newTotalShares,
+      public_shares: newPublicShares,
+      capital: newCapital,
+    });
+
+    // Record transaction (issue is treated as a special buy transaction from the corporation)
+    await ShareTransactionModel.create({
+      corporation_id: corporationId,
+      user_id: userId, // CEO
+      transaction_type: 'buy', // Issue is like buying from the corporation
+      shares: requestedShares,
+      price_per_share: issuePrice,
+      total_amount: totalCapitalRaised,
+    });
+
+    // Recalculate and update share price based on new capital and share count
+    const updatedCorpForPrice = await CorporationModel.findById(corporationId);
+    if (!updatedCorpForPrice) {
+      throw new Error('Corporation not found after update');
+    }
+    
+    const updatedCapital = typeof updatedCorpForPrice.capital === 'string' ? parseFloat(updatedCorpForPrice.capital) : updatedCorpForPrice.capital;
+    const basePrice = (updatedCapital / updatedCorpForPrice.shares) * 2;
+    
+    // Get recent transactions
+    const recentTransactions = await ShareTransactionModel.getRecentActivity(corporationId, 24);
+    let priceImpact = 0;
+    const impactFactor = 0.0001;
+    
+    recentTransactions.forEach(transaction => {
+      if (transaction.transaction_type === 'buy') {
+        priceImpact += transaction.shares * impactFactor;
+      } else {
+        priceImpact -= transaction.shares * impactFactor;
+      }
+    });
+    
+    const newPrice = Math.max(1.00, basePrice + priceImpact);
+    const roundedPrice = Math.round(newPrice * 100) / 100;
+    
+    await CorporationModel.update(corporationId, {
+      share_price: roundedPrice,
+    });
+
+    // Record price history
+    await SharePriceHistoryModel.create({
+      corporation_id: corporationId,
+      share_price: roundedPrice,
+      capital: updatedCapital,
+    });
+
+    res.json({
+      success: true,
+      shares_issued: requestedShares,
+      price_per_share: issuePrice,
+      total_capital_raised: totalCapitalRaised,
+      new_total_shares: newTotalShares,
+      new_share_price: roundedPrice,
+    });
+  } catch (error: any) {
+    console.error('Issue shares error:', error);
+    res.status(500).json({ error: error.message || 'Failed to issue shares' });
   }
 });
 

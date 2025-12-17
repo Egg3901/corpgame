@@ -5,7 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import AppNavigation from '@/components/AppNavigation';
 import { corporationAPI, CorporationResponse, authAPI, sharesAPI } from '@/lib/api';
-import { Building2, Edit, Trash2, TrendingUp, DollarSign, Users, User, Calendar, ArrowUp, ArrowDown } from 'lucide-react';
+import { Building2, Edit, Trash2, TrendingUp, DollarSign, Users, User, Calendar, ArrowUp, ArrowDown, TrendingDown, Plus } from 'lucide-react';
 
 export default function CorporationDetailPage() {
   const router = useRouter();
@@ -19,8 +19,10 @@ export default function CorporationDetailPage() {
   const [deleting, setDeleting] = useState(false);
   const [buyShares, setBuyShares] = useState('');
   const [sellShares, setSellShares] = useState('');
+  const [issueShares, setIssueShares] = useState('');
   const [trading, setTrading] = useState(false);
   const [userOwnedShares, setUserOwnedShares] = useState(0);
+  const [activeTab, setActiveTab] = useState<'overview' | 'finance'>('overview');
 
   useEffect(() => {
     const fetchData = async () => {
@@ -155,6 +157,38 @@ export default function CorporationDetailPage() {
     }
   };
 
+  const handleIssueShares = async () => {
+    if (!corporation || !issueShares) return;
+    
+    const shares = parseInt(issueShares, 10);
+    if (isNaN(shares) || shares <= 0) {
+      alert('Please enter a valid number of shares');
+      return;
+    }
+
+    const maxIssueable = Math.floor(corporation.shares * 0.1);
+    if (shares > maxIssueable) {
+      alert(`Cannot issue more than ${maxIssueable.toLocaleString()} shares (10% of ${corporation.shares.toLocaleString()} outstanding)`);
+      return;
+    }
+
+    setTrading(true);
+    try {
+      const result = await sharesAPI.issue(corporation.id, shares);
+      alert(`Successfully issued ${shares.toLocaleString()} shares at ${formatCurrency(result.price_per_share)} each. Capital raised: ${formatCurrency(result.total_capital_raised)}`);
+      
+      // Refresh corporation data
+      const updatedCorp = await corporationAPI.getById(corporation.id);
+      setCorporation(updatedCorp);
+      
+      setIssueShares('');
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Failed to issue shares');
+    } finally {
+      setTrading(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-gray-100 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 flex items-center justify-center">
@@ -267,9 +301,41 @@ export default function CorporationDetailPage() {
           </div>
         </div>
 
+        {/* Tabs */}
+        <div className="relative rounded-2xl border border-gray-200/50 dark:border-gray-700/50 bg-gradient-to-br from-white via-white to-gray-50/50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800/50 shadow-2xl overflow-hidden backdrop-blur-sm">
+          <div className="absolute inset-0 bg-gradient-to-br from-corporate-blue/5 via-transparent to-corporate-blue-light/5 dark:from-corporate-blue/10 dark:via-transparent dark:to-corporate-blue-dark/10 pointer-events-none" />
+          <div className="absolute inset-0 ring-1 ring-inset ring-white/20 dark:ring-gray-700/30 pointer-events-none" />
+          <div className="relative border-b border-gray-200 dark:border-gray-700">
+            <div className="flex">
+              <button
+                onClick={() => setActiveTab('overview')}
+                className={`flex-1 px-6 py-4 text-sm font-semibold transition-colors ${
+                  activeTab === 'overview'
+                    ? 'text-corporate-blue dark:text-corporate-blue-light border-b-2 border-corporate-blue dark:border-corporate-blue-light bg-corporate-blue/5 dark:bg-corporate-blue/10'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                }`}
+              >
+                Overview
+              </button>
+              <button
+                onClick={() => setActiveTab('finance')}
+                className={`flex-1 px-6 py-4 text-sm font-semibold transition-colors ${
+                  activeTab === 'finance'
+                    ? 'text-corporate-blue dark:text-corporate-blue-light border-b-2 border-corporate-blue dark:border-corporate-blue-light bg-corporate-blue/5 dark:bg-corporate-blue/10'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                }`}
+              >
+                Finance
+              </button>
+            </div>
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main Info */}
           <div className="lg:col-span-2 space-y-6">
+            {activeTab === 'overview' && (
+              <>
             {/* Financial Overview */}
             <div className="relative rounded-2xl border border-gray-200/50 dark:border-gray-700/50 bg-gradient-to-br from-white via-white to-gray-50/50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800/50 shadow-2xl overflow-hidden backdrop-blur-sm">
               <div className="absolute inset-0 bg-gradient-to-br from-corporate-blue/5 via-transparent to-corporate-blue-light/5 dark:from-corporate-blue/10 dark:via-transparent dark:to-corporate-blue-dark/10 pointer-events-none" />
@@ -379,7 +445,6 @@ export default function CorporationDetailPage() {
                                             <span className="ml-2 text-xs font-bold uppercase tracking-[0.05em] bg-corporate-blue text-white px-2 py-0.5 rounded">CEO</span>
                                           )}
                                         </div>
-                                        <div className="text-xs text-gray-500 dark:text-gray-400">@{sh.user.username}</div>
                                       </div>
                                     </Link>
                                   ) : (
@@ -429,6 +494,103 @@ export default function CorporationDetailPage() {
                 )}
               </div>
             </div>
+              </>
+            )}
+
+            {activeTab === 'finance' && (
+              <div className="relative rounded-2xl border border-gray-200/50 dark:border-gray-700/50 bg-gradient-to-br from-white via-white to-gray-50/50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800/50 shadow-2xl overflow-hidden backdrop-blur-sm">
+                <div className="absolute inset-0 bg-gradient-to-br from-corporate-blue/5 via-transparent to-corporate-blue-light/5 dark:from-corporate-blue/10 dark:via-transparent dark:to-corporate-blue-dark/10 pointer-events-none" />
+                <div className="absolute inset-0 ring-1 ring-inset ring-white/20 dark:ring-gray-700/30 pointer-events-none" />
+                <div className="relative p-6">
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6">Finance & Capital</h2>
+                  
+                  {isCeo ? (
+                    <div className="space-y-6">
+                      {/* Issue Shares Section */}
+                      <div className="rounded-xl border border-white/60 bg-white/70 dark:border-gray-800/70 dark:bg-gray-800/60 p-6 shadow-sm">
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                          <Plus className="w-5 h-5 text-corporate-blue" />
+                          Issue New Shares
+                        </h3>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                          Issue new shares at market price to raise capital. You can issue up to 10% of current outstanding shares.
+                        </p>
+                        
+                        <div className="space-y-4">
+                          <div>
+                            <label htmlFor="issueShares" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                              Number of Shares to Issue
+                            </label>
+                            <div className="flex gap-2">
+                              <input
+                                type="number"
+                                id="issueShares"
+                                min="1"
+                                max={Math.floor(corporation.shares * 0.1)}
+                                value={issueShares}
+                                onChange={(e) => setIssueShares(e.target.value)}
+                                placeholder="Shares"
+                                className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-corporate-blue focus:border-transparent"
+                                disabled={trading}
+                              />
+                              <button
+                                onClick={handleIssueShares}
+                                disabled={trading || !issueShares || !corporation}
+                                className="px-6 py-2 bg-corporate-blue text-white rounded-lg hover:bg-corporate-blue-dark disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2 text-sm font-semibold"
+                              >
+                                <Plus className="w-4 h-4" />
+                                Issue
+                              </button>
+                            </div>
+                            {issueShares && !isNaN(parseInt(issueShares, 10)) && corporation && (
+                              <div className="mt-2 space-y-1 text-sm">
+                                <p className="text-gray-600 dark:text-gray-400">
+                                  Issue Price: <span className="font-semibold">{formatCurrency(corporation.share_price)}</span>
+                                </p>
+                                <p className="text-gray-600 dark:text-gray-400">
+                                  Capital Raised: <span className="font-semibold">{formatCurrency(parseInt(issueShares, 10) * corporation.share_price)}</span>
+                                </p>
+                                <p className="text-xs text-gray-500 dark:text-gray-400">
+                                  Max issueable: {Math.floor(corporation.shares * 0.1).toLocaleString()} shares (10% of {corporation.shares.toLocaleString()})
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Current Capital Info */}
+                      <div className="rounded-xl border border-white/60 bg-white/70 dark:border-gray-800/70 dark:bg-gray-800/60 p-6 shadow-sm">
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                          <DollarSign className="w-5 h-5 text-corporate-blue" />
+                          Corporate Capital
+                        </h3>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Current Capital</p>
+                            <p className="text-2xl font-bold text-gray-900 dark:text-white font-mono">
+                              {formatCurrency(corporation.capital || 500000)}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Market Cap</p>
+                            <p className="text-2xl font-bold text-corporate-blue dark:text-corporate-blue-light font-mono">
+                              {formatCurrency(marketCap)}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="rounded-xl border border-white/60 bg-white/70 dark:border-gray-800/70 dark:bg-gray-800/60 p-6 shadow-sm text-center">
+                      <p className="text-gray-600 dark:text-gray-400">
+                        Only the CEO can manage corporate finance and issue shares.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Sidebar */}

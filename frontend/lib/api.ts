@@ -305,6 +305,15 @@ export interface ShareTransactionResponse {
   new_share_price: number;
 }
 
+export interface IssueSharesResponse {
+  success: boolean;
+  shares_issued: number;
+  price_per_share: number;
+  total_capital_raised: number;
+  new_total_shares: number;
+  new_share_price: number;
+}
+
 export interface SharePriceHistoryResponse {
   id: number;
   corporation_id: number;
@@ -320,6 +329,10 @@ export const sharesAPI = {
   },
   sell: async (corporationId: number, shares: number): Promise<ShareTransactionResponse> => {
     const response = await api.post(`/api/shares/${corporationId}/sell`, { shares });
+    return response.data;
+  },
+  issue: async (corporationId: number, shares: number): Promise<IssueSharesResponse> => {
+    const response = await api.post(`/api/shares/${corporationId}/issue`, { shares });
     return response.data;
   },
   getPriceHistory: async (
@@ -393,6 +406,117 @@ export const adminAPI = {
   },
   deleteUser: async (userId: number): Promise<void> => {
     await api.delete(`/api/admin/users/${userId}`);
+  },
+};
+
+export interface MessageResponse {
+  id: number;
+  sender_id: number;
+  recipient_id: number;
+  subject?: string | null;
+  body: string;
+  read: boolean;
+  created_at: string;
+  sender?: {
+    id: number;
+    profile_id: number;
+    username: string;
+    player_name?: string;
+    profile_image_url?: string | null;
+  };
+  recipient?: {
+    id: number;
+    profile_id: number;
+    username: string;
+    player_name?: string;
+    profile_image_url?: string | null;
+  };
+}
+
+export interface ConversationResponse {
+  other_user_id: number;
+  other_user: {
+    id: number;
+    profile_id: number;
+    username: string;
+    player_name?: string;
+    profile_image_url?: string | null;
+  };
+  last_message: MessageResponse;
+  unread_count: number;
+}
+
+export interface SendMessageData {
+  recipient_id: number;
+  subject?: string;
+  body: string;
+}
+
+export interface TransferCashData {
+  recipient_id: number;
+  amount: number;
+  note?: string;
+}
+
+export interface TransferCashResponse {
+  success: boolean;
+  amount: number;
+  sender_id: number;
+  recipient_id: number;
+  sender_new_balance: number;
+  recipient_new_balance: number;
+  note?: string | null;
+}
+
+export const messagesAPI = {
+  send: async (data: SendMessageData): Promise<MessageResponse> => {
+    const response = await api.post('/api/messages', data);
+    return response.data;
+  },
+  getAll: async (type?: 'sent' | 'conversations', limit?: number, offset?: number, includeRead?: boolean): Promise<MessageResponse[] | ConversationResponse[]> => {
+    const params = new URLSearchParams();
+    if (type) params.append('type', type);
+    if (limit) params.append('limit', limit.toString());
+    if (offset) params.append('offset', offset.toString());
+    if (includeRead !== undefined) params.append('include_read', includeRead.toString());
+    const query = params.toString();
+    const response = await api.get(`/api/messages${query ? `?${query}` : ''}`);
+    return response.data;
+  },
+  getById: async (id: number): Promise<MessageResponse> => {
+    const response = await api.get(`/api/messages/${id}`);
+    return response.data;
+  },
+  getConversation: async (userId: number, limit?: number, offset?: number): Promise<MessageResponse[]> => {
+    const params = new URLSearchParams();
+    if (limit) params.append('limit', limit.toString());
+    if (offset) params.append('offset', offset.toString());
+    const query = params.toString();
+    const response = await api.get(`/api/messages/conversation/${userId}${query ? `?${query}` : ''}`);
+    return response.data;
+  },
+  markAsRead: async (id: number): Promise<{ success: boolean }> => {
+    const response = await api.patch(`/api/messages/${id}/read`);
+    return response.data;
+  },
+  markConversationAsRead: async (userId: number): Promise<{ success: boolean }> => {
+    const response = await api.patch(`/api/messages/conversation/${userId}/read`);
+    return response.data;
+  },
+  getUnreadCount: async (): Promise<{ count: number }> => {
+    const response = await api.get('/api/messages/unread/count');
+    return response.data;
+  },
+  delete: async (id: number): Promise<{ success: boolean }> => {
+    const response = await api.delete(`/api/messages/${id}`);
+    return response.data;
+  },
+};
+
+export const cashAPI = {
+  transfer: async (data: TransferCashData): Promise<TransferCashResponse> => {
+    const response = await api.post('/api/cash/transfer', data);
+    return response.data;
   },
 };
 

@@ -21,6 +21,8 @@ import {
   Trophy,
 } from 'lucide-react';
 import { authAPI, profileAPI, corporationAPI, portfolioAPI, ProfileResponse, CorporationResponse, PortfolioResponse } from '@/lib/api';
+import SendCashModal from './SendCashModal';
+import ComposeMessage from './ComposeMessage';
 
 interface ProfileDashboardProps {
   profileId: string;
@@ -45,6 +47,8 @@ export default function ProfileDashboard({ profileId }: ProfileDashboardProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
+  const [sendCashOpen, setSendCashOpen] = useState(false);
+  const [sendMessageOpen, setSendMessageOpen] = useState(false);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -434,30 +438,57 @@ export default function ProfileDashboard({ profileId }: ProfileDashboardProps) {
                   <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
                     Quick Actions
                   </p>
-                  <p className="text-lg font-semibold text-gray-900 dark:text-white">Corporate Management</p>
+                  <p className="text-lg font-semibold text-gray-900 dark:text-white">
+                    {isOwner ? 'Corporate Management' : 'User Actions'}
+                  </p>
                 </div>
                 <Settings className="h-5 w-5 text-corporate-blue" />
               </div>
-              <div className="space-y-4 text-sm text-gray-700 dark:text-gray-300">
-                <div className="flex items-center justify-between rounded-xl border border-white/60 bg-white/70 p-3 shadow-sm dark:border-gray-800/70 dark:bg-gray-800/60">
-                  <span>Buy/Sell Investments</span>
-                  <button className="px-3 py-1 text-xs font-medium rounded-md border border-gray-200 text-gray-700 hover:bg-gray-100 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800">
-                    Manage
+              {isOwner ? (
+                <div className="space-y-4 text-sm text-gray-700 dark:text-gray-300">
+                  <div className="flex items-center justify-between rounded-xl border border-white/60 bg-white/70 p-3 shadow-sm dark:border-gray-800/70 dark:bg-gray-800/60">
+                    <span>Buy/Sell Investments</span>
+                    <button className="px-3 py-1 text-xs font-medium rounded-md border border-gray-200 text-gray-700 hover:bg-gray-100 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800">
+                      Manage
+                    </button>
+                  </div>
+                  <div className="flex items-center justify-between rounded-xl border border-white/60 bg-white/70 p-3 shadow-sm dark:border-gray-800/70 dark:bg-gray-800/60">
+                    <span>Build Production Units</span>
+                    <button className="px-3 py-1 text-xs font-medium rounded-md border border-gray-200 text-gray-700 hover:bg-gray-100 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800">
+                      Build
+                    </button>
+                  </div>
+                  <div className="flex items-center justify-between rounded-xl border border-white/60 bg-white/70 p-3 shadow-sm dark:border-gray-800/70 dark:bg-gray-800/60">
+                    <span>Set Corporate Policy</span>
+                    <button className="px-3 py-1 text-xs font-medium rounded-md border border-gray-200 text-gray-700 hover:bg-gray-100 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800">
+                      Configure
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4 text-sm text-gray-700 dark:text-gray-300">
+                  <button
+                    onClick={() => setSendCashOpen(true)}
+                    className="w-full flex items-center justify-between rounded-xl border border-white/60 bg-white/70 p-3 shadow-sm hover:bg-gray-50 dark:border-gray-800/70 dark:bg-gray-800/60 dark:hover:bg-gray-700 transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      <DollarSign className="h-4 w-4 text-corporate-blue" />
+                      <span>Send Cash</span>
+                    </div>
+                    <span className="text-xs text-gray-500 dark:text-gray-400">Transfer money</span>
+                  </button>
+                  <button
+                    onClick={() => setSendMessageOpen(true)}
+                    className="w-full flex items-center justify-between rounded-xl border border-white/60 bg-white/70 p-3 shadow-sm hover:bg-gray-50 dark:border-gray-800/70 dark:bg-gray-800/60 dark:hover:bg-gray-700 transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      <UserIcon className="h-4 w-4 text-corporate-blue" />
+                      <span>Send Message</span>
+                    </div>
+                    <span className="text-xs text-gray-500 dark:text-gray-400">Start conversation</span>
                   </button>
                 </div>
-                <div className="flex items-center justify-between rounded-xl border border-white/60 bg-white/70 p-3 shadow-sm dark:border-gray-800/70 dark:bg-gray-800/60">
-                  <span>Build Production Units</span>
-                  <button className="px-3 py-1 text-xs font-medium rounded-md border border-gray-200 text-gray-700 hover:bg-gray-100 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800">
-                    Build
-                  </button>
-                </div>
-                <div className="flex items-center justify-between rounded-xl border border-white/60 bg-white/70 p-3 shadow-sm dark:border-gray-800/70 dark:bg-gray-800/60">
-                  <span>Set Corporate Policy</span>
-                  <button className="px-3 py-1 text-xs font-medium rounded-md border border-gray-200 text-gray-700 hover:bg-gray-100 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800">
-                    Configure
-                  </button>
-                </div>
-              </div>
+              )}
             </div>
 
             {/* Corporation Tab - moved below quick actions */}
@@ -521,6 +552,28 @@ export default function ProfileDashboard({ profileId }: ProfileDashboardProps) {
             </div>
           </aside>
         </div>
+
+        {/* Modals */}
+        {profile && !isOwner && (
+          <>
+            <SendCashModal
+              isOpen={sendCashOpen}
+              onClose={() => setSendCashOpen(false)}
+              recipientId={profile.id}
+              recipientName={displayName}
+              onSuccess={() => {
+                // Refresh user cash if needed
+                setSendCashOpen(false);
+              }}
+            />
+            <ComposeMessage
+              isOpen={sendMessageOpen}
+              onClose={() => setSendMessageOpen(false)}
+              recipientId={profile.id}
+              recipientName={displayName}
+            />
+          </>
+        )}
       </div>
     </AppNavigation>
   );
