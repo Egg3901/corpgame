@@ -28,6 +28,7 @@ router.get('/:idOrSlug', async (req: Request, res: Response) => {
       profile_slug: user.profile_slug,
       profile_image_url: normalizeImageUrl(user.profile_image_url),
       bio: user.bio,
+      cash: user.cash || 0,
       is_admin: user.is_admin,
       created_at: user.created_at,
     });
@@ -67,6 +68,7 @@ router.patch('/update', authenticateToken, async (req: AuthRequest, res: Respons
       profile_slug: updatedUser.profile_slug,
       profile_image_url: normalizeImageUrl(updatedUser.profile_image_url),
       bio: updatedUser.bio,
+      cash: updatedUser.cash || 0,
       is_admin: updatedUser.is_admin,
       created_at: updatedUser.created_at,
     });

@@ -81,10 +81,10 @@ export class UserModel {
     const result = await pool.query(
       `INSERT INTO users (
         email, username, password_hash, player_name, gender, age, starting_state,
-        is_admin, profile_slug, bio, registration_ip, last_login_ip, last_login_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+        is_admin, profile_slug, bio, registration_ip, last_login_ip, last_login_at, cash
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
       RETURNING id, profile_id, email, username, player_name, gender, age, starting_state, is_admin,
-        profile_slug, bio, registration_ip, last_login_ip, last_login_at, created_at`,
+        profile_slug, bio, registration_ip, last_login_ip, last_login_at, cash, created_at`,
       [
         email.trim(),
         username.trim(),
@@ -98,7 +98,8 @@ export class UserModel {
         cleanBio,
         userData.registration_ip || null,
         userData.last_login_ip || null,
-        userData.last_login_at || null
+        userData.last_login_at || null,
+        500000.00
       ]
     );
     
@@ -129,7 +130,7 @@ export class UserModel {
   static async findById(id: number): Promise<User | null> {
     const result = await pool.query(
       `SELECT id, profile_id, email, username, player_name, gender, age, starting_state, is_admin,
-        profile_slug, profile_image_url, bio, registration_ip, last_login_ip, last_login_at,
+        profile_slug, profile_image_url, bio, cash, registration_ip, last_login_ip, last_login_at,
         is_banned, banned_at, banned_reason, banned_by, created_at
       FROM users WHERE id = $1`,
       [id]
@@ -141,7 +142,7 @@ export class UserModel {
   static async findByProfileId(profileId: number): Promise<User | null> {
     const result = await pool.query(
       `SELECT id, profile_id, email, username, player_name, gender, age, starting_state, is_admin,
-        profile_slug, profile_image_url, bio, registration_ip, last_login_ip, last_login_at,
+        profile_slug, profile_image_url, bio, cash, registration_ip, last_login_ip, last_login_at,
         is_banned, banned_at, banned_reason, banned_by, created_at
       FROM users WHERE profile_id = $1`,
       [profileId]
@@ -153,7 +154,7 @@ export class UserModel {
   static async findBySlug(slug: string): Promise<User | null> {
     const result = await pool.query(
       `SELECT id, profile_id, email, username, player_name, gender, age, starting_state, is_admin,
-        profile_slug, profile_image_url, bio, registration_ip, last_login_ip, last_login_at,
+        profile_slug, profile_image_url, bio, cash, registration_ip, last_login_ip, last_login_at,
         is_banned, banned_at, banned_reason, banned_by, created_at
       FROM users WHERE profile_slug = $1`,
       [slug]

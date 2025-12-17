@@ -58,6 +58,11 @@ export default function ProfileDashboard({ profileId }: ProfileDashboardProps) {
         const data = await profileAPI.getById(profileId);
         setProfile(data);
         
+        // Set cash from profile data
+        if (data.cash !== undefined) {
+          setUserCash(data.cash);
+        }
+        
         // Fetch user's corporations (if they are CEO of any)
         // Note: This checks corporations for the profile being viewed, not the viewer
         // We'll need the user's id to properly check CEO status, but ProfileResponse doesn't include it
@@ -100,8 +105,6 @@ export default function ProfileDashboard({ profileId }: ProfileDashboardProps) {
               // Portfolio might not exist yet, that's okay
               console.warn('Portfolio not found for user:', portfolioErr);
             }
-            // TODO: Fetch cash from user data - placeholder for now
-            setUserCash(10000); // Placeholder - should come from user data
           }
         } catch (portfolioErr) {
           console.warn('Failed to fetch portfolio:', portfolioErr);

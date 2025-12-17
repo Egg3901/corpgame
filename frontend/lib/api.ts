@@ -137,6 +137,7 @@ export interface ProfileResponse {
   profile_slug?: string;
   profile_image_url?: string | null;
   bio?: string;
+  cash?: number;
   is_admin?: boolean;
   is_banned?: boolean;
   created_at: string;
