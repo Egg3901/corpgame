@@ -8,13 +8,18 @@ import gameRoutes from './routes/game';
 import profileRoutes from './routes/profile';
 import adminRoutes from './routes/admin';
 import avatarRoutes from './routes/avatar';
+import corporationRoutes from './routes/corporation';
+import portfolioRoutes from './routes/portfolio';
 
 dotenv.config();
 
 const app = express();
 const PORT = parseInt(process.env.PORT || '3001', 10);
 const uploadsDir = path.join(__dirname, '..', 'uploads');
+const corporationsDir = path.join(uploadsDir, 'corporations');
+console.log('Uploads directory path:', uploadsDir);
 fs.mkdirSync(uploadsDir, { recursive: true });
+fs.mkdirSync(corporationsDir, { recursive: true });
 
 // Middleware
 // CORS: Allow requests from frontend URL
@@ -108,14 +113,23 @@ app.use(express.urlencoded({ extended: true }));
 
 // Static file serving
 const commonAssetsDir = path.join(__dirname, '..', '..', '..', 'commonassets');
+const commonAssetsDirAlt = path.join(__dirname, '..', '..', '..', '..', 'commonassets'); // Alternative path for production
+
+let finalCommonAssetsDir = commonAssetsDir;
+if (!require('fs').existsSync(commonAssetsDir) && require('fs').existsSync(commonAssetsDirAlt)) {
+  finalCommonAssetsDir = commonAssetsDirAlt;
+}
+
 console.log('Static file directories:');
-console.log('  Common assets:', commonAssetsDir, '- exists:', require('fs').existsSync(commonAssetsDir));
+console.log('  Common assets (primary):', commonAssetsDir, '- exists:', require('fs').existsSync(commonAssetsDir));
+console.log('  Common assets (fallback):', commonAssetsDirAlt, '- exists:', require('fs').existsSync(commonAssetsDirAlt));
+console.log('  Using common assets dir:', finalCommonAssetsDir);
 console.log('  Uploads:', uploadsDir, '- exists:', require('fs').existsSync(uploadsDir));
 
 app.use('/commonassets', (req, res, next) => {
   console.log('Request for commonassets:', req.path);
   next();
-}, express.static(commonAssetsDir));
+}, express.static(finalCommonAssetsDir));
 
 app.use('/uploads', (req, res, next) => {
   console.log('Request for uploads:', req.path);
@@ -128,6 +142,8 @@ app.use('/api/game', gameRoutes);
 app.use('/api/profile', avatarRoutes); // Mount avatar routes first to avoid conflict with profile catch-all
 app.use('/api/profile', profileRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/corporation', corporationRoutes);
+app.use('/api/portfolio', portfolioRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

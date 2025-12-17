@@ -142,6 +142,64 @@ export interface ProfileResponse {
   created_at: string;
 }
 
+export interface CorporationResponse {
+  id: number;
+  ceo_id: number;
+  name: string;
+  logo?: string | null;
+  shares: number;
+  public_shares: number;
+  share_price: number;
+  type?: string | null;
+  created_at: string;
+  ceo?: {
+    id: number;
+    profile_id: number;
+    username: string;
+    player_name?: string;
+    profile_slug: string;
+    profile_image_url?: string | null;
+  } | null;
+  shareholders?: ShareholderResponse[];
+}
+
+export interface ShareholderResponse {
+  id: number;
+  corporation_id: number;
+  user_id: number;
+  shares: number;
+  purchased_at: string;
+  user?: {
+    id: number;
+    profile_id: number;
+    username: string;
+    player_name?: string;
+    profile_slug: string;
+    profile_image_url?: string | null;
+  } | null;
+}
+
+export interface PortfolioHolding {
+  corporation: {
+    id: number;
+    name: string;
+    logo?: string | null;
+    share_price: number;
+    total_shares: number;
+    type?: string | null;
+  };
+  shares_owned: number;
+  current_value: number;
+  ownership_percentage: number;
+  purchased_at: string;
+}
+
+export interface PortfolioResponse {
+  user_id: number;
+  holdings: PortfolioHolding[];
+  total_value: number;
+}
+
 export const authAPI = {
   register: async (data: RegisterData): Promise<AuthResponse> => {
     try {
@@ -192,6 +250,47 @@ export const profileAPI = {
   },
   updateProfile: async (data: { bio?: string }): Promise<ProfileResponse> => {
     const response = await api.patch('/api/profile/update', data);
+    return response.data;
+  },
+};
+
+export const corporationAPI = {
+  getAll: async (): Promise<CorporationResponse[]> => {
+    const response = await api.get('/api/corporation');
+    return response.data;
+  },
+  getById: async (id: number): Promise<CorporationResponse> => {
+    const response = await api.get(`/api/corporation/${id}`);
+    return response.data;
+  },
+  create: async (data: { name: string; type?: string }): Promise<CorporationResponse> => {
+    const response = await api.post('/api/corporation', data);
+    return response.data;
+  },
+  uploadLogo: async (id: number, file: File): Promise<{ logo: string }> => {
+    const formData = new FormData();
+    formData.append('logo', file);
+    const response = await api.post(`/api/corporation/${id}/logo`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  },
+  update: async (id: number, data: { name?: string; type?: string; share_price?: number }): Promise<CorporationResponse> => {
+    const response = await api.patch(`/api/corporation/${id}`, data);
+    return response.data;
+  },
+  delete: async (id: number): Promise<void> => {
+    await api.delete(`/api/corporation/${id}`);
+  },
+  getShareholders: async (id: number): Promise<ShareholderResponse[]> => {
+    const corp = await corporationAPI.getById(id);
+    return corp.shareholders || [];
+  },
+};
+
+export const portfolioAPI = {
+  getByUserId: async (userId: number): Promise<PortfolioResponse> => {
+    const response = await api.get(`/api/portfolio/${userId}`);
     return response.data;
   },
 };

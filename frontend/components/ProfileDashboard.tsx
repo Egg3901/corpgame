@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import {
   ChevronDown,
   ChevronRight,
@@ -24,7 +25,7 @@ import {
   Activity,
   MapPin,
 } from 'lucide-react';
-import { authAPI, profileAPI, ProfileResponse } from '@/lib/api';
+import { authAPI, profileAPI, corporationAPI, ProfileResponse, CorporationResponse } from '@/lib/api';
 
 interface ProfileDashboardProps {
   profileId: string;
@@ -48,6 +49,7 @@ export default function ProfileDashboard({ profileId }: ProfileDashboardProps) {
   const [viewerProfileId, setViewerProfileId] = useState<number | null>(null);
   const [viewerAdmin, setViewerAdmin] = useState<boolean>(false);
   const [viewerProfile, setViewerProfile] = useState<ProfileResponse | null>(null);
+  const [primaryCorporation, setPrimaryCorporation] = useState<CorporationResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [navOpen, setNavOpen] = useState(false);
@@ -61,6 +63,22 @@ export default function ProfileDashboard({ profileId }: ProfileDashboardProps) {
       try {
         const data = await profileAPI.getById(profileId);
         setProfile(data);
+        
+        // Fetch user's corporations (if they are CEO of any)
+        try {
+          const corporations = await corporationAPI.getAll();
+          const userCorps = corporations.filter(corp => {
+            // Match by CEO profile_id or ceo_id (user id)
+            return corp.ceo?.profile_id === data.profile_id || corp.ceo_id === data.id;
+          });
+          if (userCorps.length > 0) {
+            // Use the first corporation as primary (already has CEO data from getAll)
+            setPrimaryCorporation(userCorps[0]);
+          }
+        } catch (corpErr) {
+          console.warn('Failed to fetch corporations:', corpErr);
+          // Don't fail the whole page if corporation fetch fails
+        }
       } catch (err) {
         console.error('Profile load error:', err);
         setError('Unable to load this profile.');
@@ -80,12 +98,24 @@ export default function ProfileDashboard({ profileId }: ProfileDashboardProps) {
       try {
         const me = await authAPI.getMe();
         setViewerProfileId(me.profile_id);
+        setViewerUserId(me.id);
         setViewerAdmin(!!me.is_admin);
 
         // Fetch viewer's full profile data for navigation
         if (me.profile_id) {
           const viewerData = await profileAPI.getById(me.profile_id.toString());
           setViewerProfile(viewerData);
+        }
+
+        // Check if user is CEO of any corporation
+        try {
+          const corporations = await corporationAPI.getAll();
+          const userIsCeo = corporations.some(
+            (corp: CorporationResponse) => corp.ceo_id === me.id
+          );
+          setIsCeo(userIsCeo);
+        } catch (err) {
+          console.warn('Failed to check CEO status:', err);
         }
       } catch (err) {
         console.warn('Viewer not authenticated:', err);
@@ -128,12 +158,29 @@ export default function ProfileDashboard({ profileId }: ProfileDashboardProps) {
       ? `${window.location.origin}/profile/${canonicalProfileId}`
       : `/profile/${canonicalProfileId}`;
 
-  const corpSummary = {
-    name: 'Sample Corp',
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(value);
+  };
+
+  const corpSummary = primaryCorporation ? {
+    name: primaryCorporation.name,
+    revenue: '$0', // Placeholder until revenue system is implemented
+    profit: '$0', // Placeholder until profit system is implemented
+    ownership: primaryCorporation.ceo_id === profile?.id ? '80%' : '0%',
+    marketCap: formatCurrency(primaryCorporation.shares * primaryCorporation.share_price),
+    id: primaryCorporation.id,
+  } : {
+    name: 'No Corporation',
     revenue: '$0',
     profit: '$0',
     ownership: '0%',
     marketCap: '$0',
+    id: null,
   };
 
   const fillerPortfolio = '$0';
@@ -232,14 +279,14 @@ export default function ProfileDashboard({ profileId }: ProfileDashboardProps) {
               >
                 <div className="relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl border border-white/60 bg-corporate-blue/10 dark:border-gray-700 dark:bg-gray-800">
                   <img
-                    src={viewerProfile?.profile_image_url || "/commonassets/defaultpfp.jpg"}
+                    src={viewerProfile?.profile_image_url || "/defaultpfp.jpg"}
                     alt="Your profile avatar"
                     className="h-full w-full object-cover"
                     onError={(e) => {
                       console.error('Viewer profile image failed to load:', e.currentTarget.src);
-                      e.currentTarget.src = "/commonassets/defaultpfp.jpg";
+                      e.currentTarget.src = "/defaultpfp.jpg";
                     }}
-                    onLoad={() => console.log('Viewer profile image loaded:', viewerProfile?.profile_image_url || "/commonassets/defaultpfp.jpg")}
+                    onLoad={() => console.log('Viewer profile image loaded:', viewerProfile?.profile_image_url || "/defaultpfp.jpg")}
                   />
                 </div>
                 <div className="leading-tight">
@@ -247,7 +294,6 @@ export default function ProfileDashboard({ profileId }: ProfileDashboardProps) {
                   <p className="text-sm font-semibold text-gray-900 dark:text-white">
                     Your Profile
                   </p>
-                  <p className="text-[11px] text-gray-500 dark:text-gray-400">#{viewerProfileId}</p>
                 </div>
               </button>
             </div>
@@ -293,14 +339,14 @@ export default function ProfileDashboard({ profileId }: ProfileDashboardProps) {
                     <div className="absolute -inset-1 rounded-2xl bg-gradient-to-br from-corporate-blue/30 to-corporate-blue-light/40 blur-xl dark:from-corporate-blue/40 dark:to-corporate-blue-dark/40" />
                     <div className="relative flex h-28 w-28 items-center justify-center overflow-hidden rounded-2xl border border-white/60 bg-white/70 shadow-lg dark:border-gray-800/80 dark:bg-gray-800/70">
                       <img
-                        src={profile.profile_image_url || "/commonassets/defaultpfp.jpg"}
+                        src={profile.profile_image_url || "/defaultpfp.jpg"}
                         alt="Profile"
                         className="h-full w-full object-cover"
                         onError={(e) => {
                           console.error('Profile image failed to load:', e.currentTarget.src);
-                          e.currentTarget.src = "/commonassets/defaultpfp.jpg";
+                          e.currentTarget.src = "/defaultpfp.jpg";
                         }}
-                        onLoad={() => console.log('Profile image loaded:', profile.profile_image_url || "/commonassets/defaultpfp.jpg")}
+                        onLoad={() => console.log('Profile image loaded:', profile.profile_image_url || "/defaultpfp.jpg")}
                       />
                     </div>
                   </div>
@@ -313,7 +359,18 @@ export default function ProfileDashboard({ profileId }: ProfileDashboardProps) {
                     </span>
                   </div>
                   <p className="text-sm text-gray-600 dark:text-gray-300">
-                    Executive at <span className="font-semibold text-gray-900 dark:text-white">{corpSummary.name}</span>.
+                    Executive at{' '}
+                    {corpSummary.id ? (
+                      <Link
+                        href={`/corporation/${corpSummary.id}`}
+                        className="font-semibold text-gray-900 dark:text-white hover:text-corporate-blue transition-colors"
+                      >
+                        {corpSummary.name}
+                      </Link>
+                    ) : (
+                      <span className="font-semibold text-gray-900 dark:text-white">{corpSummary.name}</span>
+                    )}
+                    .
                   </p>
                   <div className="grid gap-4 sm:grid-cols-3">
                     <div className="rounded-xl border border-white/60 bg-white/70 p-3 shadow-sm dark:border-gray-800/70 dark:bg-gray-800/70">
@@ -366,7 +423,16 @@ export default function ProfileDashboard({ profileId }: ProfileDashboardProps) {
                     <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
                       Primary corporation
                     </p>
-                    <p className="text-lg font-semibold text-gray-900 dark:text-white">{corpSummary.name}</p>
+                    {corpSummary.id ? (
+                      <Link
+                        href={`/corporation/${corpSummary.id}`}
+                        className="text-lg font-semibold text-gray-900 dark:text-white hover:text-corporate-blue transition-colors"
+                      >
+                        {corpSummary.name}
+                      </Link>
+                    ) : (
+                      <p className="text-lg font-semibold text-gray-900 dark:text-white">{corpSummary.name}</p>
+                    )}
                   </div>
                   <span className="rounded-full bg-corporate-blue/10 px-3 py-1 text-xs font-semibold text-corporate-blue dark:bg-corporate-blue/20">
                     Stable
@@ -532,7 +598,6 @@ export default function ProfileDashboard({ profileId }: ProfileDashboardProps) {
                 <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Menu</p>
                 <button type="button" onClick={handleOpenProfile} className="text-left">
                   <p className="text-lg font-semibold text-gray-900 dark:text-white">{viewerProfile?.player_name || viewerProfile?.username || 'Your Profile'}</p>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">Profile #{viewerProfileId}</p>
                 </button>
               </div>
               <button
@@ -565,6 +630,7 @@ export default function ProfileDashboard({ profileId }: ProfileDashboardProps) {
                 Settings
               </button>
 
+              {isCeo && (
               <div className="border-t border-gray-200 pt-3 dark:border-gray-800">
                 <button
                   type="button"
@@ -590,7 +656,38 @@ export default function ProfileDashboard({ profileId }: ProfileDashboardProps) {
                     </button>
                   </div>
                 )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setNavOpen(false);
+                    router.push('/stock-market');
+                  }}
+                  className="w-full text-left rounded-lg px-3 py-2 text-sm font-semibold text-gray-800 hover:bg-gray-100 dark:text-gray-100 dark:hover:bg-gray-800 mt-2"
+                >
+                  Stock Market
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setNavOpen(false);
+                    router.push('/corporations');
+                  }}
+                  className="w-full text-left rounded-lg px-3 py-2 text-sm font-semibold text-gray-800 hover:bg-gray-100 dark:text-gray-100 dark:hover:bg-gray-800 mt-1"
+                >
+                  Corporations
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setNavOpen(false);
+                    router.push('/portfolio');
+                  }}
+                  className="w-full text-left rounded-lg px-3 py-2 text-sm font-semibold text-gray-800 hover:bg-gray-100 dark:text-gray-100 dark:hover:bg-gray-800 mt-1"
+                >
+                  Portfolio
+                </button>
               </div>
+              )}
             </div>
 
             <div className="px-6 pb-6">

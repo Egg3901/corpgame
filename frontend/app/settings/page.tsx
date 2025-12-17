@@ -147,14 +147,14 @@ export default function SettingsPage() {
             <div className="flex items-center gap-4">
               <div className="w-16 h-16 rounded-full overflow-hidden bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
                 <img
-                  src={user?.profile_image_url || "/commonassets/defaultpfp.jpg"}
+                  src={user?.profile_image_url || "/defaultpfp.jpg"}
                   alt="Profile"
                   className="w-full h-full object-cover"
                   onError={(e) => {
                     console.error('Profile image failed to load:', e.currentTarget.src);
-                    e.currentTarget.src = "/commonassets/defaultpfp.jpg";
+                    e.currentTarget.src = "/defaultpfp.jpg";
                   }}
-                  onLoad={() => console.log('Profile image loaded successfully:', user?.profile_image_url || "/commonassets/defaultpfp.jpg")}
+                  onLoad={() => console.log('Profile image loaded successfully:', user?.profile_image_url || "/defaultpfp.jpg")}
                 />
               </div>
               <div>
