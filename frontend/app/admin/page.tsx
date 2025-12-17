@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Trash2, Shield, ShieldOff, Eye, EyeOff, AlertTriangle, Flag, CheckCircle2, X } from 'lucide-react';
+import { Trash2, Shield, ShieldOff, Eye, EyeOff, AlertTriangle, Flag, CheckCircle2, X, ChevronDown, ChevronUp, MessageSquare } from 'lucide-react';
 import AppNavigation from '@/components/AppNavigation';
 import { authAPI, adminAPI, AdminUser, ReportedChat, normalizeImageUrl } from '@/lib/api';
 import Link from 'next/link';
@@ -18,6 +18,8 @@ export default function AdminPage() {
   const [reportedChats, setReportedChats] = useState<ReportedChat[]>([]);
   const [showReviewed, setShowReviewed] = useState(false);
   const [clearingReport, setClearingReport] = useState<number | null>(null);
+  const [matchingIpUsersExpanded, setMatchingIpUsersExpanded] = useState(false);
+  const [allUsersExpanded, setAllUsersExpanded] = useState(false);
 
   useEffect(() => {
     const loadData = async () => {
@@ -132,6 +134,33 @@ export default function AdminPage() {
       minute: '2-digit',
     });
   };
+
+  // Find users with matching IP addresses
+  const getMatchingIpUsers = () => {
+    const ipMap = new Map<string, AdminUser[]>();
+    
+    users.forEach(user => {
+      const ips = [user.registration_ip, user.last_login_ip].filter(Boolean) as string[];
+      ips.forEach(ip => {
+        if (!ipMap.has(ip)) {
+          ipMap.set(ip, []);
+        }
+        ipMap.get(ip)!.push(user);
+      });
+    });
+
+    // Filter to only IPs with multiple users
+    const matchingIps: { ip: string; users: AdminUser[] }[] = [];
+    ipMap.forEach((userList, ip) => {
+      if (userList.length > 1) {
+        matchingIps.push({ ip, users: userList });
+      }
+    });
+
+    return matchingIps;
+  };
+
+  const matchingIpGroups = getMatchingIpUsers();
 
   if (loading) {
     return (
@@ -285,7 +314,7 @@ export default function AdminPage() {
                             </p>
                           </div>
                         )}
-                        <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
+                        <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400 mb-2">
                           <span>Reported: {formatDate(report.created_at)}</span>
                           {report.reviewed && report.reviewed_at && (
                             <span>Reviewed: {formatDate(report.reviewed_at)}</span>
@@ -294,6 +323,17 @@ export default function AdminPage() {
                             <span>By: {report.reviewed_by_user.player_name || report.reviewed_by_user.username}</span>
                           )}
                         </div>
+                        {report.reporter_id && report.reported_user_id && (
+                          <div className="mt-2">
+                            <Link
+                              href={`/admin/conversation?userId1=${report.reporter_id}&userId2=${report.reported_user_id}`}
+                              className="inline-flex items-center gap-2 text-sm text-corporate-blue hover:text-corporate-blue-dark font-medium"
+                            >
+                              <MessageSquare className="w-4 h-4" />
+                              View Conversation
+                            </Link>
+                          </div>
+                        )}
                       </div>
                       {!report.reviewed && (
                         <button
@@ -316,16 +356,141 @@ export default function AdminPage() {
             </div>
           </div>
 
-          {/* Users Section */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700/50">
-            <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700/60">
-              <h2 className="text-lg font-semibold">Users</h2>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                {users.length} total user{users.length !== 1 ? 's' : ''}
-              </p>
-            </div>
+          {/* Matching IP Addresses Section */}
+          {matchingIpGroups.length > 0 && (
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700/50 mb-6">
+              <button
+                onClick={() => setMatchingIpUsersExpanded(!matchingIpUsersExpanded)}
+                className="w-full px-6 py-4 border-b border-gray-100 dark:border-gray-700/60 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors"
+              >
+                <div>
+                  <h2 className="text-lg font-semibold">Matching IP Addresses</h2>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    {matchingIpGroups.length} IP{matchingIpGroups.length !== 1 ? 's' : ''} with multiple users
+                  </p>
+                </div>
+                {matchingIpUsersExpanded ? (
+                  <ChevronUp className="w-5 h-5 text-gray-400" />
+                ) : (
+                  <ChevronDown className="w-5 h-5 text-gray-400" />
+                )}
+              </button>
 
-            <div className="divide-y divide-gray-100 dark:divide-gray-700/60">
+              {matchingIpUsersExpanded && (
+                <div className="divide-y divide-gray-100 dark:divide-gray-700/60">
+                  {matchingIpGroups.map((group) => (
+                    <div key={group.ip} className="p-6">
+                      <div className="mb-4">
+                        <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                          IP Address: <span className="font-mono text-corporate-blue">{group.ip}</span>
+                        </p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                          {group.users.length} user{group.users.length !== 1 ? 's' : ''} with this IP
+                        </p>
+                      </div>
+                      <div className="space-y-3">
+                        {group.users.map((user) => {
+                          const isRevealed = revealedUsers.has(user.id);
+                          const isCurrentUser = currentUser?.id === user.id;
+
+                          return (
+                            <div
+                              key={user.id}
+                              className="p-4 bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-gray-200 dark:border-gray-700"
+                            >
+                              <div className="flex items-start justify-between gap-4">
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-3 mb-2">
+                                    <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-100 dark:bg-gray-700 flex items-center justify-center flex-shrink-0">
+                                      <img
+                                        src={normalizeImageUrl(user.profile_image_url)}
+                                        alt={user.username}
+                                        className="w-full h-full object-cover"
+                                        onError={(e) => {
+                                          e.currentTarget.src = '/defaultpfp.jpg';
+                                        }}
+                                      />
+                                    </div>
+                                    <div>
+                                      <div className="flex items-center gap-2">
+                                        <h3 className="text-base font-semibold">{user.username}</h3>
+                                        {isCurrentUser && (
+                                          <span className="px-2 py-0.5 text-xs font-medium rounded bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
+                                            You
+                                          </span>
+                                        )}
+                                      </div>
+                                      {user.player_name && (
+                                        <p className="text-sm text-gray-600 dark:text-gray-400">{user.player_name}</p>
+                                      )}
+                                    </div>
+                                  </div>
+                                  <div className="grid grid-cols-2 gap-2 text-xs">
+                                    <div>
+                                      <span className="text-gray-500 dark:text-gray-400">Reg IP: </span>
+                                      <span className="font-mono">{user.registration_ip || 'N/A'}</span>
+                                    </div>
+                                    <div>
+                                      <span className="text-gray-500 dark:text-gray-400">Last IP: </span>
+                                      <span className="font-mono">{user.last_login_ip || 'N/A'}</span>
+                                    </div>
+                                  </div>
+                                </div>
+                                {!isCurrentUser && (
+                                  <div className="flex flex-col gap-2">
+                                    <button
+                                      onClick={() => handleToggleAdmin(user.id)}
+                                      className="p-1.5 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                                      title={user.is_admin ? 'Remove admin' : 'Make admin'}
+                                    >
+                                      {user.is_admin ? (
+                                        <ShieldOff className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                                      ) : (
+                                        <Shield className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                                      )}
+                                    </button>
+                                    <button
+                                      onClick={() => setDeleteConfirm(user.id)}
+                                      className="p-1.5 rounded-md text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                                      title="Delete user"
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* All Users Section */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700/50">
+            <button
+              onClick={() => setAllUsersExpanded(!allUsersExpanded)}
+              className="w-full px-6 py-4 border-b border-gray-100 dark:border-gray-700/60 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors"
+            >
+              <div>
+                <h2 className="text-lg font-semibold">All Users</h2>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  {users.length} total user{users.length !== 1 ? 's' : ''}
+                </p>
+              </div>
+              {allUsersExpanded ? (
+                <ChevronUp className="w-5 h-5 text-gray-400" />
+              ) : (
+                <ChevronDown className="w-5 h-5 text-gray-400" />
+              )}
+            </button>
+
+            {allUsersExpanded && (
+              <div className="divide-y divide-gray-100 dark:divide-gray-700/60">
               {users.map((user) => {
                 const isRevealed = revealedUsers.has(user.id);
                 const isCurrentUser = currentUser?.id === user.id;
@@ -476,7 +641,8 @@ export default function AdminPage() {
                   </div>
                 );
               })}
-            </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

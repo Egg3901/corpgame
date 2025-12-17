@@ -450,6 +450,30 @@ export const adminAPI = {
     const response = await api.delete(`/api/admin/reported-chats/${reportId}`);
     return response.data;
   },
+  getConversation: async (userId1: number, userId2: number, limit?: number, offset?: number): Promise<{
+    messages: MessageResponse[];
+    user1: {
+      id: number;
+      profile_id: number;
+      username: string;
+      player_name?: string;
+      profile_image_url?: string | null;
+    };
+    user2: {
+      id: number;
+      profile_id: number;
+      username: string;
+      player_name?: string;
+      profile_image_url?: string | null;
+    };
+  }> => {
+    const params = new URLSearchParams();
+    if (limit) params.append('limit', limit.toString());
+    if (offset) params.append('offset', offset.toString());
+    const query = params.toString();
+    const response = await api.get(`/api/admin/conversation/${userId1}/${userId2}${query ? `?${query}` : ''}`);
+    return response.data;
+  },
 };
 
 export interface MessageResponse {

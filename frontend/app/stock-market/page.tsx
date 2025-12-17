@@ -190,26 +190,34 @@ export default function StockMarketPage() {
             {/* Inner shadow effect */}
             <div className="absolute inset-0 ring-1 ring-inset ring-white/20 dark:ring-gray-700/30 pointer-events-none" />
             
-            <div className="relative overflow-x-auto">
-              <table className="w-full border-collapse">
+            <div className="relative overflow-hidden">
+              <table className="w-full border-collapse table-fixed">
+                <colgroup>
+                  <col className="w-[10%]" />
+                  <col className="w-[30%]" />
+                  <col className="w-[12%]" />
+                  <col className="w-[15%]" />
+                  <col className="w-[15%]" />
+                  <col className="w-[18%]" />
+                </colgroup>
                 <thead>
                   <tr className="border-b-2 border-gray-200/80 dark:border-gray-700/80 bg-gradient-to-b from-gray-50/80 to-gray-100/60 dark:from-gray-800/60 dark:to-gray-800/40 backdrop-blur-sm">
-                    <th className="text-left py-5 px-6 text-xs font-bold uppercase tracking-[0.15em] text-gray-600 dark:text-gray-400">
+                    <th className="text-left py-5 px-4 text-xs font-bold uppercase tracking-[0.15em] text-gray-600 dark:text-gray-400">
                       Symbol
                     </th>
-                    <th className="text-left py-5 px-6 text-xs font-bold uppercase tracking-[0.15em] text-gray-600 dark:text-gray-400">
+                    <th className="text-left py-5 px-4 text-xs font-bold uppercase tracking-[0.15em] text-gray-600 dark:text-gray-400">
                       Corporation
                     </th>
-                    <th className="text-right py-5 px-6 text-xs font-bold uppercase tracking-[0.15em] text-gray-600 dark:text-gray-400">
+                    <th className="text-right py-5 px-4 text-xs font-bold uppercase tracking-[0.15em] text-gray-600 dark:text-gray-400">
                       Price
                     </th>
-                    <th className="text-right py-5 px-6 text-xs font-bold uppercase tracking-[0.15em] text-gray-600 dark:text-gray-400">
+                    <th className="text-right py-5 px-4 text-xs font-bold uppercase tracking-[0.15em] text-gray-600 dark:text-gray-400">
                       Change
                     </th>
-                    <th className="text-right py-5 px-6 text-xs font-bold uppercase tracking-[0.15em] text-gray-600 dark:text-gray-400">
+                    <th className="text-right py-5 px-4 text-xs font-bold uppercase tracking-[0.15em] text-gray-600 dark:text-gray-400">
                       Volume
                     </th>
-                    <th className="text-right py-5 px-6 text-xs font-bold uppercase tracking-[0.15em] text-gray-600 dark:text-gray-400">
+                    <th className="text-right py-5 px-4 text-xs font-bold uppercase tracking-[0.15em] text-gray-600 dark:text-gray-400">
                       Market Cap
                     </th>
                   </tr>
@@ -248,13 +256,13 @@ export default function StockMarketPage() {
                           {/* Hover glow effect */}
                           <div className="absolute inset-0 bg-gradient-to-r from-corporate-blue/0 via-corporate-blue/5 to-corporate-blue/0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none" />
                           
-                          <td className="py-5 px-6 text-left align-middle">
+                          <td className="py-5 px-4 text-left align-middle">
                             <span className="inline-flex items-center justify-center w-12 h-12 rounded-lg bg-gradient-to-br from-corporate-blue/10 to-corporate-blue-light/20 dark:from-corporate-blue/20 dark:to-corporate-blue-dark/30 font-mono text-sm font-bold text-corporate-blue dark:text-corporate-blue-light shadow-sm border border-corporate-blue/20 dark:border-corporate-blue/30">
                               {symbol}
                             </span>
                           </td>
-                          <td className="py-5 px-6 text-left align-middle">
-                            <div className="flex items-center gap-4">
+                          <td className="py-5 px-4 text-left align-middle">
+                            <div className="flex items-center gap-3 min-w-0">
                               <div className="relative flex-shrink-0">
                                 {corp.logo ? (
                                   <>
@@ -262,38 +270,38 @@ export default function StockMarketPage() {
                                     <img
                                       src={corp.logo}
                                       alt={corp.name}
-                                      className="relative w-12 h-12 rounded-lg object-cover ring-2 ring-gray-200/50 dark:ring-gray-700/50 group-hover:ring-corporate-blue/50 transition-all shadow-md group-hover:shadow-lg"
+                                      className="relative w-10 h-10 rounded-lg object-cover ring-2 ring-gray-200/50 dark:ring-gray-700/50 group-hover:ring-corporate-blue/50 transition-all shadow-md group-hover:shadow-lg"
                                       onError={(e) => {
                                         e.currentTarget.src = '/defaultpfp.jpg';
                                       }}
                                     />
                                   </>
                                 ) : (
-                                  <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-800 flex items-center justify-center ring-2 ring-gray-200/50 dark:ring-gray-700/50 shadow-md group-hover:shadow-lg transition-all">
-                                    <Building2 className="w-6 h-6 text-gray-400 dark:text-gray-500" />
+                                  <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-800 flex items-center justify-center ring-2 ring-gray-200/50 dark:ring-gray-700/50 shadow-md group-hover:shadow-lg transition-all">
+                                    <Building2 className="w-5 h-5 text-gray-400 dark:text-gray-500" />
                                   </div>
                                 )}
                               </div>
-                              <div className="min-w-0 flex-1">
-                                <div className="font-bold text-base text-gray-900 dark:text-white group-hover:text-corporate-blue dark:group-hover:text-corporate-blue-light transition-colors">
+                              <div className="min-w-0 flex-1 truncate">
+                                <div className="font-bold text-sm text-gray-900 dark:text-white group-hover:text-corporate-blue dark:group-hover:text-corporate-blue-light transition-colors truncate">
                                   {corp.name}
                                 </div>
                                 {corp.type && (
-                                  <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mt-0.5">
+                                  <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mt-0.5 truncate">
                                     {corp.type}
                                   </div>
                                 )}
                               </div>
                             </div>
                           </td>
-                          <td className="py-5 px-6 text-right align-middle">
-                            <span className="font-mono text-base font-bold text-gray-900 dark:text-white">
+                          <td className="py-5 px-4 text-right align-middle">
+                            <span className="font-mono text-sm font-bold text-gray-900 dark:text-white">
                               {formatCurrency(corp.share_price)}
                             </span>
                           </td>
-                          <td className="py-5 px-6 text-right align-middle">
+                          <td className="py-5 px-4 text-right align-middle">
                             <span className={`
-                              inline-flex items-center px-3 py-1.5 rounded-lg font-mono text-sm font-bold
+                              inline-flex items-center px-2 py-1 rounded-lg font-mono text-xs font-bold
                               ${isPositive 
                                 ? 'bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400' 
                                 : 'bg-red-500/10 text-red-600 dark:bg-red-500/20 dark:text-red-400'
@@ -303,13 +311,13 @@ export default function StockMarketPage() {
                               {changeFormatted}
                             </span>
                           </td>
-                          <td className="py-5 px-6 text-right align-middle">
-                            <span className="font-mono text-sm text-gray-700 dark:text-gray-300">
+                          <td className="py-5 px-4 text-right align-middle">
+                            <span className="font-mono text-xs text-gray-700 dark:text-gray-300">
                               {corp.shares.toLocaleString()}
                             </span>
                           </td>
-                          <td className="py-5 px-6 text-right align-middle">
-                            <span className="font-mono text-base font-semibold text-gray-900 dark:text-white">
+                          <td className="py-5 px-4 text-right align-middle">
+                            <span className="font-mono text-sm font-semibold text-gray-900 dark:text-white">
                               {formatCurrency(marketCap)}
                             </span>
                           </td>

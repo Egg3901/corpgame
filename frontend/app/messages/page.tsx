@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import AppNavigation from '@/components/AppNavigation';
 import ComposeMessage from '@/components/ComposeMessage';
 import { messagesAPI, ConversationResponse, MessageResponse, authAPI } from '@/lib/api';
@@ -10,6 +10,7 @@ import Link from 'next/link';
 
 export default function MessagesPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [conversations, setConversations] = useState<ConversationResponse[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<number | null>(null);
   const [messages, setMessages] = useState<MessageResponse[]>([]);
@@ -21,34 +22,6 @@ export default function MessagesPage() {
   const [reportDialogOpen, setReportDialogOpen] = useState(false);
   const [reportReason, setReportReason] = useState('');
   const [reporting, setReporting] = useState(false);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        router.push('/login');
-        return;
-      }
-
-      try {
-        setLoading(true);
-        const [conversationsData, unreadData, me] = await Promise.all([
-          messagesAPI.getAll('conversations'),
-          messagesAPI.getUnreadCount(),
-          authAPI.getMe(),
-        ]);
-        setConversations(conversationsData as ConversationResponse[]);
-        setUnreadCount(unreadData.count);
-        setCurrentUserId(me.id);
-      } catch (err) {
-        console.error('Failed to fetch conversations:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, [router]);
 
   const fetchConversationMessages = async (userId: number) => {
     try {
@@ -76,6 +49,44 @@ export default function MessagesPage() {
     setSelectedConversation(userId);
     fetchConversationMessages(userId);
   };
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        router.push('/login');
+        return;
+      }
+
+      try {
+        setLoading(true);
+        const [conversationsData, unreadData, me] = await Promise.all([
+          messagesAPI.getAll('conversations'),
+          messagesAPI.getUnreadCount(),
+          authAPI.getMe(),
+        ]);
+        setConversations(conversationsData as ConversationResponse[]);
+        setUnreadCount(unreadData.count);
+        setCurrentUserId(me.id);
+
+        // Check if there's a userId in the URL params
+        const userIdParam = searchParams.get('userId');
+        if (userIdParam) {
+          const userId = parseInt(userIdParam, 10);
+          if (!isNaN(userId)) {
+            setSelectedConversation(userId);
+            fetchConversationMessages(userId);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch conversations:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [router, searchParams]);
 
   const handleComposeSuccess = async () => {
     // Refresh conversations

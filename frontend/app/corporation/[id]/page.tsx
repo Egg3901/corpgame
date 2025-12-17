@@ -5,7 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import AppNavigation from '@/components/AppNavigation';
 import { corporationAPI, CorporationResponse, authAPI, sharesAPI } from '@/lib/api';
-import { Building2, Edit, Trash2, TrendingUp, DollarSign, Users, User, Calendar, ArrowUp, ArrowDown, TrendingDown, Plus } from 'lucide-react';
+import { Building2, Edit, Trash2, TrendingUp, DollarSign, Users, User, Calendar, ArrowUp, ArrowDown, TrendingDown, Plus, BarChart3 } from 'lucide-react';
 
 export default function CorporationDetailPage() {
   const router = useRouter();
@@ -382,6 +382,15 @@ export default function CorporationDetailPage() {
                       ({publicSharesPercentage.toFixed(1)}%)
                     </p>
                   </div>
+                  <div className="relative rounded-xl border border-white/60 bg-white/70 dark:border-gray-800/70 dark:bg-gray-800/60 p-5 shadow-sm hover:shadow-md transition-shadow">
+                    <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.1em] text-gray-600 dark:text-gray-400 mb-2">
+                      <DollarSign className="w-4 h-4" />
+                      Corporate Capital
+                    </div>
+                    <p className="text-3xl font-bold text-emerald-600 dark:text-emerald-400 font-mono">
+                      {formatCurrency(corporation.capital || 500000)}
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
@@ -588,6 +597,201 @@ export default function CorporationDetailPage() {
                       </p>
                     </div>
                   )}
+                </div>
+              </div>
+
+              {/* Balance Sheet Section */}
+              <div className="relative rounded-2xl border border-gray-200/50 dark:border-gray-700/50 bg-gradient-to-br from-white via-white to-gray-50/50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800/50 shadow-2xl overflow-hidden backdrop-blur-sm mt-6">
+                <div className="absolute inset-0 bg-gradient-to-br from-corporate-blue/5 via-transparent to-corporate-blue-light/5 dark:from-corporate-blue/10 dark:via-transparent dark:to-corporate-blue-dark/10 pointer-events-none" />
+                <div className="absolute inset-0 ring-1 ring-inset ring-white/20 dark:ring-gray-700/30 pointer-events-none" />
+                <div className="relative p-6">
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
+                    <BarChart3 className="w-5 h-5 text-corporate-blue" />
+                    Balance Sheet
+                  </h2>
+                  
+                  <div className="grid md:grid-cols-2 gap-6">
+                    {/* Assets */}
+                    <div className="rounded-xl border border-white/60 bg-white/70 dark:border-gray-800/70 dark:bg-gray-800/60 p-6 shadow-sm">
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Assets</h3>
+                      <div className="space-y-3">
+                        <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700">
+                          <span className="text-sm text-gray-600 dark:text-gray-400">Cash & Cash Equivalents</span>
+                          <span className="text-sm font-semibold text-gray-900 dark:text-white font-mono">
+                            {formatCurrency((corporation.capital || 500000) * 0.3)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700">
+                          <span className="text-sm text-gray-600 dark:text-gray-400">Accounts Receivable</span>
+                          <span className="text-sm font-semibold text-gray-900 dark:text-white font-mono">
+                            {formatCurrency((corporation.capital || 500000) * 0.15)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700">
+                          <span className="text-sm text-gray-600 dark:text-gray-400">Inventory</span>
+                          <span className="text-sm font-semibold text-gray-900 dark:text-white font-mono">
+                            {formatCurrency((corporation.capital || 500000) * 0.2)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700">
+                          <span className="text-sm text-gray-600 dark:text-gray-400">Property, Plant & Equipment</span>
+                          <span className="text-sm font-semibold text-gray-900 dark:text-white font-mono">
+                            {formatCurrency((corporation.capital || 500000) * 0.25)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700">
+                          <span className="text-sm text-gray-600 dark:text-gray-400">Intangible Assets</span>
+                          <span className="text-sm font-semibold text-gray-900 dark:text-white font-mono">
+                            {formatCurrency((corporation.capital || 500000) * 0.1)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center pt-3 border-t-2 border-gray-300 dark:border-gray-600">
+                          <span className="text-base font-bold text-gray-900 dark:text-white">Total Assets</span>
+                          <span className="text-base font-bold text-corporate-blue dark:text-corporate-blue-light font-mono">
+                            {formatCurrency(corporation.capital || 500000)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Liabilities & Equity */}
+                    <div className="rounded-xl border border-white/60 bg-white/70 dark:border-gray-800/70 dark:bg-gray-800/60 p-6 shadow-sm">
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Liabilities & Equity</h3>
+                      <div className="space-y-3">
+                        <div className="mb-4">
+                          <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Liabilities</h4>
+                          <div className="space-y-2 ml-4">
+                            <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700">
+                              <span className="text-sm text-gray-600 dark:text-gray-400">Accounts Payable</span>
+                              <span className="text-sm font-semibold text-gray-900 dark:text-white font-mono">
+                                {formatCurrency((corporation.capital || 500000) * 0.1)}
+                              </span>
+                            </div>
+                            <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700">
+                              <span className="text-sm text-gray-600 dark:text-gray-400">Short-term Debt</span>
+                              <span className="text-sm font-semibold text-gray-900 dark:text-white font-mono">
+                                {formatCurrency((corporation.capital || 500000) * 0.15)}
+                              </span>
+                            </div>
+                            <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700">
+                              <span className="text-sm text-gray-600 dark:text-gray-400">Long-term Debt</span>
+                              <span className="text-sm font-semibold text-gray-900 dark:text-white font-mono">
+                                {formatCurrency((corporation.capital || 500000) * 0.2)}
+                              </span>
+                            </div>
+                            <div className="flex justify-between items-center pt-2 border-t border-gray-200 dark:border-gray-700">
+                              <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Total Liabilities</span>
+                              <span className="text-sm font-semibold text-gray-900 dark:text-white font-mono">
+                                {formatCurrency((corporation.capital || 500000) * 0.45)}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Equity</h4>
+                          <div className="space-y-2 ml-4">
+                            <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700">
+                              <span className="text-sm text-gray-600 dark:text-gray-400">Share Capital</span>
+                              <span className="text-sm font-semibold text-gray-900 dark:text-white font-mono">
+                                {formatCurrency((corporation.capital || 500000) * 0.4)}
+                              </span>
+                            </div>
+                            <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700">
+                              <span className="text-sm text-gray-600 dark:text-gray-400">Retained Earnings</span>
+                              <span className="text-sm font-semibold text-gray-900 dark:text-white font-mono">
+                                {formatCurrency((corporation.capital || 500000) * 0.15)}
+                              </span>
+                            </div>
+                            <div className="flex justify-between items-center pt-2 border-t border-gray-200 dark:border-gray-700">
+                              <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Total Equity</span>
+                              <span className="text-sm font-semibold text-gray-900 dark:text-white font-mono">
+                                {formatCurrency((corporation.capital || 500000) * 0.55)}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex justify-between items-center pt-3 border-t-2 border-gray-300 dark:border-gray-600 mt-4">
+                          <span className="text-base font-bold text-gray-900 dark:text-white">Total Liabilities & Equity</span>
+                          <span className="text-base font-bold text-corporate-blue dark:text-corporate-blue-light font-mono">
+                            {formatCurrency(corporation.capital || 500000)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Income Statement Section */}
+              <div className="relative rounded-2xl border border-gray-200/50 dark:border-gray-700/50 bg-gradient-to-br from-white via-white to-gray-50/50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800/50 shadow-2xl overflow-hidden backdrop-blur-sm mt-6">
+                <div className="absolute inset-0 bg-gradient-to-br from-corporate-blue/5 via-transparent to-corporate-blue-light/5 dark:from-corporate-blue/10 dark:via-transparent dark:to-corporate-blue-dark/10 pointer-events-none" />
+                <div className="absolute inset-0 ring-1 ring-inset ring-white/20 dark:ring-gray-700/30 pointer-events-none" />
+                <div className="relative p-6">
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
+                    <TrendingUp className="w-5 h-5 text-corporate-blue" />
+                    Income Statement
+                  </h2>
+                  
+                  <div className="rounded-xl border border-white/60 bg-white/70 dark:border-gray-800/70 dark:bg-gray-800/60 p-6 shadow-sm">
+                    <div className="space-y-4">
+                      <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700">
+                        <span className="text-sm text-gray-600 dark:text-gray-400">Revenue</span>
+                        <span className="text-sm font-semibold text-gray-900 dark:text-white font-mono">
+                          {formatCurrency((corporation.capital || 500000) * 0.5)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700">
+                        <span className="text-sm text-gray-600 dark:text-gray-400">Cost of Goods Sold</span>
+                        <span className="text-sm font-semibold text-gray-900 dark:text-white font-mono">
+                          {formatCurrency((corporation.capital || 500000) * 0.3)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center pt-2 pb-2 border-b-2 border-gray-300 dark:border-gray-600">
+                        <span className="text-base font-semibold text-gray-900 dark:text-white">Gross Profit</span>
+                        <span className="text-base font-semibold text-emerald-600 dark:text-emerald-400 font-mono">
+                          {formatCurrency((corporation.capital || 500000) * 0.2)}
+                        </span>
+                      </div>
+                      <div className="pt-2 space-y-2">
+                        <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700">
+                          <span className="text-sm text-gray-600 dark:text-gray-400">Operating Expenses</span>
+                          <span className="text-sm font-semibold text-gray-900 dark:text-white font-mono">
+                            {formatCurrency((corporation.capital || 500000) * 0.12)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700">
+                          <span className="text-sm text-gray-600 dark:text-gray-400">Depreciation & Amortization</span>
+                          <span className="text-sm font-semibold text-gray-900 dark:text-white font-mono">
+                            {formatCurrency((corporation.capital || 500000) * 0.03)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700">
+                          <span className="text-sm text-gray-600 dark:text-gray-400">Interest Expense</span>
+                          <span className="text-sm font-semibold text-gray-900 dark:text-white font-mono">
+                            {formatCurrency((corporation.capital || 500000) * 0.02)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center pt-2 pb-2 border-b-2 border-gray-300 dark:border-gray-600">
+                          <span className="text-base font-semibold text-gray-900 dark:text-white">Operating Income</span>
+                          <span className="text-base font-semibold text-emerald-600 dark:text-emerald-400 font-mono">
+                            {formatCurrency((corporation.capital || 500000) * 0.03)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700">
+                          <span className="text-sm text-gray-600 dark:text-gray-400">Tax Expense</span>
+                          <span className="text-sm font-semibold text-gray-900 dark:text-white font-mono">
+                            {formatCurrency((corporation.capital || 500000) * 0.01)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center pt-3 border-t-2 border-gray-300 dark:border-gray-600">
+                          <span className="text-lg font-bold text-gray-900 dark:text-white">Net Income</span>
+                          <span className="text-lg font-bold text-emerald-600 dark:text-emerald-400 font-mono">
+                            {formatCurrency((corporation.capital || 500000) * 0.02)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
