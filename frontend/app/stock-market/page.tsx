@@ -240,7 +240,7 @@ export default function StockMarketPage() {
                       <Link
                         key={corp.id}
                         href={`/corporation/${corp.id}`}
-                        className="block group"
+                        className="contents group"
                       >
                         <tr className={`
                           relative transition-all duration-200 ease-out
