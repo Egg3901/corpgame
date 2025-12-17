@@ -213,7 +213,7 @@ export default function ProfileDashboard({ profileId }: ProfileDashboardProps) {
 
   return (
     <AppNavigation>
-      <div className="relative mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8 space-y-8">
+      <div className="relative mx-auto max-w-[90rem] px-4 py-10 sm:px-6 lg:px-8 space-y-8">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
@@ -240,8 +240,8 @@ export default function ProfileDashboard({ profileId }: ProfileDashboardProps) {
           </div>
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-          <section className="space-y-6">
+        <div className="grid gap-6 lg:grid-cols-[1fr_0.85fr] xl:grid-cols-[1.1fr_0.9fr] 2xl:grid-cols-[1.2fr_1fr]">
+          <section className="space-y-6 min-w-0">
             <div className="relative overflow-hidden rounded-2xl border border-white/60 bg-white/80 shadow-2xl backdrop-blur dark:border-gray-800/60 dark:bg-gray-900/70">
               <div className="absolute inset-0 bg-gradient-to-br from-corporate-blue/12 via-transparent to-corporate-blue-light/20 dark:from-corporate-blue/18 dark:via-transparent dark:to-corporate-blue-dark/30" />
               <div className="relative flex flex-col gap-6 p-6 md:flex-row md:items-center">
@@ -423,7 +423,7 @@ export default function ProfileDashboard({ profileId }: ProfileDashboardProps) {
             </div>
           </section>
 
-          <aside className="space-y-6">
+          <aside className="space-y-6 min-w-0">
             <div className="rounded-2xl border border-white/60 bg-white/80 p-6 shadow-xl backdrop-blur dark:border-gray-800/60 dark:bg-gray-900/70">
               <div className="mb-4 flex items-center justify-between">
                 <div>

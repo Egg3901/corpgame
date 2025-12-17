@@ -6,6 +6,8 @@ import {
   Menu,
   X,
   Shield,
+  ChevronDown,
+  ChevronRight,
 } from 'lucide-react';
 import { authAPI, profileAPI, ProfileResponse, corporationAPI } from '@/lib/api';
 
@@ -30,6 +32,7 @@ export default function AppNavigation({ children }: AppNavigationProps) {
   const [isCeo, setIsCeo] = useState<boolean>(false);
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
   const [myCorporationId, setMyCorporationId] = useState<number | null>(null);
+  const [investmentsOpen, setInvestmentsOpen] = useState<boolean>(false);
 
   useEffect(() => {
     const loadViewer = async () => {
@@ -68,6 +71,13 @@ export default function AppNavigation({ children }: AppNavigationProps) {
     loadViewer();
   }, []);
 
+  // Auto-expand investments dropdown if on stock-market or portfolio page
+  useEffect(() => {
+    if (pathname === '/stock-market' || pathname === '/portfolio') {
+      setInvestmentsOpen(true);
+    }
+  }, [pathname]);
+
   const handleOpenAdmin = () => {
     setNavOpen(false);
     router.push('/admin');
@@ -84,6 +94,11 @@ export default function AppNavigation({ children }: AppNavigationProps) {
     if (path === '#') return; // Placeholder links
     setNavOpen(false);
     router.push(path);
+  };
+
+  const handleCloseNav = () => {
+    setNavOpen(false);
+    setInvestmentsOpen(false);
   };
 
   return (
@@ -162,7 +177,7 @@ export default function AppNavigation({ children }: AppNavigationProps) {
               </div>
               <button
                 type="button"
-                onClick={() => setNavOpen(false)}
+                onClick={handleCloseNav}
                 className="rounded-md p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-800 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-200"
                 aria-label="Close navigation"
               >
@@ -190,24 +205,51 @@ export default function AppNavigation({ children }: AppNavigationProps) {
                 </button>
               ))}
 
-              {/* Buy/Sell Investments */}
-              {navSections.slice(1, 2).map((item) => (
+              {/* Buy/Sell Investments - Dropdown */}
+              <div className="space-y-1">
                 <button
-                  key={item.id}
                   type="button"
-                  onClick={() => handleNavClick(item.path)}
-                  className={`w-full text-left rounded-lg border px-4 py-3 text-sm font-semibold shadow-sm transition hover:-translate-y-0.5 ${
-                    pathname === item.path
+                  onClick={() => setInvestmentsOpen(!investmentsOpen)}
+                  className={`w-full text-left rounded-lg border px-4 py-3 text-sm font-semibold shadow-sm transition hover:-translate-y-0.5 flex items-center justify-between ${
+                    pathname === '/portfolio' || pathname === '/stock-market'
                       ? 'border-corporate-blue bg-corporate-blue/10 text-corporate-blue dark:border-corporate-blue dark:bg-corporate-blue/20'
                       : 'border-gray-200 bg-white text-gray-800 hover:border-corporate-blue hover:text-corporate-blue dark:border-gray-800 dark:bg-gray-800 dark:text-gray-100'
                   }`}
                 >
-                  {item.label}
-                  {item.path === '#' && (
-                    <span className="ml-2 text-xs font-normal text-gray-500 dark:text-gray-400">(placeholder)</span>
+                  <span>Buy/Sell Investments</span>
+                  {investmentsOpen ? (
+                    <ChevronDown className="w-4 h-4" />
+                  ) : (
+                    <ChevronRight className="w-4 h-4" />
                   )}
                 </button>
-              ))}
+                {investmentsOpen && (
+                  <div className="ml-4 space-y-1 border-l-2 border-gray-200 dark:border-gray-700 pl-2">
+                    <button
+                      type="button"
+                      onClick={() => handleNavClick('/stock-market')}
+                      className={`w-full text-left rounded-lg border px-4 py-2 text-sm font-medium shadow-sm transition hover:-translate-y-0.5 ${
+                        pathname === '/stock-market'
+                          ? 'border-corporate-blue bg-corporate-blue/10 text-corporate-blue dark:border-corporate-blue dark:bg-corporate-blue/20'
+                          : 'border-gray-200 bg-white text-gray-700 hover:border-corporate-blue hover:text-corporate-blue dark:border-gray-800 dark:bg-gray-800 dark:text-gray-200'
+                      }`}
+                    >
+                      Stock Market
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleNavClick('/portfolio')}
+                      className={`w-full text-left rounded-lg border px-4 py-2 text-sm font-medium shadow-sm transition hover:-translate-y-0.5 ${
+                        pathname === '/portfolio'
+                          ? 'border-corporate-blue bg-corporate-blue/10 text-corporate-blue dark:border-corporate-blue dark:bg-corporate-blue/20'
+                          : 'border-gray-200 bg-white text-gray-700 hover:border-corporate-blue hover:text-corporate-blue dark:border-gray-800 dark:bg-gray-800 dark:text-gray-200'
+                      }`}
+                    >
+                      Portfolio
+                    </button>
+                  </div>
+                )}
+              </div>
 
               {/* Corporate Actions */}
               {navSections.slice(2, 3).map((item) => (
