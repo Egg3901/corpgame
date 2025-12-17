@@ -230,7 +230,10 @@ export default function AdminPage() {
 
                           <div className="relative">
                             {!isRevealed && (
-                              <div className="absolute inset-0 bg-white/90 dark:bg-gray-800/90 backdrop-blur-md rounded-lg z-10 flex items-center justify-center cursor-pointer border border-gray-200/50 dark:border-gray-700/50 shadow-sm">
+                              <div 
+                                onClick={() => toggleReveal(user.id)}
+                                className="absolute inset-0 bg-white/90 dark:bg-gray-800/90 backdrop-blur-md rounded-lg z-10 flex items-center justify-center cursor-pointer border border-gray-200/50 dark:border-gray-700/50 shadow-sm"
+                              >
                                 <div className="flex items-center gap-2">
                                   <Eye className="w-4 h-4 text-gray-400" />
                                   <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Click to reveal</span>

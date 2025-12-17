@@ -145,32 +145,38 @@ export default function StockMarketPage() {
             </Link>
           </div>
         ) : (
-          <div className="rounded-xl border border-white/60 bg-white/80 backdrop-blur shadow-xl dark:border-gray-800/60 dark:bg-gray-900/80 overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full">
+          <div className="relative rounded-2xl border border-gray-200/50 dark:border-gray-700/50 bg-gradient-to-br from-white via-white to-gray-50/50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800/50 shadow-2xl overflow-hidden backdrop-blur-sm">
+            {/* Subtle gradient overlay */}
+            <div className="absolute inset-0 bg-gradient-to-br from-corporate-blue/5 via-transparent to-corporate-blue-light/5 dark:from-corporate-blue/10 dark:via-transparent dark:to-corporate-blue-dark/10 pointer-events-none" />
+            
+            {/* Inner shadow effect */}
+            <div className="absolute inset-0 ring-1 ring-inset ring-white/20 dark:ring-gray-700/30 pointer-events-none" />
+            
+            <div className="relative overflow-x-auto">
+              <table className="w-full border-collapse">
                 <thead>
-                  <tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/30">
-                    <th className="text-left py-4 px-6 text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-gray-300">
+                  <tr className="border-b-2 border-gray-200/80 dark:border-gray-700/80 bg-gradient-to-b from-gray-50/80 to-gray-100/60 dark:from-gray-800/60 dark:to-gray-800/40 backdrop-blur-sm">
+                    <th className="text-left py-5 px-6 text-xs font-bold uppercase tracking-[0.15em] text-gray-600 dark:text-gray-400">
                       Symbol
                     </th>
-                    <th className="text-left py-4 px-6 text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-gray-300">
+                    <th className="text-left py-5 px-6 text-xs font-bold uppercase tracking-[0.15em] text-gray-600 dark:text-gray-400">
                       Corporation
                     </th>
-                    <th className="text-right py-4 px-6 text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-gray-300">
+                    <th className="text-right py-5 px-6 text-xs font-bold uppercase tracking-[0.15em] text-gray-600 dark:text-gray-400">
                       Price
                     </th>
-                    <th className="text-right py-4 px-6 text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-gray-300">
+                    <th className="text-right py-5 px-6 text-xs font-bold uppercase tracking-[0.15em] text-gray-600 dark:text-gray-400">
                       Change
                     </th>
-                    <th className="text-right py-4 px-6 text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-gray-300">
+                    <th className="text-right py-5 px-6 text-xs font-bold uppercase tracking-[0.15em] text-gray-600 dark:text-gray-400">
                       Volume
                     </th>
-                    <th className="text-right py-4 px-6 text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-gray-300">
+                    <th className="text-right py-5 px-6 text-xs font-bold uppercase tracking-[0.15em] text-gray-600 dark:text-gray-400">
                       Market Cap
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                <tbody className="divide-y divide-gray-200/60 dark:divide-gray-700/50">
                   {corporations.map((corp, idx) => {
                     const marketCap = calculateMarketCap(corp.shares, corp.share_price);
                     const change = getChange(corp);
@@ -182,57 +188,86 @@ export default function StockMarketPage() {
                       <Link
                         key={corp.id}
                         href={`/corporation/${corp.id}`}
-                        className="block"
+                        className="block group"
                       >
-                        <tr className={`hover:bg-gray-50/50 dark:hover:bg-gray-800/30 transition-colors cursor-pointer ${
-                          idx % 2 === 0 ? 'bg-white/50 dark:bg-gray-900/50' : 'bg-gray-50/30 dark:bg-gray-800/20'
-                        }`}>
-                          <td className="py-4 px-6">
-                            <span className="font-mono-numeric font-semibold text-corporate-blue">
-                              {symbol}
-                            </span>
+                        <tr className={`
+                          relative transition-all duration-200 ease-out
+                          ${idx % 2 === 0 
+                            ? 'bg-white/40 dark:bg-gray-900/30' 
+                            : 'bg-gray-50/30 dark:bg-gray-800/20'
+                          }
+                          group-hover:bg-gradient-to-r group-hover:from-corporate-blue/10 group-hover:to-corporate-blue-light/5
+                          dark:group-hover:from-corporate-blue/15 dark:group-hover:to-corporate-blue-dark/10
+                          group-hover:shadow-lg group-hover:scale-[1.01] group-hover:z-10
+                          border-l-4 border-transparent group-hover:border-corporate-blue
+                        `}>
+                          {/* Hover glow effect */}
+                          <div className="absolute inset-0 bg-gradient-to-r from-corporate-blue/0 via-corporate-blue/5 to-corporate-blue/0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none" />
+                          
+                          <td className="py-5 px-6 align-middle">
+                            <div className="flex items-center">
+                              <span className="inline-flex items-center justify-center w-12 h-12 rounded-lg bg-gradient-to-br from-corporate-blue/10 to-corporate-blue-light/20 dark:from-corporate-blue/20 dark:to-corporate-blue-dark/30 font-mono text-sm font-bold text-corporate-blue dark:text-corporate-blue-light shadow-sm border border-corporate-blue/20 dark:border-corporate-blue/30">
+                                {symbol}
+                              </span>
+                            </div>
                           </td>
-                          <td className="py-4 px-6">
-                            <div className="flex items-center gap-3">
-                              {corp.logo && (
-                                <img
-                                  src={corp.logo}
-                                  alt={corp.name}
-                                  className="w-8 h-8 rounded object-cover"
-                                  onError={(e) => {
-                                    e.currentTarget.src = '/defaultpfp.jpg';
-                                  }}
-                                />
-                              )}
-                              <div>
-                                <div className="font-semibold text-gray-900 dark:text-white">
+                          <td className="py-5 px-6 align-middle">
+                            <div className="flex items-center gap-4">
+                              <div className="relative flex-shrink-0">
+                                {corp.logo ? (
+                                  <>
+                                    <div className="absolute inset-0 bg-gradient-to-br from-corporate-blue/20 to-corporate-blue-light/30 rounded-lg blur-sm opacity-0 group-hover:opacity-100 transition-opacity" />
+                                    <img
+                                      src={corp.logo}
+                                      alt={corp.name}
+                                      className="relative w-12 h-12 rounded-lg object-cover ring-2 ring-gray-200/50 dark:ring-gray-700/50 group-hover:ring-corporate-blue/50 transition-all shadow-md group-hover:shadow-lg"
+                                      onError={(e) => {
+                                        e.currentTarget.src = '/defaultpfp.jpg';
+                                      }}
+                                    />
+                                  </>
+                                ) : (
+                                  <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-800 flex items-center justify-center ring-2 ring-gray-200/50 dark:ring-gray-700/50 shadow-md group-hover:shadow-lg transition-all">
+                                    <Building2 className="w-6 h-6 text-gray-400 dark:text-gray-500" />
+                                  </div>
+                                )}
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <div className="font-bold text-base text-gray-900 dark:text-white group-hover:text-corporate-blue dark:group-hover:text-corporate-blue-light transition-colors">
                                   {corp.name}
                                 </div>
                                 {corp.type && (
-                                  <div className="text-xs text-gray-500 dark:text-gray-400">
+                                  <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mt-0.5">
                                     {corp.type}
                                   </div>
                                 )}
                               </div>
                             </div>
                           </td>
-                          <td className="py-4 px-6 text-right">
-                            <span className="font-mono-numeric font-semibold text-gray-900 dark:text-white">
+                          <td className="py-5 px-6 text-right align-middle">
+                            <span className="font-mono text-base font-bold text-gray-900 dark:text-white">
                               {formatCurrency(corp.share_price)}
                             </span>
                           </td>
-                          <td className="py-4 px-6 text-right">
-                            <span className={`font-mono-numeric font-semibold ${isPositive ? 'text-positive' : 'text-negative'}`}>
+                          <td className="py-5 px-6 text-right align-middle">
+                            <span className={`
+                              inline-flex items-center px-3 py-1.5 rounded-lg font-mono text-sm font-bold
+                              ${isPositive 
+                                ? 'bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400' 
+                                : 'bg-red-500/10 text-red-600 dark:bg-red-500/20 dark:text-red-400'
+                              }
+                              shadow-sm border border-current/20
+                            `}>
                               {changeFormatted}
                             </span>
                           </td>
-                          <td className="py-4 px-6 text-right">
-                            <span className="font-mono-numeric text-gray-700 dark:text-gray-300">
+                          <td className="py-5 px-6 text-right align-middle">
+                            <span className="font-mono text-sm text-gray-700 dark:text-gray-300">
                               {corp.shares.toLocaleString()}
                             </span>
                           </td>
-                          <td className="py-4 px-6 text-right">
-                            <span className="font-mono-numeric font-semibold text-gray-900 dark:text-white">
+                          <td className="py-5 px-6 text-right align-middle">
+                            <span className="font-mono text-base font-semibold text-gray-900 dark:text-white">
                               {formatCurrency(marketCap)}
                             </span>
                           </td>

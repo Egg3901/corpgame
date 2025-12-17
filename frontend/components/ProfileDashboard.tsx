@@ -17,7 +17,6 @@ import {
   CheckCircle2,
   Clock3,
   Activity,
-  MapPin,
   Settings,
 } from 'lucide-react';
 import { authAPI, profileAPI, corporationAPI, ProfileResponse, CorporationResponse } from '@/lib/api';
@@ -217,9 +216,8 @@ export default function ProfileDashboard({ profileId }: ProfileDashboardProps) {
       <div className="relative mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8 space-y-8">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="text-xs uppercase tracking-[0.25em] text-gray-500 dark:text-gray-400">Profile</p>
             <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
-              {displayName} &middot; {displayState}
+              {displayName}
             </h1>
           </div>
           <div className="flex flex-wrap items-center gap-3">
@@ -283,14 +281,7 @@ export default function ProfileDashboard({ profileId }: ProfileDashboardProps) {
                     )}
                     .
                   </p>
-                  <div className="grid gap-4 sm:grid-cols-3">
-                    <div className="rounded-xl border border-white/60 bg-white/70 p-3 shadow-sm dark:border-gray-800/70 dark:bg-gray-800/70">
-                      <div className="flex items-center gap-2 text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">
-                        <MapPin className="h-4 w-4" />
-                        State
-                      </div>
-                      <p className="mt-2 text-lg font-semibold text-gray-900 dark:text-white">{displayState}</p>
-                    </div>
+                  <div className="grid gap-4 sm:grid-cols-2">
                     <div className="rounded-xl border border-white/60 bg-white/70 p-3 shadow-sm dark:border-gray-800/70 dark:bg-gray-800/70">
                       <div className="flex items-center gap-2 text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">
                         <DollarSign className="h-4 w-4" />
@@ -433,36 +424,6 @@ export default function ProfileDashboard({ profileId }: ProfileDashboardProps) {
           </section>
 
           <aside className="space-y-6">
-            <div className="rounded-2xl border border-white/60 bg-white/80 p-6 shadow-xl backdrop-blur dark:border-gray-800/60 dark:bg-gray-900/70">
-              <div className="mb-4 flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                    User panel
-                  </p>
-                  <p className="text-lg font-semibold text-gray-900 dark:text-white">Signals</p>
-                </div>
-                <UserIcon className="h-5 w-5 text-corporate-blue" />
-              </div>
-              <div className="space-y-3 text-sm text-gray-700 dark:text-gray-300">
-                <div className="flex items-center justify-between rounded-xl border border-white/60 bg-white/70 p-3 shadow-sm dark:border-gray-800/70 dark:bg-gray-800/60">
-                  <span>Status</span>
-                  <span className="font-semibold text-corporate-blue">
-                    {profile.is_admin ? 'Admin' : 'Player'}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between rounded-xl border border-white/60 bg-white/70 p-3 shadow-sm dark:border-gray-800/70 dark:bg-gray-800/60">
-                  <span>Viewer</span>
-                  <span className="text-gray-500 dark:text-gray-300">
-                    {isOwner ? 'You' : viewerProfileId ? 'Authenticated' : 'Guest'}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between rounded-xl border border-white/60 bg-white/70 p-3 shadow-sm dark:border-gray-800/70 dark:bg-gray-800/60">
-                  <span>Viewer admin</span>
-                  <span className="text-gray-500 dark:text-gray-300">{viewerAdmin ? 'Yes' : 'No'}</span>
-                </div>
-              </div>
-            </div>
-
             <div className="rounded-2xl border border-white/60 bg-white/80 p-6 shadow-xl backdrop-blur dark:border-gray-800/60 dark:bg-gray-900/70">
               <div className="mb-4 flex items-center justify-between">
                 <div>

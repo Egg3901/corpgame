@@ -15,10 +15,10 @@ interface AppNavigationProps {
 
 const navSections = [
   { id: 'overview', label: 'Overview', path: '/overview' },
-  { id: 'corporations', label: 'Corporations', path: '/corporations' },
-  { id: 'portfolio', label: 'Portfolio', path: '/portfolio' },
-  { id: 'states', label: 'States', path: '#' },
+  { id: 'portfolio', label: 'Buy/Sell Investments', path: '/portfolio' },
   { id: 'corporate-actions', label: 'Corporate Actions', path: '#' },
+  { id: 'corporations', label: 'Corporations', path: '/corporations' },
+  { id: 'states', label: 'States', path: '#' },
 ];
 
 export default function AppNavigation({ children }: AppNavigationProps) {
@@ -171,7 +171,8 @@ export default function AppNavigation({ children }: AppNavigationProps) {
             </div>
 
             <div className="p-6 space-y-3">
-              {navSections.map((item) => (
+              {/* Overview */}
+              {navSections.slice(0, 1).map((item) => (
                 <button
                   key={item.id}
                   type="button"
@@ -189,6 +190,45 @@ export default function AppNavigation({ children }: AppNavigationProps) {
                 </button>
               ))}
 
+              {/* Buy/Sell Investments */}
+              {navSections.slice(1, 2).map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => handleNavClick(item.path)}
+                  className={`w-full text-left rounded-lg border px-4 py-3 text-sm font-semibold shadow-sm transition hover:-translate-y-0.5 ${
+                    pathname === item.path
+                      ? 'border-corporate-blue bg-corporate-blue/10 text-corporate-blue dark:border-corporate-blue dark:bg-corporate-blue/20'
+                      : 'border-gray-200 bg-white text-gray-800 hover:border-corporate-blue hover:text-corporate-blue dark:border-gray-800 dark:bg-gray-800 dark:text-gray-100'
+                  }`}
+                >
+                  {item.label}
+                  {item.path === '#' && (
+                    <span className="ml-2 text-xs font-normal text-gray-500 dark:text-gray-400">(placeholder)</span>
+                  )}
+                </button>
+              ))}
+
+              {/* Corporate Actions */}
+              {navSections.slice(2, 3).map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => handleNavClick(item.path)}
+                  className={`w-full text-left rounded-lg border px-4 py-3 text-sm font-semibold shadow-sm transition hover:-translate-y-0.5 ${
+                    pathname === item.path
+                      ? 'border-corporate-blue bg-corporate-blue/10 text-corporate-blue dark:border-corporate-blue dark:bg-corporate-blue/20'
+                      : 'border-gray-200 bg-white text-gray-800 hover:border-corporate-blue hover:text-corporate-blue dark:border-gray-800 dark:bg-gray-800 dark:text-gray-100'
+                  }`}
+                >
+                  {item.label}
+                  {item.path === '#' && (
+                    <span className="ml-2 text-xs font-normal text-gray-500 dark:text-gray-400">(placeholder)</span>
+                  )}
+                </button>
+              ))}
+
+              {/* My Corporation */}
               {isCeo && myCorporationId && (
                 <button
                   type="button"
@@ -202,6 +242,25 @@ export default function AppNavigation({ children }: AppNavigationProps) {
                   My Corporation
                 </button>
               )}
+
+              {/* Rest of navigation items */}
+              {navSections.slice(3).map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => handleNavClick(item.path)}
+                  className={`w-full text-left rounded-lg border px-4 py-3 text-sm font-semibold shadow-sm transition hover:-translate-y-0.5 ${
+                    pathname === item.path
+                      ? 'border-corporate-blue bg-corporate-blue/10 text-corporate-blue dark:border-corporate-blue dark:bg-corporate-blue/20'
+                      : 'border-gray-200 bg-white text-gray-800 hover:border-corporate-blue hover:text-corporate-blue dark:border-gray-800 dark:bg-gray-800 dark:text-gray-100'
+                  }`}
+                >
+                  {item.label}
+                  {item.path === '#' && (
+                    <span className="ml-2 text-xs font-normal text-gray-500 dark:text-gray-400">(placeholder)</span>
+                  )}
+                </button>
+              ))}
 
               {isAdmin && (
                 <button
@@ -217,9 +276,9 @@ export default function AppNavigation({ children }: AppNavigationProps) {
 
             <div className="px-6 pb-6">
               <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 p-4 text-sm text-gray-700 shadow-sm dark:border-gray-800 dark:bg-gray-800/60 dark:text-gray-200">
-                <p className="font-semibold text-gray-900 dark:text-white">Navigation</p>
+                <p className="font-semibold text-gray-900 dark:text-white">Command Center</p>
                 <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Use this menu to navigate between different sections of the application.
+                  Navigate your corporate empire—manage investments, execute strategic actions, and monitor your business operations from this central hub.
                 </p>
               </div>
             </div>
