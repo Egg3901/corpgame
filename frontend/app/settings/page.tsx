@@ -2,10 +2,9 @@
 
 import { useEffect, useState, ChangeEvent } from 'react';
 import { useRouter } from 'next/navigation';
-import { Moon, Sun, RefreshCw, Lock } from 'lucide-react';
+import { Moon, Sun, RefreshCw, Lock, Eye, EyeOff } from 'lucide-react';
 import { authAPI, AuthResponse, profileAPI } from '@/lib/api';
 import { useTheme } from '@/components/ThemeProvider';
-import Layout from '@/components/Layout';
 
 type CurrentUser = AuthResponse['user'] & { email: string };
 
@@ -17,6 +16,10 @@ export default function SettingsPage() {
   const [resetting, setResetting] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [bio, setBio] = useState('');
+  const [savingBio, setSavingBio] = useState(false);
+  const [revealUsername, setRevealUsername] = useState(false);
+  const [revealEmail, setRevealEmail] = useState(false);
 
   useEffect(() => {
     const loadUser = async () => {
@@ -29,6 +32,7 @@ export default function SettingsPage() {
       try {
         const me = await authAPI.getMe();
         setUser(me);
+        setBio(me.bio || "I'm a new user, say hi!");
       } catch (err) {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
@@ -51,6 +55,21 @@ export default function SettingsPage() {
   const handleSelectTheme = (value: 'light' | 'dark') => {
     if (value !== theme) {
       setTheme(value);
+    }
+  };
+
+  const handleBioChange = async () => {
+    if (!user) return;
+    setSavingBio(true);
+    try {
+      const updatedUser = await profileAPI.updateProfile({ bio });
+      setUser(updatedUser);
+    } catch (err: any) {
+      console.error('Bio update failed:', err);
+      // Reset to original value on error
+      setBio(user.bio || "I'm a new user, say hi!");
+    } finally {
+      setSavingBio(false);
     }
   };
 
@@ -90,7 +109,6 @@ export default function SettingsPage() {
   }
 
   return (
-    <Layout>
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 py-10 px-4">
       <div className="max-w-3xl mx-auto space-y-6">
         <div className="flex items-center justify-between">
@@ -142,16 +160,67 @@ export default function SettingsPage() {
             <div className="grid md:grid-cols-2 gap-6">
               <div>
                 <p className="text-xs uppercase text-gray-500 dark:text-gray-400 font-semibold">Username</p>
-                <p className="text-lg font-medium mt-1">{user?.username}</p>
+                <button
+                  onClick={() => setRevealUsername(!revealUsername)}
+                  className="flex items-center gap-2 mt-1 text-lg font-medium text-gray-900 dark:text-gray-100 hover:text-gray-700 dark:hover:text-gray-300 transition-colors group"
+                >
+                  {revealUsername ? (
+                    <>
+                      <span>{user?.username}</span>
+                      <EyeOff className="w-4 h-4 opacity-60 group-hover:opacity-100" />
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-gray-500 dark:text-gray-400">••••••••</span>
+                      <Eye className="w-4 h-4 opacity-60 group-hover:opacity-100" />
+                    </>
+                  )}
+                </button>
               </div>
               <div>
                 <p className="text-xs uppercase text-gray-500 dark:text-gray-400 font-semibold">Email</p>
-                <p className="text-lg font-medium mt-1">{user?.email}</p>
+                <button
+                  onClick={() => setRevealEmail(!revealEmail)}
+                  className="flex items-center gap-2 mt-1 text-lg font-medium text-gray-900 dark:text-gray-100 hover:text-gray-700 dark:hover:text-gray-300 transition-colors group"
+                >
+                  {revealEmail ? (
+                    <>
+                      <span>{user?.email}</span>
+                      <EyeOff className="w-4 h-4 opacity-60 group-hover:opacity-100" />
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-gray-500 dark:text-gray-400">••••••••••••••••••••••</span>
+                      <Eye className="w-4 h-4 opacity-60 group-hover:opacity-100" />
+                    </>
+                  )}
+                </button>
               </div>
             </div>
             <div>
               <p className="text-xs uppercase text-gray-500 dark:text-gray-400 font-semibold">Display Name</p>
               <p className="text-lg font-medium mt-1">{user?.player_name || 'Not set'}</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">Bio</label>
+              <textarea
+                value={bio}
+                onChange={(e) => setBio(e.target.value)}
+                placeholder="I'm a new user, say hi!"
+                maxLength={500}
+                rows={3}
+                className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-corporate-blue focus:border-transparent resize-none"
+              />
+              <div className="flex items-center justify-between mt-2">
+                <p className="text-xs text-gray-500 dark:text-gray-400">{bio.length}/500 characters</p>
+                <button
+                  onClick={handleBioChange}
+                  disabled={savingBio || bio === (user?.bio || "I'm a new user, say hi!")}
+                  className="px-3 py-1 text-xs font-medium rounded-md bg-corporate-blue text-white hover:bg-corporate-blue-dark disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {savingBio ? 'Saving...' : 'Save Bio'}
+                </button>
+              </div>
             </div>
           </div>
         </section>
@@ -223,6 +292,5 @@ export default function SettingsPage() {
         </section>
       </div>
     </div>
-    </Layout>
   );
 }

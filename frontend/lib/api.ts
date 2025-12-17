@@ -118,6 +118,7 @@ export interface AuthResponse {
     is_admin?: boolean;
     profile_slug?: string;
     profile_image_url?: string | null;
+    bio?: string;
     is_banned?: boolean;
     registration_ip?: string;
     last_login_ip?: string;
@@ -135,6 +136,7 @@ export interface ProfileResponse {
   starting_state?: string;
   profile_slug?: string;
   profile_image_url?: string | null;
+  bio?: string;
   is_admin?: boolean;
   is_banned?: boolean;
   created_at: string;
@@ -184,6 +186,10 @@ export const profileAPI = {
     const response = await api.post('/api/profile/avatar', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
+    return response.data;
+  },
+  updateProfile: async (data: { bio?: string }): Promise<ProfileResponse> => {
+    const response = await api.patch('/api/profile/update', data);
     return response.data;
   },
 };

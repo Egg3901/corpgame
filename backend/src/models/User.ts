@@ -13,6 +13,7 @@ export interface User {
   is_admin?: boolean;
   profile_slug: string;
   profile_image_url?: string | null;
+  bio?: string;
   registration_ip?: string;
   last_login_ip?: string;
   last_login_at?: Date;
@@ -35,6 +36,7 @@ export interface UserInput {
   is_admin?: boolean;
   profile_slug?: string;
   profile_image_url?: string | null;
+  bio?: string;
   registration_ip?: string;
   last_login_ip?: string;
   last_login_at?: Date;
@@ -64,23 +66,24 @@ export class UserModel {
   }
 
   static async create(userData: UserInput): Promise<User> {
-    const { email, username, password, player_name, gender, age, starting_state, is_admin = false } = userData;
+    const { email, username, password, player_name, gender, age, starting_state, is_admin = false, bio } = userData;
     const password_hash = await bcrypt.hash(password, 10);
     const profile_slug = userData.profile_slug || await UserModel.generateProfileSlug(username);
-    
+
     // Convert empty strings to null for optional fields
     const cleanPlayerName = player_name && player_name.trim() !== '' ? player_name.trim() : null;
     const cleanGender = gender && gender.trim() !== '' ? gender.trim() : null;
     const cleanAge = age !== undefined && age !== null ? age : null;
     const cleanStartingState = starting_state && starting_state.trim() !== '' ? starting_state.trim() : null;
+    const cleanBio = bio && bio.trim() !== '' ? bio.trim() : 'I\'m a new user, say hi!';
     
     const result = await pool.query(
       `INSERT INTO users (
         email, username, password_hash, player_name, gender, age, starting_state,
-        is_admin, profile_slug, registration_ip, last_login_ip, last_login_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        is_admin, profile_slug, bio, registration_ip, last_login_ip, last_login_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
       RETURNING id, profile_id, email, username, player_name, gender, age, starting_state, is_admin,
-        profile_slug, registration_ip, last_login_ip, last_login_at, created_at`,
+        profile_slug, bio, registration_ip, last_login_ip, last_login_at, created_at`,
       [
         email.trim(),
         username.trim(),
@@ -91,6 +94,7 @@ export class UserModel {
         cleanStartingState,
         is_admin,
         profile_slug,
+        cleanBio,
         userData.registration_ip || null,
         userData.last_login_ip || null,
         userData.last_login_at || null
@@ -124,36 +128,36 @@ export class UserModel {
   static async findById(id: number): Promise<User | null> {
     const result = await pool.query(
       `SELECT id, profile_id, email, username, player_name, gender, age, starting_state, is_admin,
-        profile_slug, profile_image_url, registration_ip, last_login_ip, last_login_at,
+        profile_slug, profile_image_url, bio, registration_ip, last_login_ip, last_login_at,
         is_banned, banned_at, banned_reason, banned_by, created_at
       FROM users WHERE id = $1`,
       [id]
     );
-    
+
     return result.rows[0] || null;
   }
 
   static async findByProfileId(profileId: number): Promise<User | null> {
     const result = await pool.query(
       `SELECT id, profile_id, email, username, player_name, gender, age, starting_state, is_admin,
-        profile_slug, profile_image_url, registration_ip, last_login_ip, last_login_at,
+        profile_slug, profile_image_url, bio, registration_ip, last_login_ip, last_login_at,
         is_banned, banned_at, banned_reason, banned_by, created_at
       FROM users WHERE profile_id = $1`,
       [profileId]
     );
-    
+
     return result.rows[0] || null;
   }
 
   static async findBySlug(slug: string): Promise<User | null> {
     const result = await pool.query(
       `SELECT id, profile_id, email, username, player_name, gender, age, starting_state, is_admin,
-        profile_slug, profile_image_url, registration_ip, last_login_ip, last_login_at,
+        profile_slug, profile_image_url, bio, registration_ip, last_login_ip, last_login_at,
         is_banned, banned_at, banned_reason, banned_by, created_at
       FROM users WHERE profile_slug = $1`,
       [slug]
     );
-    
+
     return result.rows[0] || null;
   }
 
@@ -212,6 +216,13 @@ export class UserModel {
     await pool.query(
       'UPDATE users SET profile_image_url = $1 WHERE id = $2',
       [imageUrl, userId]
+    );
+  }
+
+  static async updateBio(userId: number, bio: string): Promise<void> {
+    await pool.query(
+      'UPDATE users SET bio = $1 WHERE id = $2',
+      [bio, userId]
     );
   }
 }
