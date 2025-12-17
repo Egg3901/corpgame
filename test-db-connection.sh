@@ -88,3 +88,4 @@ echo "1. If all tests passed, restart backend: pm2 restart corpgame-backend"
 echo "2. Check logs: pm2 logs corpgame-backend --lines 50"
 echo "3. Try registering a user from the frontend"
 echo ""
+
