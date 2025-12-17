@@ -144,7 +144,7 @@ export class UserModel {
     const result = await pool.query(
       `SELECT id, profile_id, email, username, player_name, gender, age, starting_state, is_admin,
         profile_slug, profile_image_url, bio, cash, registration_ip, last_login_ip, last_login_at,
-        is_banned, banned_at, banned_reason, banned_by, created_at
+        last_seen_at, is_banned, banned_at, banned_reason, banned_by, created_at
       FROM users WHERE profile_id = $1`,
       [profileId]
     );
