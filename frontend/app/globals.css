@@ -25,6 +25,13 @@ body {
   transition: background 0.3s ease, color 0.3s ease;
 }
 
+/* Futura-like font family (Montserrat as Futura alternative) */
+@layer base {
+  * {
+    font-family: 'Montserrat', 'Futura', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  }
+}
+
 /* Ticker tape animation */
 @keyframes ticker-scroll {
   0% {

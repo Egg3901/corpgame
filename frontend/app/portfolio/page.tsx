@@ -84,28 +84,35 @@ export default function PortfolioPage() {
 
   return (
     <AppNavigation>
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-2">My Portfolio</h1>
-          <p className="text-gray-600 dark:text-gray-400">Your stock holdings across all corporations</p>
+      <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10 space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-2">My Portfolio</h1>
+            <p className="text-gray-600 dark:text-gray-400">Your stock holdings across all corporations</p>
+          </div>
         </div>
 
         {/* Total Portfolio Value */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 shadow-lg mb-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Total Portfolio Value</p>
-              <p className="text-3xl font-bold text-corporate-blue">{formatCurrency(portfolio.total_value)}</p>
-            </div>
-            <div className="text-right">
-              <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Holdings</p>
-              <p className="text-2xl font-semibold text-gray-900 dark:text-white">{portfolio.holdings.length}</p>
+        <div className="relative rounded-2xl border border-gray-200/50 dark:border-gray-700/50 bg-gradient-to-br from-white via-white to-gray-50/50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800/50 shadow-2xl overflow-hidden backdrop-blur-sm">
+          <div className="absolute inset-0 bg-gradient-to-br from-corporate-blue/5 via-transparent to-corporate-blue-light/5 dark:from-corporate-blue/10 dark:via-transparent dark:to-corporate-blue-dark/10 pointer-events-none" />
+          <div className="absolute inset-0 ring-1 ring-inset ring-white/20 dark:ring-gray-700/30 pointer-events-none" />
+          <div className="relative p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.15em] text-gray-600 dark:text-gray-400 mb-2">Total Portfolio Value</p>
+                <p className="text-4xl font-bold text-corporate-blue dark:text-corporate-blue-light">{formatCurrency(portfolio.total_value)}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-xs font-bold uppercase tracking-[0.15em] text-gray-600 dark:text-gray-400 mb-2">Holdings</p>
+                <p className="text-4xl font-bold text-gray-900 dark:text-white">{portfolio.holdings.length}</p>
+              </div>
             </div>
           </div>
         </div>
 
         {sortedHoldings.length === 0 ? (
-          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-12 shadow-lg text-center">
+          <div className="rounded-xl border border-white/60 bg-white/80 backdrop-blur shadow-xl dark:border-gray-800/60 dark:bg-gray-900/80 p-12 text-center">
             <Building2 className="w-16 h-16 text-gray-400 mx-auto mb-4" />
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">No Holdings Yet</h2>
             <p className="text-gray-600 dark:text-gray-400 mb-6">
@@ -113,103 +120,124 @@ export default function PortfolioPage() {
             </p>
             <Link
               href="/stock-market"
-              className="inline-flex items-center gap-2 bg-corporate-blue text-white px-6 py-3 rounded-lg font-semibold hover:bg-corporate-blue-dark transition-colors"
+              className="inline-flex items-center gap-2 bg-corporate-blue text-white px-6 py-3 rounded-lg font-semibold hover:bg-corporate-blue-dark transition-colors shadow-md hover:shadow-lg"
             >
               View Stock Market
               <ArrowRight className="w-5 h-5" />
             </Link>
           </div>
         ) : (
-          <div className="space-y-4">
-            {sortedHoldings.map((holding) => (
-              <Link
-                key={holding.corporation.id}
-                href={`/corporation/${holding.corporation.id}`}
-                className="group block bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 shadow-sm hover:shadow-lg transition-all hover:-translate-y-1"
-              >
-                <div className="flex items-center gap-6">
-                  {/* Logo */}
-                  <div className="flex-shrink-0 w-16 h-16 rounded-lg bg-gray-100 dark:bg-gray-700 overflow-hidden border border-gray-200 dark:border-gray-600">
-                    {holding.corporation.logo ? (
-                      <img
-                        src={holding.corporation.logo}
-                        alt={holding.corporation.name}
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          e.currentTarget.src = '/defaultpfp.jpg';
-                        }}
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <Building2 className="w-8 h-8 text-gray-400" />
+          <div className="relative rounded-2xl border border-gray-200/50 dark:border-gray-700/50 bg-gradient-to-br from-white via-white to-gray-50/50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800/50 shadow-2xl overflow-hidden backdrop-blur-sm">
+            <div className="absolute inset-0 bg-gradient-to-br from-corporate-blue/5 via-transparent to-corporate-blue-light/5 dark:from-corporate-blue/10 dark:via-transparent dark:to-corporate-blue-dark/10 pointer-events-none" />
+            <div className="absolute inset-0 ring-1 ring-inset ring-white/20 dark:ring-gray-700/30 pointer-events-none" />
+            <div className="relative divide-y divide-gray-200/60 dark:divide-gray-700/50">
+              {sortedHoldings.map((holding, idx) => (
+                <Link
+                  key={holding.corporation.id}
+                  href={`/corporation/${holding.corporation.id}`}
+                  className="group block relative transition-all duration-200 ease-out"
+                >
+                  <div className={`
+                    relative px-6 py-5 transition-all duration-200 ease-out
+                    ${idx % 2 === 0 
+                      ? 'bg-white/40 dark:bg-gray-900/30' 
+                      : 'bg-gray-50/30 dark:bg-gray-800/20'
+                    }
+                    group-hover:bg-gradient-to-r group-hover:from-corporate-blue/10 group-hover:to-corporate-blue-light/5
+                    dark:group-hover:from-corporate-blue/15 dark:group-hover:to-corporate-blue-dark/10
+                    group-hover:shadow-lg border-l-4 border-transparent group-hover:border-corporate-blue
+                  `}>
+                    <div className="absolute inset-0 bg-gradient-to-r from-corporate-blue/0 via-corporate-blue/5 to-corporate-blue/0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none" />
+                    <div className="relative flex items-center gap-6">
+                      {/* Logo */}
+                      <div className="flex-shrink-0 relative">
+                        {holding.corporation.logo ? (
+                          <>
+                            <div className="absolute inset-0 bg-gradient-to-br from-corporate-blue/20 to-corporate-blue-light/30 rounded-lg blur-sm opacity-0 group-hover:opacity-100 transition-opacity" />
+                            <img
+                              src={holding.corporation.logo}
+                              alt={holding.corporation.name}
+                              className="relative w-16 h-16 rounded-lg object-cover ring-2 ring-gray-200/50 dark:ring-gray-700/50 group-hover:ring-corporate-blue/50 transition-all shadow-md group-hover:shadow-lg"
+                              onError={(e) => {
+                                e.currentTarget.src = '/defaultpfp.jpg';
+                              }}
+                            />
+                          </>
+                        ) : (
+                          <div className="w-16 h-16 rounded-lg bg-gradient-to-br from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-800 flex items-center justify-center ring-2 ring-gray-200/50 dark:ring-gray-700/50 shadow-md group-hover:shadow-lg transition-all">
+                            <Building2 className="w-8 h-8 text-gray-400 dark:text-gray-500" />
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
 
-                  {/* Corporation Info */}
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white group-hover:text-corporate-blue transition-colors mb-1">
-                      {holding.corporation.name}
-                    </h3>
-                    {holding.corporation.type && (
-                      <span className="inline-block px-2 py-0.5 text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded mb-2">
-                        {holding.corporation.type}
-                      </span>
-                    )}
-                  </div>
+                      {/* Corporation Info */}
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-lg font-bold text-gray-900 dark:text-white group-hover:text-corporate-blue dark:group-hover:text-corporate-blue-light transition-colors mb-1">
+                          {holding.corporation.name}
+                        </h3>
+                        {holding.corporation.type && (
+                          <span className="inline-block px-2 py-0.5 text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded">
+                            {holding.corporation.type}
+                          </span>
+                        )}
+                      </div>
 
-                  {/* Holdings Info */}
-                  <div className="grid grid-cols-4 gap-6 text-right">
-                    <div>
-                      <p className="text-xs text-gray-600 dark:text-gray-400 mb-1 flex items-center justify-end gap-1">
-                        <PieChart className="w-3 h-3" />
-                        Shares
-                      </p>
-                      <p className="text-sm font-semibold text-gray-900 dark:text-white">
-                        {holding.shares_owned.toLocaleString()}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-600 dark:text-gray-400 mb-1 flex items-center justify-end gap-1">
-                        <DollarSign className="w-3 h-3" />
-                        Price
-                      </p>
-                      <p className="text-sm font-semibold text-gray-900 dark:text-white">
-                        {formatCurrency(holding.corporation.share_price)}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">Ownership</p>
-                      <p className="text-sm font-semibold text-gray-900 dark:text-white">
-                        {holding.ownership_percentage.toFixed(2)}%
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-600 dark:text-gray-400 mb-1 flex items-center justify-end gap-1">
-                        <TrendingUp className="w-3 h-3" />
-                        Value
-                      </p>
-                      <p className="text-lg font-bold text-corporate-blue">
-                        {formatCurrency(holding.current_value)}
-                      </p>
+                      {/* Holdings Info */}
+                      <div className="grid grid-cols-4 gap-6 text-right">
+                        <div>
+                          <p className="text-xs font-bold uppercase tracking-[0.1em] text-gray-600 dark:text-gray-400 mb-1 flex items-center justify-end gap-1">
+                            <PieChart className="w-3 h-3" />
+                            Shares
+                          </p>
+                          <p className="text-base font-bold text-gray-900 dark:text-white font-mono">
+                            {holding.shares_owned.toLocaleString()}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold uppercase tracking-[0.1em] text-gray-600 dark:text-gray-400 mb-1 flex items-center justify-end gap-1">
+                            <DollarSign className="w-3 h-3" />
+                            Price
+                          </p>
+                          <p className="text-base font-bold text-gray-900 dark:text-white font-mono">
+                            {formatCurrency(holding.corporation.share_price)}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold uppercase tracking-[0.1em] text-gray-600 dark:text-gray-400 mb-1">Ownership</p>
+                          <p className="text-base font-bold text-gray-900 dark:text-white">
+                            {holding.ownership_percentage.toFixed(2)}%
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold uppercase tracking-[0.1em] text-gray-600 dark:text-gray-400 mb-1 flex items-center justify-end gap-1">
+                            <TrendingUp className="w-3 h-3" />
+                            Value
+                          </p>
+                          <p className="text-xl font-bold text-corporate-blue dark:text-corporate-blue-light font-mono">
+                            {formatCurrency(holding.current_value)}
+                          </p>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </Link>
-            ))}
+                </Link>
+              ))}
+            </div>
           </div>
         )}
 
         {/* Link to Stock Market */}
-        <div className="mt-8 text-center">
-          <Link
-            href="/stock-market"
-            className="inline-flex items-center gap-2 text-corporate-blue hover:text-corporate-blue-dark font-semibold transition-colors"
-          >
-            View Stock Market
-            <ArrowRight className="w-5 h-5" />
-          </Link>
-        </div>
+        {sortedHoldings.length > 0 && (
+          <div className="text-center">
+            <Link
+              href="/stock-market"
+              className="inline-flex items-center gap-2 text-corporate-blue hover:text-corporate-blue-dark font-semibold transition-colors"
+            >
+              View Stock Market
+              <ArrowRight className="w-5 h-5" />
+            </Link>
+          </div>
+        )}
       </div>
     </AppNavigation>
   );
