@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import AppNavigation from '@/components/AppNavigation';
 import { issueAPI } from '@/lib/api';
-import { AlertCircle, Send, CheckCircle2 } from 'lucide-react';
+import { AlertCircle, Send, CheckCircle2, ExternalLink } from 'lucide-react';
 
 export default function ReportIssuePage() {
   const router = useRouter();
