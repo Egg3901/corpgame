@@ -17,6 +17,10 @@ export default function CorporationDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [deleting, setDeleting] = useState(false);
+  const [buyShares, setBuyShares] = useState('');
+  const [sellShares, setSellShares] = useState('');
+  const [trading, setTrading] = useState(false);
+  const [userOwnedShares, setUserOwnedShares] = useState(0);
 
   useEffect(() => {
     const fetchData = async () => {
