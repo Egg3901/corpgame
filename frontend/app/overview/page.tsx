@@ -41,11 +41,11 @@ export default function OverviewPage() {
 
   if (loading) {
     return (
-      <Layout>
+      <AppNavigation>
         <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center">
-          <div className="text-lg text-gray-600">Loading...</div>
+          <div className="text-lg text-gray-600 dark:text-gray-300">Loading...</div>
         </div>
-      </Layout>
+      </AppNavigation>
     );
   }
 
