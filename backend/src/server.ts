@@ -13,7 +13,7 @@ dotenv.config();
 
 const app = express();
 const PORT = parseInt(process.env.PORT || '3001', 10);
-const uploadsDir = path.join(__dirname, 'uploads');
+const uploadsDir = path.join(__dirname, '..', 'uploads');
 fs.mkdirSync(uploadsDir, { recursive: true });
 
 // Middleware
