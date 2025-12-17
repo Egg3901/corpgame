@@ -1,13 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import AppNavigation from '@/components/AppNavigation';
 import { adminAPI, authAPI, MessageResponse, normalizeImageUrl } from '@/lib/api';
 import { MessageSquare, Clock, ChevronLeft, User } from 'lucide-react';
 import Link from 'next/link';
 
-export default function AdminConversationViewerPage() {
+function AdminConversationViewerContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(true);
@@ -254,6 +254,20 @@ export default function AdminConversationViewerPage() {
         </div>
       </div>
     </AppNavigation>
+  );
+}
+
+export default function AdminConversationViewerPage() {
+  return (
+    <Suspense fallback={
+      <AppNavigation>
+        <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center">
+          <div className="text-lg text-gray-600 dark:text-gray-300">Loading conversation...</div>
+        </div>
+      </AppNavigation>
+    }>
+      <AdminConversationViewerContent />
+    </Suspense>
   );
 }
 

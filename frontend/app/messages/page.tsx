@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import AppNavigation from '@/components/AppNavigation';
 import ComposeMessage from '@/components/ComposeMessage';
@@ -8,7 +8,7 @@ import { messagesAPI, ConversationResponse, MessageResponse, authAPI } from '@/l
 import { MessageSquare, Send, Plus, ChevronLeft, User, Clock, Flag, X } from 'lucide-react';
 import Link from 'next/link';
 
-export default function MessagesPage() {
+function MessagesPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [conversations, setConversations] = useState<ConversationResponse[]>([]);
@@ -406,6 +406,20 @@ export default function MessagesPage() {
         )}
       </div>
     </AppNavigation>
+  );
+}
+
+export default function MessagesPage() {
+  return (
+    <Suspense fallback={
+      <AppNavigation>
+        <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center">
+          <div className="text-lg text-gray-600 dark:text-gray-300">Loading messages...</div>
+        </div>
+      </AppNavigation>
+    }>
+      <MessagesPageContent />
+    </Suspense>
   );
 }
 

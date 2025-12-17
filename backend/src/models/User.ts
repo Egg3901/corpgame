@@ -257,7 +257,7 @@ export class UserModel {
   static async updateCash(userId: number, amount: number): Promise<User> {
     const result = await pool.query(
       `UPDATE users 
-       SET cash = GREATEST(0, cash + $1)
+       SET cash = GREATEST(0, COALESCE(cash, 0) + $1)
        WHERE id = $2
        RETURNING *`,
       [amount, userId]
