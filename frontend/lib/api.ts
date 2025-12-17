@@ -338,6 +338,27 @@ export const sharesAPI = {
   },
 };
 
+export interface IssueReportData {
+  title: string;
+  description: string;
+  category: 'bug' | 'feature' | 'ui' | 'performance' | 'security' | 'other';
+  priority: 'low' | 'medium' | 'high' | 'critical';
+}
+
+export interface IssueReportResponse {
+  success: boolean;
+  issue_id?: number;
+  github_issue_url?: string;
+  message: string;
+}
+
+export const issueAPI = {
+  report: async (data: IssueReportData): Promise<IssueReportResponse> => {
+    const response = await api.post('/api/issues/report', data);
+    return response.data;
+  },
+};
+
 export interface AdminUser {
   id: number;
   profile_id: number;

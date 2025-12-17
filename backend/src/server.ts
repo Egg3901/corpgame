@@ -10,6 +10,8 @@ import adminRoutes from './routes/admin';
 import avatarRoutes from './routes/avatar';
 import corporationRoutes from './routes/corporation';
 import portfolioRoutes from './routes/portfolio';
+import sharesRoutes from './routes/shares';
+import issuesRoutes from './routes/issues';
 
 dotenv.config();
 
@@ -145,6 +147,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/corporation', corporationRoutes);
 app.use('/api/portfolio', portfolioRoutes);
 app.use('/api/shares', sharesRoutes);
+app.use('/api/issues', issuesRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

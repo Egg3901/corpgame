@@ -10,6 +10,7 @@ import {
   ChevronRight,
   Sun,
   Moon,
+  AlertCircle,
 } from 'lucide-react';
 import { authAPI, profileAPI, ProfileResponse, corporationAPI } from '@/lib/api';
 import { useTheme } from './ThemeProvider';
@@ -349,7 +350,18 @@ export default function AppNavigation({ children }: AppNavigationProps) {
               )}
             </div>
 
-            <div className="px-6 pb-6">
+            <div className="px-6 pb-6 space-y-3">
+              <button
+                type="button"
+                onClick={() => {
+                  handleNavClick('/report-issue');
+                  setNavOpen(false);
+                }}
+                className="w-full flex items-center gap-2 rounded-lg border border-orange-200 bg-orange-50 px-4 py-3 text-sm font-semibold text-orange-800 shadow-sm transition hover:-translate-y-0.5 hover:border-orange-400 hover:text-orange-900 dark:border-orange-800 dark:bg-orange-900/20 dark:text-orange-300"
+              >
+                <AlertCircle className="h-4 w-4" />
+                Report Issue
+              </button>
               <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 p-4 text-sm text-gray-700 shadow-sm dark:border-gray-800 dark:bg-gray-800/60 dark:text-gray-200">
                 <p className="font-semibold text-gray-900 dark:text-white">Command Center</p>
                 <p className="text-xs text-gray-500 dark:text-gray-400">
