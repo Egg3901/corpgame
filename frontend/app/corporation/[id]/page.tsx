@@ -356,6 +356,7 @@ export default function CorporationDetailPage() {
           </div>
         </div>
       </div>
+      </div>
     </AppNavigation>
   );
 }

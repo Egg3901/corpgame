@@ -192,6 +192,7 @@ export default function CreateCorporationPage() {
           </div>
         </form>
       </div>
+      </div>
     </AppNavigation>
   );
 }
