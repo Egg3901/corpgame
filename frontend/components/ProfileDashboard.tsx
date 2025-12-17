@@ -228,7 +228,8 @@ export default function ProfileDashboard({ profileId }: ProfileDashboardProps) {
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={profile.profile_image_url} alt="Profile avatar" className="h-full w-full object-cover" />
                   ) : (
-                    <UserIcon className="h-5 w-5 text-corporate-blue" />
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src="/commonassets/defaultpfp.jpg" alt="Default profile avatar" className="h-full w-full object-cover" />
                   )}
                 </div>
                 <div className="leading-tight">
@@ -285,10 +286,8 @@ export default function ProfileDashboard({ profileId }: ProfileDashboardProps) {
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={profile.profile_image_url} alt="Profile" className="h-full w-full object-cover" />
                       ) : (
-                        <div className="flex flex-col items-center justify-center text-xs text-gray-500 dark:text-gray-400">
-                          <UserIcon className="h-8 w-8 text-gray-400" />
-                          <span>No image</span>
-                        </div>
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src="/commonassets/defaultpfp.jpg" alt="Default profile" className="h-full w-full object-cover" />
                       )}
                     </div>
                   </div>
@@ -301,8 +300,7 @@ export default function ProfileDashboard({ profileId }: ProfileDashboardProps) {
                     </span>
                   </div>
                   <p className="text-sm text-gray-600 dark:text-gray-300">
-                    Executive summary placeholder for <span className="font-semibold text-gray-900 dark:text-white">{corpSummary.name}</span>.
-                    This profile uses a stable numeric ID for sharing; usernames stay private.
+                    Executive at <span className="font-semibold text-gray-900 dark:text-white">{corpSummary.name}</span>.
                   </p>
                   <div className="grid gap-4 sm:grid-cols-3">
                     <div className="rounded-xl border border-white/60 bg-white/70 p-3 shadow-sm dark:border-gray-800/70 dark:bg-gray-800/70">
@@ -334,9 +332,6 @@ export default function ProfileDashboard({ profileId }: ProfileDashboardProps) {
                   <span className="inline-flex items-center gap-2 rounded-full bg-corporate-blue/10 px-3 py-1 text-xs font-semibold text-corporate-blue dark:bg-corporate-blue/20">
                     <Link2 className="h-4 w-4" />
                     Profile ID #{canonicalProfileId}
-                  </span>
-                  <span className="text-xs text-gray-600 dark:text-gray-400">
-                    Shareable link uses the profile ID so the route stays stable.
                   </span>
                 </div>
               </div>

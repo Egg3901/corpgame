@@ -133,16 +133,11 @@ export default function SettingsPage() {
           <div className="px-6 py-6 space-y-6">
             <div className="flex items-center gap-4">
               <div className="w-16 h-16 rounded-full overflow-hidden bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
-                {user?.profile_image_url ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={user.profile_image_url}
-                    alt="Profile"
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <span className="text-sm text-gray-500 dark:text-gray-300">No image</span>
-                )}
+                <img
+                  src={user?.profile_image_url || "/commonassets/defaultpfp.jpg"}
+                  alt="Profile"
+                  className="w-full h-full object-cover"
+                />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">Profile image</label>
@@ -271,22 +266,26 @@ export default function SettingsPage() {
 
         <section className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700/50">
           <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700/60">
-            <h2 className="text-lg font-semibold">Security</h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400">Manage password and authentication.</p>
+            <h2 className="text-lg font-semibold">Quick Actions</h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Corporate management and investment tools.</p>
           </div>
           <div className="px-6 py-6 space-y-4">
             <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-900 dark:text-gray-100">Password</p>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Reset feature is not yet available.</p>
-              </div>
-              <button
-                onClick={handlePasswordReset}
-                disabled={resetting}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-corporate-blue text-white text-sm font-medium hover:bg-corporate-blue-dark disabled:opacity-60"
-              >
-                {resetting ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Lock className="w-4 h-4" />}
-                Reset Password
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-200">Buy/Sell Investments</span>
+              <button className="px-4 py-2 text-sm font-medium rounded-md border border-gray-200 text-gray-700 hover:bg-gray-100 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800">
+                Manage
+              </button>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-200">Build Production Units</span>
+              <button className="px-4 py-2 text-sm font-medium rounded-md border border-gray-200 text-gray-700 hover:bg-gray-100 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800">
+                Build
+              </button>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-200">Set Corporate Policy</span>
+              <button className="px-4 py-2 text-sm font-medium rounded-md border border-gray-200 text-gray-700 hover:bg-gray-100 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800">
+                Configure
               </button>
             </div>
           </div>
