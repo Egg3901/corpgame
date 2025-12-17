@@ -171,6 +171,13 @@ export class UserModel {
     );
   }
 
+  static async updateLastSeen(userId: number): Promise<void> {
+    await pool.query(
+      'UPDATE users SET last_seen_at = NOW() WHERE id = $1',
+      [userId]
+    );
+  }
+
   static async banUser(userId: number, reason: string | null, adminId: number | null): Promise<void> {
     await pool.query(
       `UPDATE users
