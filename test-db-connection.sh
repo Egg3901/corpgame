@@ -54,7 +54,7 @@ if psql "$DATABASE_URL" -c "\d users" 2>&1 | grep -q "Table"; then
     echo -e "${YELLOW}Checking required columns...${NC}"
     COLUMNS=$(psql "$DATABASE_URL" -t -c "SELECT column_name FROM information_schema.columns WHERE table_name='users' ORDER BY column_name;" 2>/dev/null)
     
-    REQUIRED=("id" "email" "username" "password_hash" "player_name" "gender" "age" "starting_state" "created_at" "is_admin" "profile_slug" "profile_image_url" "registration_ip" "last_login_ip" "last_login_at" "is_banned" "banned_at" "banned_reason" "banned_by")
+    REQUIRED=("id" "profile_id" "email" "username" "password_hash" "player_name" "gender" "age" "starting_state" "created_at" "is_admin" "profile_slug" "profile_image_url" "registration_ip" "last_login_ip" "last_login_at" "is_banned" "banned_at" "banned_reason" "banned_by")
     for col in "${REQUIRED[@]}"; do
         if echo "$COLUMNS" | grep -qi "$col"; then
             echo -e "${GREEN}  ✓ Column '$col' exists${NC}"

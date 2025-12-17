@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 
 export interface User {
   id: number;
+  profile_id: number;
   email: string;
   username: string;
   player_name?: string;
@@ -78,7 +79,7 @@ export class UserModel {
         email, username, password_hash, player_name, gender, age, starting_state,
         is_admin, profile_slug, registration_ip, last_login_ip, last_login_at
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-      RETURNING id, email, username, player_name, gender, age, starting_state, is_admin,
+      RETURNING id, profile_id, email, username, player_name, gender, age, starting_state, is_admin,
         profile_slug, registration_ip, last_login_ip, last_login_at, created_at`,
       [
         email.trim(),
@@ -122,7 +123,7 @@ export class UserModel {
 
   static async findById(id: number): Promise<User | null> {
     const result = await pool.query(
-      `SELECT id, email, username, player_name, gender, age, starting_state, is_admin,
+      `SELECT id, profile_id, email, username, player_name, gender, age, starting_state, is_admin,
         profile_slug, profile_image_url, registration_ip, last_login_ip, last_login_at,
         is_banned, banned_at, banned_reason, banned_by, created_at
       FROM users WHERE id = $1`,
@@ -132,9 +133,21 @@ export class UserModel {
     return result.rows[0] || null;
   }
 
+  static async findByProfileId(profileId: number): Promise<User | null> {
+    const result = await pool.query(
+      `SELECT id, profile_id, email, username, player_name, gender, age, starting_state, is_admin,
+        profile_slug, profile_image_url, registration_ip, last_login_ip, last_login_at,
+        is_banned, banned_at, banned_reason, banned_by, created_at
+      FROM users WHERE profile_id = $1`,
+      [profileId]
+    );
+    
+    return result.rows[0] || null;
+  }
+
   static async findBySlug(slug: string): Promise<User | null> {
     const result = await pool.query(
-      `SELECT id, email, username, player_name, gender, age, starting_state, is_admin,
+      `SELECT id, profile_id, email, username, player_name, gender, age, starting_state, is_admin,
         profile_slug, profile_image_url, registration_ip, last_login_ip, last_login_at,
         is_banned, banned_at, banned_reason, banned_by, created_at
       FROM users WHERE profile_slug = $1`,

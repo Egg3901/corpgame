@@ -46,7 +46,7 @@ if [ ${PIPESTATUS[0]} -eq 0 ]; then
     echo -e "${YELLOW}Step 3: Verifying required columns...${NC}"
     
     # Check for required columns
-    REQUIRED_COLS=("id" "email" "username" "password_hash" "player_name" "gender" "age" "starting_state" "created_at" "is_admin" "profile_slug" "profile_image_url" "registration_ip" "last_login_ip" "last_login_at" "is_banned" "banned_at" "banned_reason" "banned_by")
+    REQUIRED_COLS=("id" "profile_id" "email" "username" "password_hash" "player_name" "gender" "age" "starting_state" "created_at" "is_admin" "profile_slug" "profile_image_url" "registration_ip" "last_login_ip" "last_login_at" "is_banned" "banned_at" "banned_reason" "banned_by")
     MISSING_COLS=()
     
     for col in "${REQUIRED_COLS[@]}"; do

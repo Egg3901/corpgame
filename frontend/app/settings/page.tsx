@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Moon, Sun, RefreshCw, Lock } from 'lucide-react';
 import { authAPI, AuthResponse, profileAPI } from '@/lib/api';
 import { useTheme } from '@/components/ThemeProvider';
+import Layout from '@/components/Layout';
 
 type CurrentUser = AuthResponse['user'] & { email: string };
 
@@ -89,6 +90,7 @@ export default function SettingsPage() {
   }
 
   return (
+    <Layout>
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 py-10 px-4">
       <div className="max-w-3xl mx-auto space-y-6">
         <div className="flex items-center justify-between">
@@ -221,5 +223,6 @@ export default function SettingsPage() {
         </section>
       </div>
     </div>
+    </Layout>
   );
 }

@@ -108,6 +108,7 @@ export interface AuthResponse {
   token: string;
   user: {
     id: number;
+    profile_id: number;
     email: string;
     username: string;
     player_name?: string;
@@ -115,7 +116,7 @@ export interface AuthResponse {
     age?: number;
     starting_state?: string;
     is_admin?: boolean;
-    profile_slug: string;
+    profile_slug?: string;
     profile_image_url?: string | null;
     is_banned?: boolean;
     registration_ip?: string;
@@ -126,12 +127,13 @@ export interface AuthResponse {
 
 export interface ProfileResponse {
   id: number;
+  profile_id: number;
   username: string;
   player_name?: string;
   gender?: 'm' | 'f' | 'nonbinary';
   age?: number;
   starting_state?: string;
-  profile_slug: string;
+  profile_slug?: string;
   profile_image_url?: string | null;
   is_admin?: boolean;
   is_banned?: boolean;
@@ -171,8 +173,8 @@ export const authAPI = {
 };
 
 export const profileAPI = {
-  getBySlug: async (slug: string): Promise<ProfileResponse> => {
-    const response = await api.get(`/api/profile/${slug}`);
+  getById: async (profileId: string | number): Promise<ProfileResponse> => {
+    const response = await api.get(`/api/profile/${profileId}`);
     return response.data;
   },
   uploadAvatar: async (file: File): Promise<{ profile_image_url: string }> => {

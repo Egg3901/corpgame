@@ -17,7 +17,7 @@ export default function HomePage() {
 
       try {
         const user = await authAPI.getMe();
-        router.replace(`/profile/${user.profile_slug}`);
+        router.replace(`/profile/${user.profile_id}`);
       } catch (error) {
         console.error('Home redirect failed:', error);
         localStorage.removeItem('token');
@@ -34,4 +34,3 @@ export default function HomePage() {
     </div>
   );
 }
-

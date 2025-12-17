@@ -3,10 +3,13 @@ import { UserModel } from '../models/User';
 
 const router = express.Router();
 
-router.get('/:slug', async (req: Request, res: Response) => {
+router.get('/:idOrSlug', async (req: Request, res: Response) => {
   try {
-    const slug = req.params.slug.toLowerCase();
-    const user = await UserModel.findBySlug(slug);
+    const idOrSlug = req.params.idOrSlug;
+    const isNumericId = /^\d+$/.test(idOrSlug);
+    const user = isNumericId
+      ? await UserModel.findByProfileId(Number(idOrSlug))
+      : await UserModel.findBySlug(idOrSlug.toLowerCase());
 
     if (!user) {
       return res.status(404).json({ error: 'Profile not found' });
@@ -14,6 +17,7 @@ router.get('/:slug', async (req: Request, res: Response) => {
 
     res.json({
       id: user.id,
+      profile_id: user.profile_id,
       username: user.username,
       player_name: user.player_name,
       starting_state: user.starting_state,

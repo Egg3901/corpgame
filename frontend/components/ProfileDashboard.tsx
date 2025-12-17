@@ -23,7 +23,7 @@ import {
 import { authAPI, profileAPI, ProfileResponse } from '@/lib/api';
 
 interface ProfileDashboardProps {
-  slug: string;
+  profileId: string;
 }
 
 const corporateHistory = [
@@ -31,10 +31,10 @@ const corporateHistory = [
   { title: 'Acting CEO Placeholder Inc.', period: '11/10/25 - 11/30/25' },
 ];
 
-export default function ProfileDashboard({ slug }: ProfileDashboardProps) {
+export default function ProfileDashboard({ profileId }: ProfileDashboardProps) {
   const router = useRouter();
   const [profile, setProfile] = useState<ProfileResponse | null>(null);
-  const [viewerSlug, setViewerSlug] = useState<string | null>(null);
+  const [viewerProfileId, setViewerProfileId] = useState<number | null>(null);
   const [viewerAdmin, setViewerAdmin] = useState<boolean>(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -45,7 +45,7 @@ export default function ProfileDashboard({ slug }: ProfileDashboardProps) {
       setLoading(true);
       setError('');
       try {
-        const data = await profileAPI.getBySlug(slug);
+        const data = await profileAPI.getById(profileId);
         setProfile(data);
       } catch (err) {
         console.error('Profile load error:', err);
@@ -56,7 +56,7 @@ export default function ProfileDashboard({ slug }: ProfileDashboardProps) {
     };
 
     fetchProfile();
-  }, [slug]);
+  }, [profileId]);
 
   useEffect(() => {
     const loadViewer = async () => {
@@ -65,7 +65,7 @@ export default function ProfileDashboard({ slug }: ProfileDashboardProps) {
 
       try {
         const me = await authAPI.getMe();
-        setViewerSlug(me.profile_slug);
+        setViewerProfileId(me.profile_id);
         setViewerAdmin(!!me.is_admin);
       } catch (err) {
         console.warn('Viewer not authenticated:', err);
@@ -99,12 +99,12 @@ export default function ProfileDashboard({ slug }: ProfileDashboardProps) {
 
   const displayName = profile.player_name || profile.username || 'Executive';
   const displayState = profile.starting_state || 'N/A';
-  const isOwner = viewerSlug === profile.profile_slug;
-  const canonicalSlug = profile.profile_slug || `${profile.id}`;
+  const isOwner = viewerProfileId === profile.profile_id;
+  const canonicalProfileId = `${profile.profile_id}`;
   const shareUrl =
     typeof window !== 'undefined'
-      ? `${window.location.origin}/profile/${canonicalSlug}`
-      : `/profile/${canonicalSlug}`;
+      ? `${window.location.origin}/profile/${canonicalProfileId}`
+      : `/profile/${canonicalProfileId}`;
 
   const corpSummary = {
     name: 'Sample Corp',
@@ -116,7 +116,7 @@ export default function ProfileDashboard({ slug }: ProfileDashboardProps) {
 
   const fillerPortfolio = '$0';
   const fillerTitle = profile.is_admin ? 'Administrator' : 'Executive';
-  const viewerContext = isOwner ? 'Owner' : viewerSlug ? 'Authenticated viewer' : 'Guest';
+  const viewerContext = isOwner ? 'Owner' : viewerProfileId ? 'Authenticated viewer' : 'Guest';
   const joinedLabel = profile.created_at
     ? new Date(profile.created_at).toLocaleDateString(undefined, {
         month: 'short',
@@ -172,7 +172,7 @@ export default function ProfileDashboard({ slug }: ProfileDashboardProps) {
           </div>
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-[1.25fr_0.75fr]">
+        <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
           <section className="space-y-6">
             <div className="relative overflow-hidden rounded-2xl border border-white/60 bg-white/80 shadow-2xl backdrop-blur dark:border-gray-800/60 dark:bg-gray-900/70">
               <div className="absolute inset-0 bg-gradient-to-br from-corporate-blue/12 via-transparent to-corporate-blue-light/20 dark:from-corporate-blue/18 dark:via-transparent dark:to-corporate-blue-dark/30" />
@@ -199,16 +199,10 @@ export default function ProfileDashboard({ slug }: ProfileDashboardProps) {
                     <span className="rounded-full bg-corporate-blue/10 px-3 py-1 text-xs font-semibold text-corporate-blue dark:bg-corporate-blue/20">
                       {fillerTitle}
                     </span>
-                    <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-700 dark:bg-gray-800 dark:text-gray-200">
-                      {profile.is_admin ? 'Admin access' : 'Player access'}
-                    </span>
-                    <span className="rounded-full bg-gray-50 px-3 py-1 text-xs font-semibold text-gray-600 dark:bg-gray-800 dark:text-gray-300">
-                      Viewing as {viewerContext}
-                    </span>
                   </div>
                   <p className="text-sm text-gray-600 dark:text-gray-300">
                     Executive summary placeholder for <span className="font-semibold text-gray-900 dark:text-white">{corpSummary.name}</span>.
-                    This profile uses a slug-based route for sharing; usernames stay private.
+                    This profile uses a stable numeric ID for sharing; usernames stay private.
                   </p>
                   <div className="grid gap-4 sm:grid-cols-3">
                     <div className="rounded-xl border border-white/60 bg-white/70 p-3 shadow-sm dark:border-gray-800/70 dark:bg-gray-800/70">
@@ -239,10 +233,10 @@ export default function ProfileDashboard({ slug }: ProfileDashboardProps) {
                 <div className="flex flex-wrap items-center gap-3">
                   <span className="inline-flex items-center gap-2 rounded-full bg-corporate-blue/10 px-3 py-1 text-xs font-semibold text-corporate-blue dark:bg-corporate-blue/20">
                     <Link2 className="h-4 w-4" />
-                    Profile slug #{canonicalSlug}
+                    Profile ID #{canonicalProfileId}
                   </span>
                   <span className="text-xs text-gray-600 dark:text-gray-400">
-                    Shareable link uses the slug only—no usernames exposed.
+                    Shareable link uses the profile ID so the route stays stable.
                   </span>
                 </div>
               </div>
@@ -299,43 +293,6 @@ export default function ProfileDashboard({ slug }: ProfileDashboardProps) {
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-white/60 bg-white/80 p-6 shadow-xl backdrop-blur dark:border-gray-800/60 dark:bg-gray-900/70">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                      Access & signals
-                    </p>
-                    <p className="text-lg font-semibold text-gray-900 dark:text-white">Account standing</p>
-                  </div>
-                  <Shield className="h-5 w-5 text-corporate-blue" />
-                </div>
-                <div className="mt-4 space-y-3 text-sm text-gray-700 dark:text-gray-300">
-                  <div className="flex items-center justify-between rounded-xl border border-white/60 bg-white/70 p-3 shadow-sm dark:border-gray-800/70 dark:bg-gray-800/60">
-                    <span className="flex items-center gap-2 font-semibold">
-                      <UserIcon className="h-4 w-4 text-corporate-blue" />
-                      Role
-                    </span>
-                    <span className="text-gray-600 dark:text-gray-300">{profile.is_admin ? 'Admin' : 'Player'}</span>
-                  </div>
-                  <div className="flex items-center justify-between rounded-xl border border-white/60 bg-white/70 p-3 shadow-sm dark:border-gray-800/70 dark:bg-gray-800/60">
-                    <span className="flex items-center gap-2 font-semibold">
-                      <Briefcase className="h-4 w-4 text-corporate-blue" />
-                      Viewer
-                    </span>
-                    <span className="text-gray-600 dark:text-gray-300">{viewerContext}</span>
-                  </div>
-                  <div className="flex items-center justify-between rounded-xl border border-white/60 bg-white/70 p-3 shadow-sm dark:border-gray-800/70 dark:bg-gray-800/60">
-                    <span className="flex items-center gap-2 font-semibold">
-                      <Shield className="h-4 w-4 text-corporate-blue" />
-                      Viewer admin
-                    </span>
-                    <span className="text-gray-600 dark:text-gray-300">{viewerAdmin ? 'Yes' : 'No'}</span>
-                  </div>
-                  <div className="rounded-xl border border-dashed border-gray-200/80 bg-gray-50/70 p-3 text-xs text-gray-500 dark:border-gray-800 dark:bg-gray-800/70 dark:text-gray-400">
-                    Personal, team, and guest contexts are visually separated for clarity.
-                  </div>
-                </div>
-              </div>
             </div>
 
             <div className="rounded-2xl border border-white/60 bg-white/80 p-6 shadow-xl backdrop-blur dark:border-gray-800/60 dark:bg-gray-900/70">
@@ -402,7 +359,7 @@ export default function ProfileDashboard({ slug }: ProfileDashboardProps) {
                 <div className="flex items-center justify-between rounded-xl border border-white/60 bg-white/70 p-3 shadow-sm dark:border-gray-800/70 dark:bg-gray-800/60">
                   <span>Viewer</span>
                   <span className="text-gray-500 dark:text-gray-300">
-                    {isOwner ? 'You' : viewerSlug ? 'Authenticated' : 'Guest'}
+                    {isOwner ? 'You' : viewerProfileId ? 'Authenticated' : 'Guest'}
                   </span>
                 </div>
                 <div className="flex items-center justify-between rounded-xl border border-white/60 bg-white/70 p-3 shadow-sm dark:border-gray-800/70 dark:bg-gray-800/60">
