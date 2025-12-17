@@ -1,12 +1,13 @@
 "use client";
 
 import Link from 'next/link';
+import AppNavigation from '@/components/AppNavigation';
 import { Building2, Plus } from 'lucide-react';
 
 export default function CorporationsPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-gray-100 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+    <AppNavigation>
+      <div className="relative mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 py-20">
         <div className="text-center">
           <Building2 className="w-16 h-16 text-gray-400 mx-auto mb-6" />
           <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">All Corporations</h1>
@@ -22,6 +23,6 @@ export default function CorporationsPage() {
           </Link>
         </div>
       </div>
-    </div>
+    </AppNavigation>
   );
 }

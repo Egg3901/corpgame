@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import AppNavigation from '@/components/AppNavigation';
 import { portfolioAPI, PortfolioResponse, authAPI } from '@/lib/api';
 import { Building2, TrendingUp, DollarSign, PieChart, ArrowRight } from 'lucide-react';
 
@@ -50,29 +51,40 @@ export default function PortfolioPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-gray-100 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 flex items-center justify-center">
-        <div className="text-lg text-gray-600 dark:text-gray-200">Loading portfolio...</div>
-      </div>
+      <AppNavigation>
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-lg text-gray-600 dark:text-gray-200">Loading portfolio...</div>
+        </div>
+      </AppNavigation>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-gray-100 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 flex items-center justify-center">
-        <div className="text-xl text-red-600 dark:text-red-400">{error}</div>
-      </div>
+      <AppNavigation>
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-xl text-red-600 dark:text-red-400">{error}</div>
+        </div>
+      </AppNavigation>
     );
   }
 
   if (!portfolio) {
-    return null;
+    return (
+      <AppNavigation>
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-lg text-gray-600 dark:text-gray-200">No portfolio data</div>
+        </div>
+      </AppNavigation>
+    );
   }
 
   // Sort holdings by value (highest first)
   const sortedHoldings = [...portfolio.holdings].sort((a, b) => b.current_value - a.current_value);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-gray-100 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950">
+    <AppNavigation>
+      <div className="relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-10">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-2">My Portfolio</h1>
@@ -200,6 +212,6 @@ export default function PortfolioPage() {
           </Link>
         </div>
       </div>
-    </div>
+    </AppNavigation>
   );
 }

@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import AppNavigation from '@/components/AppNavigation';
 import { authAPI } from '@/lib/api';
 
 export default function HomePage() {
@@ -29,9 +30,11 @@ export default function HomePage() {
   }, [router]);
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center text-gray-600">
-      Loading your profile...
-    </div>
+    <AppNavigation>
+      <div className="min-h-screen flex items-center justify-center text-gray-600 dark:text-gray-200">
+        Loading your profile...
+      </div>
+    </AppNavigation>
   );
 }
 

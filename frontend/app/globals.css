@@ -25,5 +25,34 @@ body {
   transition: background 0.3s ease, color 0.3s ease;
 }
 
+/* Ticker tape animation */
+@keyframes ticker-scroll {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.ticker-scroll {
+  animation: ticker-scroll 60s linear infinite;
+}
+
+/* Monospace font utility for numeric data */
+.font-mono-numeric {
+  font-family: 'Courier New', Courier, 'Liberation Mono', monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Positive/negative color utilities */
+.text-positive {
+  color: #10b981; /* emerald-500 */
+}
+
+.text-negative {
+  color: #ef4444; /* red-500 */
+}
+
 
 

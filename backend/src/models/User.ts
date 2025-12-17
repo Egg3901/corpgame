@@ -225,5 +225,32 @@ export class UserModel {
       [bio, userId]
     );
   }
+
+  static async getAllUsers(): Promise<User[]> {
+    const result = await pool.query(
+      `SELECT id, profile_id, email, username, player_name, gender, age, starting_state, is_admin,
+        profile_slug, profile_image_url, bio, registration_ip, last_login_ip, last_login_at,
+        is_banned, banned_at, banned_reason, banned_by, created_at
+      FROM users
+      ORDER BY created_at DESC`
+    );
+    return result.rows;
+  }
+
+  static async toggleAdminStatus(userId: number): Promise<User> {
+    const result = await pool.query(
+      `UPDATE users 
+       SET is_admin = NOT is_admin 
+       WHERE id = $1
+       RETURNING id, profile_id, email, username, player_name, gender, age, starting_state, is_admin,
+         profile_slug, profile_image_url, bio, registration_ip, last_login_ip, last_login_at,
+         is_banned, banned_at, banned_reason, banned_by, created_at`,
+      [userId]
+    );
+    if (result.rows.length === 0) {
+      throw new Error('User not found');
+    }
+    return result.rows[0];
+  }
 }
 

@@ -295,4 +295,69 @@ export const portfolioAPI = {
   },
 };
 
+export interface AdminUser {
+  id: number;
+  profile_id: number;
+  email: string;
+  username: string;
+  player_name?: string;
+  gender?: 'm' | 'f' | 'nonbinary';
+  age?: number;
+  starting_state?: string;
+  is_admin?: boolean;
+  profile_slug?: string;
+  profile_image_url?: string | null;
+  bio?: string;
+  registration_ip?: string;
+  last_login_ip?: string;
+  last_login_at?: string;
+  is_banned?: boolean;
+  banned_at?: string;
+  banned_reason?: string;
+  banned_by?: number;
+  created_at: string;
+}
+
+export const adminAPI = {
+  getAllUsers: async (): Promise<AdminUser[]> => {
+    const response = await api.get('/api/admin/users');
+    return response.data;
+  },
+  toggleAdminStatus: async (userId: number): Promise<AdminUser> => {
+    const response = await api.patch(`/api/admin/users/${userId}/admin`);
+    return response.data;
+  },
+  deleteUser: async (userId: number): Promise<void> => {
+    await api.delete(`/api/admin/users/${userId}`);
+  },
+};
+
+/**
+ * Normalizes image URLs to ensure they work correctly.
+ * - If the URL is already absolute (starts with http:// or https://), returns it as-is
+ * - If the URL is relative (starts with /), returns it as-is (will resolve relative to current origin)
+ * - If the URL is empty or null, returns the default image path
+ * - Strips any backend hostname from relative paths that might have been incorrectly stored
+ */
+export const normalizeImageUrl = (url: string | null | undefined, defaultPath: string = '/defaultpfp.jpg'): string => {
+  if (!url || url.trim() === '') {
+    return defaultPath;
+  }
+
+  const trimmed = url.trim();
+
+  // If it's already an absolute URL (http:// or https://), return as-is
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+    return trimmed;
+  }
+
+  // If it's a relative path starting with /, return as-is
+  if (trimmed.startsWith('/')) {
+    return trimmed;
+  }
+
+  // If it doesn't start with /, assume it's a relative path and prepend /
+  return '/' + trimmed;
+};
+
 export default api;

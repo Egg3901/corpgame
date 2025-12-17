@@ -3,7 +3,7 @@
 import { useEffect, useState, ChangeEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { Moon, Sun, RefreshCw, Lock, Eye, EyeOff } from 'lucide-react';
-import { authAPI, AuthResponse, profileAPI } from '@/lib/api';
+import { authAPI, AuthResponse, profileAPI, normalizeImageUrl } from '@/lib/api';
 import { useTheme } from '@/components/ThemeProvider';
 
 type CurrentUser = AuthResponse['user'] & { email: string };
@@ -147,14 +147,14 @@ export default function SettingsPage() {
             <div className="flex items-center gap-4">
               <div className="w-16 h-16 rounded-full overflow-hidden bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
                 <img
-                  src={user?.profile_image_url || "/defaultpfp.jpg"}
+                  src={normalizeImageUrl(user?.profile_image_url)}
                   alt="Profile"
                   className="w-full h-full object-cover"
                   onError={(e) => {
                     console.error('Profile image failed to load:', e.currentTarget.src);
                     e.currentTarget.src = "/defaultpfp.jpg";
                   }}
-                  onLoad={() => console.log('Profile image loaded successfully:', user?.profile_image_url || "/defaultpfp.jpg")}
+                  onLoad={() => console.log('Profile image loaded successfully:', normalizeImageUrl(user?.profile_image_url))}
                 />
               </div>
               <div>

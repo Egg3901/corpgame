@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import AppNavigation from '@/components/AppNavigation';
 import { corporationAPI } from '@/lib/api';
 import { Building2, Upload, X } from 'lucide-react';
 
@@ -190,6 +191,6 @@ export default function CreateCorporationPage() {
           </div>
         </form>
       </div>
-    </div>
+    </AppNavigation>
   );
 }

@@ -44,6 +44,38 @@ router.post('/users/:id/ban', async (req: AuthRequest, res: Response) => {
   }
 });
 
+router.get('/users', async (req: AuthRequest, res: Response) => {
+  try {
+    const users = await UserModel.getAllUsers();
+    // Don't return password_hash
+    const sanitizedUsers = users.map(({ password_hash, ...user }) => user);
+    res.json(sanitizedUsers);
+  } catch (error) {
+    console.error('Get users error:', error);
+    res.status(500).json({ error: 'Failed to get users' });
+  }
+});
+
+router.patch('/users/:id/admin', async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = parseInt(req.params.id, 10);
+    if (isNaN(userId)) {
+      return res.status(400).json({ error: 'Invalid user id' });
+    }
+
+    if (req.userId === userId) {
+      return res.status(400).json({ error: 'You cannot change your own admin status' });
+    }
+
+    const updatedUser = await UserModel.toggleAdminStatus(userId);
+    const { password_hash, ...sanitizedUser } = updatedUser;
+    res.json(sanitizedUser);
+  } catch (error) {
+    console.error('Toggle admin status error:', error);
+    res.status(500).json({ error: 'Failed to toggle admin status' });
+  }
+});
+
 router.delete('/users/:id', async (req: AuthRequest, res: Response) => {
   try {
     const userId = parseInt(req.params.id, 10);

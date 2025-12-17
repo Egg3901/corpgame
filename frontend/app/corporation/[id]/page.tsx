@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
+import AppNavigation from '@/components/AppNavigation';
 import { corporationAPI, CorporationResponse, authAPI } from '@/lib/api';
 import { Building2, Edit, Trash2, TrendingUp, DollarSign, Users, User, Calendar } from 'lucide-react';
 
@@ -354,6 +355,6 @@ export default function CorporationDetailPage() {
           </div>
         </div>
       </div>
-    </div>
+    </AppNavigation>
   );
 }

@@ -6,6 +6,7 @@ import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { CorporationModel } from '../models/Corporation';
 import { ShareholderModel } from '../models/Shareholder';
 import { UserModel } from '../models/User';
+import { normalizeImageUrl } from '../utils/imageUrl';
 
 const router = express.Router();
 
@@ -66,7 +67,7 @@ router.get('/', async (req: Request, res: Response) => {
             username: ceo.username,
             player_name: ceo.player_name,
             profile_slug: ceo.profile_slug,
-            profile_image_url: ceo.profile_image_url,
+            profile_image_url: normalizeImageUrl(ceo.profile_image_url),
           } : null,
         };
       })
@@ -107,7 +108,7 @@ router.get('/:id', async (req: Request, res: Response) => {
             username: user.username,
             player_name: user.player_name,
             profile_slug: user.profile_slug,
-            profile_image_url: user.profile_image_url,
+            profile_image_url: normalizeImageUrl(user.profile_image_url),
           } : null,
         };
       })

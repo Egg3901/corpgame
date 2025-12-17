@@ -1,6 +1,7 @@
 import express, { Request, Response } from 'express';
 import { UserModel } from '../models/User';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
+import { normalizeImageUrl } from '../utils/imageUrl';
 
 const router = express.Router();
 
@@ -25,7 +26,7 @@ router.get('/:idOrSlug', async (req: Request, res: Response) => {
       gender: user.gender,
       age: user.age,
       profile_slug: user.profile_slug,
-      profile_image_url: user.profile_image_url,
+      profile_image_url: normalizeImageUrl(user.profile_image_url),
       bio: user.bio,
       is_admin: user.is_admin,
       created_at: user.created_at,
@@ -64,7 +65,7 @@ router.patch('/update', authenticateToken, async (req: AuthRequest, res: Respons
       gender: updatedUser.gender,
       age: updatedUser.age,
       profile_slug: updatedUser.profile_slug,
-      profile_image_url: updatedUser.profile_image_url,
+      profile_image_url: normalizeImageUrl(updatedUser.profile_image_url),
       bio: updatedUser.bio,
       is_admin: updatedUser.is_admin,
       created_at: updatedUser.created_at,

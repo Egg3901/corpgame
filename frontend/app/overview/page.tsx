@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Layout from '@/components/Layout';
+import AppNavigation from '@/components/AppNavigation';
 import { authAPI } from '@/lib/api';
 
 export default function OverviewPage() {
@@ -50,8 +50,8 @@ export default function OverviewPage() {
   }
 
   return (
-    <Layout>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    <AppNavigation>
+      <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12">
         <div className="flex justify-between items-center mb-8">
           <div>
             <h1 className="text-4xl font-bold text-gray-900">
@@ -153,7 +153,7 @@ export default function OverviewPage() {
           </p>
         </div>
       </div>
-    </Layout>
+    </AppNavigation>
   );
 }
 

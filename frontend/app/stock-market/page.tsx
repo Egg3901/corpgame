@@ -3,14 +3,17 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import AppNavigation from '@/components/AppNavigation';
+import TickerTape from '@/components/TickerTape';
 import { corporationAPI, CorporationResponse } from '@/lib/api';
-import { Building2, Plus, TrendingUp, DollarSign, Users } from 'lucide-react';
+import { Building2, Plus, TrendingUp, DollarSign, Users, Clock } from 'lucide-react';
 
 export default function StockMarketPage() {
   const router = useRouter();
   const [corporations, setCorporations] = useState<CorporationResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [currentTime, setCurrentTime] = useState(new Date());
 
   useEffect(() => {
     const fetchCorporations = async () => {
@@ -28,6 +31,13 @@ export default function StockMarketPage() {
     fetchCorporations();
   }, []);
 
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
@@ -41,29 +51,68 @@ export default function StockMarketPage() {
     return shares * price;
   };
 
+  // Generate symbol from corporation name
+  const getSymbol = (name: string) => {
+    const words = name.split(' ');
+    if (words.length > 1) {
+      return words.map(w => w[0]).join('').toUpperCase().slice(0, 4);
+    }
+    return name.toUpperCase().slice(0, 4);
+  };
+
+  // Calculate change percentage (placeholder - using share_price as baseline)
+  const getChange = (corp: CorporationResponse) => {
+    const basePrice = 1.0;
+    const change = ((corp.share_price - basePrice) / basePrice) * 100;
+    return change;
+  };
+
+  const formatTime = (date: Date) => {
+    return date.toLocaleTimeString('en-US', {
+      hour12: false,
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    });
+  };
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-gray-100 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 flex items-center justify-center">
-        <div className="text-lg text-gray-600 dark:text-gray-200">Loading stock market...</div>
-      </div>
+      <AppNavigation>
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-lg text-gray-600 dark:text-gray-200">Loading stock market...</div>
+        </div>
+      </AppNavigation>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-gray-100 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 flex items-center justify-center">
-        <div className="text-xl text-red-600 dark:text-red-400">{error}</div>
-      </div>
+      <AppNavigation>
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-xl text-red-600 dark:text-red-400">{error}</div>
+        </div>
+      </AppNavigation>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-gray-100 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        <div className="flex items-center justify-between mb-8">
+    <AppNavigation>
+      <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10 space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-2">Stock Market</h1>
-            <p className="text-gray-600 dark:text-gray-400">Browse all publicly traded corporations</p>
+            <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-2">Stock Exchange</h1>
+            <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
+              <div className="flex items-center gap-2">
+                <Clock className="w-4 h-4" />
+                <span className="font-mono-numeric">{formatTime(currentTime)}</span>
+              </div>
+              <span className="flex items-center gap-2">
+                <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
+                MARKET OPEN
+              </span>
+            </div>
           </div>
           <Link
             href="/corporation/create"
@@ -74,8 +123,16 @@ export default function StockMarketPage() {
           </Link>
         </div>
 
+        {/* Ticker Tape */}
+        {corporations.length > 0 && (
+          <div className="mb-6">
+            <TickerTape corporations={corporations} />
+          </div>
+        )}
+
+        {/* Stock Table */}
         {corporations.length === 0 ? (
-          <div className="text-center py-20">
+          <div className="rounded-xl border border-white/60 bg-white/80 backdrop-blur shadow-xl dark:border-gray-800/60 dark:bg-gray-900/80 p-12 text-center">
             <Building2 className="w-16 h-16 text-gray-400 mx-auto mb-4" />
             <p className="text-xl text-gray-600 dark:text-gray-400 mb-2">No corporations yet</p>
             <p className="text-gray-500 dark:text-gray-500 mb-6">Be the first to create a corporation!</p>
@@ -88,90 +145,107 @@ export default function StockMarketPage() {
             </Link>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {corporations.map((corp) => {
-              const marketCap = calculateMarketCap(corp.shares, corp.share_price);
-              return (
-                <Link
-                  key={corp.id}
-                  href={`/corporation/${corp.id}`}
-                  className="group bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 shadow-sm hover:shadow-lg transition-all hover:-translate-y-1"
-                >
-                  <div className="flex items-start gap-4 mb-4">
-                    <div className="flex-shrink-0 w-16 h-16 rounded-lg bg-gray-100 dark:bg-gray-700 overflow-hidden border border-gray-200 dark:border-gray-600">
-                      {corp.logo ? (
-                        <img
-                          src={corp.logo}
-                          alt={corp.name}
-                          className="w-full h-full object-cover"
-                          onError={(e) => {
-                            e.currentTarget.src = '/defaultpfp.jpg';
-                          }}
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center">
-                          <Building2 className="w-8 h-8 text-gray-400" />
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white group-hover:text-corporate-blue transition-colors truncate">
-                        {corp.name}
-                      </h3>
-                      {corp.ceo && (
-                        <Link
-                          href={`/profile/${corp.ceo.profile_id}`}
-                          onClick={(e) => e.stopPropagation()}
-                          className="text-sm text-gray-600 dark:text-gray-400 hover:text-corporate-blue transition-colors"
-                        >
-                          CEO: {corp.ceo.player_name || corp.ceo.username}
-                        </Link>
-                      )}
-                    </div>
-                  </div>
+          <div className="rounded-xl border border-white/60 bg-white/80 backdrop-blur shadow-xl dark:border-gray-800/60 dark:bg-gray-900/80 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/30">
+                    <th className="text-left py-4 px-6 text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-gray-300">
+                      Symbol
+                    </th>
+                    <th className="text-left py-4 px-6 text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-gray-300">
+                      Corporation
+                    </th>
+                    <th className="text-right py-4 px-6 text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-gray-300">
+                      Price
+                    </th>
+                    <th className="text-right py-4 px-6 text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-gray-300">
+                      Change
+                    </th>
+                    <th className="text-right py-4 px-6 text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-gray-300">
+                      Volume
+                    </th>
+                    <th className="text-right py-4 px-6 text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-gray-300">
+                      Market Cap
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                  {corporations.map((corp, idx) => {
+                    const marketCap = calculateMarketCap(corp.shares, corp.share_price);
+                    const change = getChange(corp);
+                    const changeFormatted = `${change >= 0 ? '+' : ''}${change.toFixed(2)}%`;
+                    const isPositive = change >= 0;
+                    const symbol = getSymbol(corp.name);
 
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-1">
-                        <DollarSign className="w-4 h-4" />
-                        Share Price
-                      </span>
-                      <span className="text-lg font-semibold text-gray-900 dark:text-white">
-                        {formatCurrency(corp.share_price)}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-1">
-                        <Users className="w-4 h-4" />
-                        Total Shares
-                      </span>
-                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                        {corp.shares.toLocaleString()}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between pt-2 border-t border-gray-200 dark:border-gray-700">
-                      <span className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-1">
-                        <TrendingUp className="w-4 h-4" />
-                        Market Cap
-                      </span>
-                      <span className="text-lg font-bold text-corporate-blue">
-                        {formatCurrency(marketCap)}
-                      </span>
-                    </div>
-                    {corp.type && (
-                      <div className="pt-2">
-                        <span className="inline-block px-2 py-1 text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded">
-                          {corp.type}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                </Link>
-              );
-            })}
+                    return (
+                      <Link
+                        key={corp.id}
+                        href={`/corporation/${corp.id}`}
+                        className="block"
+                      >
+                        <tr className={`hover:bg-gray-50/50 dark:hover:bg-gray-800/30 transition-colors cursor-pointer ${
+                          idx % 2 === 0 ? 'bg-white/50 dark:bg-gray-900/50' : 'bg-gray-50/30 dark:bg-gray-800/20'
+                        }`}>
+                          <td className="py-4 px-6">
+                            <span className="font-mono-numeric font-semibold text-corporate-blue">
+                              {symbol}
+                            </span>
+                          </td>
+                          <td className="py-4 px-6">
+                            <div className="flex items-center gap-3">
+                              {corp.logo && (
+                                <img
+                                  src={corp.logo}
+                                  alt={corp.name}
+                                  className="w-8 h-8 rounded object-cover"
+                                  onError={(e) => {
+                                    e.currentTarget.src = '/defaultpfp.jpg';
+                                  }}
+                                />
+                              )}
+                              <div>
+                                <div className="font-semibold text-gray-900 dark:text-white">
+                                  {corp.name}
+                                </div>
+                                {corp.type && (
+                                  <div className="text-xs text-gray-500 dark:text-gray-400">
+                                    {corp.type}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </td>
+                          <td className="py-4 px-6 text-right">
+                            <span className="font-mono-numeric font-semibold text-gray-900 dark:text-white">
+                              {formatCurrency(corp.share_price)}
+                            </span>
+                          </td>
+                          <td className="py-4 px-6 text-right">
+                            <span className={`font-mono-numeric font-semibold ${isPositive ? 'text-positive' : 'text-negative'}`}>
+                              {changeFormatted}
+                            </span>
+                          </td>
+                          <td className="py-4 px-6 text-right">
+                            <span className="font-mono-numeric text-gray-700 dark:text-gray-300">
+                              {corp.shares.toLocaleString()}
+                            </span>
+                          </td>
+                          <td className="py-4 px-6 text-right">
+                            <span className="font-mono-numeric font-semibold text-gray-900 dark:text-white">
+                              {formatCurrency(marketCap)}
+                            </span>
+                          </td>
+                        </tr>
+                      </Link>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
       </div>
-    </div>
+    </AppNavigation>
   );
 }
