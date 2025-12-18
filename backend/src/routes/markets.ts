@@ -20,6 +20,7 @@ import {
   BUILD_UNIT_ACTIONS,
 } from '../constants/sectors';
 import pool from '../db/connection';
+import { calculateBalanceSheet, updateStockPrice } from '../utils/valuation';
 
 const router = express.Router();
 
@@ -290,6 +291,9 @@ router.post('/entries/:entryId/build', authenticateToken, async (req: AuthReques
     // Get updated unit counts
     const unitCounts = await BusinessUnitModel.getUnitCounts(entryId);
 
+    // Update stock price since asset value changed
+    const newStockPrice = await updateStockPrice(marketEntry.corporation_id);
+
     res.json({
       success: true,
       unit,
@@ -297,6 +301,7 @@ router.post('/entries/:entryId/build', authenticateToken, async (req: AuthReques
       capital_deducted: BUILD_UNIT_COST,
       actions_deducted: BUILD_UNIT_ACTIONS,
       new_capital: corporation.capital - BUILD_UNIT_COST,
+      new_stock_price: newStockPrice,
     });
   } catch (error) {
     console.error('Build unit error:', error);
@@ -319,8 +324,11 @@ router.get('/corporation/:corpId/finances', async (req: Request, res: Response) 
       return res.status(404).json({ error: 'Corporation not found' });
     }
 
-    // Calculate finances
-    const finances = await MarketEntryModel.calculateCorporationFinances(corpId);
+    // Calculate finances and balance sheet
+    const [finances, balanceSheet] = await Promise.all([
+      MarketEntryModel.calculateCorporationFinances(corpId),
+      calculateBalanceSheet(corpId),
+    ]);
 
     // Get market entries with details
     const entries = await MarketEntryModel.findByCorporationIdWithUnits(corpId);
@@ -342,6 +350,7 @@ router.get('/corporation/:corpId/finances', async (req: Request, res: Response) 
     res.json({
       corporation_id: corpId,
       finances,
+      balance_sheet: balanceSheet,
       market_entries: marketsWithDetails,
     });
   } catch (error) {

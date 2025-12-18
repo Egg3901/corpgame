@@ -5,42 +5,15 @@ import { ShareholderModel } from '../models/Shareholder';
 import { ShareTransactionModel } from '../models/ShareTransaction';
 import { SharePriceHistoryModel } from '../models/SharePriceHistory';
 import { UserModel } from '../models/User';
+import { calculateStockPrice, calculateBalanceSheet, updateStockPrice } from '../utils/valuation';
+import { STOCK_VALUATION } from '../constants/sectors';
 
 const router = express.Router();
 
-// Helper function to calculate dynamic share price
-async function calculateSharePrice(corporationId: number): Promise<number> {
-  const corporation = await CorporationModel.findById(corporationId);
-  if (!corporation) {
-    throw new Error('Corporation not found');
-  }
-
-  // Base price calculation: capital / total_shares * 2
-  // This ensures price reflects corporate value
-  const capital = typeof corporation.capital === 'string' ? parseFloat(corporation.capital) : corporation.capital;
-  const basePrice = (capital / corporation.shares) * 2;
-  
-  // Get recent transactions (last 24 hours)
-  const recentTransactions = await ShareTransactionModel.getRecentActivity(corporationId, 24);
-  
-  // Calculate price impact from recent activity
-  let priceImpact = 0;
-  const impactFactor = 0.0001; // Small impact per share traded
-  
-  recentTransactions.forEach(transaction => {
-    if (transaction.transaction_type === 'buy') {
-      // Buying increases price
-      priceImpact += transaction.shares * impactFactor;
-    } else {
-      // Selling decreases price
-      priceImpact -= transaction.shares * impactFactor;
-    }
-  });
-
-  // Calculate final price (ensure minimum of $1.00)
-  const calculatedPrice = Math.max(1.00, basePrice + priceImpact);
-  
-  return Math.round(calculatedPrice * 100) / 100; // Round to 2 decimal places
+// Helper function to get current share price using new valuation system
+async function getCurrentSharePrice(corporationId: number): Promise<number> {
+  const valuation = await calculateStockPrice(corporationId);
+  return valuation.calculatedPrice;
 }
 
 // POST /api/shares/:id/buy - Buy shares
@@ -72,8 +45,8 @@ router.post('/:id/buy', authenticateToken, async (req: AuthRequest, res: Respons
       });
     }
 
-    // Calculate current share price
-    const currentPrice = await calculateSharePrice(corporationId);
+    // Calculate current share price using fundamentals-based valuation
+    const currentPrice = await getCurrentSharePrice(corporationId);
     
     // Buy price is 1.01x current price
     const buyPrice = Math.round(currentPrice * 1.01 * 100) / 100;
@@ -125,41 +98,18 @@ router.post('/:id/buy', authenticateToken, async (req: AuthRequest, res: Respons
       total_amount: totalCost,
     });
 
-    // Recalculate and update share price based on new capital and activity
-    // Fetch fresh corporation data to ensure we have updated capital
-    const updatedCorpForPrice = await CorporationModel.findById(corporationId);
-    if (!updatedCorpForPrice) {
-      throw new Error('Corporation not found after update');
-    }
-    
-    // Manually calculate price with updated capital
-    const updatedCapital = typeof updatedCorpForPrice.capital === 'string' ? parseFloat(updatedCorpForPrice.capital) : updatedCorpForPrice.capital;
-    const basePrice = (updatedCapital / updatedCorpForPrice.shares) * 2;
-    
-    // Get recent transactions (including the one we just created)
-    const recentTransactions = await ShareTransactionModel.getRecentActivity(corporationId, 24);
-    let priceImpact = 0;
-    const impactFactor = 0.0001;
-    
-    recentTransactions.forEach(transaction => {
-      if (transaction.transaction_type === 'buy') {
-        priceImpact += transaction.shares * impactFactor;
-      } else {
-        priceImpact -= transaction.shares * impactFactor;
-      }
-    });
-    
-    const newPrice = Math.max(1.00, basePrice + priceImpact);
-    const roundedPrice = Math.round(newPrice * 100) / 100;
-    
-    await CorporationModel.update(corporationId, {
-      share_price: roundedPrice,
-    });
+    // Recalculate stock price using fundamentals-based valuation
+    const newPrice = await updateStockPrice(corporationId);
 
     // Record price history
+    const updatedCorp = await CorporationModel.findById(corporationId);
+    const updatedCapital = typeof updatedCorp!.capital === 'string' 
+      ? parseFloat(updatedCorp!.capital) 
+      : updatedCorp!.capital;
+    
     await SharePriceHistoryModel.create({
       corporation_id: corporationId,
-      share_price: roundedPrice,
+      share_price: newPrice,
       capital: updatedCapital,
     });
 
@@ -168,7 +118,7 @@ router.post('/:id/buy', authenticateToken, async (req: AuthRequest, res: Respons
       shares: requestedShares,
       price_per_share: buyPrice,
       total_cost: totalCost,
-      new_share_price: roundedPrice,
+      new_share_price: newPrice,
     });
   } catch (error: any) {
     console.error('Buy shares error:', error);
@@ -214,8 +164,8 @@ router.post('/:id/sell', authenticateToken, async (req: AuthRequest, res: Respon
       });
     }
 
-    // Calculate current share price
-    const currentPrice = await calculateSharePrice(corporationId);
+    // Calculate current share price using fundamentals-based valuation
+    const currentPrice = await getCurrentSharePrice(corporationId);
     
     // Sell price is 0.99x current price
     const sellPrice = Math.round(currentPrice * 0.99 * 100) / 100;
@@ -249,42 +199,19 @@ router.post('/:id/sell', authenticateToken, async (req: AuthRequest, res: Respon
       total_amount: totalRevenue,
     });
 
-    // Recalculate and update share price based on new capital and activity
-    // Fetch fresh corporation data to ensure we have updated capital
-    const updatedCorpForPrice = await CorporationModel.findById(corporationId);
-    if (!updatedCorpForPrice) {
-      throw new Error('Corporation not found after update');
-    }
-    
-    // Manually calculate price with updated capital
-    const updatedCapital = typeof updatedCorpForPrice.capital === 'string' ? parseFloat(updatedCorpForPrice.capital) : updatedCorpForPrice.capital;
-    const basePrice = (updatedCapital / updatedCorpForPrice.shares) * 2;
-    
-    // Get recent transactions (including the one we just created)
-    const recentTransactions = await ShareTransactionModel.getRecentActivity(corporationId, 24);
-    let priceImpact = 0;
-    const impactFactor = 0.0001;
-    
-    recentTransactions.forEach(transaction => {
-      if (transaction.transaction_type === 'buy') {
-        priceImpact += transaction.shares * impactFactor;
-      } else {
-        priceImpact -= transaction.shares * impactFactor;
-      }
-    });
-    
-    const newPrice = Math.max(1.00, basePrice + priceImpact);
-    const roundedPrice = Math.round(newPrice * 100) / 100;
-    
-    await CorporationModel.update(corporationId, {
-      share_price: roundedPrice,
-    });
+    // Recalculate stock price using fundamentals-based valuation
+    const newPrice = await updateStockPrice(corporationId);
 
     // Record price history
+    const updatedCorp2 = await CorporationModel.findById(corporationId);
+    const updatedCapital2 = typeof updatedCorp2!.capital === 'string' 
+      ? parseFloat(updatedCorp2!.capital) 
+      : updatedCorp2!.capital;
+    
     await SharePriceHistoryModel.create({
       corporation_id: corporationId,
-      share_price: roundedPrice,
-      capital: updatedCapital,
+      share_price: newPrice,
+      capital: updatedCapital2,
     });
 
     res.json({
@@ -292,7 +219,7 @@ router.post('/:id/sell', authenticateToken, async (req: AuthRequest, res: Respon
       shares: requestedShares,
       price_per_share: sellPrice,
       total_revenue: totalRevenue,
-      new_share_price: roundedPrice,
+      new_share_price: newPrice,
     });
   } catch (error: any) {
     console.error('Sell shares error:', error);
@@ -334,8 +261,8 @@ router.post('/:id/issue', authenticateToken, async (req: AuthRequest, res: Respo
       });
     }
 
-    // Calculate current share price
-    const currentPrice = await calculateSharePrice(corporationId);
+    // Calculate current share price using fundamentals-based valuation
+    const currentPrice = await getCurrentSharePrice(corporationId);
     const issuePrice = currentPrice; // Issue at market price
     const totalCapitalRaised = issuePrice * requestedShares;
 
@@ -361,40 +288,14 @@ router.post('/:id/issue', authenticateToken, async (req: AuthRequest, res: Respo
       total_amount: totalCapitalRaised,
     });
 
-    // Recalculate and update share price based on new capital and share count
-    const updatedCorpForPrice = await CorporationModel.findById(corporationId);
-    if (!updatedCorpForPrice) {
-      throw new Error('Corporation not found after update');
-    }
-    
-    const updatedCapital = typeof updatedCorpForPrice.capital === 'string' ? parseFloat(updatedCorpForPrice.capital) : updatedCorpForPrice.capital;
-    const basePrice = (updatedCapital / updatedCorpForPrice.shares) * 2;
-    
-    // Get recent transactions
-    const recentTransactions = await ShareTransactionModel.getRecentActivity(corporationId, 24);
-    let priceImpact = 0;
-    const impactFactor = 0.0001;
-    
-    recentTransactions.forEach(transaction => {
-      if (transaction.transaction_type === 'buy') {
-        priceImpact += transaction.shares * impactFactor;
-      } else {
-        priceImpact -= transaction.shares * impactFactor;
-      }
-    });
-    
-    const newPrice = Math.max(1.00, basePrice + priceImpact);
-    const roundedPrice = Math.round(newPrice * 100) / 100;
-    
-    await CorporationModel.update(corporationId, {
-      share_price: roundedPrice,
-    });
+    // Recalculate stock price using fundamentals-based valuation
+    const newPrice = await updateStockPrice(corporationId);
 
     // Record price history
     await SharePriceHistoryModel.create({
       corporation_id: corporationId,
-      share_price: roundedPrice,
-      capital: updatedCapital,
+      share_price: newPrice,
+      capital: newCapital,
     });
 
     res.json({
@@ -403,11 +304,50 @@ router.post('/:id/issue', authenticateToken, async (req: AuthRequest, res: Respo
       price_per_share: issuePrice,
       total_capital_raised: totalCapitalRaised,
       new_total_shares: newTotalShares,
-      new_share_price: roundedPrice,
+      new_share_price: newPrice,
     });
   } catch (error: any) {
     console.error('Issue shares error:', error);
     res.status(500).json({ error: error.message || 'Failed to issue shares' });
+  }
+});
+
+// GET /api/shares/:id/valuation - Get detailed stock valuation
+router.get('/:id/valuation', async (req: Request, res: Response) => {
+  try {
+    const corporationId = parseInt(req.params.id, 10);
+
+    if (isNaN(corporationId)) {
+      return res.status(400).json({ error: 'Invalid corporation ID' });
+    }
+
+    const corporation = await CorporationModel.findById(corporationId);
+    if (!corporation) {
+      return res.status(404).json({ error: 'Corporation not found' });
+    }
+
+    const [valuation, balanceSheet] = await Promise.all([
+      calculateStockPrice(corporationId),
+      calculateBalanceSheet(corporationId),
+    ]);
+
+    res.json({
+      corporation_id: corporationId,
+      current_price: corporation.share_price,
+      valuation: {
+        fundamental_value: valuation.fundamentalValue,
+        trade_weighted_price: valuation.tradeWeightedPrice,
+        calculated_price: valuation.calculatedPrice,
+        recent_trade_count: valuation.recentTradeCount,
+        has_trade_history: valuation.hasTradeHistory,
+        fundamental_weight: STOCK_VALUATION.FUNDAMENTAL_WEIGHT,
+        trade_weight: STOCK_VALUATION.TRADE_WEIGHT,
+      },
+      balance_sheet: balanceSheet,
+    });
+  } catch (error: any) {
+    console.error('Get valuation error:', error);
+    res.status(500).json({ error: 'Failed to fetch valuation' });
   }
 });
 

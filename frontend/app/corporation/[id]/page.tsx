@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import AppNavigation from '@/components/AppNavigation';
-import { corporationAPI, CorporationResponse, authAPI, sharesAPI, marketsAPI, CorporationFinances, MarketEntryWithUnits } from '@/lib/api';
+import { corporationAPI, CorporationResponse, authAPI, sharesAPI, marketsAPI, CorporationFinances, MarketEntryWithUnits, BalanceSheet } from '@/lib/api';
 import { Building2, Edit, Trash2, TrendingUp, DollarSign, Users, User, Calendar, ArrowUp, ArrowDown, TrendingDown, Plus, BarChart3, MapPin, Store, Factory, Briefcase } from 'lucide-react';
 import BoardTab from '@/components/BoardTab';
 import StockPriceChart from '@/components/StockPriceChart';
@@ -43,6 +43,7 @@ export default function CorporationDetailPage() {
   const [userOwnedShares, setUserOwnedShares] = useState(0);
   const [activeTab, setActiveTab] = useState<'overview' | 'finance' | 'board'>('overview');
   const [corpFinances, setCorpFinances] = useState<CorporationFinances | null>(null);
+  const [balanceSheet, setBalanceSheet] = useState<BalanceSheet | null>(null);
   const [marketEntries, setMarketEntries] = useState<MarketEntryWithUnits[]>([]);
 
   useEffect(() => {
@@ -62,6 +63,7 @@ export default function CorporationDetailPage() {
         }
         if (financesData) {
           setCorpFinances(financesData.finances);
+          setBalanceSheet(financesData.balance_sheet || null);
           setMarketEntries(financesData.market_entries || []);
         }
       } catch (err: any) {
@@ -662,10 +664,11 @@ export default function CorporationDetailPage() {
                 <div className="absolute inset-0 bg-gradient-to-br from-corporate-blue/5 via-transparent to-corporate-blue-light/5 dark:from-corporate-blue/10 dark:via-transparent dark:to-corporate-blue-dark/10 pointer-events-none" />
                 <div className="absolute inset-0 ring-1 ring-inset ring-white/20 dark:ring-gray-700/30 pointer-events-none" />
                 <div className="relative p-6">
-                  <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2 flex items-center gap-2">
                     <BarChart3 className="w-5 h-5 text-corporate-blue" />
                     Balance Sheet
                   </h2>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-6">Asset values based on capitalized earnings (10x annual profit)</p>
                   
                   <div className="grid md:grid-cols-2 gap-6">
                     {/* Assets */}
@@ -673,39 +676,60 @@ export default function CorporationDetailPage() {
                       <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Assets</h3>
                       <div className="space-y-3">
                         <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700">
-                          <span className="text-sm text-gray-600 dark:text-gray-400">Cash & Cash Equivalents</span>
+                          <span className="text-sm text-gray-600 dark:text-gray-400">Cash (Corporate Capital)</span>
                           <span className="text-sm font-semibold text-gray-900 dark:text-white font-mono">
-                            {formatCurrency((corporation.capital || 500000) * 0.3)}
+                            {formatCurrency(balanceSheet?.cash || corporation.capital || 0)}
                           </span>
                         </div>
-                        <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700">
-                          <span className="text-sm text-gray-600 dark:text-gray-400">Accounts Receivable</span>
-                          <span className="text-sm font-semibold text-gray-900 dark:text-white font-mono">
-                            {formatCurrency((corporation.capital || 500000) * 0.15)}
-                          </span>
-                        </div>
-                        <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700">
-                          <span className="text-sm text-gray-600 dark:text-gray-400">Inventory</span>
-                          <span className="text-sm font-semibold text-gray-900 dark:text-white font-mono">
-                            {formatCurrency((corporation.capital || 500000) * 0.2)}
-                          </span>
-                        </div>
-                        <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700">
-                          <span className="text-sm text-gray-600 dark:text-gray-400">Property, Plant & Equipment</span>
-                          <span className="text-sm font-semibold text-gray-900 dark:text-white font-mono">
-                            {formatCurrency((corporation.capital || 500000) * 0.25)}
-                          </span>
-                        </div>
-                        <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700">
-                          <span className="text-sm text-gray-600 dark:text-gray-400">Intangible Assets</span>
-                          <span className="text-sm font-semibold text-gray-900 dark:text-white font-mono">
-                            {formatCurrency((corporation.capital || 500000) * 0.1)}
-                          </span>
+                        <div className="py-2 border-b border-gray-200 dark:border-gray-700">
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm text-gray-600 dark:text-gray-400">Business Unit Assets</span>
+                            <span className="text-sm font-semibold text-gray-900 dark:text-white font-mono">
+                              {formatCurrency(balanceSheet?.businessUnitAssets || 0)}
+                            </span>
+                          </div>
+                          {balanceSheet && balanceSheet.businessUnitAssets > 0 && (
+                            <div className="ml-4 mt-2 space-y-1">
+                              {balanceSheet.retailAssetValue > 0 && (
+                                <div className="flex justify-between items-center text-xs">
+                                  <span className="text-gray-500 dark:text-gray-500 flex items-center gap-1">
+                                    <Store className="w-3 h-3" />
+                                    Retail ({balanceSheet.totalRetailUnits} units)
+                                  </span>
+                                  <span className="text-gray-600 dark:text-gray-400 font-mono">
+                                    {formatCurrency(balanceSheet.retailAssetValue)}
+                                  </span>
+                                </div>
+                              )}
+                              {balanceSheet.productionAssetValue > 0 && (
+                                <div className="flex justify-between items-center text-xs">
+                                  <span className="text-gray-500 dark:text-gray-500 flex items-center gap-1">
+                                    <Factory className="w-3 h-3" />
+                                    Production ({balanceSheet.totalProductionUnits} units)
+                                  </span>
+                                  <span className="text-gray-600 dark:text-gray-400 font-mono">
+                                    {formatCurrency(balanceSheet.productionAssetValue)}
+                                  </span>
+                                </div>
+                              )}
+                              {balanceSheet.serviceAssetValue > 0 && (
+                                <div className="flex justify-between items-center text-xs">
+                                  <span className="text-gray-500 dark:text-gray-500 flex items-center gap-1">
+                                    <Briefcase className="w-3 h-3" />
+                                    Service ({balanceSheet.totalServiceUnits} units)
+                                  </span>
+                                  <span className="text-gray-600 dark:text-gray-400 font-mono">
+                                    {formatCurrency(balanceSheet.serviceAssetValue)}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
                         <div className="flex justify-between items-center pt-3 border-t-2 border-gray-300 dark:border-gray-600">
                           <span className="text-base font-bold text-gray-900 dark:text-white">Total Assets</span>
                           <span className="text-base font-bold text-corporate-blue dark:text-corporate-blue-light font-mono">
-                            {formatCurrency(corporation.capital || 500000)}
+                            {formatCurrency(balanceSheet?.totalAssets || corporation.capital || 0)}
                           </span>
                         </div>
                       </div>
@@ -719,50 +743,26 @@ export default function CorporationDetailPage() {
                           <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Liabilities</h4>
                           <div className="space-y-2 ml-4">
                             <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700">
-                              <span className="text-sm text-gray-600 dark:text-gray-400">Accounts Payable</span>
+                              <span className="text-sm text-gray-600 dark:text-gray-400">Total Liabilities</span>
                               <span className="text-sm font-semibold text-gray-900 dark:text-white font-mono">
-                                {formatCurrency((corporation.capital || 500000) * 0.1)}
-                              </span>
-                            </div>
-                            <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700">
-                              <span className="text-sm text-gray-600 dark:text-gray-400">Short-term Debt</span>
-                              <span className="text-sm font-semibold text-gray-900 dark:text-white font-mono">
-                                {formatCurrency((corporation.capital || 500000) * 0.15)}
-                              </span>
-                            </div>
-                            <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700">
-                              <span className="text-sm text-gray-600 dark:text-gray-400">Long-term Debt</span>
-                              <span className="text-sm font-semibold text-gray-900 dark:text-white font-mono">
-                                {formatCurrency((corporation.capital || 500000) * 0.2)}
-                              </span>
-                            </div>
-                            <div className="flex justify-between items-center pt-2 border-t border-gray-200 dark:border-gray-700">
-                              <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Total Liabilities</span>
-                              <span className="text-sm font-semibold text-gray-900 dark:text-white font-mono">
-                                {formatCurrency((corporation.capital || 500000) * 0.45)}
+                                {formatCurrency(balanceSheet?.totalLiabilities || 0)}
                               </span>
                             </div>
                           </div>
                         </div>
                         <div>
-                          <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Equity</h4>
+                          <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Shareholders' Equity</h4>
                           <div className="space-y-2 ml-4">
                             <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700">
-                              <span className="text-sm text-gray-600 dark:text-gray-400">Share Capital</span>
+                              <span className="text-sm text-gray-600 dark:text-gray-400">Total Equity</span>
                               <span className="text-sm font-semibold text-gray-900 dark:text-white font-mono">
-                                {formatCurrency((corporation.capital || 500000) * 0.4)}
+                                {formatCurrency(balanceSheet?.shareholdersEquity || corporation.capital || 0)}
                               </span>
                             </div>
                             <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700">
-                              <span className="text-sm text-gray-600 dark:text-gray-400">Retained Earnings</span>
-                              <span className="text-sm font-semibold text-gray-900 dark:text-white font-mono">
-                                {formatCurrency((corporation.capital || 500000) * 0.15)}
-                              </span>
-                            </div>
-                            <div className="flex justify-between items-center pt-2 border-t border-gray-200 dark:border-gray-700">
-                              <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Total Equity</span>
-                              <span className="text-sm font-semibold text-gray-900 dark:text-white font-mono">
-                                {formatCurrency((corporation.capital || 500000) * 0.55)}
+                              <span className="text-sm text-gray-600 dark:text-gray-400">Book Value per Share</span>
+                              <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400 font-mono">
+                                {formatCurrency(balanceSheet?.bookValuePerShare || 0)}
                               </span>
                             </div>
                           </div>
@@ -770,11 +770,45 @@ export default function CorporationDetailPage() {
                         <div className="flex justify-between items-center pt-3 border-t-2 border-gray-300 dark:border-gray-600 mt-4">
                           <span className="text-base font-bold text-gray-900 dark:text-white">Total Liabilities & Equity</span>
                           <span className="text-base font-bold text-corporate-blue dark:text-corporate-blue-light font-mono">
-                            {formatCurrency(corporation.capital || 500000)}
+                            {formatCurrency(balanceSheet?.totalAssets || corporation.capital || 0)}
                           </span>
                         </div>
                       </div>
                     </div>
+                  </div>
+
+                  {/* Stock Valuation Info */}
+                  <div className="mt-6 p-4 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700">
+                    <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Stock Price Valuation</h4>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                      <div>
+                        <span className="text-gray-500 dark:text-gray-500 block">Current Price</span>
+                        <span className="font-mono font-semibold text-gray-900 dark:text-white">
+                          {formatCurrency(corporation.share_price || 0)}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-gray-500 dark:text-gray-500 block">Book Value/Share</span>
+                        <span className="font-mono font-semibold text-gray-900 dark:text-white">
+                          {formatCurrency(balanceSheet?.bookValuePerShare || 0)}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-gray-500 dark:text-gray-500 block">Total Shares</span>
+                        <span className="font-mono font-semibold text-gray-900 dark:text-white">
+                          {corporation.shares?.toLocaleString() || 0}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-gray-500 dark:text-gray-500 block">Markets Active</span>
+                        <span className="font-mono font-semibold text-gray-900 dark:text-white">
+                          {balanceSheet?.marketsCount || 0}
+                        </span>
+                      </div>
+                    </div>
+                    <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">
+                      Stock price = 80% Book Value + 20% Trade-Weighted Average (min $0.01)
+                    </p>
                   </div>
                 </div>
               </div>

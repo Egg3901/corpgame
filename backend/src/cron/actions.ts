@@ -4,6 +4,8 @@ import { CorporationModel } from '../models/Corporation';
 import { BoardProposalModel, BoardVoteModel, BoardModel } from '../models/BoardProposal';
 import { MessageModel } from '../models/Message';
 import { MarketEntryModel } from '../models/MarketEntry';
+import { updateStockPrice } from '../utils/valuation';
+import { SharePriceHistoryModel } from '../models/SharePriceHistory';
 
 /**
  * Hourly cron job to add actions to all users
@@ -203,6 +205,16 @@ async function processMarketRevenue(): Promise<void> {
         const newCapital = Math.max(0, corp.capital + hourly_profit);
         await CorporationModel.update(corporation_id, { capital: newCapital });
 
+        // Recalculate stock price based on new fundamentals
+        const newPrice = await updateStockPrice(corporation_id);
+        
+        // Record price history
+        await SharePriceHistoryModel.create({
+          corporation_id,
+          share_price: newPrice,
+          capital: newCapital,
+        });
+
         totalProcessed++;
         totalRevenue += hourly_profit;
       } catch (corpErr) {
@@ -233,6 +245,16 @@ export async function triggerMarketRevenue(): Promise<{ processed: number; total
 
     const newCapital = Math.max(0, corp.capital + hourly_profit);
     await CorporationModel.update(corporation_id, { capital: newCapital });
+
+    // Recalculate stock price
+    const newPrice = await updateStockPrice(corporation_id);
+    
+    // Record price history
+    await SharePriceHistoryModel.create({
+      corporation_id,
+      share_price: newPrice,
+      capital: newCapital,
+    });
 
     totalProcessed++;
     totalProfit += hourly_profit;

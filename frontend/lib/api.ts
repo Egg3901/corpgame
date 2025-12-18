@@ -823,9 +823,26 @@ export interface CorporationFinances {
   markets_count: number;
 }
 
+export interface BalanceSheet {
+  cash: number;
+  businessUnitAssets: number;
+  totalAssets: number;
+  retailAssetValue: number;
+  productionAssetValue: number;
+  serviceAssetValue: number;
+  totalLiabilities: number;
+  shareholdersEquity: number;
+  bookValuePerShare: number;
+  totalRetailUnits: number;
+  totalProductionUnits: number;
+  totalServiceUnits: number;
+  marketsCount: number;
+}
+
 export interface CorporationFinancesResponse {
   corporation_id: number;
   finances: CorporationFinances;
+  balance_sheet?: BalanceSheet;
   market_entries: MarketEntryWithUnits[];
 }
 

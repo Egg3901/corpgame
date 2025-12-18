@@ -162,3 +162,34 @@ export const MARKET_ENTRY_ACTIONS = 1;
 // Build unit cost
 export const BUILD_UNIT_COST = 10000;
 export const BUILD_UNIT_ACTIONS = 1;
+
+// Stock Valuation Constants
+export const STOCK_VALUATION = {
+  // Minimum share price floor
+  MIN_SHARE_PRICE: 0.01,
+  
+  // P/E ratio for valuing business units (10x annual earnings)
+  UNIT_PE_RATIO: 10,
+  
+  // Hours per year for annualizing hourly profits
+  HOURS_PER_YEAR: 8760,
+  
+  // Weight for fundamental value vs trade activity in price calculation
+  FUNDAMENTAL_WEIGHT: 0.80,
+  TRADE_WEIGHT: 0.20,
+  
+  // Recency decay factor for trade weighting (higher = more recent trades weighted more)
+  RECENCY_DECAY: 0.95,
+  
+  // Hours to look back for trade activity
+  TRADE_LOOKBACK_HOURS: 168, // 1 week
+} as const;
+
+// Calculate asset value per unit based on annual profit capitalization
+export function getUnitAssetValue(unitType: UnitType, stateMultiplier: number): number {
+  const economics = UNIT_ECONOMICS[unitType];
+  const hourlyProfit = (economics.baseRevenue * stateMultiplier) - economics.baseCost;
+  const annualProfit = hourlyProfit * STOCK_VALUATION.HOURS_PER_YEAR;
+  // Value = Annual Profit * P/E Ratio
+  return annualProfit * STOCK_VALUATION.UNIT_PE_RATIO;
+}
