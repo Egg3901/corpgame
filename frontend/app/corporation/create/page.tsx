@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import AppNavigation from '@/components/AppNavigation';
-import { corporationAPI } from '@/lib/api';
-import { Building2, Upload, X } from 'lucide-react';
+import { corporationAPI, authAPI } from '@/lib/api';
+import { Building2, Upload, X, AlertCircle } from 'lucide-react';
 
 export default function CreateCorporationPage() {
   const router = useRouter();
@@ -13,7 +14,30 @@ export default function CreateCorporationPage() {
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [checkingExisting, setCheckingExisting] = useState(true);
+  const [existingCorporation, setExistingCorporation] = useState<{ id: number; name: string } | null>(null);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    const checkExistingCorporation = async () => {
+      try {
+        const me = await authAPI.getMe();
+        const corporations = await corporationAPI.getAll();
+        const myCorp = corporations.find(
+          (corp: any) => corp.ceo?.profile_id === me.profile_id || corp.ceo_id === me.id
+        );
+        if (myCorp) {
+          setExistingCorporation({ id: myCorp.id, name: myCorp.name });
+        }
+      } catch (err) {
+        console.warn('Failed to check existing corporation:', err);
+      } finally {
+        setCheckingExisting(false);
+      }
+    };
+
+    checkExistingCorporation();
+  }, []);
 
   const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -66,6 +90,62 @@ export default function CreateCorporationPage() {
       setLoading(false);
     }
   };
+
+  if (checkingExisting) {
+    return (
+      <AppNavigation>
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-lg text-gray-600 dark:text-gray-200">Checking eligibility...</div>
+        </div>
+      </AppNavigation>
+    );
+  }
+
+  if (existingCorporation) {
+    return (
+      <AppNavigation>
+        <div className="min-h-screen bg-gradient-to-br from-blue-50 to-gray-100 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950">
+          <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-8 shadow-lg text-center">
+              <div className="mb-6">
+                <div className="mx-auto w-16 h-16 bg-amber-100 dark:bg-amber-900/30 rounded-full flex items-center justify-center mb-4">
+                  <AlertCircle className="w-8 h-8 text-amber-600 dark:text-amber-400" />
+                </div>
+                <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+                  You Already Have a Corporation
+                </h1>
+                <p className="text-gray-600 dark:text-gray-400">
+                  You can only be CEO of one corporation at a time. You are currently the CEO of:
+                </p>
+              </div>
+              
+              <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4 mb-6">
+                <p className="text-xl font-semibold text-gray-900 dark:text-white">
+                  {existingCorporation.name}
+                </p>
+              </div>
+
+              <div className="flex gap-4 justify-center">
+                <button
+                  onClick={() => router.back()}
+                  className="px-6 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                >
+                  Go Back
+                </button>
+                <Link
+                  href={`/corporation/${existingCorporation.id}`}
+                  className="px-6 py-2 bg-corporate-blue text-white rounded-lg font-semibold hover:bg-corporate-blue-dark transition-colors flex items-center gap-2"
+                >
+                  <Building2 className="w-5 h-5" />
+                  View My Corporation
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      </AppNavigation>
+    );
+  }
 
   return (
     <AppNavigation>

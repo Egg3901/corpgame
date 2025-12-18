@@ -15,6 +15,7 @@ export interface User {
   profile_image_url?: string | null;
   bio?: string;
   cash?: number;
+  actions?: number;
   registration_ip?: string;
   last_login_ip?: string;
   last_login_at?: Date;
@@ -131,7 +132,7 @@ export class UserModel {
   static async findById(id: number): Promise<User | null> {
     const result = await pool.query(
       `SELECT id, profile_id, email, username, player_name, gender, age, starting_state, is_admin,
-        profile_slug, profile_image_url, bio, cash, registration_ip, last_login_ip, last_login_at,
+        profile_slug, profile_image_url, bio, cash, actions, registration_ip, last_login_ip, last_login_at,
         last_seen_at, is_banned, banned_at, banned_reason, banned_by, created_at
       FROM users WHERE id = $1`,
       [id]
@@ -143,7 +144,7 @@ export class UserModel {
   static async findByProfileId(profileId: number): Promise<User | null> {
     const result = await pool.query(
       `SELECT id, profile_id, email, username, player_name, gender, age, starting_state, is_admin,
-        profile_slug, profile_image_url, bio, cash, registration_ip, last_login_ip, last_login_at,
+        profile_slug, profile_image_url, bio, cash, actions, registration_ip, last_login_ip, last_login_at,
         last_seen_at, is_banned, banned_at, banned_reason, banned_by, created_at
       FROM users WHERE profile_id = $1`,
       [profileId]
@@ -155,7 +156,7 @@ export class UserModel {
   static async findBySlug(slug: string): Promise<User | null> {
     const result = await pool.query(
       `SELECT id, profile_id, email, username, player_name, gender, age, starting_state, is_admin,
-        profile_slug, profile_image_url, bio, cash, registration_ip, last_login_ip, last_login_at,
+        profile_slug, profile_image_url, bio, cash, actions, registration_ip, last_login_ip, last_login_at,
         last_seen_at, is_banned, banned_at, banned_reason, banned_by, created_at
       FROM users WHERE profile_slug = $1`,
       [slug]
@@ -287,6 +288,50 @@ export class UserModel {
     }
     const cash = result.rows[0].cash;
     return typeof cash === 'string' ? parseFloat(cash) : cash;
+  }
+
+  static async getActions(userId: number): Promise<number> {
+    const result = await pool.query(
+      'SELECT actions FROM users WHERE id = $1',
+      [userId]
+    );
+    if (result.rows.length === 0) {
+      throw new Error('User not found');
+    }
+    return result.rows[0].actions || 0;
+  }
+
+  static async updateActions(userId: number, amount: number): Promise<number> {
+    const result = await pool.query(
+      `UPDATE users 
+       SET actions = GREATEST(0, COALESCE(actions, 0) + $1)
+       WHERE id = $2
+       RETURNING actions`,
+      [amount, userId]
+    );
+    if (result.rows.length === 0) {
+      throw new Error('User not found');
+    }
+    return result.rows[0].actions;
+  }
+
+  static async incrementAllUsersActions(baseAmount: number, ceoUserIds: number[]): Promise<{ updated: number }> {
+    // First, increment all users by base amount
+    await pool.query(
+      `UPDATE users SET actions = COALESCE(actions, 0) + $1`,
+      [baseAmount]
+    );
+
+    // Then, give CEOs an additional bonus
+    if (ceoUserIds.length > 0) {
+      await pool.query(
+        `UPDATE users SET actions = actions + 1 WHERE id = ANY($1)`,
+        [ceoUserIds]
+      );
+    }
+
+    const countResult = await pool.query('SELECT COUNT(*) FROM users');
+    return { updated: parseInt(countResult.rows[0].count, 10) };
   }
 }
 

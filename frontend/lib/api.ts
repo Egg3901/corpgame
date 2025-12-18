@@ -119,6 +119,7 @@ export interface AuthResponse {
     profile_slug?: string;
     profile_image_url?: string | null;
     bio?: string;
+    actions?: number;
     is_banned?: boolean;
     registration_ip?: string;
     last_login_ip?: string;
@@ -138,6 +139,7 @@ export interface ProfileResponse {
   profile_image_url?: string | null;
   bio?: string;
   cash?: number;
+  actions?: number;
   is_admin?: boolean;
   is_banned?: boolean;
   last_seen_at?: string;

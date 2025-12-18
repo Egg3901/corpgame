@@ -145,6 +145,18 @@ router.post('/', authenticateToken, async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ error: 'Corporation name is required' });
     }
 
+    // Check if user already has a corporation
+    const existingCorporations = await CorporationModel.findByCeoId(userId);
+    if (existingCorporations.length > 0) {
+      return res.status(400).json({ 
+        error: 'You can only be CEO of one corporation at a time',
+        existingCorporation: {
+          id: existingCorporations[0].id,
+          name: existingCorporations[0].name,
+        }
+      });
+    }
+
     // Create corporation with defaults: 500k shares, 100k public, $1.00 price, 500k capital
     const corporation = await CorporationModel.create({
       ceo_id: userId,
@@ -243,8 +255,44 @@ router.patch('/:id', authenticateToken, async (req: AuthRequest, res: Response) 
       return res.status(403).json({ error: 'Only the CEO can update the corporation' });
     }
 
+    // Get current user to check admin status
+    const user = await UserModel.findById(userId);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
     const updates: any = {};
-    if (req.body.name !== undefined) updates.name = req.body.name;
+    
+    // Handle name change - costs 10 actions (admins bypass)
+    if (req.body.name !== undefined) {
+      const corporation = await CorporationModel.findById(id);
+      if (!corporation) {
+        return res.status(404).json({ error: 'Corporation not found' });
+      }
+      
+      // Only charge actions if name is actually changing
+      if (req.body.name.trim() !== corporation.name) {
+        const NAME_CHANGE_COST = 10;
+        
+        // Check if user is admin (admins bypass action cost)
+        if (!user.is_admin) {
+          const currentActions = await UserModel.getActions(userId);
+          if (currentActions < NAME_CHANGE_COST) {
+            return res.status(400).json({ 
+              error: `Changing corporation name requires ${NAME_CHANGE_COST} actions. You have ${currentActions} actions.`,
+              actions_required: NAME_CHANGE_COST,
+              actions_available: currentActions
+            });
+          }
+          
+          // Deduct actions
+          await UserModel.updateActions(userId, -NAME_CHANGE_COST);
+        }
+        
+        updates.name = req.body.name.trim();
+      }
+    }
+    
     if (req.body.type !== undefined) updates.type = req.body.type;
     if (req.body.share_price !== undefined) {
       const price = parseFloat(req.body.share_price);

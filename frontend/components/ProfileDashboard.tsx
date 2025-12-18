@@ -20,6 +20,7 @@ import {
   Settings,
   Trophy,
   Circle,
+  Zap,
 } from 'lucide-react';
 import { authAPI, profileAPI, corporationAPI, portfolioAPI, ProfileResponse, CorporationResponse, PortfolioResponse } from '@/lib/api';
 import SendCashModal from './SendCashModal';
@@ -43,6 +44,7 @@ export default function ProfileDashboard({ profileId }: ProfileDashboardProps) {
   const [primaryCorporation, setPrimaryCorporation] = useState<CorporationResponse | null>(null);
   const [portfolio, setPortfolio] = useState<PortfolioResponse | null>(null);
   const [userCash, setUserCash] = useState<number>(0);
+  const [userActions, setUserActions] = useState<number>(0);
   const [portfolioRank, setPortfolioRank] = useState<number | null>(null);
   const [cashRank, setCashRank] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
@@ -59,9 +61,12 @@ export default function ProfileDashboard({ profileId }: ProfileDashboardProps) {
         const data = await profileAPI.getById(profileId);
         setProfile(data);
         
-        // Set cash from profile data
+        // Set cash and actions from profile data
         if (data.cash !== undefined) {
           setUserCash(data.cash);
+        }
+        if (data.actions !== undefined) {
+          setUserActions(data.actions);
         }
         
         // Fetch user's corporations (if they are CEO of any)
@@ -347,8 +352,8 @@ export default function ProfileDashboard({ profileId }: ProfileDashboardProps) {
                   </div>
                 </div>
 
-                {/* Portfolio and Cash */}
-                <div className="grid gap-4 sm:grid-cols-2">
+                {/* Portfolio, Cash, and Actions */}
+                <div className="grid gap-4 sm:grid-cols-3">
                   <div className="rounded-xl border border-white/60 bg-white/70 p-4 shadow-sm dark:border-gray-800/70 dark:bg-gray-800/70">
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.1em] text-gray-500 dark:text-gray-400">
@@ -378,6 +383,15 @@ export default function ProfileDashboard({ profileId }: ProfileDashboardProps) {
                       )}
                     </div>
                     <p className="text-xl font-bold text-gray-900 dark:text-white">{formatCurrency(userCash)}</p>
+                  </div>
+                  <div className="rounded-xl border border-amber-200/60 bg-amber-50/70 p-4 shadow-sm dark:border-amber-800/70 dark:bg-amber-900/30">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.1em] text-amber-600 dark:text-amber-400">
+                        <Zap className="h-4 w-4" />
+                        Actions
+                      </div>
+                    </div>
+                    <p className="text-xl font-bold text-amber-700 dark:text-amber-300">{userActions}</p>
                   </div>
                 </div>
 

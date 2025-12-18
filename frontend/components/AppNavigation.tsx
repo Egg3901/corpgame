@@ -14,6 +14,7 @@ import {
   MessageSquare,
   User,
   LogOut,
+  Zap,
 } from 'lucide-react';
 import { authAPI, profileAPI, ProfileResponse, corporationAPI, messagesAPI } from '@/lib/api';
 import { useTheme } from './ThemeProvider';
@@ -43,6 +44,7 @@ export default function AppNavigation({ children }: AppNavigationProps) {
   const [investmentsOpen, setInvestmentsOpen] = useState<boolean>(false);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState<boolean>(false);
   const [unreadCount, setUnreadCount] = useState<number>(0);
+  const [userActions, setUserActions] = useState<number>(0);
   const profileDropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -59,6 +61,7 @@ export default function AppNavigation({ children }: AppNavigationProps) {
         if (me.profile_id) {
           const viewerData = await profileAPI.getById(me.profile_id.toString());
           setViewerProfile(viewerData);
+          setUserActions(viewerData.actions || 0);
         }
 
         // Check if user is CEO of any corporation
@@ -149,6 +152,14 @@ export default function AppNavigation({ children }: AppNavigationProps) {
               </div>
             </div>
             <div className="flex items-center gap-3">
+              {/* Actions Display */}
+              {viewerProfileId && (
+                <div className="inline-flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-amber-700 shadow-sm dark:border-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
+                  <Zap className="w-4 h-4" />
+                  <span className="text-sm font-semibold">{userActions}</span>
+                  <span className="text-xs text-amber-600 dark:text-amber-400 hidden sm:inline">Actions</span>
+                </div>
+              )}
               {/* Theme Toggle Button */}
               <button
                 type="button"

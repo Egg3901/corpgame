@@ -14,6 +14,7 @@ import sharesRoutes from './routes/shares';
 import issuesRoutes from './routes/issues';
 import messagesRoutes from './routes/messages';
 import cashRoutes from './routes/cash';
+import { startActionsCron } from './cron/actions';
 
 dotenv.config();
 
@@ -207,4 +208,7 @@ app.get('/api/cors-test', (req, res) => {
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on http://0.0.0.0:${PORT}`);
   console.log(`Accessible at http://localhost:${PORT} and from external IPs`);
+  
+  // Start cron jobs
+  startActionsCron();
 });
