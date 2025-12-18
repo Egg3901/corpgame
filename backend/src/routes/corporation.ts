@@ -62,6 +62,7 @@ router.get('/', async (req: Request, res: Response) => {
         const ceo = await UserModel.findById(corp.ceo_id);
         return {
           ...corp,
+          logo: normalizeImageUrl(corp.logo),
           ceo: ceo ? {
             id: ceo.id,
             profile_id: ceo.profile_id,
@@ -120,13 +121,14 @@ router.get('/:id', async (req: Request, res: Response) => {
 
     res.json({
       ...corporation,
+      logo: normalizeImageUrl(corporation.logo),
       ceo: ceo ? {
         id: ceo.id,
         profile_id: ceo.profile_id,
         username: ceo.username,
         player_name: ceo.player_name,
         profile_slug: ceo.profile_slug,
-        profile_image_url: ceo.profile_image_url,
+        profile_image_url: normalizeImageUrl(ceo.profile_image_url),
       } : null,
       shareholders: shareholdersWithUsers,
     });
@@ -185,8 +187,12 @@ router.post('/', authenticateToken, async (req: AuthRequest, res: Response) => {
 
 // POST /api/corporation/:id/logo - Upload corporation logo
 router.post('/:id/logo', authenticateToken, (req: AuthRequest, res: Response, next: NextFunction) => {
+  console.log('Logo upload request received for corporation:', req.params.id);
+  console.log('Corporations upload directory:', corporationsDir, '- exists:', fs.existsSync(corporationsDir));
+  
   uploadMiddleware(req as Request, res, async (err: any) => {
     if (err) {
+      console.error('Logo upload middleware error:', err);
       if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
         return res.status(400).json({ error: 'Image is too large (max 2MB)' });
       }
@@ -209,17 +215,34 @@ router.post('/:id/logo', authenticateToken, (req: AuthRequest, res: Response, ne
   });
 }, async (req: UploadRequest, res: Response) => {
   try {
+    console.log('Processing logo upload...');
     if (!req.file) {
+      console.error('No file in request');
       return res.status(400).json({ error: 'No file uploaded' });
     }
 
+    console.log('File received:', {
+      filename: req.file.filename,
+      originalname: req.file.originalname,
+      size: req.file.size,
+      mimetype: req.file.mimetype,
+      path: req.file.path
+    });
+
     const corpId = parseInt(req.params.id, 10);
     const relativePath = `/uploads/corporations/${req.file.filename}`;
+    console.log('Generated relative path:', relativePath);
+
+    // Verify file was actually written
+    const fullPath = path.join(corporationsDir, req.file.filename);
+    console.log('Full file path:', fullPath, '- exists:', fs.existsSync(fullPath));
 
     // Remove old logo if present
     const existing = await CorporationModel.findById(corpId);
+    console.log('Existing corporation logo:', existing?.logo);
     if (existing?.logo) {
       const absoluteOld = path.join(corporationsDir, path.basename(existing.logo));
+      console.log('Removing old logo at:', absoluteOld);
       try {
         if (fs.existsSync(absoluteOld)) {
           fs.unlinkSync(absoluteOld);
@@ -230,11 +253,13 @@ router.post('/:id/logo', authenticateToken, (req: AuthRequest, res: Response, ne
     }
 
     // Update corporation with new logo path
+    console.log('Updating database with new logo path...');
     const updated = await CorporationModel.update(corpId, { logo: relativePath });
     if (!updated) {
       return res.status(404).json({ error: 'Corporation not found' });
     }
 
+    console.log('Logo upload successful, returning:', { logo: relativePath });
     res.json({ logo: relativePath });
   } catch (error) {
     console.error('Logo upload error:', error);

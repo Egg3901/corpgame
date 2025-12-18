@@ -2,6 +2,7 @@ import express, { Request, Response } from 'express';
 import { ShareholderModel } from '../models/Shareholder';
 import { CorporationModel } from '../models/Corporation';
 import { UserModel } from '../models/User';
+import { normalizeImageUrl } from '../utils/imageUrl';
 
 const router = express.Router();
 
@@ -31,7 +32,7 @@ router.get('/:userId', async (req: Request, res: Response) => {
           corporation: {
             id: corporation.id,
             name: corporation.name,
-            logo: corporation.logo,
+            logo: normalizeImageUrl(corporation.logo),
             share_price: corporation.share_price,
             total_shares: corporation.shares,
             type: corporation.type,

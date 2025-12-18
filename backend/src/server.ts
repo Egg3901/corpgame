@@ -169,6 +169,7 @@ app.get('/debug/static', (req, res) => {
   const commonAssetsDir = path.join(__dirname, '..', '..', '..', 'commonassets');
   const uploadsDir = path.join(__dirname, '..', 'uploads');
   const avatarsDir = path.join(uploadsDir, 'avatars');
+  const corporationsDir = path.join(uploadsDir, 'corporations');
 
   const debug = {
     directories: {
@@ -186,6 +187,11 @@ app.get('/debug/static', (req, res) => {
         path: avatarsDir,
         exists: fs.existsSync(avatarsDir),
         files: fs.existsSync(avatarsDir) ? fs.readdirSync(avatarsDir) : []
+      },
+      corporations: {
+        path: corporationsDir,
+        exists: fs.existsSync(corporationsDir),
+        files: fs.existsSync(corporationsDir) ? fs.readdirSync(corporationsDir) : []
       }
     },
     routes: {
