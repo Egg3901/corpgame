@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { authAPI, profileAPI, ProfileResponse, corporationAPI, messagesAPI } from '@/lib/api';
 import { useTheme } from './ThemeProvider';
+import ServerTimeFooter from './ServerTimeFooter';
 
 interface AppNavigationProps {
   children: React.ReactNode;
@@ -240,7 +241,10 @@ export default function AppNavigation({ children }: AppNavigationProps) {
         </div>
       </header>
 
-      <main className="relative z-10">{children}</main>
+      <main className="relative z-10 pb-12">{children}</main>
+
+      {/* Server Time Footer */}
+      <ServerTimeFooter />
 
       {navOpen && (
         <div className="fixed inset-0 z-40 bg-black/55 backdrop-blur-sm" onClick={() => setNavOpen(false)}>

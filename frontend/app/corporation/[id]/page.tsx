@@ -5,7 +5,25 @@ import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import AppNavigation from '@/components/AppNavigation';
 import { corporationAPI, CorporationResponse, authAPI, sharesAPI } from '@/lib/api';
-import { Building2, Edit, Trash2, TrendingUp, DollarSign, Users, User, Calendar, ArrowUp, ArrowDown, TrendingDown, Plus, BarChart3 } from 'lucide-react';
+import { Building2, Edit, Trash2, TrendingUp, DollarSign, Users, User, Calendar, ArrowUp, ArrowDown, TrendingDown, Plus, BarChart3, MapPin } from 'lucide-react';
+import BoardTab from '@/components/BoardTab';
+
+// US States for display
+const US_STATES: Record<string, string> = {
+  'AL': 'Alabama', 'AK': 'Alaska', 'AZ': 'Arizona', 'AR': 'Arkansas',
+  'CA': 'California', 'CO': 'Colorado', 'CT': 'Connecticut', 'DE': 'Delaware',
+  'FL': 'Florida', 'GA': 'Georgia', 'HI': 'Hawaii', 'ID': 'Idaho',
+  'IL': 'Illinois', 'IN': 'Indiana', 'IA': 'Iowa', 'KS': 'Kansas',
+  'KY': 'Kentucky', 'LA': 'Louisiana', 'ME': 'Maine', 'MD': 'Maryland',
+  'MA': 'Massachusetts', 'MI': 'Michigan', 'MN': 'Minnesota', 'MS': 'Mississippi',
+  'MO': 'Missouri', 'MT': 'Montana', 'NE': 'Nebraska', 'NV': 'Nevada',
+  'NH': 'New Hampshire', 'NJ': 'New Jersey', 'NM': 'New Mexico', 'NY': 'New York',
+  'NC': 'North Carolina', 'ND': 'North Dakota', 'OH': 'Ohio', 'OK': 'Oklahoma',
+  'OR': 'Oregon', 'PA': 'Pennsylvania', 'RI': 'Rhode Island', 'SC': 'South Carolina',
+  'SD': 'South Dakota', 'TN': 'Tennessee', 'TX': 'Texas', 'UT': 'Utah',
+  'VT': 'Vermont', 'VA': 'Virginia', 'WA': 'Washington', 'WV': 'West Virginia',
+  'WI': 'Wisconsin', 'WY': 'Wyoming'
+};
 
 export default function CorporationDetailPage() {
   const router = useRouter();
@@ -22,7 +40,7 @@ export default function CorporationDetailPage() {
   const [issueShares, setIssueShares] = useState('');
   const [trading, setTrading] = useState(false);
   const [userOwnedShares, setUserOwnedShares] = useState(0);
-  const [activeTab, setActiveTab] = useState<'overview' | 'finance'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'finance' | 'board'>('overview');
 
   useEffect(() => {
     const fetchData = async () => {
@@ -296,9 +314,19 @@ export default function CorporationDetailPage() {
                     </Link>
                   </div>
                 )}
-                <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-500">
-                  <Calendar className="w-4 h-4" />
-                  <span className="text-xs font-bold uppercase tracking-[0.1em]">Founded {formatDate(corporation.created_at)}</span>
+                <div className="flex items-center gap-4 flex-wrap text-sm text-gray-500 dark:text-gray-500">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="w-4 h-4" />
+                    <span className="text-xs font-bold uppercase tracking-[0.1em]">Founded {formatDate(corporation.created_at)}</span>
+                  </div>
+                  {corporation.hq_state && (
+                    <div className="flex items-center gap-2">
+                      <MapPin className="w-4 h-4" />
+                      <span className="text-xs font-bold uppercase tracking-[0.1em]">
+                        HQ: {US_STATES[corporation.hq_state] || corporation.hq_state}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -320,6 +348,16 @@ export default function CorporationDetailPage() {
                 }`}
               >
                 Overview
+              </button>
+              <button
+                onClick={() => setActiveTab('board')}
+                className={`flex-1 px-6 py-4 text-sm font-semibold transition-colors ${
+                  activeTab === 'board'
+                    ? 'text-corporate-blue dark:text-corporate-blue-light border-b-2 border-corporate-blue dark:border-corporate-blue-light bg-corporate-blue/5 dark:bg-corporate-blue/10'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                }`}
+              >
+                Board
               </button>
               <button
                 onClick={() => setActiveTab('finance')}
@@ -801,9 +839,18 @@ export default function CorporationDetailPage() {
               </div>
               </>
             )}
+
+            {activeTab === 'board' && (
+              <BoardTab
+                corporationId={corpId}
+                corporationName={corporation.name}
+                viewerUserId={viewerUserId}
+              />
+            )}
           </div>
 
-          {/* Sidebar */}
+          {/* Sidebar - Only show on overview and finance tabs */}
+          {activeTab !== 'board' && (
           <div className="space-y-6">
             <div className="relative rounded-2xl border border-gray-200/50 dark:border-gray-700/50 bg-gradient-to-br from-white via-white to-gray-50/50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800/50 shadow-2xl overflow-hidden backdrop-blur-sm">
               <div className="absolute inset-0 bg-gradient-to-br from-corporate-blue/5 via-transparent to-corporate-blue-light/5 dark:from-corporate-blue/10 dark:via-transparent dark:to-corporate-blue-dark/10 pointer-events-none" />
@@ -910,6 +957,7 @@ export default function CorporationDetailPage() {
               </div>
             </div>
           </div>
+          )}
         </div>
       </div>
     </AppNavigation>

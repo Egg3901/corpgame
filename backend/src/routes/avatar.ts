@@ -7,7 +7,8 @@ import { UserModel } from '../models/User';
 
 const router = express.Router();
 
-const uploadsDir = path.join(__dirname, '..', 'uploads');
+// Use '..', '..' to go from dist/routes/ to backend/uploads/ (same as server.ts serves)
+const uploadsDir = path.join(__dirname, '..', '..', 'uploads');
 const avatarsDir = path.join(uploadsDir, 'avatars');
 console.log('Avatar route setup:');
 console.log('  uploadsDir:', uploadsDir, '- exists:', fs.existsSync(uploadsDir));

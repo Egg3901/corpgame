@@ -157,6 +157,9 @@ export interface CorporationResponse {
   share_price: number;
   capital?: number;
   type?: string | null;
+  hq_state?: string | null;
+  board_size?: number;
+  elected_ceo_id?: number | null;
   created_at: string;
   ceo?: {
     id: number;
@@ -594,6 +597,130 @@ export const messagesAPI = {
 export const cashAPI = {
   transfer: async (data: TransferCashData): Promise<TransferCashResponse> => {
     const response = await api.post('/api/cash/transfer', data);
+    return response.data;
+  },
+};
+
+// Board types
+export interface BoardMember {
+  user_id: number;
+  shares: number;
+  username: string;
+  player_name?: string;
+  profile_id: number;
+  profile_slug?: string;
+  profile_image_url?: string | null;
+  is_ceo: boolean;
+  is_acting_ceo: boolean;
+}
+
+export interface BoardProposal {
+  id: number;
+  corporation_id: number;
+  proposer_id: number;
+  proposal_type: 'ceo_nomination' | 'sector_change' | 'hq_change' | 'board_size' | 'appoint_member';
+  proposal_data: {
+    nominee_id?: number;
+    nominee_name?: string;
+    new_sector?: string;
+    new_state?: string;
+    new_size?: number;
+    appointee_id?: number;
+    appointee_name?: string;
+  };
+  status: 'active' | 'passed' | 'failed';
+  created_at: string;
+  resolved_at: string | null;
+  expires_at: string;
+  proposer?: {
+    id: number;
+    username: string;
+    player_name?: string;
+    profile_id: number;
+  };
+  votes: {
+    aye: number;
+    nay: number;
+    total: number;
+  };
+  user_vote?: 'aye' | 'nay' | null;
+}
+
+export interface BoardResponse {
+  corporation: {
+    id: number;
+    name: string;
+    type?: string | null;
+    hq_state?: string | null;
+    board_size: number;
+    elected_ceo_id?: number | null;
+  };
+  board_members: BoardMember[];
+  effective_ceo: { userId: number; isActing: boolean } | null;
+  active_proposals: BoardProposal[];
+  shareholders: {
+    user_id: number;
+    shares: number;
+    username?: string;
+    player_name?: string;
+    profile_id?: number;
+  }[];
+  is_on_board: boolean;
+  is_ceo: boolean;
+  sectors: string[];
+  us_states: string[];
+}
+
+export interface CreateProposalData {
+  proposal_type: 'ceo_nomination' | 'sector_change' | 'hq_change' | 'board_size' | 'appoint_member';
+  proposal_data: {
+    nominee_id?: number;
+    new_sector?: string;
+    new_state?: string;
+    new_size?: number;
+    appointee_id?: number;
+  };
+}
+
+export const boardAPI = {
+  getBoard: async (corpId: number): Promise<BoardResponse> => {
+    const response = await api.get(`/api/board/${corpId}`);
+    return response.data;
+  },
+  getProposals: async (corpId: number): Promise<BoardProposal[]> => {
+    const response = await api.get(`/api/board/${corpId}/proposals`);
+    return response.data;
+  },
+  createProposal: async (corpId: number, data: CreateProposalData): Promise<BoardProposal> => {
+    const response = await api.post(`/api/board/${corpId}/proposals`, data);
+    return response.data;
+  },
+  castVote: async (corpId: number, proposalId: number, vote: 'aye' | 'nay'): Promise<{
+    vote: { id: number; proposal_id: number; voter_id: number; vote: string };
+    votes: { aye: number; nay: number; total: number };
+    resolved: boolean;
+  }> => {
+    const response = await api.post(`/api/board/${corpId}/proposals/${proposalId}/vote`, { vote });
+    return response.data;
+  },
+  resignCeo: async (corpId: number): Promise<{ success: boolean; message: string }> => {
+    const response = await api.post(`/api/board/${corpId}/ceo/resign`);
+    return response.data;
+  },
+};
+
+// Server time types
+export interface ServerTimeResponse {
+  server_time: string;
+  next_action_update: string;
+  next_proposal_check: string;
+  seconds_until_action_update: number;
+  seconds_until_proposal_check: number;
+}
+
+export const gameAPI = {
+  getTime: async (): Promise<ServerTimeResponse> => {
+    const response = await api.get('/api/game/time');
     return response.data;
   },
 };

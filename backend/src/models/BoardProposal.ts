@@ -1,0 +1,351 @@
+import pool from '../db/connection';
+import { ShareholderModel } from './Shareholder';
+import { CorporationModel } from './Corporation';
+
+// Proposal types
+export type ProposalType = 'ceo_nomination' | 'sector_change' | 'hq_change' | 'board_size' | 'appoint_member';
+
+// Proposal data structures
+export interface CeoNominationData {
+  nominee_id: number;
+  nominee_name?: string;
+}
+
+export interface SectorChangeData {
+  new_sector: string;
+}
+
+export interface HqChangeData {
+  new_state: string;
+}
+
+export interface BoardSizeData {
+  new_size: number;
+}
+
+export interface AppointMemberData {
+  appointee_id: number;
+  appointee_name?: string;
+}
+
+export type ProposalData = CeoNominationData | SectorChangeData | HqChangeData | BoardSizeData | AppointMemberData;
+
+export interface BoardProposal {
+  id: number;
+  corporation_id: number;
+  proposer_id: number;
+  proposal_type: ProposalType;
+  proposal_data: ProposalData;
+  status: 'active' | 'passed' | 'failed';
+  created_at: Date;
+  resolved_at: Date | null;
+  expires_at: Date;
+}
+
+export interface BoardVote {
+  id: number;
+  proposal_id: number;
+  voter_id: number;
+  vote: 'aye' | 'nay';
+  voted_at: Date;
+}
+
+export interface BoardMember {
+  user_id: number;
+  shares: number;
+  username: string;
+  player_name?: string;
+  profile_id: number;
+  profile_slug?: string;
+  profile_image_url?: string | null;
+  is_ceo: boolean;
+  is_acting_ceo: boolean;
+}
+
+export interface ProposalWithVotes extends BoardProposal {
+  proposer?: {
+    id: number;
+    username: string;
+    player_name?: string;
+    profile_id: number;
+  };
+  votes: {
+    aye: number;
+    nay: number;
+    total: number;
+  };
+  user_vote?: 'aye' | 'nay' | null;
+}
+
+export class BoardProposalModel {
+  // Create a new proposal
+  static async create(
+    corporationId: number,
+    proposerId: number,
+    proposalType: ProposalType,
+    proposalData: ProposalData,
+    expiresInHours: number = 12
+  ): Promise<BoardProposal> {
+    const expiresAt = new Date(Date.now() + expiresInHours * 60 * 60 * 1000);
+    
+    const result = await pool.query(
+      `INSERT INTO board_proposals (corporation_id, proposer_id, proposal_type, proposal_data, expires_at)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING *`,
+      [corporationId, proposerId, proposalType, JSON.stringify(proposalData), expiresAt]
+    );
+    
+    return result.rows[0];
+  }
+
+  // Get a proposal by ID
+  static async findById(id: number): Promise<BoardProposal | null> {
+    const result = await pool.query('SELECT * FROM board_proposals WHERE id = $1', [id]);
+    return result.rows[0] || null;
+  }
+
+  // Get active proposals for a corporation
+  static async getActiveProposals(corporationId: number): Promise<BoardProposal[]> {
+    const result = await pool.query(
+      `SELECT * FROM board_proposals 
+       WHERE corporation_id = $1 AND status = 'active'
+       ORDER BY created_at DESC`,
+      [corporationId]
+    );
+    return result.rows;
+  }
+
+  // Get proposal history (non-active) for a corporation
+  static async getProposalHistory(corporationId: number, limit: number = 20): Promise<BoardProposal[]> {
+    const result = await pool.query(
+      `SELECT * FROM board_proposals 
+       WHERE corporation_id = $1 AND status != 'active'
+       ORDER BY resolved_at DESC NULLS LAST, created_at DESC
+       LIMIT $2`,
+      [corporationId, limit]
+    );
+    return result.rows;
+  }
+
+  // Get all proposals (active and history) with vote counts
+  static async getProposalsWithVotes(
+    corporationId: number,
+    userId?: number
+  ): Promise<ProposalWithVotes[]> {
+    const result = await pool.query(
+      `SELECT bp.*,
+              u.id as proposer_user_id, u.username as proposer_username, 
+              u.player_name as proposer_player_name, u.profile_id as proposer_profile_id,
+              COALESCE(SUM(CASE WHEN bv.vote = 'aye' THEN 1 ELSE 0 END), 0)::int as aye_count,
+              COALESCE(SUM(CASE WHEN bv.vote = 'nay' THEN 1 ELSE 0 END), 0)::int as nay_count,
+              COUNT(bv.id)::int as total_votes
+       FROM board_proposals bp
+       LEFT JOIN users u ON bp.proposer_id = u.id
+       LEFT JOIN board_votes bv ON bp.id = bv.proposal_id
+       WHERE bp.corporation_id = $1
+       GROUP BY bp.id, u.id, u.username, u.player_name, u.profile_id
+       ORDER BY bp.status = 'active' DESC, bp.created_at DESC`,
+      [corporationId]
+    );
+
+    // Get user's votes if userId provided
+    let userVotes: Record<number, 'aye' | 'nay'> = {};
+    if (userId) {
+      const votesResult = await pool.query(
+        `SELECT proposal_id, vote FROM board_votes WHERE voter_id = $1`,
+        [userId]
+      );
+      userVotes = votesResult.rows.reduce((acc, row) => {
+        acc[row.proposal_id] = row.vote;
+        return acc;
+      }, {} as Record<number, 'aye' | 'nay'>);
+    }
+
+    return result.rows.map(row => ({
+      id: row.id,
+      corporation_id: row.corporation_id,
+      proposer_id: row.proposer_id,
+      proposal_type: row.proposal_type,
+      proposal_data: row.proposal_data,
+      status: row.status,
+      created_at: row.created_at,
+      resolved_at: row.resolved_at,
+      expires_at: row.expires_at,
+      proposer: row.proposer_user_id ? {
+        id: row.proposer_user_id,
+        username: row.proposer_username,
+        player_name: row.proposer_player_name,
+        profile_id: row.proposer_profile_id,
+      } : undefined,
+      votes: {
+        aye: row.aye_count,
+        nay: row.nay_count,
+        total: row.total_votes,
+      },
+      user_vote: userId ? userVotes[row.id] || null : null,
+    }));
+  }
+
+  // Get expired active proposals that need resolution
+  static async getExpiredActiveProposals(): Promise<BoardProposal[]> {
+    const result = await pool.query(
+      `SELECT * FROM board_proposals 
+       WHERE status = 'active' AND expires_at <= NOW()
+       ORDER BY expires_at ASC`
+    );
+    return result.rows;
+  }
+
+  // Update proposal status
+  static async updateStatus(
+    id: number,
+    status: 'passed' | 'failed'
+  ): Promise<BoardProposal | null> {
+    const result = await pool.query(
+      `UPDATE board_proposals 
+       SET status = $1, resolved_at = NOW()
+       WHERE id = $2
+       RETURNING *`,
+      [status, id]
+    );
+    return result.rows[0] || null;
+  }
+}
+
+export class BoardVoteModel {
+  // Cast a vote (or update existing vote)
+  static async castVote(
+    proposalId: number,
+    voterId: number,
+    vote: 'aye' | 'nay'
+  ): Promise<BoardVote> {
+    const result = await pool.query(
+      `INSERT INTO board_votes (proposal_id, voter_id, vote)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (proposal_id, voter_id) 
+       DO UPDATE SET vote = EXCLUDED.vote, voted_at = NOW()
+       RETURNING *`,
+      [proposalId, voterId, vote]
+    );
+    return result.rows[0];
+  }
+
+  // Get all votes for a proposal
+  static async getVotesForProposal(proposalId: number): Promise<BoardVote[]> {
+    const result = await pool.query(
+      `SELECT * FROM board_votes WHERE proposal_id = $1`,
+      [proposalId]
+    );
+    return result.rows;
+  }
+
+  // Get vote counts for a proposal
+  static async getVoteCounts(proposalId: number): Promise<{ aye: number; nay: number; total: number }> {
+    const result = await pool.query(
+      `SELECT 
+         COALESCE(SUM(CASE WHEN vote = 'aye' THEN 1 ELSE 0 END), 0)::int as aye,
+         COALESCE(SUM(CASE WHEN vote = 'nay' THEN 1 ELSE 0 END), 0)::int as nay,
+         COUNT(*)::int as total
+       FROM board_votes WHERE proposal_id = $1`,
+      [proposalId]
+    );
+    return result.rows[0];
+  }
+
+  // Check if user has voted on a proposal
+  static async getUserVote(proposalId: number, userId: number): Promise<'aye' | 'nay' | null> {
+    const result = await pool.query(
+      `SELECT vote FROM board_votes WHERE proposal_id = $1 AND voter_id = $2`,
+      [proposalId, userId]
+    );
+    return result.rows[0]?.vote || null;
+  }
+
+  // Get count of voters for a proposal
+  static async getVoterCount(proposalId: number): Promise<number> {
+    const result = await pool.query(
+      `SELECT COUNT(DISTINCT voter_id)::int as count FROM board_votes WHERE proposal_id = $1`,
+      [proposalId]
+    );
+    return result.rows[0].count;
+  }
+}
+
+export class BoardModel {
+  // Get board members for a corporation (top N shareholders)
+  static async getBoardMembers(corporationId: number): Promise<BoardMember[]> {
+    // Get corporation to find board size and elected CEO
+    const corp = await CorporationModel.findById(corporationId);
+    if (!corp) return [];
+
+    const boardSize = corp.board_size || 3;
+
+    // Get top shareholders
+    const result = await pool.query(
+      `SELECT s.user_id, s.shares, u.username, u.player_name, u.profile_id, u.profile_slug, u.profile_image_url
+       FROM shareholders s
+       JOIN users u ON s.user_id = u.id
+       WHERE s.corporation_id = $1
+       ORDER BY s.shares DESC
+       LIMIT $2`,
+      [corporationId, boardSize]
+    );
+
+    // Find the largest shareholder (acting CEO)
+    const largestShareholder = result.rows[0]?.user_id;
+
+    return result.rows.map(row => ({
+      user_id: row.user_id,
+      shares: row.shares,
+      username: row.username,
+      player_name: row.player_name,
+      profile_id: row.profile_id,
+      profile_slug: row.profile_slug,
+      profile_image_url: row.profile_image_url,
+      is_ceo: corp.elected_ceo_id === row.user_id,
+      is_acting_ceo: !corp.elected_ceo_id && row.user_id === largestShareholder,
+    }));
+  }
+
+  // Check if a user is on the board
+  static async isOnBoard(corporationId: number, userId: number): Promise<boolean> {
+    const members = await this.getBoardMembers(corporationId);
+    return members.some(m => m.user_id === userId);
+  }
+
+  // Get the effective CEO (elected or largest shareholder)
+  static async getEffectiveCeo(corporationId: number): Promise<{ userId: number; isActing: boolean } | null> {
+    const corp = await CorporationModel.findById(corporationId);
+    if (!corp) return null;
+
+    // If there's an elected CEO, return them
+    if (corp.elected_ceo_id) {
+      return { userId: corp.elected_ceo_id, isActing: false };
+    }
+
+    // Otherwise, get largest shareholder
+    const result = await pool.query(
+      `SELECT user_id FROM shareholders 
+       WHERE corporation_id = $1 
+       ORDER BY shares DESC 
+       LIMIT 1`,
+      [corporationId]
+    );
+
+    if (result.rows.length === 0) return null;
+    return { userId: result.rows[0].user_id, isActing: true };
+  }
+
+  // Check if all board members have voted on a proposal
+  static async haveAllBoardMembersVoted(proposalId: number, corporationId: number): Promise<boolean> {
+    const members = await this.getBoardMembers(corporationId);
+    const voterCount = await BoardVoteModel.getVoterCount(proposalId);
+    return voterCount >= members.length;
+  }
+
+  // Check if user is a shareholder
+  static async isShareholder(corporationId: number, userId: number): Promise<boolean> {
+    const shareholders = await ShareholderModel.findByCorporationId(corporationId);
+    return shareholders.some(s => s.user_id === userId);
+  }
+}

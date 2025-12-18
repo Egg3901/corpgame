@@ -14,6 +14,7 @@ import sharesRoutes from './routes/shares';
 import issuesRoutes from './routes/issues';
 import messagesRoutes from './routes/messages';
 import cashRoutes from './routes/cash';
+import boardRoutes from './routes/board';
 import { startActionsCron } from './cron/actions';
 
 dotenv.config();
@@ -153,6 +154,7 @@ app.use('/api/shares', sharesRoutes);
 app.use('/api/issues', issuesRoutes);
 app.use('/api/messages', messagesRoutes);
 app.use('/api/cash', cashRoutes);
+app.use('/api/board', boardRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

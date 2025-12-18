@@ -10,6 +10,9 @@ export interface Corporation {
   share_price: number;
   capital: number;
   type?: string | null;
+  hq_state?: string | null;
+  board_size: number;
+  elected_ceo_id?: number | null;
   created_at: Date;
 }
 
@@ -22,6 +25,9 @@ export interface CorporationInput {
   share_price?: number;
   capital?: number;
   type?: string | null;
+  hq_state?: string | null;
+  board_size?: number;
+  elected_ceo_id?: number | null;
 }
 
 export class CorporationModel {
@@ -66,7 +72,7 @@ export class CorporationModel {
   }
 
   static async update(id: number, updates: Partial<CorporationInput>): Promise<Corporation | null> {
-    const allowedFields = ['name', 'logo', 'type', 'share_price', 'capital', 'public_shares'];
+    const allowedFields = ['name', 'logo', 'type', 'share_price', 'capital', 'public_shares', 'hq_state', 'board_size', 'elected_ceo_id'];
     const fields: string[] = [];
     const values: any[] = [];
     let paramIndex = 1;
@@ -94,5 +100,23 @@ export class CorporationModel {
 
   static async delete(id: number): Promise<void> {
     await pool.query('DELETE FROM corporations WHERE id = $1', [id]);
+  }
+
+  // Clear the elected CEO (for resignation)
+  static async clearElectedCeo(id: number): Promise<Corporation | null> {
+    const result = await pool.query(
+      `UPDATE corporations SET elected_ceo_id = NULL WHERE id = $1 RETURNING *`,
+      [id]
+    );
+    return result.rows[0] || null;
+  }
+
+  // Set elected CEO
+  static async setElectedCeo(id: number, ceoUserId: number): Promise<Corporation | null> {
+    const result = await pool.query(
+      `UPDATE corporations SET elected_ceo_id = $1 WHERE id = $2 RETURNING *`,
+      [ceoUserId, id]
+    );
+    return result.rows[0] || null;
   }
 }

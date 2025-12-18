@@ -10,7 +10,8 @@ import { normalizeImageUrl } from '../utils/imageUrl';
 
 const router = express.Router();
 
-const uploadsDir = path.join(__dirname, '..', 'uploads');
+// Use '..', '..' to go from dist/routes/ to backend/uploads/ (same as server.ts serves)
+const uploadsDir = path.join(__dirname, '..', '..', 'uploads');
 const corporationsDir = path.join(uploadsDir, 'corporations');
 fs.mkdirSync(corporationsDir, { recursive: true });
 
