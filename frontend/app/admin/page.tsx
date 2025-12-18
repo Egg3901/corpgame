@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Trash2, Shield, ShieldOff, Eye, EyeOff, AlertTriangle, Flag, CheckCircle2, X, ChevronDown, ChevronUp, MessageSquare } from 'lucide-react';
+import { Trash2, Shield, ShieldOff, Eye, EyeOff, AlertTriangle, Flag, CheckCircle2, X, ChevronDown, ChevronUp, MessageSquare, Play, RefreshCw, DollarSign, Clock } from 'lucide-react';
 import AppNavigation from '@/components/AppNavigation';
 import { authAPI, adminAPI, AdminUser, ReportedChat, normalizeImageUrl } from '@/lib/api';
 import Link from 'next/link';
@@ -20,6 +20,16 @@ export default function AdminPage() {
   const [clearingReport, setClearingReport] = useState<number | null>(null);
   const [matchingIpUsersExpanded, setMatchingIpUsersExpanded] = useState(false);
   const [allUsersExpanded, setAllUsersExpanded] = useState(false);
+  const [runningTurn, setRunningTurn] = useState(false);
+  const [recalculatingPrices, setRecalculatingPrices] = useState(false);
+  const [turnResult, setTurnResult] = useState<{
+    actions: { users_updated: number; ceo_count: number };
+    market_revenue: { corporations_processed: number; total_profit: number };
+  } | null>(null);
+  const [priceResult, setPriceResult] = useState<{
+    corporations_updated: number;
+    changes: Array<{ corporation_id: number; name: string; old_price: number; new_price: number }>;
+  } | null>(null);
 
   useEffect(() => {
     const loadData = async () => {
@@ -124,6 +134,40 @@ export default function AdminPage() {
     }
   };
 
+  const handleRunTurn = async () => {
+    try {
+      setRunningTurn(true);
+      setTurnResult(null);
+      const result = await adminAPI.runTurn();
+      setTurnResult({
+        actions: result.actions,
+        market_revenue: result.market_revenue,
+      });
+    } catch (err: any) {
+      console.error('Run turn error:', err);
+      alert(err?.response?.data?.error || 'Failed to run turn');
+    } finally {
+      setRunningTurn(false);
+    }
+  };
+
+  const handleRecalculatePrices = async () => {
+    try {
+      setRecalculatingPrices(true);
+      setPriceResult(null);
+      const result = await adminAPI.recalculatePrices();
+      setPriceResult({
+        corporations_updated: result.corporations_updated,
+        changes: result.changes,
+      });
+    } catch (err: any) {
+      console.error('Recalculate prices error:', err);
+      alert(err?.response?.data?.error || 'Failed to recalculate prices');
+    } finally {
+      setRecalculatingPrices(false);
+    }
+  };
+
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleString('en-US', {
@@ -197,6 +241,111 @@ export default function AdminPage() {
             >
               Go Back
             </button>
+          </div>
+
+          {/* Game Actions Section */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700/50 mb-6">
+            <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700/60">
+              <h2 className="text-lg font-semibold flex items-center gap-2">
+                <Clock className="w-5 h-5 text-corporate-blue" />
+                Game Actions
+              </h2>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                Manually trigger game events and recalculations
+              </p>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="flex flex-wrap gap-4">
+                <button
+                  onClick={handleRunTurn}
+                  disabled={runningTurn}
+                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {runningTurn ? (
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <Play className="w-4 h-4" />
+                  )}
+                  Run Turn
+                </button>
+                <button
+                  onClick={handleRecalculatePrices}
+                  disabled={recalculatingPrices}
+                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md bg-corporate-blue text-white hover:bg-corporate-blue-dark disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {recalculatingPrices ? (
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <RefreshCw className="w-4 h-4" />
+                  )}
+                  Recalculate Stock Prices
+                </button>
+              </div>
+
+              {/* Turn Result */}
+              {turnResult && (
+                <div className="p-4 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800">
+                  <h3 className="text-sm font-semibold text-emerald-800 dark:text-emerald-200 mb-2">Turn Completed</h3>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <p className="text-emerald-600 dark:text-emerald-400">Actions Updated</p>
+                      <p className="font-semibold text-emerald-800 dark:text-emerald-200">
+                        {turnResult.actions.users_updated} users ({turnResult.actions.ceo_count} CEOs)
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-emerald-600 dark:text-emerald-400">Market Revenue</p>
+                      <p className="font-semibold text-emerald-800 dark:text-emerald-200">
+                        {turnResult.market_revenue.corporations_processed} corps, ${turnResult.market_revenue.total_profit.toLocaleString()} profit
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Price Recalculation Result */}
+              {priceResult && (
+                <div className="p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
+                  <h3 className="text-sm font-semibold text-blue-800 dark:text-blue-200 mb-2">
+                    Prices Recalculated ({priceResult.corporations_updated} corporations)
+                  </h3>
+                  <div className="max-h-48 overflow-y-auto">
+                    <table className="w-full text-sm">
+                      <thead className="text-xs text-blue-600 dark:text-blue-400 uppercase">
+                        <tr>
+                          <th className="text-left pb-2">Corporation</th>
+                          <th className="text-right pb-2">Old Price</th>
+                          <th className="text-right pb-2">New Price</th>
+                          <th className="text-right pb-2">Change</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-blue-200 dark:divide-blue-800">
+                        {priceResult.changes.map((change) => {
+                          const diff = change.new_price - change.old_price;
+                          const pctChange = change.old_price > 0 ? ((diff / change.old_price) * 100) : 0;
+                          return (
+                            <tr key={change.corporation_id}>
+                              <td className="py-1 text-blue-800 dark:text-blue-200">{change.name}</td>
+                              <td className="py-1 text-right font-mono">${change.old_price.toFixed(2)}</td>
+                              <td className="py-1 text-right font-mono">${change.new_price.toFixed(2)}</td>
+                              <td className={`py-1 text-right font-mono ${diff >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+                                {diff >= 0 ? '+' : ''}{diff.toFixed(2)} ({pctChange.toFixed(1)}%)
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                <strong>Run Turn:</strong> Triggers hourly actions (+2 for all, +1 extra for CEOs) and processes market revenue. Stock prices update automatically.
+                <br />
+                <strong>Recalculate Prices:</strong> Forces recalculation of all stock prices based on current book value (80%) and trade history (20%).
+              </p>
+            </div>
           </div>
 
           {/* Reported Chats Section */}

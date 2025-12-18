@@ -4,7 +4,10 @@ import { BannedIpModel } from '../models/BannedIp';
 import { UserModel } from '../models/User';
 import { ReportedChatModel } from '../models/ReportedChat';
 import { MessageModel } from '../models/Message';
+import { CorporationModel } from '../models/Corporation';
 import { normalizeImageUrl } from '../utils/imageUrl';
+import { triggerActionsIncrement, triggerMarketRevenue } from '../cron/actions';
+import { updateStockPrice } from '../utils/valuation';
 
 const router = express.Router();
 
@@ -202,6 +205,68 @@ router.get('/conversation/:userId1/:userId2', async (req: AuthRequest, res: Resp
   } catch (error) {
     console.error('Admin view conversation error:', error);
     res.status(500).json({ error: 'Failed to fetch conversation' });
+  }
+});
+
+// POST /api/admin/run-turn - Manually trigger hourly turn (actions + market revenue)
+router.post('/run-turn', async (req: AuthRequest, res: Response) => {
+  try {
+    console.log('[Admin] Manual turn trigger by user:', req.userId);
+    
+    // Run actions increment
+    const actionsResult = await triggerActionsIncrement();
+    
+    // Run market revenue processing (includes stock price updates)
+    const revenueResult = await triggerMarketRevenue();
+    
+    res.json({
+      success: true,
+      actions: {
+        users_updated: actionsResult.updated,
+        ceo_count: actionsResult.ceoCount,
+      },
+      market_revenue: {
+        corporations_processed: revenueResult.processed,
+        total_profit: revenueResult.totalProfit,
+      },
+    });
+  } catch (error) {
+    console.error('Run turn error:', error);
+    res.status(500).json({ error: 'Failed to run turn' });
+  }
+});
+
+// POST /api/admin/recalculate-prices - Recalculate all stock prices based on fundamentals
+router.post('/recalculate-prices', async (req: AuthRequest, res: Response) => {
+  try {
+    console.log('[Admin] Recalculating all stock prices by user:', req.userId);
+    
+    const corporations = await CorporationModel.findAll();
+    const results: { corporation_id: number; name: string; old_price: number; new_price: number }[] = [];
+    
+    for (const corp of corporations) {
+      const oldPrice = typeof corp.share_price === 'string' 
+        ? parseFloat(corp.share_price) 
+        : corp.share_price;
+      
+      const newPrice = await updateStockPrice(corp.id);
+      
+      results.push({
+        corporation_id: corp.id,
+        name: corp.name,
+        old_price: oldPrice,
+        new_price: newPrice,
+      });
+    }
+    
+    res.json({
+      success: true,
+      corporations_updated: results.length,
+      changes: results,
+    });
+  } catch (error) {
+    console.error('Recalculate prices error:', error);
+    res.status(500).json({ error: 'Failed to recalculate prices' });
   }
 });
 

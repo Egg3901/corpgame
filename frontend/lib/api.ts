@@ -499,6 +499,22 @@ export const adminAPI = {
     const response = await api.get(`/api/admin/conversation/${userId1}/${userId2}${query ? `?${query}` : ''}`);
     return response.data;
   },
+  runTurn: async (): Promise<{
+    success: boolean;
+    actions: { users_updated: number; ceo_count: number };
+    market_revenue: { corporations_processed: number; total_profit: number };
+  }> => {
+    const response = await api.post('/api/admin/run-turn');
+    return response.data;
+  },
+  recalculatePrices: async (): Promise<{
+    success: boolean;
+    corporations_updated: number;
+    changes: Array<{ corporation_id: number; name: string; old_price: number; new_price: number }>;
+  }> => {
+    const response = await api.post('/api/admin/recalculate-prices');
+    return response.data;
+  },
 };
 
 export interface MessageResponse {
