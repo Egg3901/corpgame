@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import AppNavigation from '@/components/AppNavigation';
-import { authAPI, portfolioAPI, corporationAPI } from '@/lib/api';
+import { authAPI, portfolioAPI, corporationAPI, gameAPI, ServerTimeResponse } from '@/lib/api';
 import {
   Clock,
   Building2,
@@ -35,6 +35,7 @@ interface User {
   player_name?: string;
   email?: string;
   starting_state?: string;
+  cash?: number;
 }
 
 export default function OverviewPage() {
@@ -43,6 +44,7 @@ export default function OverviewPage() {
   const [loading, setLoading] = useState(true);
   const [portfolioValue, setPortfolioValue] = useState<number | null>(null);
   const [corporationCount, setCorporationCount] = useState<number>(0);
+  const [gameTime, setGameTime] = useState<ServerTimeResponse | null>(null);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -71,6 +73,14 @@ export default function OverviewPage() {
           setCorporationCount(corporations.length);
         } catch (err) {
           console.log('Could not fetch corporations');
+        }
+
+        // Fetch game time to check if crons are running
+        try {
+          const time = await gameAPI.getTime();
+          setGameTime(time);
+        } catch (err) {
+          console.log('Could not fetch game time');
         }
       } catch (error) {
         localStorage.removeItem('token');
@@ -126,11 +136,24 @@ export default function OverviewPage() {
           </div>
 
           {/* Stats Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            <div className="bg-white dark:bg-gray-800/50 rounded-xl border border-gray-200 dark:border-gray-700 p-6 shadow-sm hover:shadow-md transition-shadow">
+              <div className="flex items-center justify-between mb-2">
+                <div className="p-2 rounded-lg bg-green-100 dark:bg-green-900/30">
+                  <DollarSign className="w-5 h-5 text-green-600 dark:text-green-400" />
+                </div>
+                <DollarSign className="w-5 h-5 text-green-500" />
+              </div>
+              <h3 className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Cash</h3>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                ${(user?.cash ?? 0).toLocaleString()}
+              </p>
+            </div>
+
             <div className="bg-white dark:bg-gray-800/50 rounded-xl border border-gray-200 dark:border-gray-700 p-6 shadow-sm hover:shadow-md transition-shadow">
               <div className="flex items-center justify-between mb-2">
                 <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/30">
-                  <DollarSign className="w-5 h-5 text-corporate-blue dark:text-corporate-blue-light" />
+                  <PieChart className="w-5 h-5 text-corporate-blue dark:text-corporate-blue-light" />
                 </div>
                 <TrendingUp className="w-5 h-5 text-green-500" />
               </div>
@@ -151,15 +174,26 @@ export default function OverviewPage() {
               <p className="text-2xl font-bold text-gray-900 dark:text-white">{corporationCount}</p>
             </div>
 
-            <div className="bg-white dark:bg-gray-800/50 rounded-xl border border-gray-200 dark:border-gray-700 p-6 shadow-sm hover:shadow-md transition-shadow sm:col-span-2 lg:col-span-1">
+            <div className="bg-white dark:bg-gray-800/50 rounded-xl border border-gray-200 dark:border-gray-700 p-6 shadow-sm hover:shadow-md transition-shadow">
               <div className="flex items-center justify-between mb-2">
                 <div className="p-2 rounded-lg bg-emerald-100 dark:bg-emerald-900/30">
                   <Clock className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
                 </div>
-                <Zap className="w-5 h-5 text-emerald-500" />
+                {gameTime ? (
+                  <Zap className="w-5 h-5 text-emerald-500" />
+                ) : (
+                  <AlertCircle className="w-5 h-5 text-amber-500" />
+                )}
               </div>
               <h3 className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Game Status</h3>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">Turns Paused</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                {gameTime ? 'Turns Active' : 'Connecting...'}
+              </p>
+              {gameTime && (
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  Next turn in {Math.floor(gameTime.seconds_until_action_update / 60)}m {gameTime.seconds_until_action_update % 60}s
+                </p>
+              )}
             </div>
           </div>
         </div>

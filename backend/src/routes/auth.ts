@@ -251,6 +251,7 @@ router.get('/me', authenticateToken, async (req: AuthRequest, res: Response) => 
       profile_id: user.profile_id,
       profile_slug: user.profile_slug,
       profile_image_url: normalizeImageUrl(user.profile_image_url),
+      cash: user.cash || 0,
       actions: user.actions || 0,
       registration_ip: user.registration_ip,
       last_login_ip: user.last_login_ip,

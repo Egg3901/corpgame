@@ -2,8 +2,36 @@ import express, { Request, Response } from 'express';
 import { UserModel } from '../models/User';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { normalizeImageUrl } from '../utils/imageUrl';
+import { BoardProposalModel } from '../models/BoardProposal';
 
 const router = express.Router();
+
+// GET /api/profile/:userId/history - Get user's corporate history
+router.get('/:userId/history', async (req: Request, res: Response) => {
+  try {
+    const userId = parseInt(req.params.userId, 10);
+    if (isNaN(userId)) {
+      return res.status(400).json({ error: 'Invalid user ID' });
+    }
+
+    // Verify user exists
+    const user = await UserModel.findById(userId);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Get corporate history
+    const history = await BoardProposalModel.getUserCorporateHistory(userId);
+
+    res.json({
+      user_id: userId,
+      history,
+    });
+  } catch (error) {
+    console.error('Get user history error:', error);
+    res.status(500).json({ error: 'Failed to get user history' });
+  }
+});
 
 router.get('/:idOrSlug', async (req: Request, res: Response) => {
   try {

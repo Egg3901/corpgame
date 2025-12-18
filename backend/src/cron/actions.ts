@@ -91,18 +91,26 @@ async function resolveExpiredProposal(proposal: any): Promise<void> {
     await applyProposalChanges(proposal);
   }
 
-  // Notify board members of outcome
+  // Notify board members of outcome (use proposer as sender, skip self-messages)
   const boardMembers = await BoardModel.getBoardMembers(proposal.corporation_id);
   const corporation = await CorporationModel.findById(proposal.corporation_id);
   const proposalDescription = getProposalDescription(proposal.proposal_type, proposal.proposal_data);
+  const senderId = proposal.proposer_id;
 
   for (const member of boardMembers) {
-    await MessageModel.create({
-      sender_id: member.user_id, // Self-notification style
-      recipient_id: member.user_id,
-      subject: `Vote Result: ${corporation?.name || 'Corporation'}`,
-      body: `The proposal "${proposalDescription}" has ${passed ? 'PASSED' : 'FAILED'}.\n\nVotes: ${voteCounts.aye} Aye, ${voteCounts.nay} Nay`,
-    });
+    // Skip sending to the proposer (they already know, and self-messaging is not allowed)
+    if (member.user_id === senderId) continue;
+
+    try {
+      await MessageModel.create({
+        sender_id: senderId,
+        recipient_id: member.user_id,
+        subject: `Vote Result: ${corporation?.name || 'Corporation'}`,
+        body: `The proposal "${proposalDescription}" has ${passed ? 'PASSED' : 'FAILED'}.\n\nVotes: ${voteCounts.aye} Aye, ${voteCounts.nay} Nay`,
+      });
+    } catch (msgErr) {
+      console.warn(`[Cron] Failed to send vote notification to user ${member.user_id}:`, msgErr);
+    }
   }
 }
 

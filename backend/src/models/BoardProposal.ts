@@ -127,6 +127,96 @@ export class BoardProposalModel {
     return result.rows;
   }
 
+  // Get user's corporate history (CEO elections, founding, etc.)
+  static async getUserCorporateHistory(userId: number, limit: number = 50): Promise<{
+    type: 'founded' | 'elected_ceo' | 'lost_ceo' | 'ceo_resigned';
+    corporation_id: number;
+    corporation_name: string;
+    date: Date;
+    details?: string;
+  }[]> {
+    const history: {
+      type: 'founded' | 'elected_ceo' | 'lost_ceo' | 'ceo_resigned';
+      corporation_id: number;
+      corporation_name: string;
+      date: Date;
+      details?: string;
+    }[] = [];
+
+    // 1. Get corporations this user founded (is the original CEO)
+    const foundedResult = await pool.query(
+      `SELECT id, name, created_at FROM corporations WHERE ceo_id = $1 ORDER BY created_at DESC`,
+      [userId]
+    );
+    for (const corp of foundedResult.rows) {
+      history.push({
+        type: 'founded',
+        corporation_id: corp.id,
+        corporation_name: corp.name,
+        date: corp.created_at,
+        details: 'Founded corporation as CEO',
+      });
+    }
+
+    // 2. Get CEO elections where this user was elected (passed ceo_nomination proposals)
+    const electedResult = await pool.query(
+      `SELECT bp.resolved_at, bp.corporation_id, c.name as corporation_name, bp.proposal_data
+       FROM board_proposals bp
+       JOIN corporations c ON bp.corporation_id = c.id
+       WHERE bp.proposal_type = 'ceo_nomination'
+         AND bp.status = 'passed'
+         AND (bp.proposal_data->>'nominee_id')::int = $1
+       ORDER BY bp.resolved_at DESC`,
+      [userId]
+    );
+    for (const row of electedResult.rows) {
+      history.push({
+        type: 'elected_ceo',
+        corporation_id: row.corporation_id,
+        corporation_name: row.corporation_name,
+        date: row.resolved_at,
+        details: 'Elected as CEO by board vote',
+      });
+    }
+
+    // 3. Get CEO elections where this user LOST their position (another user was elected while they were CEO)
+    // This requires checking historical data - we look for proposals where the user was previously CEO
+    const lostCeoResult = await pool.query(
+      `SELECT bp.resolved_at, bp.corporation_id, c.name as corporation_name, 
+              bp.proposal_data->>'nominee_name' as new_ceo_name
+       FROM board_proposals bp
+       JOIN corporations c ON bp.corporation_id = c.id
+       WHERE bp.proposal_type = 'ceo_nomination'
+         AND bp.status = 'passed'
+         AND (bp.proposal_data->>'nominee_id')::int != $1
+         AND EXISTS (
+           -- Check if the user was elected CEO before this proposal passed
+           SELECT 1 FROM board_proposals prev
+           WHERE prev.corporation_id = bp.corporation_id
+             AND prev.proposal_type = 'ceo_nomination'
+             AND prev.status = 'passed'
+             AND (prev.proposal_data->>'nominee_id')::int = $1
+             AND prev.resolved_at < bp.resolved_at
+         )
+       ORDER BY bp.resolved_at DESC`,
+      [userId]
+    );
+    for (const row of lostCeoResult.rows) {
+      history.push({
+        type: 'lost_ceo',
+        corporation_id: row.corporation_id,
+        corporation_name: row.corporation_name,
+        date: row.resolved_at,
+        details: `Replaced as CEO by ${row.new_ceo_name || 'another executive'}`,
+      });
+    }
+
+    // Sort by date descending
+    history.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+    return history.slice(0, limit);
+  }
+
   // Get all proposals (active and history) with vote counts
   static async getProposalsWithVotes(
     corporationId: number,

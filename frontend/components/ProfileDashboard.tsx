@@ -22,18 +22,13 @@ import {
   Circle,
   Zap,
 } from 'lucide-react';
-import { authAPI, profileAPI, corporationAPI, portfolioAPI, ProfileResponse, CorporationResponse, PortfolioResponse } from '@/lib/api';
+import { authAPI, profileAPI, corporationAPI, portfolioAPI, ProfileResponse, CorporationResponse, PortfolioResponse, CorporateHistoryItem } from '@/lib/api';
 import SendCashModal from './SendCashModal';
 import ComposeMessage from './ComposeMessage';
 
 interface ProfileDashboardProps {
   profileId: string;
 }
-
-const corporateHistory = [
-  { title: 'C.E.O. SAMPLE CORP', period: '12/01/25 - 12/15/25' },
-  { title: 'Acting CEO Placeholder Inc.', period: '11/10/25 - 11/30/25' },
-];
 
 export default function ProfileDashboard({ profileId }: ProfileDashboardProps) {
   const router = useRouter();
@@ -52,6 +47,7 @@ export default function ProfileDashboard({ profileId }: ProfileDashboardProps) {
   const [copied, setCopied] = useState(false);
   const [sendCashOpen, setSendCashOpen] = useState(false);
   const [sendMessageOpen, setSendMessageOpen] = useState(false);
+  const [corporateHistory, setCorporateHistory] = useState<CorporateHistoryItem[]>([]);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -88,7 +84,7 @@ export default function ProfileDashboard({ profileId }: ProfileDashboardProps) {
           // Don't fail the whole page if corporation fetch fails
         }
 
-        // Fetch portfolio data
+        // Fetch portfolio data and history
         try {
           // Try to get user id - ProfileResponse.id might be user_id
           // If viewing own profile, get from authAPI.getMe
@@ -104,12 +100,21 @@ export default function ProfileDashboard({ profileId }: ProfileDashboardProps) {
           }
           
           if (userId) {
+            // Fetch portfolio
             try {
               const portfolioData = await portfolioAPI.getByUserId(userId);
               setPortfolio(portfolioData);
             } catch (portfolioErr) {
               // Portfolio might not exist yet, that's okay
               console.warn('Portfolio not found for user:', portfolioErr);
+            }
+
+            // Fetch corporate history
+            try {
+              const historyData = await profileAPI.getHistory(userId);
+              setCorporateHistory(historyData.history);
+            } catch (historyErr) {
+              console.warn('Failed to fetch corporate history:', historyErr);
             }
           }
         } catch (portfolioErr) {
@@ -459,11 +464,83 @@ export default function ProfileDashboard({ profileId }: ProfileDashboardProps) {
                 <ClipboardList className="h-5 w-5 text-corporate-blue" />
               </div>
               <div className="space-y-4">
+                {/* Corporate history events (sorted by date, most recent first) */}
+                {corporateHistory.map((historyItem, idx) => {
+                  const eventDate = new Date(historyItem.date);
+                  const dateLabel = eventDate.toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric',
+                  });
+
+                  // Determine icon and styling based on event type
+                  const getEventStyle = () => {
+                    switch (historyItem.type) {
+                      case 'founded':
+                        return {
+                          bgClass: 'bg-gradient-to-br from-emerald-500 to-emerald-600 text-white',
+                          icon: <Building2 className="h-4 w-4" />,
+                          label: `Founded ${historyItem.corporation_name}`,
+                        };
+                      case 'elected_ceo':
+                        return {
+                          bgClass: 'bg-gradient-to-br from-corporate-blue to-corporate-blue-light text-white',
+                          icon: <Trophy className="h-4 w-4" />,
+                          label: `Elected CEO of ${historyItem.corporation_name}`,
+                        };
+                      case 'lost_ceo':
+                        return {
+                          bgClass: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300',
+                          icon: <Building2 className="h-4 w-4" />,
+                          label: `Left CEO position at ${historyItem.corporation_name}`,
+                        };
+                      case 'ceo_resigned':
+                        return {
+                          bgClass: 'bg-amber-100 text-amber-600 dark:bg-amber-900/50 dark:text-amber-400',
+                          icon: <Clock3 className="h-4 w-4" />,
+                          label: `Resigned as CEO of ${historyItem.corporation_name}`,
+                        };
+                      default:
+                        return {
+                          bgClass: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300',
+                          icon: <Building2 className="h-4 w-4" />,
+                          label: historyItem.details || 'Corporate event',
+                        };
+                    }
+                  };
+
+                  const style = getEventStyle();
+                  const isLast = idx === corporateHistory.length - 1;
+
+                  return (
+                    <div key={`${historyItem.type}-${historyItem.corporation_id}-${historyItem.date}`} className="flex gap-3">
+                      <div className="relative">
+                        {!isLast && (
+                          <div className="absolute inset-x-1/2 top-8 h-full w-px -translate-x-1/2 bg-gray-200 dark:bg-gray-700" />
+                        )}
+                        <div className={`relative flex h-8 w-8 items-center justify-center rounded-full shadow-sm ${style.bgClass}`}>
+                          {style.icon}
+                        </div>
+                      </div>
+                      <Link
+                        href={`/corporation/${historyItem.corporation_id}`}
+                        className="flex-1 rounded-xl border border-white/60 bg-white/70 p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md hover:border-corporate-blue/30 dark:border-gray-800/70 dark:bg-gray-800/60"
+                      >
+                        <p className="text-sm font-semibold text-gray-900 dark:text-white">{style.label}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">{dateLabel}</p>
+                        {historyItem.details && historyItem.type !== 'founded' && (
+                          <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">{historyItem.details}</p>
+                        )}
+                      </Link>
+                    </div>
+                  );
+                })}
+
+                {/* Profile created (always shown at the bottom) */}
                 <div className="flex gap-3">
                   <div className="relative">
-                    <div className="absolute inset-x-1/2 top-5 h-full w-px -translate-x-1/2 bg-gray-200 dark:bg-gray-800" />
-                    <div className="relative flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-corporate-blue to-corporate-blue-light text-white shadow-lg text-sm font-bold">
-                      <Clock3 className="h-4 w-4" />
+                    <div className="relative flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-gray-500 shadow-sm dark:bg-gray-800 dark:text-gray-400">
+                      <UserIcon className="h-4 w-4" />
                     </div>
                   </div>
                   <div className="flex-1 rounded-xl border border-white/60 bg-white/70 p-4 shadow-sm dark:border-gray-800/70 dark:bg-gray-800/60">
@@ -471,22 +548,13 @@ export default function ProfileDashboard({ profileId }: ProfileDashboardProps) {
                     <p className="text-xs text-gray-500 dark:text-gray-400">{joinedLabel}</p>
                   </div>
                 </div>
-                {corporateHistory.map((history, idx) => (
-                  <div key={history.title + idx} className="flex gap-3">
-                    <div className="relative">
-                      {idx < corporateHistory.length - 1 && (
-                        <div className="absolute inset-x-1/2 top-5 h-full w-px -translate-x-1/2 bg-gray-200 dark:bg-gray-800" />
-                      )}
-                      <div className="relative flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-gray-700 shadow-sm dark:bg-gray-800 dark:text-gray-200">
-                        <Building2 className="h-4 w-4" />
-                      </div>
-                    </div>
-                    <div className="flex-1 rounded-xl border border-white/60 bg-white/70 p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-gray-800/70 dark:bg-gray-800/60">
-                      <p className="text-sm font-semibold text-gray-900 dark:text-white">{history.title}</p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">{history.period}</p>
-                    </div>
+
+                {/* Empty state if no corporate history */}
+                {corporateHistory.length === 0 && (
+                  <div className="text-center py-4">
+                    <p className="text-sm text-gray-500 dark:text-gray-400">No corporate positions yet</p>
                   </div>
-                ))}
+                )}
               </div>
             </div>
           </section>

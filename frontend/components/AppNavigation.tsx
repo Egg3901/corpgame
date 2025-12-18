@@ -48,6 +48,39 @@ export default function AppNavigation({ children }: AppNavigationProps) {
   const [userActions, setUserActions] = useState<number>(0);
   const profileDropdownRef = useRef<HTMLDivElement>(null);
 
+  // Scroll animation state
+  const [scrolled, setScrolled] = useState(false);
+  const [scrollDirection, setScrollDirection] = useState<'up' | 'down' | null>(null);
+  const lastScrollY = useRef(0);
+  const ticking = useRef(false);
+
+  // Scroll handler for navbar animation
+  useEffect(() => {
+    const handleScroll = () => {
+      if (!ticking.current) {
+        window.requestAnimationFrame(() => {
+          const currentScrollY = window.scrollY;
+          const threshold = 10;
+          
+          // Determine if scrolled past threshold
+          setScrolled(currentScrollY > threshold);
+          
+          // Determine scroll direction with a small dead zone
+          if (Math.abs(currentScrollY - lastScrollY.current) > 5) {
+            setScrollDirection(currentScrollY > lastScrollY.current ? 'down' : 'up');
+          }
+          
+          lastScrollY.current = currentScrollY;
+          ticking.current = false;
+        });
+        ticking.current = true;
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
   useEffect(() => {
     const loadViewer = async () => {
       const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
@@ -135,9 +168,34 @@ export default function AppNavigation({ children }: AppNavigationProps) {
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(59,130,246,0.12),transparent_35%),radial-gradient(circle_at_80%_0%,rgba(30,64,175,0.1),transparent_30%),radial-gradient(circle_at_50%_80%,rgba(15,23,42,0.06),transparent_40%)] dark:bg-[radial-gradient(circle_at_20%_20%,rgba(59,130,246,0.08),transparent_45%),radial-gradient(circle_at_80%_0%,rgba(30,64,175,0.12),transparent_42%),radial-gradient(circle_at_50%_80%,rgba(148,163,184,0.05),transparent_45%)]" />
       </div>
 
-      <header className="sticky top-0 z-40 pb-2">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pt-4">
-          <div className="flex items-center justify-between rounded-2xl border border-white/60 bg-white/90 px-4 py-3 shadow-xl backdrop-blur-md dark:border-gray-800/60 dark:bg-gray-900/90">
+      <header 
+        className={`sticky top-0 z-40 transition-all duration-300 ease-out ${
+          scrolled ? 'pb-1' : 'pb-2'
+        }`}
+      >
+        <div 
+          className={`mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 transition-all duration-300 ease-out ${
+            scrolled ? 'pt-2' : 'pt-4'
+          }`}
+        >
+          <div 
+            className={`flex items-center justify-between rounded-2xl border px-4 backdrop-blur-md transition-all duration-300 ease-out ${
+              scrolled 
+                ? 'py-2 border-white/80 bg-white/95 shadow-2xl shadow-gray-200/50 dark:border-gray-700/80 dark:bg-gray-900/95 dark:shadow-black/30 scale-[0.98] sm:scale-[0.99]' 
+                : 'py-3 border-white/60 bg-white/90 shadow-xl dark:border-gray-800/60 dark:bg-gray-900/90'
+            } ${
+              scrollDirection === 'down' && scrolled 
+                ? 'translate-y-0' 
+                : scrollDirection === 'up' && scrolled 
+                  ? '-translate-y-0.5' 
+                  : ''
+            }`}
+            style={{
+              transform: scrolled 
+                ? `scale(${scrollDirection === 'down' ? 0.98 : 0.99}) translateY(${scrollDirection === 'up' ? '-2px' : '0'})` 
+                : 'scale(1) translateY(0)',
+            }}
+          >
             <div className="flex items-center gap-3">
               <button
                 type="button"

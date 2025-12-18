@@ -241,9 +241,26 @@ export const authAPI = {
   },
 };
 
+export interface CorporateHistoryItem {
+  type: 'founded' | 'elected_ceo' | 'lost_ceo' | 'ceo_resigned';
+  corporation_id: number;
+  corporation_name: string;
+  date: string;
+  details?: string;
+}
+
+export interface UserHistoryResponse {
+  user_id: number;
+  history: CorporateHistoryItem[];
+}
+
 export const profileAPI = {
   getById: async (profileId: string | number): Promise<ProfileResponse> => {
     const response = await api.get(`/api/profile/${profileId}`);
+    return response.data;
+  },
+  getHistory: async (userId: number): Promise<UserHistoryResponse> => {
+    const response = await api.get(`/api/profile/${userId}/history`);
     return response.data;
   },
   uploadAvatar: async (file: File): Promise<{ profile_image_url: string }> => {
