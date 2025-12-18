@@ -3,6 +3,7 @@ import { UserModel } from '../models/User';
 import { CorporationModel } from '../models/Corporation';
 import { BoardProposalModel, BoardVoteModel, BoardModel } from '../models/BoardProposal';
 import { MessageModel } from '../models/Message';
+import { MarketEntryModel } from '../models/MarketEntry';
 
 /**
  * Hourly cron job to add actions to all users
@@ -26,6 +27,9 @@ export function startActionsCron() {
       const result = await UserModel.incrementAllUsersActions(2, uniqueCeoUserIds);
       
       console.log(`[Cron] Actions incremented for ${result.updated} users. CEOs (${uniqueCeoUserIds.length}): +3, Others: +2`);
+
+      // Process market revenue/costs for all corporations
+      await processMarketRevenue();
     } catch (error) {
       console.error('[Cron] Error incrementing actions:', error);
     }
@@ -166,6 +170,75 @@ function getProposalDescription(type: string, data: any): string {
     default:
       return 'Unknown proposal';
   }
+}
+
+/**
+ * Process market revenue/costs for all corporations with business units
+ * Called hourly to add net profit to corporation capital
+ */
+async function processMarketRevenue(): Promise<void> {
+  try {
+    console.log('[Cron] Processing market revenue/costs...');
+    
+    // Get all corporations with their hourly financials
+    const corpFinancials = await MarketEntryModel.getAllCorporationsFinancials();
+    
+    if (corpFinancials.length === 0) {
+      console.log('[Cron] No corporations with business units to process');
+      return;
+    }
+
+    let totalProcessed = 0;
+    let totalRevenue = 0;
+
+    for (const { corporation_id, hourly_profit } of corpFinancials) {
+      if (hourly_profit === 0) continue;
+
+      try {
+        // Get current corporation capital
+        const corp = await CorporationModel.findById(corporation_id);
+        if (!corp) continue;
+
+        // Add hourly profit to capital (can be negative if costs exceed revenue)
+        const newCapital = Math.max(0, corp.capital + hourly_profit);
+        await CorporationModel.update(corporation_id, { capital: newCapital });
+
+        totalProcessed++;
+        totalRevenue += hourly_profit;
+      } catch (corpErr) {
+        console.error(`[Cron] Error processing revenue for corporation ${corporation_id}:`, corpErr);
+      }
+    }
+
+    console.log(`[Cron] Market revenue processed: ${totalProcessed} corporations, total hourly profit: $${totalRevenue.toLocaleString()}`);
+  } catch (error) {
+    console.error('[Cron] Error processing market revenue:', error);
+  }
+}
+
+/**
+ * Manual trigger for testing market revenue processing
+ */
+export async function triggerMarketRevenue(): Promise<{ processed: number; totalProfit: number }> {
+  const corpFinancials = await MarketEntryModel.getAllCorporationsFinancials();
+  
+  let totalProcessed = 0;
+  let totalProfit = 0;
+
+  for (const { corporation_id, hourly_profit } of corpFinancials) {
+    if (hourly_profit === 0) continue;
+
+    const corp = await CorporationModel.findById(corporation_id);
+    if (!corp) continue;
+
+    const newCapital = Math.max(0, corp.capital + hourly_profit);
+    await CorporationModel.update(corporation_id, { capital: newCapital });
+
+    totalProcessed++;
+    totalProfit += hourly_profit;
+  }
+
+  return { processed: totalProcessed, totalProfit };
 }
 
 /**

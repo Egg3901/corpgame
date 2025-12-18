@@ -742,6 +742,160 @@ export const gameAPI = {
   },
 };
 
+// Markets/States types
+export interface StateInfo {
+  code: string;
+  name: string;
+  region: string;
+  multiplier: number;
+}
+
+export interface StatesListResponse {
+  regions: string[];
+  states_by_region: Record<string, StateInfo[]>;
+  total_states: number;
+}
+
+export interface MarketEntryWithUnits {
+  id: number;
+  corporation_id: number;
+  state_code: string;
+  sector_type: string;
+  created_at: string;
+  retail_count: number;
+  production_count: number;
+  service_count: number;
+  state_name?: string;
+  state_region?: string;
+  state_multiplier?: number;
+}
+
+export interface UnitCounts {
+  retail: number;
+  production: number;
+  service: number;
+}
+
+export interface MarketWithDetails {
+  id: number;
+  corporation_id: number;
+  state_code: string;
+  sector_type: string;
+  created_at: string;
+  corporation: {
+    id: number;
+    name: string;
+    logo?: string | null;
+  } | null;
+  units: UnitCounts;
+}
+
+export interface StateDetailResponse {
+  state: StateInfo;
+  markets: MarketWithDetails[];
+  sectors: string[];
+  user_corporation: {
+    id: number;
+    name: string;
+    capital: number;
+  } | null;
+  user_market_entries: Array<{
+    id: number;
+    corporation_id: number;
+    state_code: string;
+    sector_type: string;
+    created_at: string;
+    units: UnitCounts;
+  }>;
+}
+
+export interface CorporationFinances {
+  corporation_id: number;
+  hourly_revenue: number;
+  hourly_costs: number;
+  hourly_profit: number;
+  display_revenue: number;
+  display_costs: number;
+  display_profit: number;
+  total_retail_units: number;
+  total_production_units: number;
+  total_service_units: number;
+  markets_count: number;
+}
+
+export interface CorporationFinancesResponse {
+  corporation_id: number;
+  finances: CorporationFinances;
+  market_entries: MarketEntryWithUnits[];
+}
+
+export interface EnterMarketResponse {
+  success: boolean;
+  market_entry: {
+    id: number;
+    corporation_id: number;
+    state_code: string;
+    sector_type: string;
+    created_at: string;
+  };
+  capital_deducted: number;
+  actions_deducted: number;
+  new_capital: number;
+}
+
+export interface BuildUnitResponse {
+  success: boolean;
+  unit: {
+    id: number;
+    market_entry_id: number;
+    unit_type: string;
+    count: number;
+  };
+  unit_counts: UnitCounts;
+  capital_deducted: number;
+  actions_deducted: number;
+  new_capital: number;
+}
+
+export const marketsAPI = {
+  getStates: async (): Promise<StatesListResponse> => {
+    const response = await api.get('/api/markets/states');
+    return response.data;
+  },
+  getState: async (stateCode: string): Promise<StateDetailResponse> => {
+    const response = await api.get(`/api/markets/states/${stateCode}`);
+    return response.data;
+  },
+  enterMarket: async (
+    stateCode: string,
+    sectorType: string,
+    corporationId: number
+  ): Promise<EnterMarketResponse> => {
+    const response = await api.post(`/api/markets/states/${stateCode}/enter`, {
+      sector_type: sectorType,
+      corporation_id: corporationId,
+    });
+    return response.data;
+  },
+  buildUnit: async (
+    entryId: number,
+    unitType: 'retail' | 'production' | 'service'
+  ): Promise<BuildUnitResponse> => {
+    const response = await api.post(`/api/markets/entries/${entryId}/build`, {
+      unit_type: unitType,
+    });
+    return response.data;
+  },
+  getCorporationFinances: async (corpId: number): Promise<CorporationFinancesResponse> => {
+    const response = await api.get(`/api/markets/corporation/${corpId}/finances`);
+    return response.data;
+  },
+  getCorporationEntries: async (corpId: number): Promise<MarketEntryWithUnits[]> => {
+    const response = await api.get(`/api/markets/corporation/${corpId}/entries`);
+    return response.data;
+  },
+};
+
 /**
  * Normalizes image URLs to ensure they work correctly.
  * - If the URL is already absolute (starts with http:// or https://), returns it as-is

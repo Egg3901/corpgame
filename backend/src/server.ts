@@ -15,6 +15,7 @@ import issuesRoutes from './routes/issues';
 import messagesRoutes from './routes/messages';
 import cashRoutes from './routes/cash';
 import boardRoutes from './routes/board';
+import marketsRoutes from './routes/markets';
 import { startActionsCron } from './cron/actions';
 
 dotenv.config();
@@ -155,6 +156,7 @@ app.use('/api/issues', issuesRoutes);
 app.use('/api/messages', messagesRoutes);
 app.use('/api/cash', cashRoutes);
 app.use('/api/board', boardRoutes);
+app.use('/api/markets', marketsRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

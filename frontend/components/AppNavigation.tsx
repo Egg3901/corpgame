@@ -29,7 +29,7 @@ const navSections = [
   { id: 'portfolio', label: 'Buy/Sell Investments', path: '/portfolio' },
   { id: 'corporate-actions', label: 'Corporate Actions', path: '#' },
   { id: 'corporations', label: 'Corporations', path: '/corporations' },
-  { id: 'states', label: 'States', path: '#' },
+  { id: 'states', label: 'States & Markets', path: '/states' },
 ];
 
 export default function AppNavigation({ children }: AppNavigationProps) {

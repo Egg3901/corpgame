@@ -4,9 +4,10 @@ import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import AppNavigation from '@/components/AppNavigation';
-import { corporationAPI, CorporationResponse, authAPI, sharesAPI } from '@/lib/api';
-import { Building2, Edit, Trash2, TrendingUp, DollarSign, Users, User, Calendar, ArrowUp, ArrowDown, TrendingDown, Plus, BarChart3, MapPin } from 'lucide-react';
+import { corporationAPI, CorporationResponse, authAPI, sharesAPI, marketsAPI, CorporationFinances, MarketEntryWithUnits } from '@/lib/api';
+import { Building2, Edit, Trash2, TrendingUp, DollarSign, Users, User, Calendar, ArrowUp, ArrowDown, TrendingDown, Plus, BarChart3, MapPin, Store, Factory, Briefcase } from 'lucide-react';
 import BoardTab from '@/components/BoardTab';
+import StockPriceChart from '@/components/StockPriceChart';
 
 // US States for display
 const US_STATES: Record<string, string> = {
@@ -41,13 +42,16 @@ export default function CorporationDetailPage() {
   const [trading, setTrading] = useState(false);
   const [userOwnedShares, setUserOwnedShares] = useState(0);
   const [activeTab, setActiveTab] = useState<'overview' | 'finance' | 'board'>('overview');
+  const [corpFinances, setCorpFinances] = useState<CorporationFinances | null>(null);
+  const [marketEntries, setMarketEntries] = useState<MarketEntryWithUnits[]>([]);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [corpData, userData] = await Promise.all([
+        const [corpData, userData, financesData] = await Promise.all([
           corporationAPI.getById(corpId),
           authAPI.getMe().catch(() => null),
+          marketsAPI.getCorporationFinances(corpId).catch(() => null),
         ]);
         setCorporation(corpData);
         if (userData) {
@@ -55,6 +59,10 @@ export default function CorporationDetailPage() {
           // Find user's shares in this corporation
           const userShareholder = corpData.shareholders?.find(sh => sh.user_id === userData.id);
           setUserOwnedShares(userShareholder?.shares || 0);
+        }
+        if (financesData) {
+          setCorpFinances(financesData.finances);
+          setMarketEntries(financesData.market_entries || []);
         }
       } catch (err: any) {
         console.error('Failed to fetch corporation:', err);
@@ -437,6 +445,12 @@ export default function CorporationDetailPage() {
               </div>
             </div>
 
+            {/* Stock Price Chart */}
+            <StockPriceChart 
+              corporationId={corporation.id} 
+              currentPrice={corporation.share_price} 
+            />
+
             {/* Shareholders */}
             <div className="relative rounded-2xl border border-gray-200/50 dark:border-gray-700/50 bg-gradient-to-br from-white via-white to-gray-50/50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800/50 shadow-2xl overflow-hidden backdrop-blur-sm">
               <div className="absolute inset-0 bg-gradient-to-br from-corporate-blue/5 via-transparent to-corporate-blue-light/5 dark:from-corporate-blue/10 dark:via-transparent dark:to-corporate-blue-dark/10 pointer-events-none" />
@@ -770,71 +784,108 @@ export default function CorporationDetailPage() {
                 <div className="absolute inset-0 bg-gradient-to-br from-corporate-blue/5 via-transparent to-corporate-blue-light/5 dark:from-corporate-blue/10 dark:via-transparent dark:to-corporate-blue-dark/10 pointer-events-none" />
                 <div className="absolute inset-0 ring-1 ring-inset ring-white/20 dark:ring-gray-700/30 pointer-events-none" />
                 <div className="relative p-6">
-                  <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2 flex items-center gap-2">
                     <TrendingUp className="w-5 h-5 text-corporate-blue" />
                     Income Statement
                   </h2>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-6">96-hour projection based on market operations</p>
                   
                   <div className="rounded-xl border border-white/60 bg-white/70 dark:border-gray-800/70 dark:bg-gray-800/60 p-6 shadow-sm">
                     <div className="space-y-4">
                       <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700">
-                        <span className="text-sm text-gray-600 dark:text-gray-400">Revenue</span>
-                        <span className="text-sm font-semibold text-gray-900 dark:text-white font-mono">
-                          {formatCurrency((corporation.capital || 500000) * 0.5)}
+                        <span className="text-sm text-gray-600 dark:text-gray-400">Revenue (96hr)</span>
+                        <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400 font-mono">
+                          {formatCurrency(corpFinances?.display_revenue || 0)}
                         </span>
                       </div>
                       <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700">
-                        <span className="text-sm text-gray-600 dark:text-gray-400">Cost of Goods Sold</span>
-                        <span className="text-sm font-semibold text-gray-900 dark:text-white font-mono">
-                          {formatCurrency((corporation.capital || 500000) * 0.3)}
+                        <span className="text-sm text-gray-600 dark:text-gray-400">Operating Costs (96hr)</span>
+                        <span className="text-sm font-semibold text-red-600 dark:text-red-400 font-mono">
+                          {formatCurrency(corpFinances?.display_costs || 0)}
                         </span>
                       </div>
-                      <div className="flex justify-between items-center pt-2 pb-2 border-b-2 border-gray-300 dark:border-gray-600">
-                        <span className="text-base font-semibold text-gray-900 dark:text-white">Gross Profit</span>
-                        <span className="text-base font-semibold text-emerald-600 dark:text-emerald-400 font-mono">
-                          {formatCurrency((corporation.capital || 500000) * 0.2)}
+                      <div className="flex justify-between items-center pt-3 border-t-2 border-gray-300 dark:border-gray-600">
+                        <span className="text-lg font-bold text-gray-900 dark:text-white">Net Income (96hr)</span>
+                        <span className={`text-lg font-bold font-mono ${(corpFinances?.display_profit || 0) >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+                          {formatCurrency(corpFinances?.display_profit || 0)}
                         </span>
-                      </div>
-                      <div className="pt-2 space-y-2">
-                        <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700">
-                          <span className="text-sm text-gray-600 dark:text-gray-400">Operating Expenses</span>
-                          <span className="text-sm font-semibold text-gray-900 dark:text-white font-mono">
-                            {formatCurrency((corporation.capital || 500000) * 0.12)}
-                          </span>
-                        </div>
-                        <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700">
-                          <span className="text-sm text-gray-600 dark:text-gray-400">Depreciation & Amortization</span>
-                          <span className="text-sm font-semibold text-gray-900 dark:text-white font-mono">
-                            {formatCurrency((corporation.capital || 500000) * 0.03)}
-                          </span>
-                        </div>
-                        <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700">
-                          <span className="text-sm text-gray-600 dark:text-gray-400">Interest Expense</span>
-                          <span className="text-sm font-semibold text-gray-900 dark:text-white font-mono">
-                            {formatCurrency((corporation.capital || 500000) * 0.02)}
-                          </span>
-                        </div>
-                        <div className="flex justify-between items-center pt-2 pb-2 border-b-2 border-gray-300 dark:border-gray-600">
-                          <span className="text-base font-semibold text-gray-900 dark:text-white">Operating Income</span>
-                          <span className="text-base font-semibold text-emerald-600 dark:text-emerald-400 font-mono">
-                            {formatCurrency((corporation.capital || 500000) * 0.03)}
-                          </span>
-                        </div>
-                        <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700">
-                          <span className="text-sm text-gray-600 dark:text-gray-400">Tax Expense</span>
-                          <span className="text-sm font-semibold text-gray-900 dark:text-white font-mono">
-                            {formatCurrency((corporation.capital || 500000) * 0.01)}
-                          </span>
-                        </div>
-                        <div className="flex justify-between items-center pt-3 border-t-2 border-gray-300 dark:border-gray-600">
-                          <span className="text-lg font-bold text-gray-900 dark:text-white">Net Income</span>
-                          <span className="text-lg font-bold text-emerald-600 dark:text-emerald-400 font-mono">
-                            {formatCurrency((corporation.capital || 500000) * 0.02)}
-                          </span>
-                        </div>
                       </div>
                     </div>
                   </div>
+
+                  {/* Unit Breakdown */}
+                  {corpFinances && corpFinances.markets_count > 0 && (
+                    <div className="mt-6 rounded-xl border border-white/60 bg-white/70 dark:border-gray-800/70 dark:bg-gray-800/60 p-6 shadow-sm">
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Business Units</h3>
+                      <div className="grid grid-cols-3 gap-4">
+                        <div className="text-center p-3 rounded-lg bg-pink-50 dark:bg-pink-900/20">
+                          <Store className="h-6 w-6 text-pink-500 mx-auto mb-2" />
+                          <p className="text-2xl font-bold text-gray-900 dark:text-white">{corpFinances.total_retail_units}</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">Retail</p>
+                        </div>
+                        <div className="text-center p-3 rounded-lg bg-orange-50 dark:bg-orange-900/20">
+                          <Factory className="h-6 w-6 text-orange-500 mx-auto mb-2" />
+                          <p className="text-2xl font-bold text-gray-900 dark:text-white">{corpFinances.total_production_units}</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">Production</p>
+                        </div>
+                        <div className="text-center p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20">
+                          <Briefcase className="h-6 w-6 text-blue-500 mx-auto mb-2" />
+                          <p className="text-2xl font-bold text-gray-900 dark:text-white">{corpFinances.total_service_units}</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">Service</p>
+                        </div>
+                      </div>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-4 text-center">
+                        Operating in {corpFinances.markets_count} market{corpFinances.markets_count !== 1 ? 's' : ''}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Market Entries List */}
+                  {marketEntries.length > 0 && (
+                    <div className="mt-6 rounded-xl border border-white/60 bg-white/70 dark:border-gray-800/70 dark:bg-gray-800/60 p-6 shadow-sm">
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Market Presence</h3>
+                      <div className="space-y-3">
+                        {marketEntries.map((entry) => (
+                          <Link
+                            key={entry.id}
+                            href={`/states/${entry.state_code}`}
+                            className="flex items-center justify-between p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-corporate-blue/30 dark:hover:border-corporate-blue/30 transition-colors"
+                          >
+                            <div>
+                              <p className="font-medium text-gray-900 dark:text-white">{entry.state_name || entry.state_code}</p>
+                              <p className="text-xs text-gray-500 dark:text-gray-400">{entry.sector_type}</p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                {entry.retail_count + entry.production_count + entry.service_count} units
+                              </p>
+                              <p className="text-xs text-gray-500 dark:text-gray-400">
+                                {entry.state_multiplier?.toFixed(1)}x multiplier
+                              </p>
+                            </div>
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {(!corpFinances || corpFinances.markets_count === 0) && (
+                    <div className="mt-6 rounded-xl border border-dashed border-corporate-blue/30 bg-corporate-blue/5 dark:bg-corporate-blue/10 p-6 text-center">
+                      <MapPin className="h-8 w-8 text-corporate-blue/50 mx-auto mb-2" />
+                      <p className="text-sm text-corporate-blue dark:text-corporate-blue-light">
+                        No market operations yet
+                      </p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        Enter markets via the States page to generate revenue
+                      </p>
+                      <Link
+                        href="/states"
+                        className="inline-block mt-3 px-4 py-2 bg-corporate-blue text-white text-sm rounded-lg hover:bg-corporate-blue-dark transition-colors"
+                      >
+                        View States
+                      </Link>
+                    </div>
+                  )}
                 </div>
               </div>
               </>

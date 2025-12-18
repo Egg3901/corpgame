@@ -22,7 +22,7 @@ import {
   Circle,
   Zap,
 } from 'lucide-react';
-import { authAPI, profileAPI, corporationAPI, portfolioAPI, ProfileResponse, CorporationResponse, PortfolioResponse, CorporateHistoryItem } from '@/lib/api';
+import { authAPI, profileAPI, corporationAPI, portfolioAPI, marketsAPI, ProfileResponse, CorporationResponse, PortfolioResponse, CorporateHistoryItem, CorporationFinances } from '@/lib/api';
 import SendCashModal from './SendCashModal';
 import ComposeMessage from './ComposeMessage';
 
@@ -48,6 +48,7 @@ export default function ProfileDashboard({ profileId }: ProfileDashboardProps) {
   const [sendCashOpen, setSendCashOpen] = useState(false);
   const [sendMessageOpen, setSendMessageOpen] = useState(false);
   const [corporateHistory, setCorporateHistory] = useState<CorporateHistoryItem[]>([]);
+  const [corpFinances, setCorpFinances] = useState<CorporationFinances | null>(null);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -78,6 +79,14 @@ export default function ProfileDashboard({ profileId }: ProfileDashboardProps) {
           if (userCorps.length > 0) {
             // Use the first corporation as primary (already has CEO data from getAll)
             setPrimaryCorporation(userCorps[0]);
+            
+            // Fetch corporation finances
+            try {
+              const financesData = await marketsAPI.getCorporationFinances(userCorps[0].id);
+              setCorpFinances(financesData.finances);
+            } catch (finErr) {
+              console.warn('Failed to fetch corporation finances:', finErr);
+            }
           }
         } catch (corpErr) {
           console.warn('Failed to fetch corporations:', corpErr);
@@ -238,8 +247,8 @@ export default function ProfileDashboard({ profileId }: ProfileDashboardProps) {
 
   const corpSummary = primaryCorporation ? {
     name: primaryCorporation.name,
-    revenue: '$0', // Placeholder until revenue system is implemented
-    profit: '$0', // Placeholder until profit system is implemented
+    revenue: corpFinances ? formatCurrency(corpFinances.display_revenue) : '$0',
+    profit: corpFinances ? formatCurrency(corpFinances.display_profit) : '$0',
     ownership: primaryCorporation.ceo?.profile_id === profile?.profile_id ? '80%' : '0%',
     marketCap: formatCurrency(primaryCorporation.shares * primaryCorporation.share_price),
     id: primaryCorporation.id,
@@ -672,12 +681,21 @@ export default function ProfileDashboard({ profileId }: ProfileDashboardProps) {
                     <p className="mt-2 text-gray-600 dark:text-gray-300">{corpSummary.marketCap}</p>
                   </div>
                 </div>
-                <div className="mt-5 rounded-xl border border-dashed border-corporate-blue/30 bg-corporate-blue/5 p-4 text-sm text-corporate-blue dark:border-corporate-blue/30 dark:bg-corporate-blue/10">
-                  <div className="flex items-center gap-2">
-                    <Activity className="h-4 w-4" />
-                    Operations baseline is placeholder until live data is wired.
+                {corpFinances && corpFinances.markets_count > 0 ? (
+                  <div className="mt-5 rounded-xl border border-emerald-200/50 bg-emerald-50/50 p-4 text-sm text-emerald-700 dark:border-emerald-800/50 dark:bg-emerald-900/20 dark:text-emerald-300">
+                    <div className="flex items-center gap-2">
+                      <Activity className="h-4 w-4" />
+                      Active in {corpFinances.markets_count} market{corpFinances.markets_count !== 1 ? 's' : ''} with {corpFinances.total_retail_units + corpFinances.total_production_units + corpFinances.total_service_units} total units. Revenue figures are 96-hour projections.
+                    </div>
                   </div>
-                </div>
+                ) : (
+                  <div className="mt-5 rounded-xl border border-dashed border-corporate-blue/30 bg-corporate-blue/5 p-4 text-sm text-corporate-blue dark:border-corporate-blue/30 dark:bg-corporate-blue/10">
+                    <div className="flex items-center gap-2">
+                      <Activity className="h-4 w-4" />
+                      No market operations yet. Enter markets via the States page to generate revenue.
+                    </div>
+                  </div>
+                )}
             </div>
           </aside>
         </div>
