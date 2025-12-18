@@ -1,5 +1,5 @@
 import express, { Response } from 'express';
-import { authenticateToken, AuthRequest } from '../middleware/auth';
+import { authenticateToken, optionalAuth, AuthRequest } from '../middleware/auth';
 import { BoardProposalModel, BoardVoteModel, BoardModel, ProposalType, ProposalData } from '../models/BoardProposal';
 import { CorporationModel } from '../models/Corporation';
 import { ShareholderModel } from '../models/Shareholder';
@@ -11,7 +11,7 @@ import { normalizeImageUrl } from '../utils/imageUrl';
 const router = express.Router();
 
 // GET /api/board/:corpId - Get board info, members, active proposals
-router.get('/:corpId', async (req: AuthRequest, res: Response) => {
+router.get('/:corpId', optionalAuth, async (req: AuthRequest, res: Response) => {
   try {
     const corpId = parseInt(req.params.corpId, 10);
     if (isNaN(corpId)) {
@@ -83,7 +83,7 @@ router.get('/:corpId', async (req: AuthRequest, res: Response) => {
 });
 
 // GET /api/board/:corpId/proposals - Get proposal history
-router.get('/:corpId/proposals', async (req: AuthRequest, res: Response) => {
+router.get('/:corpId/proposals', optionalAuth, async (req: AuthRequest, res: Response) => {
   try {
     const corpId = parseInt(req.params.corpId, 10);
     if (isNaN(corpId)) {

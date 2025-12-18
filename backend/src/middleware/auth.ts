@@ -43,6 +43,41 @@ export const authenticateToken = async (
   });
 };
 
+// Optional authentication - sets userId if token is valid, but doesn't fail if no token
+export const optionalAuth = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (!token) {
+    // No token - continue without user
+    return next();
+  }
+
+  jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret', async (err, decoded: any) => {
+    if (err) {
+      // Invalid token - continue without user (don't fail the request)
+      return next();
+    }
+    
+    req.userId = decoded.userId;
+    
+    // Update last_seen_at for authenticated requests
+    if (decoded.userId) {
+      try {
+        await UserModel.updateLastSeen(decoded.userId);
+      } catch (error) {
+        console.error('Failed to update last_seen_at:', error);
+      }
+    }
+    
+    next();
+  });
+};
+
 export const requireAdmin = async (req: AuthRequest, res: Response, next: NextFunction) => {
   if (!req.userId) {
     return res.status(401).json({ error: 'Authentication required' });
