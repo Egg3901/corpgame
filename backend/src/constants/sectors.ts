@@ -183,6 +183,9 @@ export const STOCK_VALUATION = {
   
   // Hours to look back for trade activity
   TRADE_LOOKBACK_HOURS: 168, // 1 week
+  
+  // Random hourly variation (±5%)
+  HOURLY_VARIATION_PERCENT: 0.05,
 } as const;
 
 // Calculate asset value per unit based on annual profit capitalization

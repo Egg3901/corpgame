@@ -98,6 +98,14 @@ export default function AppNavigation({ children }: AppNavigationProps) {
           setUserActions(viewerData.actions || 0);
         }
 
+        // Fetch unread message count
+        try {
+          const { count } = await messagesAPI.getUnreadCount();
+          setUnreadCount(count);
+        } catch (err) {
+          console.warn('Failed to fetch unread count:', err);
+        }
+
         // Check if user is CEO of any corporation
         try {
           const corporations = await corporationAPI.getAll();
@@ -118,6 +126,24 @@ export default function AppNavigation({ children }: AppNavigationProps) {
 
     loadViewer();
   }, []);
+
+  // Periodically refresh unread message count
+  useEffect(() => {
+    if (!viewerProfileId) return;
+
+    const fetchUnreadCount = async () => {
+      try {
+        const { count } = await messagesAPI.getUnreadCount();
+        setUnreadCount(count);
+      } catch (err) {
+        // Silent fail for periodic updates
+      }
+    };
+
+    // Refresh every 30 seconds
+    const interval = setInterval(fetchUnreadCount, 30000);
+    return () => clearInterval(interval);
+  }, [viewerProfileId]);
 
   // Auto-expand investments dropdown if on stock-market or portfolio page
   useEffect(() => {
@@ -248,6 +274,12 @@ export default function AppNavigation({ children }: AppNavigationProps) {
                           e.currentTarget.src = "/defaultpfp.jpg";
                         }}
                       />
+                      {/* Unread message notification badge */}
+                      {unreadCount > 0 && (
+                        <div className="absolute -top-1 -right-1 flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-red-500 text-white text-xs font-bold shadow-lg animate-pulse">
+                          {unreadCount > 9 ? '9+' : unreadCount}
+                        </div>
+                      )}
                     </div>
                     <div className="leading-tight">
                       <p className="text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400">Profile</p>

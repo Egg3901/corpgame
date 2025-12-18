@@ -205,8 +205,8 @@ async function processMarketRevenue(): Promise<void> {
         const newCapital = Math.max(0, corp.capital + hourly_profit);
         await CorporationModel.update(corporation_id, { capital: newCapital });
 
-        // Recalculate stock price based on new fundamentals
-        const newPrice = await updateStockPrice(corporation_id);
+        // Recalculate stock price based on new fundamentals (with hourly random variation)
+        const newPrice = await updateStockPrice(corporation_id, true);
         
         // Record price history
         await SharePriceHistoryModel.create({
@@ -246,8 +246,8 @@ export async function triggerMarketRevenue(): Promise<{ processed: number; total
     const newCapital = Math.max(0, corp.capital + hourly_profit);
     await CorporationModel.update(corporation_id, { capital: newCapital });
 
-    // Recalculate stock price
-    const newPrice = await updateStockPrice(corporation_id);
+    // Recalculate stock price (with hourly random variation)
+    const newPrice = await updateStockPrice(corporation_id, true);
     
     // Record price history
     await SharePriceHistoryModel.create({

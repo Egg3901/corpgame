@@ -6,6 +6,7 @@ import pool from '../db/connection';
 import { BannedIpModel } from '../models/BannedIp';
 import { getClientIp } from '../utils/requestIp';
 import { normalizeImageUrl } from '../utils/imageUrl';
+import { MessageModel } from '../models/Message';
 
 const router = express.Router();
 
@@ -105,6 +106,19 @@ router.post('/register', async (req: Request, res: Response) => {
       process.env.JWT_SECRET || 'fallback-secret',
       { expiresIn: '24h' }
     );
+
+    // Send welcome message to new user
+    try {
+      await MessageModel.create({
+        sender_id: user.id,
+        recipient_id: user.id,
+        subject: '🎉 Welcome to Corporate Sim!',
+        body: `Hello ${user.player_name || user.username}!\n\nWelcome to Corporate Sim! We're thrilled to have you join our community of aspiring business moguls.\n\nHere are some tips to get started:\n\n• Visit your Profile to customize your avatar and bio\n• Check out the Stock Market to start investing in corporations\n• Create your own Corporation and become a CEO\n• Explore different States & Markets to expand your business empire\n• Use the Portfolio page to track your investments\n\nGood luck on your journey to corporate success!\n\n— The Corporate Sim Team`,
+      });
+    } catch (msgError) {
+      // Don't fail registration if welcome message fails
+      console.error('Failed to send welcome message:', msgError);
+    }
 
     res.status(201).json({
       token,

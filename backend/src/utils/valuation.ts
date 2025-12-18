@@ -225,13 +225,30 @@ export async function calculateStockPrice(corporationId: number): Promise<StockV
 /**
  * Recalculate and update stock price for a corporation
  * Returns the new price
+ * @param applyVariation - If true, applies random hourly variation (±5%)
  */
-export async function updateStockPrice(corporationId: number): Promise<number> {
+export async function updateStockPrice(corporationId: number, applyVariation: boolean = false): Promise<number> {
   const valuation = await calculateStockPrice(corporationId);
   
+  let finalPrice = valuation.calculatedPrice;
+  
+  // Apply random hourly variation if requested
+  if (applyVariation) {
+    // Generate random variation between -5% and +5%
+    const variationPercent = STOCK_VALUATION.HOURLY_VARIATION_PERCENT;
+    const randomFactor = 1 + (Math.random() * 2 - 1) * variationPercent;
+    finalPrice = finalPrice * randomFactor;
+    
+    // Ensure minimum floor is maintained
+    finalPrice = Math.max(STOCK_VALUATION.MIN_SHARE_PRICE, finalPrice);
+    
+    // Round to 2 decimal places
+    finalPrice = Math.round(finalPrice * 100) / 100;
+  }
+  
   await CorporationModel.update(corporationId, {
-    share_price: valuation.calculatedPrice,
+    share_price: finalPrice,
   });
   
-  return valuation.calculatedPrice;
+  return finalPrice;
 }
