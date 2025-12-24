@@ -18,7 +18,8 @@ import boardRoutes from './routes/board';
 import marketsRoutes from './routes/markets';
 import { startActionsCron } from './cron/actions';
 
-dotenv.config();
+// Load .env from the backend directory explicitly
+dotenv.config({ path: path.join(__dirname, '..', '.env') });
 
 const app = express();
 const PORT = parseInt(process.env.PORT || '3001', 10);
