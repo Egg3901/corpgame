@@ -21,6 +21,16 @@ export interface ShareTransactionInput {
 }
 
 export class ShareTransactionModel {
+  private static mapRow(row: any): ShareTransaction {
+    if (!row) return row;
+    return {
+      ...row,
+      shares: typeof row.shares === 'string' ? parseInt(row.shares, 10) : row.shares,
+      price_per_share: typeof row.price_per_share === 'string' ? parseFloat(row.price_per_share) : row.price_per_share,
+      total_amount: typeof row.total_amount === 'string' ? parseFloat(row.total_amount) : row.total_amount,
+    };
+  }
+
   static async create(transactionData: ShareTransactionInput): Promise<ShareTransaction> {
     const { corporation_id, user_id, transaction_type, shares, price_per_share, total_amount } = transactionData;
 
@@ -31,7 +41,7 @@ export class ShareTransactionModel {
       [corporation_id, user_id, transaction_type, shares, price_per_share, total_amount]
     );
 
-    return result.rows[0];
+    return this.mapRow(result.rows[0]);
   }
 
   static async findByCorporationId(corporationId: number, limit: number = 50): Promise<ShareTransaction[]> {
@@ -42,7 +52,7 @@ export class ShareTransactionModel {
        LIMIT $2`,
       [corporationId, limit]
     );
-    return result.rows;
+    return result.rows.map(row => this.mapRow(row));
   }
 
   static async findByUserId(userId: number, limit: number = 50): Promise<ShareTransaction[]> {
@@ -53,7 +63,7 @@ export class ShareTransactionModel {
        LIMIT $2`,
       [userId, limit]
     );
-    return result.rows;
+    return result.rows.map(row => this.mapRow(row));
   }
 
   static async getRecentActivity(corporationId: number, hours: number = 24): Promise<ShareTransaction[]> {
@@ -64,6 +74,7 @@ export class ShareTransactionModel {
        ORDER BY created_at DESC`,
       [corporationId]
     );
-    return result.rows;
+    return result.rows.map(row => this.mapRow(row));
   }
 }
+

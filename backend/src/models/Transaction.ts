@@ -69,6 +69,22 @@ export interface TransactionFilters {
 }
 
 export class TransactionModel {
+  private static mapRow(row: any): Transaction {
+    if (!row) return row;
+    return {
+      ...row,
+      amount: typeof row.amount === 'string' ? parseFloat(row.amount) : row.amount,
+    };
+  }
+
+  private static mapRowWithDetails(row: any): TransactionWithDetails {
+    if (!row) return row;
+    return {
+      ...row,
+      amount: typeof row.amount === 'string' ? parseFloat(row.amount) : row.amount,
+    };
+  }
+
   /**
    * Create a new transaction record
    */
@@ -102,7 +118,7 @@ export class TransactionModel {
       ]
     );
 
-    return result.rows[0];
+    return this.mapRow(result.rows[0]);
   }
 
   /**
@@ -113,7 +129,7 @@ export class TransactionModel {
       'SELECT * FROM transactions WHERE id = $1',
       [id]
     );
-    return result.rows[0] || null;
+    return this.mapRow(result.rows[0]) || null;
   }
 
   /**
@@ -162,7 +178,7 @@ export class TransactionModel {
       [userId, limit, offset]
     );
 
-    return result.rows;
+    return result.rows.map(row => this.mapRowWithDetails(row));
   }
 
   /**
@@ -209,7 +225,7 @@ export class TransactionModel {
       [corporationId, limit, offset]
     );
 
-    return result.rows;
+    return result.rows.map(row => this.mapRowWithDetails(row));
   }
 
   /**
@@ -309,7 +325,7 @@ export class TransactionModel {
       params
     );
 
-    return result.rows;
+    return result.rows.map(row => this.mapRowWithDetails(row));
   }
 
   /**
@@ -385,3 +401,4 @@ export class TransactionModel {
     return this.findAll({}, limit, 0);
   }
 }
+

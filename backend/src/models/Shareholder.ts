@@ -15,6 +15,14 @@ export interface ShareholderInput {
 }
 
 export class ShareholderModel {
+  private static mapRow(row: any): Shareholder {
+    if (!row) return row;
+    return {
+      ...row,
+      shares: typeof row.shares === 'string' ? parseInt(row.shares, 10) : row.shares,
+    };
+  }
+
   static async create(shareholderData: ShareholderInput): Promise<Shareholder> {
     const { corporation_id, user_id, shares } = shareholderData;
 
@@ -27,7 +35,7 @@ export class ShareholderModel {
       [corporation_id, user_id, shares]
     );
 
-    return result.rows[0];
+    return this.mapRow(result.rows[0]);
   }
 
   static async findByCorporationId(corporationId: number): Promise<Shareholder[]> {
@@ -35,7 +43,7 @@ export class ShareholderModel {
       'SELECT * FROM shareholders WHERE corporation_id = $1 ORDER BY shares DESC',
       [corporationId]
     );
-    return result.rows;
+    return result.rows.map(row => this.mapRow(row));
   }
 
   static async findByUserId(userId: number): Promise<Shareholder[]> {
@@ -43,7 +51,7 @@ export class ShareholderModel {
       'SELECT * FROM shareholders WHERE user_id = $1 ORDER BY purchased_at DESC',
       [userId]
     );
-    return result.rows;
+    return result.rows.map(row => this.mapRow(row));
   }
 
   static async updateShares(
@@ -57,7 +65,7 @@ export class ShareholderModel {
        RETURNING *`,
       [shares, corporationId, userId]
     );
-    return result.rows[0] || null;
+    return this.mapRow(result.rows[0]) || null;
   }
 
   static async delete(corporationId: number, userId: number): Promise<void> {
@@ -67,3 +75,4 @@ export class ShareholderModel {
     );
   }
 }
+

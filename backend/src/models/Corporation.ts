@@ -39,6 +39,18 @@ export interface CorporationInput {
 }
 
 export class CorporationModel {
+  private static mapRow(row: any): Corporation {
+    if (!row) return row;
+    return {
+      ...row,
+      share_price: typeof row.share_price === 'string' ? parseFloat(row.share_price) : row.share_price,
+      capital: typeof row.capital === 'string' ? parseFloat(row.capital) : row.capital,
+      ceo_salary: typeof row.ceo_salary === 'string' ? parseFloat(row.ceo_salary) : row.ceo_salary,
+      dividend_percentage: typeof row.dividend_percentage === 'string' ? parseFloat(row.dividend_percentage) : row.dividend_percentage,
+      special_dividend_last_amount: typeof row.special_dividend_last_amount === 'string' ? parseFloat(row.special_dividend_last_amount) : row.special_dividend_last_amount,
+    };
+  }
+
   static async create(corpData: CorporationInput): Promise<Corporation> {
     const {
       ceo_id,
@@ -58,17 +70,17 @@ export class CorporationModel {
       [ceo_id, name.trim(), logo, shares, public_shares, share_price, capital, type]
     );
 
-    return result.rows[0];
+    return this.mapRow(result.rows[0]);
   }
 
   static async findById(id: number): Promise<Corporation | null> {
     const result = await pool.query('SELECT * FROM corporations WHERE id = $1', [id]);
-    return result.rows[0] || null;
+    return this.mapRow(result.rows[0]) || null;
   }
 
   static async findAll(): Promise<Corporation[]> {
     const result = await pool.query('SELECT * FROM corporations ORDER BY created_at DESC');
-    return result.rows;
+    return result.rows.map(row => this.mapRow(row));
   }
 
   static async findByCeoId(ceoId: number): Promise<Corporation[]> {
@@ -76,7 +88,7 @@ export class CorporationModel {
       'SELECT * FROM corporations WHERE ceo_id = $1 ORDER BY created_at DESC',
       [ceoId]
     );
-    return result.rows;
+    return result.rows.map(row => this.mapRow(row));
   }
 
   static async update(id: number, updates: Partial<CorporationInput>): Promise<Corporation | null> {
@@ -103,7 +115,7 @@ export class CorporationModel {
       values
     );
 
-    return result.rows[0] || null;
+    return this.mapRow(result.rows[0]) || null;
   }
 
   static async delete(id: number): Promise<void> {
@@ -116,7 +128,7 @@ export class CorporationModel {
       `UPDATE corporations SET elected_ceo_id = NULL WHERE id = $1 RETURNING *`,
       [id]
     );
-    return result.rows[0] || null;
+    return this.mapRow(result.rows[0]) || null;
   }
 
   // Set elected CEO
@@ -125,6 +137,7 @@ export class CorporationModel {
       `UPDATE corporations SET elected_ceo_id = $1 WHERE id = $2 RETURNING *`,
       [ceoUserId, id]
     );
-    return result.rows[0] || null;
+    return this.mapRow(result.rows[0]) || null;
   }
 }
+

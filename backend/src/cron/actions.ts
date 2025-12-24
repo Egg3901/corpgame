@@ -218,8 +218,10 @@ async function processMarketRevenue(): Promise<void> {
         const corp = await CorporationModel.findById(corporation_id);
         if (!corp) continue;
 
+        const currentCapital = typeof corp.capital === 'string' ? parseFloat(corp.capital) : corp.capital;
+
         // Add hourly profit to capital (can be negative if costs exceed revenue)
-        const newCapital = Math.max(0, corp.capital + hourly_profit);
+        const newCapital = Math.max(0, currentCapital + hourly_profit);
         await CorporationModel.update(corporation_id, { capital: newCapital });
 
         // Record transaction for corporation revenue
@@ -543,7 +545,8 @@ export async function triggerMarketRevenue(): Promise<{ processed: number; total
     const corp = await CorporationModel.findById(corporation_id);
     if (!corp) continue;
 
-    const newCapital = Math.max(0, corp.capital + hourly_profit);
+    const currentCapital = typeof corp.capital === 'string' ? parseFloat(corp.capital) : corp.capital;
+    const newCapital = Math.max(0, currentCapital + hourly_profit);
     await CorporationModel.update(corporation_id, { capital: newCapital });
 
     // Record transaction for corporation revenue
@@ -598,3 +601,4 @@ export function getNextCronTimes(): {
   
   return { nextActionUpdate, nextProposalCheck };
 }
+
