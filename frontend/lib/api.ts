@@ -871,6 +871,7 @@ export const boardAPI = {
 // Server time types
 export interface ServerTimeResponse {
   server_time: string;
+  game_start_date: string;
   next_action_update: string;
   next_proposal_check: string;
   seconds_until_action_update: number;
@@ -1125,7 +1126,7 @@ export interface ResourceDetailResponse {
   total_supply: number;
   total_demand: number;
   demanding_sectors: string[];
-  suppliers: ResourceSupplierDemander[];
+  demanders: ResourceSupplierDemander[];
   pagination: PaginationInfo;
 }
 

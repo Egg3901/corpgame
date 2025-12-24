@@ -2,10 +2,13 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { gameAPI, ServerTimeResponse } from '@/lib/api';
-import { Clock, Zap, Vote } from 'lucide-react';
+import { Clock, Zap, Vote, Calendar } from 'lucide-react';
+import { calculateGameTime, timeUntilNextQuarter, GameTime } from '@/lib/gameTime';
 
 export default function ServerTimeFooter() {
   const [serverTime, setServerTime] = useState<Date | null>(null);
+  const [gameStartDate, setGameStartDate] = useState<Date | null>(null);
+  const [gameTime, setGameTime] = useState<GameTime | null>(null);
   const [nextActionUpdate, setNextActionUpdate] = useState<Date | null>(null);
   const [nextProposalCheck, setNextProposalCheck] = useState<Date | null>(null);
   const [timeOffset, setTimeOffset] = useState(0); // Difference between server and local time
@@ -16,12 +19,19 @@ export default function ServerTimeFooter() {
       const data = await gameAPI.getTime();
       const serverNow = new Date(data.server_time);
       const localNow = new Date();
+      const gameStart = new Date(data.game_start_date);
       
       // Calculate offset between server and local time
       setTimeOffset(serverNow.getTime() - localNow.getTime());
       setServerTime(serverNow);
+      setGameStartDate(gameStart);
       setNextActionUpdate(new Date(data.next_action_update));
       setNextProposalCheck(new Date(data.next_proposal_check));
+      
+      // Calculate game time
+      const calculatedGameTime = calculateGameTime(gameStart, serverNow);
+      setGameTime(calculatedGameTime);
+      
       setError(false);
     } catch (err) {
       console.error('Failed to sync server time:', err);
@@ -39,13 +49,17 @@ export default function ServerTimeFooter() {
   // Update displayed time every second using local clock + offset
   useEffect(() => {
     const tickInterval = setInterval(() => {
-      if (serverTime) {
+      if (serverTime && gameStartDate) {
         const adjustedTime = new Date(Date.now() + timeOffset);
         setServerTime(adjustedTime);
+        
+        // Update game time
+        const calculatedGameTime = calculateGameTime(gameStartDate, adjustedTime);
+        setGameTime(calculatedGameTime);
       }
     }, 1000);
     return () => clearInterval(tickInterval);
-  }, [timeOffset, serverTime]);
+  }, [timeOffset, serverTime, gameStartDate]);
 
   const formatTime = (date: Date | null) => {
     if (!date) return '--:--:--';
@@ -91,33 +105,44 @@ export default function ServerTimeFooter() {
   return (
     <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-gray-200/50 dark:border-gray-700/50 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-center gap-6 py-2 text-xs sm:text-sm">
-          {/* Server Time */}
+        <div className="flex items-center justify-center gap-4 sm:gap-6 py-2 text-xs sm:text-sm">
+          {/* Game Time */}
           <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
-            <Clock className="w-3.5 h-3.5 text-corporate-blue" />
-            <span className="hidden sm:inline font-medium">Server:</span>
-            <span className="font-mono">
-              {formatDate(serverTime)} {formatTime(serverTime)}
+            <Calendar className="w-3.5 h-3.5 text-indigo-500" />
+            <span className="hidden sm:inline font-medium">Game:</span>
+            <span className="font-mono font-bold text-indigo-600 dark:text-indigo-400">
+              {gameTime?.display || 'Q1 1930'}
             </span>
           </div>
 
           <div className="h-4 w-px bg-gray-300 dark:bg-gray-600" />
 
+          {/* Server Time */}
+          <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
+            <Clock className="w-3.5 h-3.5 text-corporate-blue" />
+            <span className="hidden sm:inline font-medium">Server:</span>
+            <span className="font-mono text-xs sm:text-sm">
+              {formatDate(serverTime)} {formatTime(serverTime)}
+            </span>
+          </div>
+
+          <div className="h-4 w-px bg-gray-300 dark:bg-gray-600 hidden sm:block" />
+
           {/* Next Action Update */}
           <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
             <Zap className="w-3.5 h-3.5 text-amber-500" />
-            <span className="hidden sm:inline font-medium">Actions:</span>
+            <span className="hidden md:inline font-medium">Actions:</span>
             <span className="font-mono font-semibold text-amber-600 dark:text-amber-400">
               {formatCountdown(nextActionUpdate)}
             </span>
           </div>
 
-          <div className="h-4 w-px bg-gray-300 dark:bg-gray-600" />
+          <div className="h-4 w-px bg-gray-300 dark:bg-gray-600 hidden sm:block" />
 
           {/* Next Vote Check */}
           <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
             <Vote className="w-3.5 h-3.5 text-emerald-500" />
-            <span className="hidden sm:inline font-medium">Votes:</span>
+            <span className="hidden md:inline font-medium">Votes:</span>
             <span className="font-mono font-semibold text-emerald-600 dark:text-emerald-400">
               {formatCountdown(nextProposalCheck)}
             </span>
@@ -127,4 +152,5 @@ export default function ServerTimeFooter() {
     </div>
   );
 }
+
 
