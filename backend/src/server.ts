@@ -18,8 +18,39 @@ import boardRoutes from './routes/board';
 import marketsRoutes from './routes/markets';
 import { startActionsCron } from './cron/actions';
 
-// Load .env from the backend directory explicitly
-dotenv.config({ path: path.join(__dirname, '..', '.env') });
+// Load .env from multiple possible locations
+const possibleEnvPaths = [
+  path.join(__dirname, '..', '.env'), // backend/.env (when running from dist/)
+  path.join(process.cwd(), '.env'), // Current working directory
+  path.join(process.cwd(), 'backend', '.env'), // backend/.env from project root
+];
+
+let envLoaded = false;
+for (const envPath of possibleEnvPaths) {
+  if (fs.existsSync(envPath)) {
+    console.log('Loading .env from:', envPath);
+    const envResult = dotenv.config({ path: envPath, override: false });
+    if (envResult.error) {
+      console.error('Error loading .env file from', envPath, ':', envResult.error);
+    } else {
+      console.log('.env file loaded successfully from:', envPath);
+      envLoaded = true;
+      break;
+    }
+  }
+}
+
+if (!envLoaded) {
+  console.warn('No .env file found in any of the expected locations:', possibleEnvPaths);
+  console.warn('Using environment variables from system/PM2 only');
+}
+
+// Log environment variables (without sensitive values)
+console.log('Environment variables:');
+console.log('  FRONTEND_URL:', process.env.FRONTEND_URL || 'NOT SET');
+console.log('  ALLOWED_ORIGINS:', process.env.ALLOWED_ORIGINS || 'NOT SET');
+console.log('  PORT:', process.env.PORT || 'NOT SET');
+console.log('  NODE_ENV:', process.env.NODE_ENV || 'NOT SET');
 
 const app = express();
 const PORT = parseInt(process.env.PORT || '3001', 10);
