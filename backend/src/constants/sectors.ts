@@ -1287,23 +1287,104 @@ export interface CommodityPrice {
   demandingSectors: Sector[];
 }
 
-// Cache for commodity prices (computed once since based on static resource pools)
-const _commodityPriceCache: Map<Resource, CommodityPrice> = new Map();
+// Cache for commodity prices (prices are dynamic based on actual extraction, so cache with short TTL)
+const _commodityPriceCache: Map<string, { price: CommodityPrice; timestamp: number }> = new Map();
+const COMMODITY_CACHE_TTL = 60000; // 1 minute cache
 
 /**
- * Calculate commodity price based on scarcity (cached)
- * Price = BasePrice * ScarcityFactor
- * ScarcityFactor = ReferencePoolSize / ActualPoolSize
+ * Calculate commodity price based on actual supply and demand
+ * Supply = total extraction units producing this resource * extraction rate
+ * Demand = total production units consuming this resource * consumption rate
+ * Price = BasePrice * (Demand / Supply) with bounds
  * 
- * When supply is low, price goes up (scarcity > 1)
- * When supply is high, price goes down (scarcity < 1)
+ * When demand exceeds supply, price goes up
+ * When supply exceeds demand, price goes down
+ * 
+ * @param resource - The resource type
+ * @param actualSupply - Total extraction output (extraction units * rate)
+ * @param actualDemand - Total production consumption (production units * rate)
  */
-export function calculateCommodityPrice(resource: Resource): CommodityPrice {
-  const cached = _commodityPriceCache.get(resource);
-  if (cached) {
-    return cached;
+export function calculateCommodityPrice(
+  resource: Resource,
+  actualSupply?: number,
+  actualDemand?: number
+): CommodityPrice {
+  // For backward compatibility, if supply/demand not provided, use static calculation
+  if (actualSupply === undefined || actualDemand === undefined) {
+    return calculateStaticCommodityPrice(resource);
   }
 
+  // Check cache
+  const cacheKey = `${resource}:${actualSupply}:${actualDemand}`;
+  const cached = _commodityPriceCache.get(cacheKey);
+  const now = Date.now();
+  if (cached && (now - cached.timestamp) < COMMODITY_CACHE_TTL) {
+    return cached.price;
+  }
+
+  const basePrice = RESOURCE_BASE_PRICES[resource];
+  
+  // Calculate supply/demand ratio
+  let scarcityFactor = 1.0;
+  if (actualSupply > 0 && actualDemand > 0) {
+    // ScarcityFactor = Demand / Supply
+    // High demand or low supply = higher price
+    scarcityFactor = actualDemand / actualSupply;
+  } else if (actualSupply === 0 && actualDemand > 0) {
+    // No supply but there's demand = maximum scarcity
+    scarcityFactor = 3.0;
+  } else if (actualSupply > 0 && actualDemand === 0) {
+    // Supply but no demand = minimum price
+    scarcityFactor = 0.5;
+  }
+  
+  // Clamp scarcity factor between 0.5 and 3.0
+  scarcityFactor = Math.min(3.0, Math.max(0.5, scarcityFactor));
+  
+  // Calculate current price
+  const currentPrice = Math.round(basePrice * scarcityFactor * 100) / 100;
+  
+  // Calculate price change percentage from base
+  const priceChange = ((currentPrice - basePrice) / basePrice) * 100;
+  
+  // Get top states with this resource (for display)
+  const topStates = getStatesWithResource(resource).slice(0, 5);
+  const totalStaticPool = getTotalResourcePool(resource);
+  const topProducers = topStates.map(s => ({
+    stateCode: s.stateCode,
+    stateName: getStateLabel(s.stateCode) || s.stateCode,
+    amount: s.amount,
+    percentage: totalStaticPool > 0 ? (s.amount / totalStaticPool) * 100 : 0,
+  }));
+  
+  // Get sectors that demand this resource
+  const demandingSectors: Sector[] = [];
+  for (const [sector, requiredResource] of Object.entries(SECTOR_RESOURCES)) {
+    if (requiredResource === resource) {
+      demandingSectors.push(sector as Sector);
+    }
+  }
+  
+  const result: CommodityPrice = {
+    resource,
+    basePrice,
+    currentPrice,
+    priceChange,
+    totalSupply: actualSupply, // Now represents actual extraction output
+    scarcityFactor,
+    topProducers,
+    demandingSectors,
+  };
+  
+  _commodityPriceCache.set(cacheKey, { price: result, timestamp: now });
+  return result;
+}
+
+/**
+ * Calculate static commodity price based on resource pools (legacy/fallback)
+ * Used when actual extraction data is not available
+ */
+function calculateStaticCommodityPrice(resource: Resource): CommodityPrice {
   const basePrice = RESOURCE_BASE_PRICES[resource];
   const totalSupply = getTotalResourcePool(resource);
   const referencePool = REFERENCE_POOL_SIZES[resource];
@@ -1335,7 +1416,7 @@ export function calculateCommodityPrice(resource: Resource): CommodityPrice {
     }
   }
   
-  const result: CommodityPrice = {
+  return {
     resource,
     basePrice,
     currentPrice,
@@ -1345,13 +1426,29 @@ export function calculateCommodityPrice(resource: Resource): CommodityPrice {
     topProducers,
     demandingSectors,
   };
-  
-  _commodityPriceCache.set(resource, result);
-  return result;
 }
 
 /**
- * Get all commodity prices
+ * Calculate commodity prices for all resources given supply/demand data
+ * @param resourceSupply - Map of resource to actual extraction output
+ * @param resourceDemand - Map of resource to actual production consumption
+ */
+export function calculateAllCommodityPrices(
+  resourceSupply: Record<Resource, number>,
+  resourceDemand: Record<Resource, number>
+): CommodityPrice[] {
+  return RESOURCES.map(resource => 
+    calculateCommodityPrice(
+      resource,
+      resourceSupply[resource] || 0,
+      resourceDemand[resource] || 0
+    )
+  );
+}
+
+/**
+ * Get all commodity prices using static resource pools (fallback/legacy)
+ * @deprecated Use calculateAllCommodityPrices with actual database counts instead
  */
 export function getAllCommodityPrices(): CommodityPrice[] {
   return RESOURCES.map(resource => calculateCommodityPrice(resource));

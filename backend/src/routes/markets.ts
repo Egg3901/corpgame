@@ -21,6 +21,7 @@ import {
   BUILD_UNIT_COST,
   BUILD_UNIT_ACTIONS,
   getAllCommodityPrices,
+  calculateAllCommodityPrices,
   getStateResourceBreakdown,
   RESOURCES,
   SECTOR_RESOURCES,
@@ -53,12 +54,39 @@ const router = express.Router();
 // GET /api/markets/commodities - Get all commodity prices and product market data
 router.get('/commodities', async (req: Request, res: Response) => {
   try {
-    const commodities = getAllCommodityPrices();
+    // Get extraction units count by sector to calculate commodity supply
+    const extractionQuery = await pool.query(`
+      SELECT 
+        me.sector_type,
+        COALESCE(SUM(bu.count), 0)::int as extraction_units
+      FROM market_entries me
+      LEFT JOIN business_units bu ON me.id = bu.market_entry_id AND bu.unit_type = 'extraction'
+      GROUP BY me.sector_type
+    `);
     
-    // Calculate product supply/demand from database
-    // Supply = total production units in sectors that produce each product
-    // Demand = total production units in sectors that demand each product
-    const productSupplyQuery = await pool.query(`
+    // Build sector -> extraction unit count map
+    const sectorExtractionUnits: Record<string, number> = {};
+    for (const row of extractionQuery.rows) {
+      sectorExtractionUnits[row.sector_type] = row.extraction_units || 0;
+    }
+    
+    // Calculate commodity supply (extraction units * extraction rate)
+    const { EXTRACTION_OUTPUT_RATE } = await import('../constants/sectors');
+    const commoditySupply: Record<Resource, number> = {} as Record<Resource, number>;
+    for (const resource of RESOURCES) {
+      let supply = 0;
+      // Sum extraction from all sectors that can extract this resource
+      for (const [sector, extractableResources] of Object.entries(SECTOR_EXTRACTION)) {
+        if (extractableResources && extractableResources.includes(resource)) {
+          const extractionUnits = sectorExtractionUnits[sector] || 0;
+          supply += extractionUnits * EXTRACTION_OUTPUT_RATE;
+        }
+      }
+      commoditySupply[resource] = supply;
+    }
+    
+    // Get production units count by sector to calculate commodity demand
+    const productionQuery = await pool.query(`
       SELECT 
         me.sector_type,
         COALESCE(SUM(bu.count), 0)::int as production_units
@@ -69,29 +97,49 @@ router.get('/commodities', async (req: Request, res: Response) => {
     
     // Build sector -> production unit count map
     const sectorProductionUnits: Record<string, number> = {};
-    for (const row of productSupplyQuery.rows) {
+    for (const row of productionQuery.rows) {
       sectorProductionUnits[row.sector_type] = row.production_units || 0;
     }
     
-    // Calculate supply for each product (sum of production units in producing sectors)
+    // Calculate commodity demand (production units * consumption rate)
+    const { PRODUCTION_RESOURCE_CONSUMPTION } = await import('../constants/sectors');
+    const commodityDemand: Record<Resource, number> = {} as Record<Resource, number>;
+    for (const resource of RESOURCES) {
+      let demand = 0;
+      // Sum demand from all sectors that require this resource
+      for (const [sector, requiredResource] of Object.entries(SECTOR_RESOURCES)) {
+        if (requiredResource === resource) {
+          const productionUnits = sectorProductionUnits[sector] || 0;
+          demand += productionUnits * PRODUCTION_RESOURCE_CONSUMPTION;
+        }
+      }
+      commodityDemand[resource] = demand;
+    }
+    
+    // Calculate commodity prices with actual supply/demand
+    const { calculateAllCommodityPrices } = await import('../constants/sectors');
+    const commodities = calculateAllCommodityPrices(commoditySupply, commodityDemand);
+    
+    // Calculate supply for each product (sum of production units in producing sectors * output rate)
+    const { PRODUCTION_OUTPUT_RATE } = await import('../constants/sectors');
     const productSupply: Record<Product, number> = {} as Record<Product, number>;
     for (const product of PRODUCTS) {
       let supply = 0;
       for (const [sector, producedProduct] of Object.entries(SECTOR_PRODUCTS)) {
         if (producedProduct === product) {
-          supply += sectorProductionUnits[sector] || 0;
+          supply += (sectorProductionUnits[sector] || 0) * PRODUCTION_OUTPUT_RATE;
         }
       }
       productSupply[product] = supply;
     }
     
-    // Calculate demand for each product (sum of production units in demanding sectors)
+    // Calculate demand for each product (sum of production units in demanding sectors * consumption rate)
     const productDemand: Record<Product, number> = {} as Record<Product, number>;
     for (const product of PRODUCTS) {
       let demand = 0;
       for (const [sector, demandedProducts] of Object.entries(SECTOR_PRODUCT_DEMANDS)) {
         if (demandedProducts && demandedProducts.includes(product)) {
-          demand += sectorProductionUnits[sector] || 0;
+          demand += (sectorProductionUnits[sector] || 0) * PRODUCTION_RESOURCE_CONSUMPTION;
         }
       }
       productDemand[product] = demand;
@@ -110,6 +158,8 @@ router.get('/commodities', async (req: Request, res: Response) => {
       sector_resources: SECTOR_RESOURCES,
       sector_products: SECTOR_PRODUCTS,
       sector_product_demands: SECTOR_PRODUCT_DEMANDS,
+      commodity_supply: commoditySupply,
+      commodity_demand: commodityDemand,
       product_supply: productSupply,
       product_demand: productDemand,
     });
@@ -133,11 +183,29 @@ router.get('/resource/:name', async (req: Request, res: Response) => {
     const limit = parseInt(req.query.limit as string) || 10;
     const offset = (page - 1) * limit;
     
-    // Get commodity price info
-    const commodityPrice = calculateCommodityPrice(resourceName);
-    const resourceInfo = getResourceInfo(resourceName);
+    // Calculate actual commodity supply/demand
+    const { EXTRACTION_OUTPUT_RATE, PRODUCTION_RESOURCE_CONSUMPTION } = await import('../constants/sectors');
     
-    // Get sectors that demand this resource
+    // Get extraction units for sectors that extract this resource
+    const extractionQuery = await pool.query(`
+      SELECT 
+        me.sector_type,
+        COALESCE(SUM(bu.count), 0)::int as extraction_units
+      FROM market_entries me
+      LEFT JOIN business_units bu ON me.id = bu.market_entry_id AND bu.unit_type = 'extraction'
+      WHERE me.sector_type = ANY($1::text[])
+      GROUP BY me.sector_type
+    `, [Object.keys(SECTOR_EXTRACTION).filter(s => {
+      const extractable = SECTOR_EXTRACTION[s as Sector];
+      return extractable && extractable.includes(resourceName);
+    })]);
+    
+    let actualSupply = 0;
+    for (const row of extractionQuery.rows) {
+      actualSupply += row.extraction_units * EXTRACTION_OUTPUT_RATE;
+    }
+    
+    // Get production units for sectors that demand this resource
     const demandingSectors: Sector[] = [];
     for (const [sector, resource] of Object.entries(SECTOR_RESOURCES)) {
       if (resource === resourceName) {
@@ -145,7 +213,21 @@ router.get('/resource/:name', async (req: Request, res: Response) => {
       }
     }
     
-    // Get top suppliers (corporations with most production units in sectors that use this resource)
+    const productionQuery = await pool.query(`
+      SELECT 
+        COALESCE(SUM(bu.count), 0)::int as production_units
+      FROM market_entries me
+      LEFT JOIN business_units bu ON me.id = bu.market_entry_id AND bu.unit_type = 'production'
+      WHERE me.sector_type = ANY($1::text[])
+    `, [demandingSectors]);
+    
+    const actualDemand = (productionQuery.rows[0]?.production_units || 0) * PRODUCTION_RESOURCE_CONSUMPTION;
+    
+    // Get commodity price with actual supply/demand
+    const commodityPrice = calculateCommodityPrice(resourceName, actualSupply, actualDemand);
+    const resourceInfo = getResourceInfo(resourceName);
+    
+    // Get top suppliers (corporations with most extraction units in sectors that produce this resource)
     const suppliersQuery = await pool.query(`
       SELECT 
         c.id as corporation_id,

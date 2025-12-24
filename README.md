@@ -1,14 +1,36 @@
 # Corporate Warfare Game
 
-A multiplayer corporate simulation game where players build production, retail, and service units, choose integration strategies, and compete in an hourly turn-based environment.
+A multiplayer corporate simulation game where players build production, retail, and service units across different economic sectors, manage supply chains, and compete in an hourly turn-based environment.
 
 ## Features
 
-- **Hourly Turn-Based Gameplay**: Make strategic decisions every hour
-- **Unit Management**: Build and manage production, retail, and service units
-- **Integration Strategies**: Choose between vertical or horizontal integration
-- **Labor Policies**: Customize your labor policy focus
-- **Sector Focus**: Specialize in different business sectors
+### Core Gameplay
+- **Hourly Turn-Based Gameplay**: Strategic decisions update every hour via cron jobs
+- **Multi-Sector Economy**: Operate in 16 different sectors (Technology, Defense, Energy, Manufacturing, etc.)
+- **Unit Management**: Build and manage extraction, production, retail, and service units
+- **Corporation Focus**: Choose between extraction, production, retail, service, or diversified strategies
+- **State Markets**: Operate in different US states with unique resource availability and market conditions
+
+### Economic System
+- **Supply Chain Dynamics**: 
+  - Extraction units extract commodities (Oil, Steel, Rare Earth, etc.)
+  - Production units consume commodities and produce products
+  - Retail/Service units consume products to generate revenue
+- **Dynamic Pricing**: Commodity and product prices fluctuate based on supply and demand
+- **Resource Scarcity**: State-level resource pools affect production efficiency
+- **Product Demands**: Retail and service units require specific products to operate (e.g., Defense retail needs Defense Equipment, Defense service needs both Tech Products and Defense Equipment)
+
+### Strategic Elements
+- **Vertical Integration**: Control your supply chain from extraction to retail
+- **Horizontal Expansion**: Build market presence across multiple states
+- **Sector Restrictions**: Some sectors can only build certain unit types (e.g., Technology/Manufacturing cannot build retail/service)
+- **Capital Management**: Balance investment in expansion vs. operational costs
+
+### Social Features
+- **Stock Market**: Trade corporation shares with other players
+- **User Profiles**: Customizable avatars and player profiles
+- **Messaging System**: In-game communication between players
+- **Admin Tools**: IP banning, user management, and moderation features
 
 ## Tech Stack
 
@@ -16,6 +38,52 @@ A multiplayer corporate simulation game where players build production, retail, 
 - **Backend**: Node.js/Express with TypeScript
 - **Database**: PostgreSQL
 - **Authentication**: JWT-based authentication
+
+## Game Economy
+
+### Supply Chain Flow
+```
+Extraction Units
+    ↓ Extract
+Commodities (Oil, Steel, Copper, Rare Earth, Lumber, Fertile Land, Chemical Compounds)
+    ↓ Consumed by
+Production Units
+    ↓ Produce
+Products (Tech Products, Manufactured Goods, Electricity, Food Products, Defense Equipment, etc.)
+    ↓ Demanded by
+Retail & Service Units + Other Production Units
+    ↓ Generate
+Revenue & Profit
+```
+
+### Unit Types
+
+1. **Extraction Units**: Extract raw commodities from state resource pools
+   - Revenue from selling commodities at market prices
+   - Cost: Labor only
+   - Limited by resource availability in each state
+
+2. **Production Units**: Convert commodities into products
+   - Revenue from selling products
+   - Cost: Labor + commodity inputs
+   - Require resources (e.g., Tech production needs Rare Earth)
+
+3. **Retail Units**: Sell products to consumers
+   - Revenue from consumer sales (fixed)
+   - Cost: Labor + product inputs (e.g., Defense retail needs Defense Equipment)
+   - **Disabled** in Technology and Manufacturing sectors
+
+4. **Service Units**: Provide services using products
+   - Revenue from service fees (fixed)
+   - Cost: Labor + product inputs (e.g., Defense service needs Tech + Defense Equipment)
+   - **Disabled** in Technology and Manufacturing sectors
+
+### Sector Examples
+
+- **Defense**: Production needs Steel → produces Defense Equipment → retail/service consume Defense Equipment
+- **Technology**: Production needs Rare Earth → produces Tech Products → other sectors consume Tech
+- **Energy**: Production needs Oil → produces Electricity → retail/service consume Electricity
+- **Agriculture**: Extraction produces Food Products → retail/service consume Food Products
 
 ## Getting Started
 
@@ -78,11 +146,16 @@ corporate-sim/
 - Backend: `npm run dev:backend`
 - Both: `npm run dev`
 
-## Deployment & Ops Docs
+## Documentation
 
-- `DEPLOYMENT_GUIDE.md` ƒ?" step-by-step AWS/PM2 deployment instructions plus current stack summary.
-- `ENVIRONMENT_GUIDE.md` ƒ?" canonical list of backend/frontend environment variables and per-environment templates.
-- `STARTUP_GUIDE.md`, `PM2_GUIDE.md`, and `DEBUG_COMMANDS.md` cover local bootstrapping, process management, and EC2 debug commands respectively.
+### Setup & Deployment
+- **[STARTUP_GUIDE.md](STARTUP_GUIDE.md)** - How to start backend and frontend in development or production
+- **[DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md)** - Step-by-step AWS/PM2 deployment instructions
+- **[PM2_GUIDE.md](PM2_GUIDE.md)** - Process management with PM2
+- **[ENVIRONMENT_GUIDE.md](ENVIRONMENT_GUIDE.md)** - Complete list of environment variables
+
+### Architecture
+- **[architecture.md](architecture.md)** - System architecture and technical design decisions
 
 ## Admin APIs
 
