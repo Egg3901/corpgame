@@ -25,6 +25,7 @@ import {
   FlaskConical,
   Gem,
   Pickaxe,
+  HelpCircle,
 } from 'lucide-react';
 
 // Resource icon mapping
@@ -67,24 +68,30 @@ const UNIT_ECONOMICS = {
   extraction: { baseRevenue: 1000, baseCost: 700 },  // High revenue, high cost
 };
 
-// Sectors that can build extraction units (must match backend SECTOR_EXTRACTION)
-const SECTORS_CAN_EXTRACT: Record<string, boolean> = {
-  'Technology': false,
-  'Finance': false,
-  'Healthcare': false,
-  'Manufacturing': true,  // Steel extraction
-  'Energy': true,         // Oil extraction
-  'Retail': false,
-  'Real Estate': false,
-  'Transportation': false,
-  'Media': false,
-  'Telecommunications': false,
-  'Agriculture': true,    // Farming and forestry
-  'Defense': false,
-  'Hospitality': false,
-  'Construction': true,   // Lumber
-  'Pharmaceuticals': true, // Chemical extraction
-  'Mining': true,          // Mining operations
+// Sectors that can build extraction units and what they can extract (must match backend SECTOR_EXTRACTION)
+const SECTORS_CAN_EXTRACT: Record<string, string[] | null> = {
+  'Technology': null,
+  'Finance': null,
+  'Healthcare': null,
+  'Manufacturing': ['Steel'],
+  'Energy': ['Oil'],
+  'Retail': null,
+  'Real Estate': null,
+  'Transportation': null,
+  'Media': null,
+  'Telecommunications': null,
+  'Agriculture': ['Fertile Land', 'Lumber'],
+  'Defense': null,
+  'Hospitality': null,
+  'Construction': ['Lumber'],
+  'Pharmaceuticals': ['Chemical Compounds'],
+  'Mining': ['Steel', 'Copper', 'Rare Earth'],
+};
+
+// Check if a sector can extract
+const sectorCanExtract = (sector: string): boolean => {
+  const resources = SECTORS_CAN_EXTRACT[sector];
+  return resources !== null && resources.length > 0;
 };
 
 const MARKET_ENTRY_COST = 50000;
@@ -346,8 +353,15 @@ export default function StateDetailPage() {
                     <span className="px-2 py-0.5 text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 rounded-full">
                       {state.region}
                     </span>
-                    <span className={`text-lg font-bold ${getMultiplierColor(state.multiplier)}`}>
+                    <span className={`text-lg font-bold ${getMultiplierColor(state.multiplier)} group relative cursor-help`}>
                       {state.multiplier.toFixed(1)}x multiplier
+                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-10 pointer-events-none">
+                        <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 whitespace-nowrap shadow-lg">
+                          <p className="font-medium">State Revenue Multiplier</p>
+                          <p>All unit base revenues are multiplied by {state.multiplier.toFixed(1)}</p>
+                          <p className="text-gray-400 mt-1">Higher = more populous/valuable market</p>
+                        </div>
+                      </div>
                     </span>
                   </div>
                 </div>
@@ -444,10 +458,10 @@ export default function StateDetailPage() {
                           </span>
                         </div>
 
-                        {/* Unit Types */}
-                        <div className={`grid gap-3 ${SECTORS_CAN_EXTRACT[entry.sector_type] ? 'grid-cols-4' : 'grid-cols-3'}`}>
+                        {/* Unit Types - Always 4 columns, frost extraction if not supported */}
+                        <div className="grid grid-cols-4 gap-3">
                           {/* Retail */}
-                          <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3">
+                          <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3 group relative">
                             <div className="flex items-center gap-2 mb-2">
                               <Store className="h-4 w-4 text-pink-500" />
                               <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Retail</span>
@@ -463,10 +477,18 @@ export default function StateDetailPage() {
                             >
                               {building === `${entry.id}-retail` ? '...' : `+1 (${formatCurrency(BUILD_UNIT_COST)})`}
                             </button>
+                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-10 pointer-events-none">
+                              <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 whitespace-nowrap shadow-lg">
+                                <p className="font-medium">Retail Unit Economics</p>
+                                <p>Revenue: ${UNIT_ECONOMICS.retail.baseRevenue}/hr × {state.multiplier.toFixed(1)}x</p>
+                                <p>Cost: ${UNIT_ECONOMICS.retail.baseCost}/hr</p>
+                                <p className="text-emerald-400">Profit: ${(UNIT_ECONOMICS.retail.baseRevenue * state.multiplier - UNIT_ECONOMICS.retail.baseCost).toFixed(0)}/hr</p>
+                              </div>
+                            </div>
                           </div>
 
                           {/* Production */}
-                          <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3">
+                          <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3 group relative">
                             <div className="flex items-center gap-2 mb-2">
                               <Factory className="h-4 w-4 text-orange-500" />
                               <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Production</span>
@@ -482,10 +504,18 @@ export default function StateDetailPage() {
                             >
                               {building === `${entry.id}-production` ? '...' : `+1 (${formatCurrency(BUILD_UNIT_COST)})`}
                             </button>
+                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-10 pointer-events-none">
+                              <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 whitespace-nowrap shadow-lg">
+                                <p className="font-medium">Production Unit Economics</p>
+                                <p>Revenue: ${UNIT_ECONOMICS.production.baseRevenue}/hr × {state.multiplier.toFixed(1)}x</p>
+                                <p>Cost: ${UNIT_ECONOMICS.production.baseCost}/hr</p>
+                                <p className="text-emerald-400">Profit: ${(UNIT_ECONOMICS.production.baseRevenue * state.multiplier - UNIT_ECONOMICS.production.baseCost).toFixed(0)}/hr</p>
+                              </div>
+                            </div>
                           </div>
 
                           {/* Service */}
-                          <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3">
+                          <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3 group relative">
                             <div className="flex items-center gap-2 mb-2">
                               <Briefcase className="h-4 w-4 text-blue-500" />
                               <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Service</span>
@@ -501,28 +531,71 @@ export default function StateDetailPage() {
                             >
                               {building === `${entry.id}-service` ? '...' : `+1 (${formatCurrency(BUILD_UNIT_COST)})`}
                             </button>
+                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-10 pointer-events-none">
+                              <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 whitespace-nowrap shadow-lg">
+                                <p className="font-medium">Service Unit Economics</p>
+                                <p>Revenue: ${UNIT_ECONOMICS.service.baseRevenue}/hr × {state.multiplier.toFixed(1)}x</p>
+                                <p>Cost: ${UNIT_ECONOMICS.service.baseCost}/hr</p>
+                                <p className="text-emerald-400">Profit: ${(UNIT_ECONOMICS.service.baseRevenue * state.multiplier - UNIT_ECONOMICS.service.baseCost).toFixed(0)}/hr</p>
+                              </div>
+                            </div>
                           </div>
 
-                          {/* Extraction - only shown for sectors that support it */}
-                          {SECTORS_CAN_EXTRACT[entry.sector_type] && (
-                            <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3">
-                              <div className="flex items-center gap-2 mb-2">
-                                <Pickaxe className="h-4 w-4 text-amber-500" />
-                                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Extraction</span>
-                              </div>
-                              <p className="text-2xl font-bold text-gray-900 dark:text-white">{entry.units.extraction || 0}</p>
-                              <p className="text-xs text-emerald-600 dark:text-emerald-400">
-                                +{formatCurrency(calculateUnitProfit('extraction', state.multiplier) * (entry.units.extraction || 0))}/96hr
-                              </p>
-                              <button
-                                onClick={() => handleBuildUnit(entry.id, 'extraction')}
-                                disabled={building === `${entry.id}-extraction` || user_corporation.capital < BUILD_UNIT_COST || userActions < 1}
-                                className="mt-2 w-full px-2 py-1 text-xs bg-amber-500 text-white rounded hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                              >
-                                {building === `${entry.id}-extraction` ? '...' : `+1 (${formatCurrency(BUILD_UNIT_COST)})`}
-                              </button>
+                          {/* Extraction - frosted if sector doesn't support it */}
+                          <div className={`rounded-lg border p-3 group relative ${
+                            sectorCanExtract(entry.sector_type) 
+                              ? 'border-gray-200 dark:border-gray-700' 
+                              : 'border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/30'
+                          }`}>
+                            <div className={`flex items-center gap-2 mb-2 ${!sectorCanExtract(entry.sector_type) ? 'opacity-40' : ''}`}>
+                              <Pickaxe className={`h-4 w-4 ${sectorCanExtract(entry.sector_type) ? 'text-amber-500' : 'text-gray-400'}`} />
+                              <span className={`text-sm font-medium ${sectorCanExtract(entry.sector_type) ? 'text-gray-700 dark:text-gray-300' : 'text-gray-400 dark:text-gray-600'}`}>Extraction</span>
                             </div>
-                          )}
+                            {sectorCanExtract(entry.sector_type) ? (
+                              <>
+                                <p className="text-2xl font-bold text-gray-900 dark:text-white">{entry.units.extraction || 0}</p>
+                                <p className="text-xs text-emerald-600 dark:text-emerald-400">
+                                  +{formatCurrency(calculateUnitProfit('extraction', state.multiplier) * (entry.units.extraction || 0))}/96hr
+                                </p>
+                                <button
+                                  onClick={() => handleBuildUnit(entry.id, 'extraction')}
+                                  disabled={building === `${entry.id}-extraction` || user_corporation.capital < BUILD_UNIT_COST || userActions < 1}
+                                  className="mt-2 w-full px-2 py-1 text-xs bg-amber-500 text-white rounded hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                >
+                                  {building === `${entry.id}-extraction` ? '...' : `+1 (${formatCurrency(BUILD_UNIT_COST)})`}
+                                </button>
+                              </>
+                            ) : (
+                              <>
+                                <p className="text-2xl font-bold text-gray-300 dark:text-gray-600">—</p>
+                                <p className="text-xs text-gray-400 dark:text-gray-600">
+                                  Not available
+                                </p>
+                                <div className="mt-2 w-full px-2 py-1 text-xs text-gray-400 dark:text-gray-600 text-center">
+                                  Unavailable
+                                </div>
+                              </>
+                            )}
+                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-10 pointer-events-none">
+                              <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 whitespace-nowrap shadow-lg">
+                                {sectorCanExtract(entry.sector_type) ? (
+                                  <>
+                                    <p className="font-medium">Extraction Unit Economics</p>
+                                    <p>Revenue: ${UNIT_ECONOMICS.extraction.baseRevenue}/hr × {state.multiplier.toFixed(1)}x</p>
+                                    <p>Cost: ${UNIT_ECONOMICS.extraction.baseCost}/hr</p>
+                                    <p className="text-emerald-400">Profit: ${(UNIT_ECONOMICS.extraction.baseRevenue * state.multiplier - UNIT_ECONOMICS.extraction.baseCost).toFixed(0)}/hr</p>
+                                    <p className="text-amber-400 mt-1">Extracts: {SECTORS_CAN_EXTRACT[entry.sector_type]?.join(', ')}</p>
+                                  </>
+                                ) : (
+                                  <>
+                                    <p className="font-medium text-gray-400">Extraction Not Available</p>
+                                    <p className="text-gray-400">{entry.sector_type} sector cannot extract resources</p>
+                                    <p className="text-gray-500 mt-1 text-[10px]">Available: Mining, Energy, Agriculture,<br/>Manufacturing, Construction, Pharmaceuticals</p>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -544,46 +617,76 @@ export default function StateDetailPage() {
                   </p>
                 ) : (
                   <div className="space-y-3">
-                    {markets.map((market) => (
-                      <div
-                        key={market.id}
-                        className="flex items-center justify-between rounded-xl border border-white/60 bg-white/70 dark:border-gray-800/70 dark:bg-gray-800/60 p-4 shadow-sm"
-                      >
-                        <div className="flex items-center gap-3">
-                          {market.corporation?.logo ? (
-                            <img
-                              src={market.corporation.logo}
-                              alt={market.corporation.name || 'Corp'}
-                              className="w-10 h-10 rounded-lg object-cover"
-                              onError={(e) => {
-                                e.currentTarget.src = '/defaultpfp.jpg';
-                              }}
-                            />
-                          ) : (
-                            <div className="w-10 h-10 rounded-lg bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
-                              <Building2 className="h-5 w-5 text-gray-400" />
+                    {markets.map((market) => {
+                      const totalUnits = market.units.retail + market.units.production + market.units.service + (market.units.extraction || 0);
+                      const canExtract = sectorCanExtract(market.sector_type);
+                      return (
+                        <div
+                          key={market.id}
+                          className="flex items-center justify-between rounded-xl border border-white/60 bg-white/70 dark:border-gray-800/70 dark:bg-gray-800/60 p-4 shadow-sm"
+                        >
+                          <div className="flex items-center gap-3">
+                            {market.corporation?.logo ? (
+                              <img
+                                src={market.corporation.logo}
+                                alt={market.corporation.name || 'Corp'}
+                                className="w-10 h-10 rounded-lg object-cover"
+                                onError={(e) => {
+                                  e.currentTarget.src = '/defaultpfp.jpg';
+                                }}
+                              />
+                            ) : (
+                              <div className="w-10 h-10 rounded-lg bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
+                                <Building2 className="h-5 w-5 text-gray-400" />
+                              </div>
+                            )}
+                            <div>
+                              <Link
+                                href={`/corporation/${market.corporation?.id}`}
+                                className="font-semibold text-gray-900 dark:text-white hover:text-corporate-blue dark:hover:text-corporate-blue-light transition-colors"
+                              >
+                                {market.corporation?.name || 'Unknown Corporation'}
+                              </Link>
+                              <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
+                                {market.sector_type}
+                                {canExtract && (
+                                  <span className="text-amber-500">
+                                    <Pickaxe className="w-3 h-3 inline" />
+                                  </span>
+                                )}
+                              </p>
                             </div>
-                          )}
-                          <div>
-                            <Link
-                              href={`/corporation/${market.corporation?.id}`}
-                              className="font-semibold text-gray-900 dark:text-white hover:text-corporate-blue dark:hover:text-corporate-blue-light transition-colors"
-                            >
-                              {market.corporation?.name || 'Unknown Corporation'}
-                            </Link>
-                            <p className="text-xs text-gray-500 dark:text-gray-400">{market.sector_type}</p>
+                          </div>
+                          <div className="text-right group relative">
+                            <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                              {totalUnits} unit{totalUnits !== 1 ? 's' : ''}
+                            </p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1 justify-end">
+                              <span className="text-pink-500">{market.units.retail}R</span>
+                              <span className="text-gray-300 dark:text-gray-600">/</span>
+                              <span className="text-orange-500">{market.units.production}P</span>
+                              <span className="text-gray-300 dark:text-gray-600">/</span>
+                              <span className="text-blue-500">{market.units.service}S</span>
+                              <span className="text-gray-300 dark:text-gray-600">/</span>
+                              <span className={canExtract ? 'text-amber-500' : 'text-gray-300 dark:text-gray-600'}>
+                                {canExtract ? (market.units.extraction || 0) : '—'}E
+                              </span>
+                            </p>
+                            <div className="absolute bottom-full right-0 mb-2 hidden group-hover:block z-10 pointer-events-none">
+                              <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 whitespace-nowrap shadow-lg text-left">
+                                <p className="font-medium mb-1">{market.sector_type} Units</p>
+                                <p className="text-pink-400">Retail: {market.units.retail}</p>
+                                <p className="text-orange-400">Production: {market.units.production}</p>
+                                <p className="text-blue-400">Service: {market.units.service}</p>
+                                <p className={canExtract ? 'text-amber-400' : 'text-gray-500'}>
+                                  Extraction: {canExtract ? (market.units.extraction || 0) : 'N/A'}
+                                </p>
+                              </div>
+                            </div>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                            {market.units.retail + market.units.production + market.units.service + (market.units.extraction || 0)} units
-                          </p>
-                          <p className="text-xs text-gray-500 dark:text-gray-400">
-                            {market.units.retail}R / {market.units.production}P / {market.units.service}S{market.units.extraction ? ` / ${market.units.extraction}E` : ''}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -613,11 +716,18 @@ export default function StateDetailPage() {
                   </div>
 
                   {/* Total Value */}
-                  <div className="text-center mb-4 pb-4 border-b border-gray-200 dark:border-gray-700">
+                  <div className="text-center mb-4 pb-4 border-b border-gray-200 dark:border-gray-700 group relative">
                     <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Total Resource Value</p>
-                    <p className="text-xl font-bold text-amber-600 dark:text-amber-400">
+                    <p className="text-xl font-bold text-amber-600 dark:text-amber-400 cursor-help">
                       {formatCurrency(stateData.resources.totalResourceValue)}
                     </p>
+                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-10 pointer-events-none">
+                      <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 whitespace-nowrap shadow-lg">
+                        <p className="font-medium">Total Resource Value</p>
+                        <p className="text-gray-300">Sum of all resources × current commodity prices</p>
+                        <p className="text-gray-400 mt-1">Prices fluctuate based on supply/demand</p>
+                      </div>
+                    </div>
                   </div>
 
                   {/* Resource List */}
@@ -625,7 +735,7 @@ export default function StateDetailPage() {
                     {stateData.resources.resources.map((resource) => (
                       <div
                         key={resource.resource}
-                        className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+                        className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors group relative"
                       >
                         {/* Color indicator */}
                         <div 
@@ -643,18 +753,37 @@ export default function StateDetailPage() {
                             <span className="text-sm font-medium text-gray-900 dark:text-white truncate">
                               {resource.resource}
                             </span>
-                            <span className="text-sm font-mono text-gray-600 dark:text-gray-400">
+                            <span className="text-sm font-mono text-gray-600 dark:text-gray-400 cursor-help">
                               {resource.percentage.toFixed(1)}%
                             </span>
                           </div>
                           <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-                            <span>{resource.amount.toLocaleString()} units</span>
-                            <span className="text-amber-600 dark:text-amber-400">
+                            <span className="cursor-help">{resource.amount.toLocaleString()} units</span>
+                            <span className="text-amber-600 dark:text-amber-400 cursor-help">
                               {formatCurrency(resource.currentPrice)}/unit
                             </span>
                           </div>
-                          <div className="text-xs text-gray-400 dark:text-gray-500">
+                          <div className="text-xs text-gray-400 dark:text-gray-500 cursor-help">
                             {resource.stateShareOfUS.toFixed(1)}% of US supply
+                          </div>
+                        </div>
+                        
+                        {/* Tooltip */}
+                        <div className="absolute left-0 right-0 bottom-full mb-2 hidden group-hover:block z-10 pointer-events-none">
+                          <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 shadow-lg mx-2">
+                            <p className="font-medium text-amber-400">{resource.resource}</p>
+                            <div className="grid grid-cols-2 gap-x-4 gap-y-1 mt-1">
+                              <p className="text-gray-300">Units:</p>
+                              <p className="text-white">{resource.amount.toLocaleString()}</p>
+                              <p className="text-gray-300">State share:</p>
+                              <p className="text-white">{resource.percentage.toFixed(1)}% of state</p>
+                              <p className="text-gray-300">US share:</p>
+                              <p className="text-white">{resource.stateShareOfUS.toFixed(1)}% of nation</p>
+                              <p className="text-gray-300">Price/unit:</p>
+                              <p className="text-amber-400">{formatCurrency(resource.currentPrice)}</p>
+                              <p className="text-gray-300">Total value:</p>
+                              <p className="text-emerald-400">{formatCurrency(resource.totalValue)}</p>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -704,14 +833,29 @@ export default function StateDetailPage() {
                       <span className="font-medium text-gray-700 dark:text-gray-300">Retail</span>
                     </div>
                     <div className="text-sm space-y-1">
-                      <p className="text-gray-600 dark:text-gray-400">
+                      <p className="text-gray-600 dark:text-gray-400 group relative inline-block w-full cursor-help">
                         Revenue: <span className="text-emerald-600 dark:text-emerald-400">{formatCurrency(calculateUnitRevenue('retail', state.multiplier))}</span>
+                        <span className="absolute bottom-full left-0 mb-1 hidden group-hover:block z-10 pointer-events-none">
+                          <span className="bg-gray-900 text-white text-xs rounded px-2 py-1 whitespace-nowrap shadow-lg">
+                            ${UNIT_ECONOMICS.retail.baseRevenue}/hr × {state.multiplier.toFixed(1)} × 96hr
+                          </span>
+                        </span>
                       </p>
-                      <p className="text-gray-600 dark:text-gray-400">
+                      <p className="text-gray-600 dark:text-gray-400 group relative inline-block w-full cursor-help">
                         Cost: <span className="text-red-600 dark:text-red-400">{formatCurrency(calculateUnitCost('retail'))}</span>
+                        <span className="absolute bottom-full left-0 mb-1 hidden group-hover:block z-10 pointer-events-none">
+                          <span className="bg-gray-900 text-white text-xs rounded px-2 py-1 whitespace-nowrap shadow-lg">
+                            ${UNIT_ECONOMICS.retail.baseCost}/hr × 96hr (fixed, no multiplier)
+                          </span>
+                        </span>
                       </p>
-                      <p className="font-semibold text-gray-900 dark:text-white">
+                      <p className="font-semibold text-gray-900 dark:text-white group relative inline-block w-full cursor-help">
                         Profit: <span className="text-emerald-600 dark:text-emerald-400">{formatCurrency(calculateUnitProfit('retail', state.multiplier))}</span>
+                        <span className="absolute bottom-full left-0 mb-1 hidden group-hover:block z-10 pointer-events-none">
+                          <span className="bg-gray-900 text-white text-xs rounded px-2 py-1 whitespace-nowrap shadow-lg">
+                            {formatCurrency(calculateUnitRevenue('retail', state.multiplier))} - {formatCurrency(calculateUnitCost('retail'))}
+                          </span>
+                        </span>
                       </p>
                     </div>
                   </div>
@@ -723,14 +867,29 @@ export default function StateDetailPage() {
                       <span className="font-medium text-gray-700 dark:text-gray-300">Production</span>
                     </div>
                     <div className="text-sm space-y-1">
-                      <p className="text-gray-600 dark:text-gray-400">
+                      <p className="text-gray-600 dark:text-gray-400 group relative inline-block w-full cursor-help">
                         Revenue: <span className="text-emerald-600 dark:text-emerald-400">{formatCurrency(calculateUnitRevenue('production', state.multiplier))}</span>
+                        <span className="absolute bottom-full left-0 mb-1 hidden group-hover:block z-10 pointer-events-none">
+                          <span className="bg-gray-900 text-white text-xs rounded px-2 py-1 whitespace-nowrap shadow-lg">
+                            ${UNIT_ECONOMICS.production.baseRevenue}/hr × {state.multiplier.toFixed(1)} × 96hr
+                          </span>
+                        </span>
                       </p>
-                      <p className="text-gray-600 dark:text-gray-400">
+                      <p className="text-gray-600 dark:text-gray-400 group relative inline-block w-full cursor-help">
                         Cost: <span className="text-red-600 dark:text-red-400">{formatCurrency(calculateUnitCost('production'))}</span>
+                        <span className="absolute bottom-full left-0 mb-1 hidden group-hover:block z-10 pointer-events-none">
+                          <span className="bg-gray-900 text-white text-xs rounded px-2 py-1 whitespace-nowrap shadow-lg">
+                            ${UNIT_ECONOMICS.production.baseCost}/hr × 96hr (fixed, no multiplier)
+                          </span>
+                        </span>
                       </p>
-                      <p className="font-semibold text-gray-900 dark:text-white">
+                      <p className="font-semibold text-gray-900 dark:text-white group relative inline-block w-full cursor-help">
                         Profit: <span className="text-emerald-600 dark:text-emerald-400">{formatCurrency(calculateUnitProfit('production', state.multiplier))}</span>
+                        <span className="absolute bottom-full left-0 mb-1 hidden group-hover:block z-10 pointer-events-none">
+                          <span className="bg-gray-900 text-white text-xs rounded px-2 py-1 whitespace-nowrap shadow-lg">
+                            {formatCurrency(calculateUnitRevenue('production', state.multiplier))} - {formatCurrency(calculateUnitCost('production'))}
+                          </span>
+                        </span>
                       </p>
                     </div>
                   </div>
@@ -742,14 +901,29 @@ export default function StateDetailPage() {
                       <span className="font-medium text-gray-700 dark:text-gray-300">Service</span>
                     </div>
                     <div className="text-sm space-y-1">
-                      <p className="text-gray-600 dark:text-gray-400">
+                      <p className="text-gray-600 dark:text-gray-400 group relative inline-block w-full cursor-help">
                         Revenue: <span className="text-emerald-600 dark:text-emerald-400">{formatCurrency(calculateUnitRevenue('service', state.multiplier))}</span>
+                        <span className="absolute bottom-full left-0 mb-1 hidden group-hover:block z-10 pointer-events-none">
+                          <span className="bg-gray-900 text-white text-xs rounded px-2 py-1 whitespace-nowrap shadow-lg">
+                            ${UNIT_ECONOMICS.service.baseRevenue}/hr × {state.multiplier.toFixed(1)} × 96hr
+                          </span>
+                        </span>
                       </p>
-                      <p className="text-gray-600 dark:text-gray-400">
+                      <p className="text-gray-600 dark:text-gray-400 group relative inline-block w-full cursor-help">
                         Cost: <span className="text-red-600 dark:text-red-400">{formatCurrency(calculateUnitCost('service'))}</span>
+                        <span className="absolute bottom-full left-0 mb-1 hidden group-hover:block z-10 pointer-events-none">
+                          <span className="bg-gray-900 text-white text-xs rounded px-2 py-1 whitespace-nowrap shadow-lg">
+                            ${UNIT_ECONOMICS.service.baseCost}/hr × 96hr (fixed, no multiplier)
+                          </span>
+                        </span>
                       </p>
-                      <p className="font-semibold text-gray-900 dark:text-white">
+                      <p className="font-semibold text-gray-900 dark:text-white group relative inline-block w-full cursor-help">
                         Profit: <span className="text-emerald-600 dark:text-emerald-400">{formatCurrency(calculateUnitProfit('service', state.multiplier))}</span>
+                        <span className="absolute bottom-full left-0 mb-1 hidden group-hover:block z-10 pointer-events-none">
+                          <span className="bg-gray-900 text-white text-xs rounded px-2 py-1 whitespace-nowrap shadow-lg">
+                            {formatCurrency(calculateUnitRevenue('service', state.multiplier))} - {formatCurrency(calculateUnitCost('service'))}
+                          </span>
+                        </span>
                       </p>
                     </div>
                   </div>
@@ -761,14 +935,29 @@ export default function StateDetailPage() {
                       <span className="font-medium text-gray-700 dark:text-gray-300">Extraction</span>
                     </div>
                     <div className="text-sm space-y-1">
-                      <p className="text-gray-600 dark:text-gray-400">
+                      <p className="text-gray-600 dark:text-gray-400 group relative inline-block w-full cursor-help">
                         Revenue: <span className="text-emerald-600 dark:text-emerald-400">{formatCurrency(calculateUnitRevenue('extraction', state.multiplier))}</span>
+                        <span className="absolute bottom-full left-0 mb-1 hidden group-hover:block z-10 pointer-events-none">
+                          <span className="bg-gray-900 text-white text-xs rounded px-2 py-1 whitespace-nowrap shadow-lg">
+                            ${UNIT_ECONOMICS.extraction.baseRevenue}/hr × {state.multiplier.toFixed(1)} × 96hr
+                          </span>
+                        </span>
                       </p>
-                      <p className="text-gray-600 dark:text-gray-400">
+                      <p className="text-gray-600 dark:text-gray-400 group relative inline-block w-full cursor-help">
                         Cost: <span className="text-red-600 dark:text-red-400">{formatCurrency(calculateUnitCost('extraction'))}</span>
+                        <span className="absolute bottom-full left-0 mb-1 hidden group-hover:block z-10 pointer-events-none">
+                          <span className="bg-gray-900 text-white text-xs rounded px-2 py-1 whitespace-nowrap shadow-lg">
+                            ${UNIT_ECONOMICS.extraction.baseCost}/hr × 96hr (fixed, no multiplier)
+                          </span>
+                        </span>
                       </p>
-                      <p className="font-semibold text-gray-900 dark:text-white">
+                      <p className="font-semibold text-gray-900 dark:text-white group relative inline-block w-full cursor-help">
                         Profit: <span className="text-emerald-600 dark:text-emerald-400">{formatCurrency(calculateUnitProfit('extraction', state.multiplier))}</span>
+                        <span className="absolute bottom-full left-0 mb-1 hidden group-hover:block z-10 pointer-events-none">
+                          <span className="bg-gray-900 text-white text-xs rounded px-2 py-1 whitespace-nowrap shadow-lg">
+                            {formatCurrency(calculateUnitRevenue('extraction', state.multiplier))} - {formatCurrency(calculateUnitCost('extraction'))}
+                          </span>
+                        </span>
                       </p>
                     </div>
                     <p className="text-xs text-amber-600 dark:text-amber-400 mt-2">

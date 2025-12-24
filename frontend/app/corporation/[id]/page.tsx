@@ -5,7 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import AppNavigation from '@/components/AppNavigation';
 import { corporationAPI, CorporationResponse, authAPI, sharesAPI, marketsAPI, CorporationFinances, MarketEntryWithUnits, BalanceSheet } from '@/lib/api';
-import { Building2, Edit, Trash2, TrendingUp, DollarSign, Users, User, Calendar, ArrowUp, ArrowDown, TrendingDown, Plus, BarChart3, MapPin, Store, Factory, Briefcase, Layers, Droplets, Package, Cpu, Zap, Wheat, Trees, FlaskConical, Box, Lightbulb, Pill, Wrench, Truck, Shield, UtensilsCrossed, Info, ArrowRight } from 'lucide-react';
+import { Building2, Edit, Trash2, TrendingUp, DollarSign, Users, User, Calendar, ArrowUp, ArrowDown, TrendingDown, Plus, BarChart3, MapPin, Store, Factory, Briefcase, Layers, Droplets, Package, Cpu, Zap, Wheat, Trees, FlaskConical, Box, Lightbulb, Pill, Wrench, Truck, Shield, UtensilsCrossed, Info, ArrowRight, Pickaxe, HelpCircle } from 'lucide-react';
 import BoardTab from '@/components/BoardTab';
 import StockPriceChart from '@/components/StockPriceChart';
 
@@ -117,8 +117,35 @@ const UNIT_ECONOMICS = {
   retail: { baseRevenue: 500, baseCost: 300 },
   production: { baseRevenue: 800, baseCost: 600 },
   service: { baseRevenue: 400, baseCost: 200 },
+  extraction: { baseRevenue: 1000, baseCost: 700 },
 };
 const DISPLAY_PERIOD_HOURS = 96;
+
+// Sectors that can build extraction units (must match backend SECTOR_EXTRACTION)
+const SECTORS_CAN_EXTRACT: Record<string, string[] | null> = {
+  'Technology': null,
+  'Finance': null,
+  'Healthcare': null,
+  'Manufacturing': ['Steel'],
+  'Energy': ['Oil'],
+  'Retail': null,
+  'Real Estate': null,
+  'Transportation': null,
+  'Media': null,
+  'Telecommunications': null,
+  'Agriculture': ['Fertile Land', 'Lumber'],
+  'Defense': null,
+  'Hospitality': null,
+  'Construction': ['Lumber'],
+  'Pharmaceuticals': ['Chemical Compounds'],
+  'Mining': ['Steel', 'Copper', 'Rare Earth'],
+};
+
+// Check if a sector can extract
+const sectorCanExtract = (sector: string): boolean => {
+  const resources = SECTORS_CAN_EXTRACT[sector];
+  return resources !== null && resources.length > 0;
+};
 
 // US States for display
 const US_STATES: Record<string, string> = {
@@ -357,8 +384,18 @@ export default function CorporationDetailPage() {
   }
 
   const isCeo = viewerUserId === corporation.ceo_id;
-  const marketCap = corporation.shares * corporation.share_price;
-  const publicSharesPercentage = (corporation.public_shares / corporation.shares) * 100;
+  
+  // Calculate actual total shares from shareholder positions + public shares
+  // This handles cases where the database total might be out of sync
+  const totalHeldByPlayers = corporation.shareholders?.reduce((sum, sh) => sum + sh.shares, 0) || 0;
+  const actualTotalShares = totalHeldByPlayers + corporation.public_shares;
+  
+  // Use actual total for calculations if there's a mismatch (corrupted data)
+  const effectiveTotalShares = actualTotalShares > 0 ? actualTotalShares : corporation.shares;
+  const hasShareMismatch = Math.abs(corporation.shares - actualTotalShares) > 1 && actualTotalShares > 0;
+  
+  const marketCap = effectiveTotalShares * corporation.share_price;
+  const publicSharesPercentage = (corporation.public_shares / effectiveTotalShares) * 100;
 
   return (
     <AppNavigation>
@@ -543,7 +580,7 @@ export default function CorporationDetailPage() {
                       Total Shares
                     </div>
                     <p className="text-3xl font-bold text-gray-900 dark:text-white font-mono">
-                      {corporation.shares.toLocaleString()}
+                      {effectiveTotalShares.toLocaleString()}
                     </p>
                   </div>
                   <div className="relative rounded-xl border border-white/60 bg-white/70 dark:border-gray-800/70 dark:bg-gray-800/60 p-5 shadow-sm hover:shadow-md transition-shadow">
@@ -591,7 +628,13 @@ export default function CorporationDetailPage() {
               <div className="absolute inset-0 bg-gradient-to-br from-corporate-blue/5 via-transparent to-corporate-blue-light/5 dark:from-corporate-blue/10 dark:via-transparent dark:to-corporate-blue-dark/10 pointer-events-none" />
               <div className="absolute inset-0 ring-1 ring-inset ring-white/20 dark:ring-gray-700/30 pointer-events-none" />
               <div className="relative p-6">
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6">Shareholders</h2>
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Shareholders</h2>
+                {hasShareMismatch && isCeo && (
+                  <div className="mb-4 p-3 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700 rounded-lg text-sm text-amber-800 dark:text-amber-200">
+                    <strong>Note:</strong> Total shares recorded ({corporation.shares.toLocaleString()}) differs from actual distribution ({actualTotalShares.toLocaleString()}). 
+                    An admin can fix this via the fix-all-shares endpoint.
+                  </div>
+                )}
                 {corporation.shareholders && corporation.shareholders.length > 0 ? (
                   <div className="overflow-x-auto">
                     <table className="w-full border-collapse">
@@ -607,7 +650,7 @@ export default function CorporationDetailPage() {
                         {corporation.shareholders
                           .sort((a, b) => b.shares - a.shares)
                           .map((sh, idx) => {
-                            const ownershipPercentage = (sh.shares / corporation.shares) * 100;
+                            const ownershipPercentage = (sh.shares / effectiveTotalShares) * 100;
                             const value = sh.shares * corporation.share_price;
                             const isShareholderCeo = sh.user_id === corporation.ceo_id;
                             return (
@@ -728,30 +771,61 @@ export default function CorporationDetailPage() {
                   ) : (
                     <div className="space-y-6">
                       {/* Summary Stats */}
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                        <div className="rounded-xl border border-white/60 bg-white/70 dark:border-gray-800/70 dark:bg-gray-800/60 p-4 shadow-sm">
+                      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+                        <div className="rounded-xl border border-white/60 bg-white/70 dark:border-gray-800/70 dark:bg-gray-800/60 p-4 shadow-sm group relative">
                           <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">States</p>
                           <p className="text-2xl font-bold text-gray-900 dark:text-white">
                             {new Set(marketEntries.map(e => e.state_code)).size}
                           </p>
+                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-10 pointer-events-none">
+                            <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 whitespace-nowrap shadow-lg">
+                              Number of US states with market presence
+                            </div>
+                          </div>
                         </div>
-                        <div className="rounded-xl border border-white/60 bg-white/70 dark:border-gray-800/70 dark:bg-gray-800/60 p-4 shadow-sm">
+                        <div className="rounded-xl border border-white/60 bg-white/70 dark:border-gray-800/70 dark:bg-gray-800/60 p-4 shadow-sm group relative">
                           <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Sectors</p>
                           <p className="text-2xl font-bold text-gray-900 dark:text-white">
                             {new Set(marketEntries.map(e => e.sector_type)).size}
                           </p>
+                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-10 pointer-events-none">
+                            <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 whitespace-nowrap shadow-lg">
+                              Unique industry sectors operated in
+                            </div>
+                          </div>
                         </div>
-                        <div className="rounded-xl border border-white/60 bg-white/70 dark:border-gray-800/70 dark:bg-gray-800/60 p-4 shadow-sm">
+                        <div className="rounded-xl border border-white/60 bg-white/70 dark:border-gray-800/70 dark:bg-gray-800/60 p-4 shadow-sm group relative">
                           <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Total Units</p>
                           <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                            {marketEntries.reduce((sum, e) => sum + e.retail_count + e.production_count + e.service_count, 0)}
+                            {marketEntries.reduce((sum, e) => sum + e.retail_count + e.production_count + e.service_count + (e.extraction_count || 0), 0)}
                           </p>
+                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-10 pointer-events-none">
+                            <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 whitespace-nowrap shadow-lg">
+                              All business units: Retail + Production + Service + Extraction
+                            </div>
+                          </div>
                         </div>
-                        <div className="rounded-xl border border-white/60 bg-white/70 dark:border-gray-800/70 dark:bg-gray-800/60 p-4 shadow-sm">
-                          <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Production Units</p>
+                        <div className="rounded-xl border border-white/60 bg-white/70 dark:border-gray-800/70 dark:bg-gray-800/60 p-4 shadow-sm group relative">
+                          <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Production</p>
                           <p className="text-2xl font-bold text-orange-600 dark:text-orange-400">
                             {marketEntries.reduce((sum, e) => sum + e.production_count, 0)}
                           </p>
+                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-10 pointer-events-none">
+                            <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 whitespace-nowrap shadow-lg">
+                              Manufacturing units: ${UNIT_ECONOMICS.production.baseRevenue}/hr revenue × multiplier
+                            </div>
+                          </div>
+                        </div>
+                        <div className="rounded-xl border border-white/60 bg-white/70 dark:border-gray-800/70 dark:bg-gray-800/60 p-4 shadow-sm group relative">
+                          <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Extraction</p>
+                          <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">
+                            {marketEntries.reduce((sum, e) => sum + (e.extraction_count || 0), 0)}
+                          </p>
+                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-10 pointer-events-none">
+                            <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 whitespace-nowrap shadow-lg">
+                              Resource extraction units: ${UNIT_ECONOMICS.extraction.baseRevenue}/hr revenue × multiplier
+                            </div>
+                          </div>
                         </div>
                       </div>
 
@@ -775,12 +849,23 @@ export default function CorporationDetailPage() {
                           const stateRetail = entries.reduce((s, e) => s + e.retail_count, 0);
                           const stateProduction = entries.reduce((s, e) => s + e.production_count, 0);
                           const stateService = entries.reduce((s, e) => s + e.service_count, 0);
+                          const stateExtraction = entries.reduce((s, e) => s + (e.extraction_count || 0), 0);
                           
                           const stateRevenue = (
                             stateRetail * UNIT_ECONOMICS.retail.baseRevenue * stateMultiplier +
                             stateProduction * UNIT_ECONOMICS.production.baseRevenue * stateMultiplier +
-                            stateService * UNIT_ECONOMICS.service.baseRevenue * stateMultiplier
+                            stateService * UNIT_ECONOMICS.service.baseRevenue * stateMultiplier +
+                            stateExtraction * UNIT_ECONOMICS.extraction.baseRevenue * stateMultiplier
                           ) * DISPLAY_PERIOD_HOURS;
+                          
+                          const stateCost = (
+                            stateRetail * UNIT_ECONOMICS.retail.baseCost +
+                            stateProduction * UNIT_ECONOMICS.production.baseCost +
+                            stateService * UNIT_ECONOMICS.service.baseCost +
+                            stateExtraction * UNIT_ECONOMICS.extraction.baseCost
+                          ) * DISPLAY_PERIOD_HOURS;
+                          
+                          const stateProfit = stateRevenue - stateCost;
 
                           return (
                             <div key={stateCode} className="rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
@@ -794,15 +879,45 @@ export default function CorporationDetailPage() {
                                     <MapPin className="w-4 h-4 text-corporate-blue" />
                                     <span className="font-semibold text-gray-900 dark:text-white">{stateName}</span>
                                     <span className="text-xs text-gray-500 dark:text-gray-400">({stateCode})</span>
-                                    <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-corporate-blue/10 text-corporate-blue dark:text-corporate-blue-light">
+                                    <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-corporate-blue/10 text-corporate-blue dark:text-corporate-blue-light group relative cursor-help">
                                       {stateMultiplier.toFixed(1)}x
+                                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-10 pointer-events-none">
+                                        <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 whitespace-nowrap shadow-lg">
+                                          State revenue multiplier applied to all unit base revenues
+                                        </div>
+                                      </div>
                                     </span>
                                   </Link>
-                                  <div className="text-right">
-                                    <p className="text-xs text-gray-500 dark:text-gray-400">Revenue (96hr)</p>
-                                    <p className="text-sm font-bold text-emerald-600 dark:text-emerald-400 font-mono">
-                                      {formatCurrency(stateRevenue)}
-                                    </p>
+                                  <div className="flex items-center gap-4">
+                                    <div className="text-right group relative">
+                                      <p className="text-xs text-gray-500 dark:text-gray-400">Revenue</p>
+                                      <p className="text-sm font-bold text-emerald-600 dark:text-emerald-400 font-mono">
+                                        {formatCurrency(stateRevenue)}
+                                      </p>
+                                      <div className="absolute bottom-full right-0 mb-2 hidden group-hover:block z-10 pointer-events-none">
+                                        <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 whitespace-nowrap shadow-lg text-left">
+                                          <p className="font-medium mb-1">96-hour Revenue Breakdown</p>
+                                          <p>Retail: {stateRetail} × ${UNIT_ECONOMICS.retail.baseRevenue} × {stateMultiplier.toFixed(1)} × 96</p>
+                                          <p>Prod: {stateProduction} × ${UNIT_ECONOMICS.production.baseRevenue} × {stateMultiplier.toFixed(1)} × 96</p>
+                                          <p>Service: {stateService} × ${UNIT_ECONOMICS.service.baseRevenue} × {stateMultiplier.toFixed(1)} × 96</p>
+                                          <p>Extract: {stateExtraction} × ${UNIT_ECONOMICS.extraction.baseRevenue} × {stateMultiplier.toFixed(1)} × 96</p>
+                                        </div>
+                                      </div>
+                                    </div>
+                                    <div className="text-right group relative">
+                                      <p className="text-xs text-gray-500 dark:text-gray-400">Profit</p>
+                                      <p className={`text-sm font-bold font-mono ${stateProfit >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+                                        {formatCurrency(stateProfit)}
+                                      </p>
+                                      <div className="absolute bottom-full right-0 mb-2 hidden group-hover:block z-10 pointer-events-none">
+                                        <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 whitespace-nowrap shadow-lg text-left">
+                                          <p className="font-medium mb-1">Net = Revenue - Costs</p>
+                                          <p className="text-emerald-400">Revenue: {formatCurrency(stateRevenue)}</p>
+                                          <p className="text-red-400">Costs: {formatCurrency(stateCost)}</p>
+                                          <p className="border-t border-gray-700 mt-1 pt-1">Net: {formatCurrency(stateProfit)}</p>
+                                        </div>
+                                      </div>
+                                    </div>
                                   </div>
                                 </div>
                               </div>
@@ -811,12 +926,22 @@ export default function CorporationDetailPage() {
                               <div className="divide-y divide-gray-100 dark:divide-gray-700/50">
                                 {entries.map((entry) => {
                                   const requiredResource = SECTOR_RESOURCES[entry.sector_type];
-                                  const totalUnits = entry.retail_count + entry.production_count + entry.service_count;
+                                  const canExtract = sectorCanExtract(entry.sector_type);
+                                  const extractableResources = SECTORS_CAN_EXTRACT[entry.sector_type];
+                                  const totalUnits = entry.retail_count + entry.production_count + entry.service_count + (entry.extraction_count || 0);
                                   const entryRevenue = (
                                     entry.retail_count * UNIT_ECONOMICS.retail.baseRevenue * stateMultiplier +
                                     entry.production_count * UNIT_ECONOMICS.production.baseRevenue * stateMultiplier +
-                                    entry.service_count * UNIT_ECONOMICS.service.baseRevenue * stateMultiplier
+                                    entry.service_count * UNIT_ECONOMICS.service.baseRevenue * stateMultiplier +
+                                    (entry.extraction_count || 0) * UNIT_ECONOMICS.extraction.baseRevenue * stateMultiplier
                                   ) * DISPLAY_PERIOD_HOURS;
+                                  const entryCost = (
+                                    entry.retail_count * UNIT_ECONOMICS.retail.baseCost +
+                                    entry.production_count * UNIT_ECONOMICS.production.baseCost +
+                                    entry.service_count * UNIT_ECONOMICS.service.baseCost +
+                                    (entry.extraction_count || 0) * UNIT_ECONOMICS.extraction.baseCost
+                                  ) * DISPLAY_PERIOD_HOURS;
+                                  const entryProfit = entryRevenue - entryCost;
 
                                   return (
                                     <div key={entry.id} className="p-4 hover:bg-gray-50/50 dark:hover:bg-gray-800/30 transition-colors">
@@ -824,35 +949,118 @@ export default function CorporationDetailPage() {
                                         <div>
                                           <h4 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
                                             {entry.sector_type}
+                                            {canExtract && (
+                                              <span className="text-xs font-normal text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                                                <Pickaxe className="w-3 h-3" />
+                                                Extraction
+                                              </span>
+                                            )}
                                           </h4>
                                           <p className="text-xs text-gray-500 dark:text-gray-400">
-                                            Entered {new Date(entry.created_at).toLocaleDateString()}
+                                            Entered {new Date(entry.created_at).toLocaleDateString()} • {totalUnits} units
                                           </p>
                                         </div>
-                                        <div className="text-right">
-                                          <p className="text-sm font-bold text-emerald-600 dark:text-emerald-400 font-mono">
-                                            {formatCurrency(entryRevenue)}
-                                          </p>
-                                          <p className="text-xs text-gray-500 dark:text-gray-400">per 96hr</p>
+                                        <div className="flex items-center gap-3">
+                                          <div className="text-right group relative">
+                                            <p className="text-sm font-bold text-emerald-600 dark:text-emerald-400 font-mono">
+                                              {formatCurrency(entryRevenue)}
+                                            </p>
+                                            <p className="text-xs text-gray-500 dark:text-gray-400">revenue/96h</p>
+                                            <div className="absolute bottom-full right-0 mb-2 hidden group-hover:block z-10 pointer-events-none">
+                                              <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 whitespace-nowrap shadow-lg text-left">
+                                                <p className="font-medium mb-1">{entry.sector_type} Revenue</p>
+                                                <p>R: {entry.retail_count} × ${UNIT_ECONOMICS.retail.baseRevenue} × {stateMultiplier.toFixed(1)}</p>
+                                                <p>P: {entry.production_count} × ${UNIT_ECONOMICS.production.baseRevenue} × {stateMultiplier.toFixed(1)}</p>
+                                                <p>S: {entry.service_count} × ${UNIT_ECONOMICS.service.baseRevenue} × {stateMultiplier.toFixed(1)}</p>
+                                                <p>E: {entry.extraction_count || 0} × ${UNIT_ECONOMICS.extraction.baseRevenue} × {stateMultiplier.toFixed(1)}</p>
+                                              </div>
+                                            </div>
+                                          </div>
+                                          <div className="text-right group relative">
+                                            <p className={`text-sm font-bold font-mono ${entryProfit >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+                                              {formatCurrency(entryProfit)}
+                                            </p>
+                                            <p className="text-xs text-gray-500 dark:text-gray-400">profit/96h</p>
+                                            <div className="absolute bottom-full right-0 mb-2 hidden group-hover:block z-10 pointer-events-none">
+                                              <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 whitespace-nowrap shadow-lg text-left">
+                                                <p className="font-medium mb-1">Profit = Revenue - Costs</p>
+                                                <p className="text-emerald-400">{formatCurrency(entryRevenue)}</p>
+                                                <p className="text-red-400">- {formatCurrency(entryCost)}</p>
+                                                <p className="border-t border-gray-700 mt-1 pt-1">= {formatCurrency(entryProfit)}</p>
+                                              </div>
+                                            </div>
+                                          </div>
                                         </div>
                                       </div>
 
                                       {/* Units Breakdown */}
-                                      <div className="grid grid-cols-3 gap-3 mb-3">
-                                        <div className="flex items-center gap-2 text-sm">
+                                      <div className="grid grid-cols-4 gap-3 mb-3">
+                                        <div className="flex items-center gap-2 text-sm group relative">
                                           <Store className="w-4 h-4 text-pink-500" />
                                           <span className="text-gray-600 dark:text-gray-400">Retail:</span>
                                           <span className="font-semibold text-gray-900 dark:text-white">{entry.retail_count}</span>
+                                          <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block z-10 pointer-events-none">
+                                            <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 whitespace-nowrap shadow-lg">
+                                              <p className="font-medium">Retail Units</p>
+                                              <p>Revenue: ${UNIT_ECONOMICS.retail.baseRevenue}/hr × {stateMultiplier.toFixed(1)}x</p>
+                                              <p>Cost: ${UNIT_ECONOMICS.retail.baseCost}/hr</p>
+                                              <p className="text-emerald-400">Profit: ${(UNIT_ECONOMICS.retail.baseRevenue * stateMultiplier - UNIT_ECONOMICS.retail.baseCost).toFixed(0)}/hr</p>
+                                            </div>
+                                          </div>
                                         </div>
-                                        <div className="flex items-center gap-2 text-sm">
+                                        <div className="flex items-center gap-2 text-sm group relative">
                                           <Factory className="w-4 h-4 text-orange-500" />
                                           <span className="text-gray-600 dark:text-gray-400">Production:</span>
                                           <span className="font-semibold text-gray-900 dark:text-white">{entry.production_count}</span>
+                                          <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block z-10 pointer-events-none">
+                                            <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 whitespace-nowrap shadow-lg">
+                                              <p className="font-medium">Production Units</p>
+                                              <p>Revenue: ${UNIT_ECONOMICS.production.baseRevenue}/hr × {stateMultiplier.toFixed(1)}x</p>
+                                              <p>Cost: ${UNIT_ECONOMICS.production.baseCost}/hr</p>
+                                              <p className="text-emerald-400">Profit: ${(UNIT_ECONOMICS.production.baseRevenue * stateMultiplier - UNIT_ECONOMICS.production.baseCost).toFixed(0)}/hr</p>
+                                              {requiredResource && <p className="text-amber-400 mt-1">Requires: {requiredResource}</p>}
+                                            </div>
+                                          </div>
                                         </div>
-                                        <div className="flex items-center gap-2 text-sm">
+                                        <div className="flex items-center gap-2 text-sm group relative">
                                           <Briefcase className="w-4 h-4 text-blue-500" />
                                           <span className="text-gray-600 dark:text-gray-400">Service:</span>
                                           <span className="font-semibold text-gray-900 dark:text-white">{entry.service_count}</span>
+                                          <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block z-10 pointer-events-none">
+                                            <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 whitespace-nowrap shadow-lg">
+                                              <p className="font-medium">Service Units</p>
+                                              <p>Revenue: ${UNIT_ECONOMICS.service.baseRevenue}/hr × {stateMultiplier.toFixed(1)}x</p>
+                                              <p>Cost: ${UNIT_ECONOMICS.service.baseCost}/hr</p>
+                                              <p className="text-emerald-400">Profit: ${(UNIT_ECONOMICS.service.baseRevenue * stateMultiplier - UNIT_ECONOMICS.service.baseCost).toFixed(0)}/hr</p>
+                                            </div>
+                                          </div>
+                                        </div>
+                                        {/* Extraction - frosted if sector doesn't support it */}
+                                        <div className={`flex items-center gap-2 text-sm group relative ${!canExtract ? 'opacity-40' : ''}`}>
+                                          <Pickaxe className={`w-4 h-4 ${canExtract ? 'text-amber-500' : 'text-gray-400'}`} />
+                                          <span className="text-gray-600 dark:text-gray-400">Extraction:</span>
+                                          <span className={`font-semibold ${canExtract ? 'text-gray-900 dark:text-white' : 'text-gray-400 dark:text-gray-600'}`}>
+                                            {canExtract ? (entry.extraction_count || 0) : '—'}
+                                          </span>
+                                          <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block z-10 pointer-events-none">
+                                            <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 whitespace-nowrap shadow-lg">
+                                              {canExtract ? (
+                                                <>
+                                                  <p className="font-medium">Extraction Units</p>
+                                                  <p>Revenue: ${UNIT_ECONOMICS.extraction.baseRevenue}/hr × {stateMultiplier.toFixed(1)}x</p>
+                                                  <p>Cost: ${UNIT_ECONOMICS.extraction.baseCost}/hr</p>
+                                                  <p className="text-emerald-400">Profit: ${(UNIT_ECONOMICS.extraction.baseRevenue * stateMultiplier - UNIT_ECONOMICS.extraction.baseCost).toFixed(0)}/hr</p>
+                                                  <p className="text-amber-400 mt-1">Extracts: {extractableResources?.join(', ')}</p>
+                                                </>
+                                              ) : (
+                                                <>
+                                                  <p className="font-medium text-gray-400">Extraction Not Available</p>
+                                                  <p className="text-gray-400">{entry.sector_type} sector cannot build extraction units</p>
+                                                  <p className="text-gray-500 mt-1">Only available in: Mining, Energy, Agriculture, Manufacturing, Construction, Pharmaceuticals</p>
+                                                </>
+                                              )}
+                                            </div>
+                                          </div>
                                         </div>
                                       </div>
 
@@ -955,6 +1163,7 @@ export default function CorporationDetailPage() {
                         <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
                           <Droplets className="w-5 h-5 text-amber-600" />
                           Resource Inputs Required
+                          <span className="text-xs font-normal text-gray-500 dark:text-gray-400 ml-2">(for production units)</span>
                         </h3>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                           {(() => {
@@ -980,7 +1189,7 @@ export default function CorporationDetailPage() {
                             return Object.entries(resourceDemand).map(([resource, demand]) => (
                               <div 
                                 key={resource} 
-                                className={`rounded-lg p-4 ${RESOURCE_COLORS[resource] || 'bg-gray-100 dark:bg-gray-800'}`}
+                                className={`rounded-lg p-4 group relative ${RESOURCE_COLORS[resource] || 'bg-gray-100 dark:bg-gray-800'}`}
                               >
                                 <div className="flex items-center gap-2 mb-2">
                                   {RESOURCE_ICONS[resource]}
@@ -988,6 +1197,67 @@ export default function CorporationDetailPage() {
                                 </div>
                                 <p className="text-2xl font-bold">{demand}</p>
                                 <p className="text-xs opacity-75">units required</p>
+                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-10 pointer-events-none">
+                                  <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 whitespace-nowrap shadow-lg">
+                                    <p className="font-medium">{resource} Demand</p>
+                                    <p>{demand} production units need this resource</p>
+                                    <p className="text-gray-400 mt-1">efficiency = min(1, available / {demand})</p>
+                                  </div>
+                                </div>
+                              </div>
+                            ));
+                          })()}
+                        </div>
+                      </div>
+
+                      {/* Extraction Output Summary */}
+                      <div className="rounded-xl border border-white/60 bg-white/70 dark:border-gray-800/70 dark:bg-gray-800/60 p-6 shadow-sm mt-6">
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                          <Pickaxe className="w-5 h-5 text-amber-600" />
+                          Extraction Output
+                          <span className="text-xs font-normal text-gray-500 dark:text-gray-400 ml-2">(resources extracted)</span>
+                        </h3>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                          {(() => {
+                            // Calculate total extraction output across all market entries
+                            const extractionOutput: Record<string, number> = {};
+                            marketEntries.forEach(entry => {
+                              const resources = SECTORS_CAN_EXTRACT[entry.sector_type];
+                              if (resources && (entry.extraction_count || 0) > 0) {
+                                resources.forEach(resource => {
+                                  extractionOutput[resource] = (extractionOutput[resource] || 0) + (entry.extraction_count || 0);
+                                });
+                              }
+                            });
+
+                            if (Object.keys(extractionOutput).length === 0) {
+                              return (
+                                <div className="col-span-full text-center py-4">
+                                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                                    No extraction units producing resources
+                                  </p>
+                                </div>
+                              );
+                            }
+
+                            return Object.entries(extractionOutput).map(([resource, output]) => (
+                              <div 
+                                key={resource} 
+                                className={`rounded-lg p-4 group relative ${RESOURCE_COLORS[resource] || 'bg-gray-100 dark:bg-gray-800'}`}
+                              >
+                                <div className="flex items-center gap-2 mb-2">
+                                  {RESOURCE_ICONS[resource]}
+                                  <span className="font-medium text-sm">{resource}</span>
+                                </div>
+                                <p className="text-2xl font-bold">{output}</p>
+                                <p className="text-xs opacity-75">units extracted</p>
+                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-10 pointer-events-none">
+                                  <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 whitespace-nowrap shadow-lg">
+                                    <p className="font-medium">{resource} Extraction</p>
+                                    <p>{output} extraction units producing this resource</p>
+                                    <p className="text-emerald-400 mt-1">Adds to state/national resource pool</p>
+                                  </div>
+                                </div>
                               </div>
                             ));
                           })()}
@@ -1322,7 +1592,7 @@ export default function CorporationDetailPage() {
                       <div>
                         <span className="text-gray-500 dark:text-gray-500 block">Total Shares</span>
                         <span className="font-mono font-semibold text-gray-900 dark:text-white">
-                          {corporation.shares?.toLocaleString() || 0}
+                          {effectiveTotalShares?.toLocaleString() || 0}
                         </span>
                       </div>
                       <div>

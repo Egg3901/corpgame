@@ -874,6 +874,7 @@ export interface MarketEntryWithUnits {
   retail_count: number;
   production_count: number;
   service_count: number;
+  extraction_count: number;
   state_name?: string;
   state_region?: string;
   state_multiplier?: number;

@@ -473,24 +473,39 @@ async function applyProposalChanges(proposal: any): Promise<void> {
 
     case 'stock_split':
       // 2:1 stock split: double all shares, halve the price
+      // Execute as a single transaction for data integrity
       const splitCorp = await CorporationModel.findById(corpId);
       if (splitCorp) {
-        const newTotalShares = splitCorp.shares * 2;
-        const newPublicShares = splitCorp.public_shares * 2;
+        // Get all shareholders BEFORE updating
+        const shareholdersBeforeSplit = await ShareholderModel.findByCorporationId(corpId);
+        
+        // Calculate new values
         const newSharePrice = splitCorp.share_price / 2;
         
-        // Update corporation shares and price
+        // Calculate total shares from actual shareholder positions + public shares
+        const totalHeldByPlayers = shareholdersBeforeSplit.reduce((sum, sh) => sum + sh.shares, 0);
+        const actualTotalShares = totalHeldByPlayers + splitCorp.public_shares;
+        
+        // Double everything
+        const newTotalShares = actualTotalShares * 2;
+        const newPublicShares = splitCorp.public_shares * 2;
+        
+        console.log(`[Stock Split] Corp ${corpId}: Before split - Total: ${actualTotalShares}, Public: ${splitCorp.public_shares}, Held: ${totalHeldByPlayers}`);
+        console.log(`[Stock Split] Corp ${corpId}: After split - Total: ${newTotalShares}, Public: ${newPublicShares}, Price: ${newSharePrice}`);
+        
+        // First, double all shareholder positions
+        for (const sh of shareholdersBeforeSplit) {
+          const newShares = sh.shares * 2;
+          console.log(`[Stock Split] Corp ${corpId}: User ${sh.user_id}: ${sh.shares} -> ${newShares}`);
+          await ShareholderModel.updateShares(corpId, sh.user_id, newShares);
+        }
+        
+        // Then update corporation (total shares should match doubled held + doubled public)
         await CorporationModel.update(corpId, {
           shares: newTotalShares,
           public_shares: newPublicShares,
           share_price: newSharePrice,
         });
-        
-        // Double all shareholder positions
-        const shareholders = await ShareholderModel.findByCorporationId(corpId);
-        for (const sh of shareholders) {
-          await ShareholderModel.updateShares(corpId, sh.user_id, sh.shares * 2);
-        }
       }
       break;
   }

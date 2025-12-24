@@ -5,6 +5,7 @@ import { UserModel } from '../models/User';
 import { ReportedChatModel } from '../models/ReportedChat';
 import { MessageModel } from '../models/Message';
 import { CorporationModel } from '../models/Corporation';
+import { ShareholderModel } from '../models/Shareholder';
 import { TransactionModel, TransactionType } from '../models/Transaction';
 import { normalizeImageUrl } from '../utils/imageUrl';
 import { triggerActionsIncrement, triggerMarketRevenue, triggerCeoSalaries } from '../cron/actions';
@@ -362,6 +363,119 @@ router.get('/transactions', async (req: AuthRequest, res: Response) => {
   } catch (error) {
     console.error('Get transactions error:', error);
     res.status(500).json({ error: 'Failed to get transactions' });
+  }
+});
+
+// POST /api/admin/fix-shares/:corpId - Fix corrupted share data by recalculating total shares
+router.post('/fix-shares/:corpId', async (req: AuthRequest, res: Response) => {
+  try {
+    const corpId = parseInt(req.params.corpId, 10);
+    if (isNaN(corpId)) {
+      return res.status(400).json({ error: 'Invalid corporation ID' });
+    }
+
+    const corporation = await CorporationModel.findById(corpId);
+    if (!corporation) {
+      return res.status(404).json({ error: 'Corporation not found' });
+    }
+
+    // Get all shareholders for this corporation
+    const shareholders = await ShareholderModel.findByCorporationId(corpId);
+    
+    // Calculate total held by players
+    const totalHeldByPlayers = shareholders.reduce((sum, sh) => sum + sh.shares, 0);
+    
+    // Calculate what the correct total shares should be
+    const correctTotalShares = totalHeldByPlayers + corporation.public_shares;
+    
+    const oldData = {
+      total_shares: corporation.shares,
+      public_shares: corporation.public_shares,
+      held_by_players: totalHeldByPlayers,
+    };
+
+    // Check if there's actually a mismatch
+    if (corporation.shares === correctTotalShares) {
+      return res.json({
+        success: true,
+        message: 'Share data is already correct',
+        corporation_id: corpId,
+        data: oldData,
+      });
+    }
+
+    // Fix the total shares
+    await CorporationModel.update(corpId, { shares: correctTotalShares });
+
+    console.log(`[Admin] Fixed shares for corp ${corpId}: ${corporation.shares} -> ${correctTotalShares}`);
+
+    res.json({
+      success: true,
+      message: 'Share data corrected',
+      corporation_id: corpId,
+      old_data: oldData,
+      new_data: {
+        total_shares: correctTotalShares,
+        public_shares: corporation.public_shares,
+        held_by_players: totalHeldByPlayers,
+      },
+    });
+  } catch (error) {
+    console.error('Fix shares error:', error);
+    res.status(500).json({ error: 'Failed to fix shares' });
+  }
+});
+
+// POST /api/admin/fix-all-shares - Fix corrupted share data for ALL corporations
+router.post('/fix-all-shares', async (req: AuthRequest, res: Response) => {
+  try {
+    console.log('[Admin] Fixing all corporation share data by user:', req.userId);
+    
+    const corporations = await CorporationModel.findAll();
+    const results: { 
+      corporation_id: number; 
+      name: string; 
+      fixed: boolean;
+      old_total: number;
+      new_total: number;
+      public_shares: number;
+      held_by_players: number;
+    }[] = [];
+    
+    for (const corp of corporations) {
+      const shareholders = await ShareholderModel.findByCorporationId(corp.id);
+      const totalHeldByPlayers = shareholders.reduce((sum, sh) => sum + sh.shares, 0);
+      const correctTotalShares = totalHeldByPlayers + corp.public_shares;
+      
+      const needsFix = corp.shares !== correctTotalShares;
+      
+      if (needsFix) {
+        await CorporationModel.update(corp.id, { shares: correctTotalShares });
+        console.log(`[Admin] Fixed shares for ${corp.name}: ${corp.shares} -> ${correctTotalShares}`);
+      }
+      
+      results.push({
+        corporation_id: corp.id,
+        name: corp.name,
+        fixed: needsFix,
+        old_total: corp.shares,
+        new_total: correctTotalShares,
+        public_shares: corp.public_shares,
+        held_by_players: totalHeldByPlayers,
+      });
+    }
+    
+    const fixedCount = results.filter(r => r.fixed).length;
+    
+    res.json({
+      success: true,
+      corporations_checked: results.length,
+      corporations_fixed: fixedCount,
+      details: results,
+    });
+  } catch (error) {
+    console.error('Fix all shares error:', error);
+    res.status(500).json({ error: 'Failed to fix shares' });
   }
 });
 
