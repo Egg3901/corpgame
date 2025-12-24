@@ -6,7 +6,7 @@ import { boardAPI, BoardResponse, BoardProposal, CreateProposalData } from '@/li
 import { 
   Users, Crown, Clock, CheckCircle, XCircle, 
   ThumbsUp, ThumbsDown, Plus, ChevronDown, ChevronUp,
-  Building2, MapPin, UsersRound, UserPlus, DollarSign, Percent, Gift
+  Building2, MapPin, UsersRound, UserPlus, DollarSign, Percent, Gift, Split
 } from 'lucide-react';
 
 // US States for display
@@ -146,6 +146,9 @@ export default function BoardTab({ corporationId, corporationName, viewerUserId 
           }
           data = { proposal_type: 'special_dividend', proposal_data: { capital_percentage: specialDividendCapitalPercentage } };
           break;
+        case 'stock_split':
+          data = { proposal_type: 'stock_split', proposal_data: {} };
+          break;
         default:
           return;
       }
@@ -232,6 +235,8 @@ export default function BoardTab({ corporationId, corporationName, viewerUserId 
         return `Change dividend percentage to ${((proposal.proposal_data as any).new_percentage || 0).toFixed(2)}%`;
       case 'special_dividend':
         return `Pay special dividend of ${((proposal.proposal_data as any).capital_percentage || 0).toFixed(2)}% of capital`;
+      case 'stock_split':
+        return `Execute 2:1 stock split (double shares, halve price)`;
       default:
         return 'Unknown proposal';
     }
@@ -247,6 +252,7 @@ export default function BoardTab({ corporationId, corporationName, viewerUserId 
       case 'ceo_salary_change': return <DollarSign className="w-4 h-4" />;
       case 'dividend_change': return <Percent className="w-4 h-4" />;
       case 'special_dividend': return <Gift className="w-4 h-4" />;
+      case 'stock_split': return <Split className="w-4 h-4" />;
       default: return <Users className="w-4 h-4" />;
     }
   };
@@ -394,6 +400,7 @@ export default function BoardTab({ corporationId, corporationName, viewerUserId 
                     <option value="ceo_salary_change">Change CEO Salary</option>
                     <option value="dividend_change">Change Dividend Percentage</option>
                     <option value="special_dividend">Pay Special Dividend</option>
+                    <option value="stock_split">Stock Split (2:1)</option>
                   </select>
                 </div>
 
@@ -600,6 +607,22 @@ export default function BoardTab({ corporationId, corporationName, viewerUserId 
                   </div>
                 )}
 
+                {proposalType === 'stock_split' && (
+                  <div className="p-4 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Split className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+                      <span className="font-semibold text-amber-800 dark:text-amber-200">2:1 Stock Split</span>
+                    </div>
+                    <p className="text-sm text-amber-700 dark:text-amber-300">
+                      This will double all outstanding shares and halve the share price. 
+                      For example: 500,000 shares at $10 each becomes 1,000,000 shares at $5 each.
+                    </p>
+                    <p className="text-xs text-amber-600 dark:text-amber-400 mt-2">
+                      Total market capitalization remains unchanged.
+                    </p>
+                  </div>
+                )}
+
                 <div className="flex gap-2">
                   <button
                     type="submit"
@@ -777,3 +800,4 @@ export default function BoardTab({ corporationId, corporationName, viewerUserId 
     </div>
   );
 }
+

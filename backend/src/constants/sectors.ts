@@ -24,6 +24,430 @@ export function isValidSector(value: string): value is Sector {
   return SECTORS.includes(value as Sector);
 }
 
+// ============================================================================
+// RESOURCES SYSTEM
+// ============================================================================
+
+// Resource types that production units can demand
+export const RESOURCES = [
+  'Oil',
+  'Steel',
+  'Rare Earth',
+  'Copper',
+  'Fertile Land',
+  'Lumber',
+  'Chemical Compounds',
+] as const;
+
+export type Resource = typeof RESOURCES[number];
+
+// Mapping of sectors to their required resource (null = no resource required)
+export const SECTOR_RESOURCES: Record<Sector, Resource | null> = {
+  'Technology': 'Rare Earth',
+  'Finance': null,
+  'Healthcare': null,
+  'Manufacturing': 'Steel',
+  'Energy': 'Oil',
+  'Retail': null,
+  'Real Estate': null,
+  'Transportation': 'Steel',
+  'Media': null,
+  'Telecommunications': 'Copper',
+  'Agriculture': 'Fertile Land',
+  'Defense': 'Steel',
+  'Hospitality': null,
+  'Construction': 'Lumber',
+  'Pharmaceuticals': 'Chemical Compounds',
+};
+
+// Get the resource required by a sector
+export function getSectorResource(sector: Sector): Resource | null {
+  return SECTOR_RESOURCES[sector];
+}
+
+// Check if a sector requires resources
+export function sectorRequiresResource(sector: string): boolean {
+  if (!isValidSector(sector)) return false;
+  return SECTOR_RESOURCES[sector] !== null;
+}
+
+// ============================================================================
+// STATE RESOURCE POOLS
+// Realistic distribution of resources across US states
+// Values represent available resource units in each state
+// ============================================================================
+
+export type StateResourcePool = Partial<Record<Resource, number>>;
+
+export const STATE_RESOURCES: Record<string, StateResourcePool> = {
+  // ---- WEST ----
+  'CA': {
+    'Rare Earth': 2000,      // Mountain Pass mine - largest US deposit
+    'Oil': 200,              // Some production, declining
+    'Fertile Land': 4000,    // Central Valley agriculture
+    'Lumber': 1500,          // Northern California forests
+    'Chemical Compounds': 1500,
+  },
+  'WA': {
+    'Lumber': 6000,          // Major timber state
+    'Fertile Land': 1800,    // Eastern WA agriculture
+  },
+  'OR': {
+    'Lumber': 8000,          // #1 lumber producer
+    'Fertile Land': 1200,
+  },
+  'NV': {
+    'Copper': 1500,          // Significant mining
+    'Rare Earth': 100,
+  },
+  'AZ': {
+    'Copper': 10000,         // Dominant - 65%+ of US copper
+  },
+  'UT': {
+    'Copper': 3000,          // Bingham Canyon mine
+    'Oil': 100,
+  },
+  'CO': {
+    'Oil': 700,              // DJ Basin
+    'Fertile Land': 800,
+  },
+  'NM': {
+    'Oil': 1200,             // Permian Basin extends here
+    'Copper': 2000,
+    'Chemical Compounds': 200,
+  },
+  'HI': {
+    'Fertile Land': 300,     // Limited but specialized agriculture
+  },
+  'AK': {
+    'Oil': 600,              // North Slope (remote)
+    'Lumber': 400,
+  },
+  'ID': {
+    'Lumber': 2000,
+    'Rare Earth': 200,
+    'Fertile Land': 1500,
+  },
+  'MT': {
+    'Copper': 1000,
+    'Lumber': 1500,
+    'Oil': 80,
+    'Rare Earth': 150,
+    'Fertile Land': 1000,
+  },
+  'WY': {
+    'Oil': 500,
+    'Chemical Compounds': 2000,  // Trona/soda ash - world's largest
+    'Rare Earth': 500,
+    'Fertile Land': 400,
+  },
+
+  // ---- SOUTHWEST ----
+  'TX': {
+    'Oil': 5000,             // Dominant US oil producer
+    'Chemical Compounds': 8000, // Gulf Coast petrochemical hub
+    'Fertile Land': 3500,
+    'Rare Earth': 300,
+    'Steel': 100,            // Some iron ore
+  },
+  'OK': {
+    'Oil': 800,
+    'Fertile Land': 1000,
+    'Chemical Compounds': 300,
+  },
+
+  // ---- MIDWEST ----
+  'IL': {
+    'Fertile Land': 7000,    // Corn Belt powerhouse
+    'Chemical Compounds': 500,
+    'Steel': 50,
+  },
+  'OH': {
+    'Steel': 50,             // Historical steel industry
+    'Fertile Land': 3000,
+    'Chemical Compounds': 800,
+    'Oil': 50,
+  },
+  'MI': {
+    'Steel': 2000,           // Iron Range extends here
+    'Copper': 500,           // Keweenaw Peninsula (historical)
+    'Lumber': 600,
+    'Fertile Land': 1200,
+  },
+  'IN': {
+    'Fertile Land': 4000,
+    'Steel': 30,
+    'Chemical Compounds': 200,
+  },
+  'WI': {
+    'Steel': 500,            // Iron ore deposits
+    'Lumber': 800,
+    'Fertile Land': 1500,
+  },
+  'MN': {
+    'Steel': 5000,           // Iron Range - dominant US source
+    'Fertile Land': 5000,
+    'Lumber': 400,
+  },
+  'MO': {
+    'Fertile Land': 2500,
+    'Chemical Compounds': 150,
+  },
+  'IA': {
+    'Fertile Land': 8000,    // #1 agricultural state
+  },
+  'KS': {
+    'Fertile Land': 6000,    // Major wheat producer
+    'Oil': 150,
+    'Chemical Compounds': 100,
+  },
+  'NE': {
+    'Fertile Land': 5500,    // Corn Belt
+  },
+  'SD': {
+    'Fertile Land': 2000,
+    'Rare Earth': 50,
+  },
+  'ND': {
+    'Oil': 1500,             // Bakken Formation
+    'Fertile Land': 2000,
+  },
+
+  // ---- SOUTHEAST ----
+  'FL': {
+    'Chemical Compounds': 3000, // Phosphate mining
+    'Fertile Land': 1000,
+    'Lumber': 500,
+  },
+  'GA': {
+    'Lumber': 4000,          // Major timber state
+    'Fertile Land': 400,
+  },
+  'NC': {
+    'Lumber': 2500,
+    'Fertile Land': 500,
+  },
+  'VA': {
+    'Lumber': 700,
+    'Fertile Land': 400,
+    'Chemical Compounds': 100,
+  },
+  'TN': {
+    'Lumber': 600,
+    'Fertile Land': 500,
+    'Chemical Compounds': 200,
+  },
+  'SC': {
+    'Lumber': 800,
+    'Fertile Land': 300,
+  },
+  'AL': {
+    'Steel': 300,            // Birmingham iron/steel history
+    'Lumber': 3500,
+    'Chemical Compounds': 200,
+  },
+  'KY': {
+    'Fertile Land': 600,
+    'Lumber': 400,
+    'Chemical Compounds': 150,
+  },
+  'LA': {
+    'Oil': 400,
+    'Chemical Compounds': 6000, // Major petrochemical corridor
+    'Lumber': 1000,
+    'Fertile Land': 500,
+  },
+  'MS': {
+    'Lumber': 3000,
+    'Fertile Land': 400,
+    'Oil': 30,
+  },
+  'AR': {
+    'Lumber': 1200,
+    'Fertile Land': 800,
+  },
+  'WV': {
+    'Lumber': 500,
+    'Chemical Compounds': 300,
+  },
+
+  // ---- NORTHEAST ----
+  'NY': {
+    'Fertile Land': 600,
+    'Lumber': 300,
+  },
+  'PA': {
+    'Steel': 200,            // Historical steel industry
+    'Lumber': 400,
+    'Chemical Compounds': 600,
+    'Oil': 20,               // First US oil well was here
+  },
+  'NJ': {
+    'Chemical Compounds': 1000, // Major chemical industry
+  },
+  'MA': {
+    // Limited natural resources
+  },
+  'MD': {
+    'Fertile Land': 200,
+  },
+  'CT': {
+    // Limited natural resources
+  },
+  'NH': {
+    'Lumber': 300,
+  },
+  'ME': {
+    'Lumber': 2500,          // Major timber state
+  },
+  'RI': {
+    // Limited natural resources
+  },
+  'VT': {
+    'Lumber': 200,
+    'Fertile Land': 100,
+  },
+  'DE': {
+    'Chemical Compounds': 200, // DuPont legacy
+  },
+};
+
+// Get resource pool for a state
+export function getStateResources(stateCode: string): StateResourcePool {
+  return STATE_RESOURCES[stateCode] || {};
+}
+
+// Get available amount of a specific resource in a state
+export function getStateResourceAmount(stateCode: string, resource: Resource): number {
+  return STATE_RESOURCES[stateCode]?.[resource] || 0;
+}
+
+// Check if a state has a specific resource
+export function stateHasResource(stateCode: string, resource: Resource): boolean {
+  return getStateResourceAmount(stateCode, resource) > 0;
+}
+
+// Get total US pool for a resource
+export function getTotalResourcePool(resource: Resource): number {
+  let total = 0;
+  for (const stateCode of Object.keys(STATE_RESOURCES)) {
+    total += STATE_RESOURCES[stateCode]?.[resource] || 0;
+  }
+  return total;
+}
+
+// Get all states that have a specific resource, sorted by amount (descending)
+export function getStatesWithResource(resource: Resource): Array<{ stateCode: string; amount: number }> {
+  const states: Array<{ stateCode: string; amount: number }> = [];
+  
+  for (const [stateCode, resources] of Object.entries(STATE_RESOURCES)) {
+    const amount = resources[resource];
+    if (amount && amount > 0) {
+      states.push({ stateCode, amount });
+    }
+  }
+  
+  return states.sort((a, b) => b.amount - a.amount);
+}
+
+// ============================================================================
+// PRODUCTION EFFICIENCY CALCULATION
+// ============================================================================
+
+export interface ResourceEfficiencyResult {
+  efficiency: number;           // 0.0 to 1.0
+  availableResources: number;   // How many resource units available in state
+  requiredResources: number;    // How many resource units needed (production unit count)
+  resourceType: Resource | null; // The resource type required (null if sector needs none)
+  hasShortage: boolean;         // True if efficiency < 1.0
+}
+
+/**
+ * Calculate production efficiency for a sector in a state
+ * Efficiency = min(1, available_resources / required_resources)
+ * 
+ * @param stateCode - The US state code
+ * @param sector - The sector type
+ * @param productionUnitCount - Number of production units operating
+ * @returns Efficiency calculation result
+ */
+export function calculateResourceEfficiency(
+  stateCode: string,
+  sector: string,
+  productionUnitCount: number
+): ResourceEfficiencyResult {
+  // If sector doesn't require resources, always 100% efficient
+  if (!isValidSector(sector)) {
+    return {
+      efficiency: 1.0,
+      availableResources: 0,
+      requiredResources: 0,
+      resourceType: null,
+      hasShortage: false,
+    };
+  }
+
+  const resourceType = SECTOR_RESOURCES[sector];
+  
+  // Sectors without resource requirements are always efficient
+  if (resourceType === null) {
+    return {
+      efficiency: 1.0,
+      availableResources: 0,
+      requiredResources: 0,
+      resourceType: null,
+      hasShortage: false,
+    };
+  }
+
+  // No production units = no requirements = 100% efficient
+  if (productionUnitCount <= 0) {
+    return {
+      efficiency: 1.0,
+      availableResources: getStateResourceAmount(stateCode, resourceType),
+      requiredResources: 0,
+      resourceType,
+      hasShortage: false,
+    };
+  }
+
+  const availableResources = getStateResourceAmount(stateCode, resourceType);
+  const requiredResources = productionUnitCount; // 1 resource per production unit
+  
+  // Efficiency formula: min(1, available / required)
+  const efficiency = Math.min(1.0, availableResources / requiredResources);
+  
+  return {
+    efficiency,
+    availableResources,
+    requiredResources,
+    resourceType,
+    hasShortage: efficiency < 1.0,
+  };
+}
+
+/**
+ * Calculate the effective revenue multiplier including resource efficiency
+ * 
+ * @param stateCode - The US state code  
+ * @param sector - The sector type
+ * @param productionUnitCount - Number of production units
+ * @returns Combined multiplier (state multiplier * resource efficiency)
+ */
+export function getEffectiveMultiplier(
+  stateCode: string,
+  sector: string,
+  productionUnitCount: number
+): number {
+  const stateMultiplier = getStateMultiplier(stateCode);
+  const { efficiency } = calculateResourceEfficiency(stateCode, sector, productionUnitCount);
+  return stateMultiplier * efficiency;
+}
+
+// ============================================================================
+// US STATES & REGIONS
+// ============================================================================
+
 // US States for HQ location
 export const US_STATES = [
   { value: 'AL', label: 'Alabama' },
@@ -76,16 +500,14 @@ export const US_STATES = [
   { value: 'WV', label: 'West Virginia' },
   { value: 'WI', label: 'Wisconsin' },
   { value: 'WY', label: 'Wyoming' },
-] as const;
-
-export type USStateCode = typeof US_STATES[number]['value'];
+];
 
 // Get all valid state codes
 export const US_STATE_CODES = US_STATES.map(s => s.value);
 
 // Validate if a string is a valid US state code
-export function isValidStateCode(value: string): value is USStateCode {
-  return US_STATE_CODES.includes(value as USStateCode);
+export function isValidStateCode(value: string): boolean {
+  return US_STATE_CODES.includes(value);
 }
 
 // Get state label from code
@@ -94,21 +516,19 @@ export function getStateLabel(code: string): string | undefined {
 }
 
 // US Regions mapping
-export const US_REGIONS = {
+export const US_REGIONS: Record<string, string[]> = {
   'West': ['CA', 'WA', 'OR', 'NV', 'AZ', 'UT', 'CO', 'NM', 'HI', 'AK', 'ID', 'MT', 'WY'],
   'Southwest': ['TX', 'OK'],
   'Midwest': ['IL', 'OH', 'MI', 'IN', 'WI', 'MN', 'MO', 'IA', 'KS', 'NE', 'SD', 'ND'],
   'Southeast': ['FL', 'GA', 'NC', 'VA', 'TN', 'SC', 'AL', 'KY', 'LA', 'MS', 'AR', 'WV'],
   'Northeast': ['NY', 'PA', 'NJ', 'MA', 'MD', 'CT', 'NH', 'ME', 'RI', 'VT', 'DE'],
-} as const;
-
-export type USRegion = keyof typeof US_REGIONS;
+};
 
 // Get region for a state code
-export function getStateRegion(stateCode: string): USRegion | undefined {
+export function getStateRegion(stateCode: string): string | undefined {
   for (const [region, states] of Object.entries(US_REGIONS)) {
-    if ((states as readonly string[]).includes(stateCode)) {
-      return region as USRegion;
+    if (states.includes(stateCode)) {
+      return region;
     }
   }
   return undefined;
@@ -141,16 +561,20 @@ export function getStateMultiplier(stateCode: string): number {
   return STATE_MULTIPLIERS[stateCode] || 1.0;
 }
 
+// ============================================================================
+// BUSINESS UNIT ECONOMICS
+// ============================================================================
+
 // Business unit types
 export const UNIT_TYPES = ['retail', 'production', 'service'] as const;
 export type UnitType = typeof UNIT_TYPES[number];
 
 // Unit economics - hourly rates
-export const UNIT_ECONOMICS = {
+export const UNIT_ECONOMICS: Record<UnitType, { baseRevenue: number; baseCost: number }> = {
   retail: { baseRevenue: 500, baseCost: 300 },
   production: { baseRevenue: 800, baseCost: 600 },
   service: { baseRevenue: 400, baseCost: 200 },
-} as const;
+};
 
 // Display period multiplier (96 hours = 4 days)
 export const DISPLAY_PERIOD_HOURS = 96;
@@ -163,30 +587,27 @@ export const MARKET_ENTRY_ACTIONS = 1;
 export const BUILD_UNIT_COST = 10000;
 export const BUILD_UNIT_ACTIONS = 1;
 
-// Stock Valuation Constants
+// ============================================================================
+// STOCK VALUATION
+// ============================================================================
+
 export const STOCK_VALUATION = {
   // Minimum share price floor
   MIN_SHARE_PRICE: 0.01,
-  
   // P/E ratio for valuing business units (10x annual earnings)
   UNIT_PE_RATIO: 10,
-  
   // Hours per year for annualizing hourly profits
   HOURS_PER_YEAR: 8760,
-  
   // Weight for fundamental value vs trade activity in price calculation
   FUNDAMENTAL_WEIGHT: 0.80,
   TRADE_WEIGHT: 0.20,
-  
   // Recency decay factor for trade weighting (higher = more recent trades weighted more)
   RECENCY_DECAY: 0.95,
-  
   // Hours to look back for trade activity
   TRADE_LOOKBACK_HOURS: 168, // 1 week
-  
   // Random hourly variation (±5%)
   HOURLY_VARIATION_PERCENT: 0.05,
-} as const;
+};
 
 // Calculate asset value per unit based on annual profit capitalization
 export function getUnitAssetValue(unitType: UnitType, stateMultiplier: number): number {
@@ -196,3 +617,44 @@ export function getUnitAssetValue(unitType: UnitType, stateMultiplier: number): 
   // Value = Annual Profit * P/E Ratio
   return annualProfit * STOCK_VALUATION.UNIT_PE_RATIO;
 }
+
+// ============================================================================
+// RESOURCE SUMMARY HELPERS
+// ============================================================================
+
+// Get a summary of all resources and their total US pools
+export function getResourceSummary(): Record<Resource, { totalPool: number; stateCount: number }> {
+  const summary: Record<Resource, { totalPool: number; stateCount: number }> = {} as any;
+  
+  for (const resource of RESOURCES) {
+    const states = getStatesWithResource(resource);
+    summary[resource] = {
+      totalPool: getTotalResourcePool(resource),
+      stateCount: states.length,
+    };
+  }
+  
+  return summary;
+}
+
+// Get resource availability info for display
+export function getResourceInfo(resource: Resource): {
+  name: Resource;
+  totalPool: number;
+  topStates: Array<{ stateCode: string; stateName: string; amount: number; percentage: number }>;
+} {
+  const totalPool = getTotalResourcePool(resource);
+  const states = getStatesWithResource(resource).slice(0, 5); // Top 5
+  
+  return {
+    name: resource,
+    totalPool,
+    topStates: states.map(s => ({
+      stateCode: s.stateCode,
+      stateName: getStateLabel(s.stateCode) || s.stateCode,
+      amount: s.amount,
+      percentage: totalPool > 0 ? (s.amount / totalPool) * 100 : 0,
+    })),
+  };
+}
+

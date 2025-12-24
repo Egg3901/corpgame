@@ -733,7 +733,7 @@ export interface BoardProposal {
   id: number;
   corporation_id: number;
   proposer_id: number;
-  proposal_type: 'ceo_nomination' | 'sector_change' | 'hq_change' | 'board_size' | 'appoint_member' | 'ceo_salary_change' | 'dividend_change' | 'special_dividend';
+  proposal_type: 'ceo_nomination' | 'sector_change' | 'hq_change' | 'board_size' | 'appoint_member' | 'ceo_salary_change' | 'dividend_change' | 'special_dividend' | 'stock_split';
   proposal_data: {
     nominee_id?: number;
     nominee_name?: string;
@@ -792,7 +792,7 @@ export interface BoardResponse {
 }
 
 export interface CreateProposalData {
-  proposal_type: 'ceo_nomination' | 'sector_change' | 'hq_change' | 'board_size' | 'appoint_member' | 'ceo_salary_change' | 'dividend_change' | 'special_dividend';
+  proposal_type: 'ceo_nomination' | 'sector_change' | 'hq_change' | 'board_size' | 'appoint_member' | 'ceo_salary_change' | 'dividend_change' | 'special_dividend' | 'stock_split';
   proposal_data: {
     nominee_id?: number;
     new_sector?: string;

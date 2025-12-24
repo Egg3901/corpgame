@@ -129,7 +129,7 @@ router.post('/:corpId/proposals', authenticateToken, async (req: AuthRequest, re
     }
 
     // Validate proposal type
-    const validTypes: ProposalType[] = ['ceo_nomination', 'sector_change', 'hq_change', 'board_size', 'appoint_member', 'ceo_salary_change'];
+    const validTypes: ProposalType[] = ['ceo_nomination', 'sector_change', 'hq_change', 'board_size', 'appoint_member', 'ceo_salary_change', 'dividend_change', 'special_dividend', 'stock_split'];
     if (!validTypes.includes(proposal_type)) {
       return res.status(400).json({ error: 'Invalid proposal type' });
     }
@@ -244,6 +244,13 @@ router.post('/:corpId/proposals', authenticateToken, async (req: AuthRequest, re
         }
         
         validatedData = { capital_percentage: capitalPercentage };
+        break;
+      }
+
+      case 'stock_split': {
+        // Stock split doubles all shares (2:1 split)
+        // No additional data needed
+        validatedData = {};
         break;
       }
 
@@ -455,6 +462,37 @@ async function applyProposalChanges(proposal: any): Promise<void> {
     case 'ceo_salary_change':
       await CorporationModel.update(corpId, { ceo_salary: data.new_salary });
       break;
+
+    case 'dividend_change':
+      await CorporationModel.update(corpId, { dividend_percentage: data.new_percentage });
+      break;
+
+    case 'special_dividend':
+      // Special dividend logic is handled in the cron job
+      break;
+
+    case 'stock_split':
+      // 2:1 stock split: double all shares, halve the price
+      const splitCorp = await CorporationModel.findById(corpId);
+      if (splitCorp) {
+        const newTotalShares = splitCorp.shares * 2;
+        const newPublicShares = splitCorp.public_shares * 2;
+        const newSharePrice = splitCorp.share_price / 2;
+        
+        // Update corporation shares and price
+        await CorporationModel.update(corpId, {
+          shares: newTotalShares,
+          public_shares: newPublicShares,
+          share_price: newSharePrice,
+        });
+        
+        // Double all shareholder positions
+        const shareholders = await ShareholderModel.findByCorporationId(corpId);
+        for (const sh of shareholders) {
+          await ShareholderModel.updateShares(corpId, sh.user_id, sh.shares * 2);
+        }
+      }
+      break;
   }
 }
 
@@ -477,6 +515,8 @@ function getProposalDescription(type: string, data: any): string {
       return `Change dividend percentage to ${data.new_percentage?.toFixed(2) || 0}%`;
     case 'special_dividend':
       return `Pay special dividend of ${data.capital_percentage?.toFixed(2) || 0}% of capital`;
+    case 'stock_split':
+      return `Execute 2:1 stock split (double shares, halve price)`;
     default:
       return 'Unknown proposal';
   }
@@ -485,3 +525,4 @@ function getProposalDescription(type: string, data: any): string {
 // Export the resolveProposal function for use in cron
 export { resolveProposal };
 export default router;
+
