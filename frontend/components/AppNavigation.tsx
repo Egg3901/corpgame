@@ -182,6 +182,23 @@ export default function AppNavigation({ children }: AppNavigationProps) {
     }
   }, [pathname]);
 
+  // Close profile dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (profileDropdownRef.current && !profileDropdownRef.current.contains(event.target as Node)) {
+        setProfileDropdownOpen(false);
+      }
+    };
+
+    if (profileDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [profileDropdownOpen]);
+
   const handleOpenAdmin = () => {
     setNavOpen(false);
     router.push('/admin');
@@ -335,7 +352,7 @@ export default function AppNavigation({ children }: AppNavigationProps) {
                   </button>
 
                   {profileDropdownOpen && (
-                    <div className="absolute right-0 mt-2 w-56 rounded-xl border border-gray-200/50 bg-white/95 shadow-2xl backdrop-blur dark:border-gray-700/50 dark:bg-gray-900/95 z-[9998] overflow-hidden">
+                    <div className="absolute right-0 mt-2 w-56 rounded-xl border border-gray-200/50 bg-white/95 shadow-2xl backdrop-blur dark:border-gray-700/50 dark:bg-gray-900/95 z-[9999] overflow-hidden">
                       <div className="py-1">
                         <button
                           onClick={handleViewMessages}

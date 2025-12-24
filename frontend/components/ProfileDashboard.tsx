@@ -25,6 +25,7 @@ import {
 import { authAPI, profileAPI, corporationAPI, portfolioAPI, marketsAPI, ProfileResponse, CorporationResponse, PortfolioResponse, CorporateHistoryItem, CorporationFinances } from '@/lib/api';
 import SendCashModal from './SendCashModal';
 import ComposeMessage from './ComposeMessage';
+import { formatCash } from '@/lib/utils';
 
 interface ProfileDashboardProps {
   profileId: string;
@@ -381,7 +382,7 @@ export default function ProfileDashboard({ profileId }: ProfileDashboardProps) {
                         </span>
                       )}
                     </div>
-                    <p className="text-xl font-bold text-gray-900 dark:text-white">{formatCurrency(portfolioValue)}</p>
+                    <p className="text-xl font-bold text-gray-900 dark:text-white">{formatCash(portfolioValue)}</p>
                   </div>
                   <div className="rounded-xl border border-white/60 bg-white/70 p-4 shadow-sm dark:border-gray-800/70 dark:bg-gray-800/70 group relative">
                     <div className="flex items-center justify-between mb-2">
@@ -396,7 +397,7 @@ export default function ProfileDashboard({ profileId }: ProfileDashboardProps) {
                         </span>
                       )}
                     </div>
-                    <p className="text-xl font-bold text-gray-900 dark:text-white">{formatCurrency(userCash)}</p>
+                    <p className="text-xl font-bold text-gray-900 dark:text-white">{formatCash(userCash)}</p>
                     {/* CEO Income Tooltip */}
                     {primaryCorporation && (primaryCorporation.ceo_salary ?? 100000) > 0 && (
                       <div className="mt-2 flex items-center gap-1">

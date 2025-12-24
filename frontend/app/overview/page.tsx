@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import AppNavigation from '@/components/AppNavigation';
 import { authAPI, portfolioAPI, corporationAPI, gameAPI, ServerTimeResponse } from '@/lib/api';
+import { formatCash } from '@/lib/utils';
 import {
   Clock,
   Building2,
@@ -146,7 +147,7 @@ export default function OverviewPage() {
               </div>
               <h3 className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Cash</h3>
               <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                ${(user?.cash ?? 0).toLocaleString()}
+                {formatCash(user?.cash ?? 0)}
               </p>
             </div>
 
@@ -159,7 +160,7 @@ export default function OverviewPage() {
               </div>
               <h3 className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Portfolio Value</h3>
               <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                ${portfolioValue !== null ? portfolioValue.toLocaleString() : '0'}
+                {formatCash(portfolioValue ?? 0)}
               </p>
             </div>
 
