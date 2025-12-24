@@ -418,17 +418,35 @@ export function stateHasResource(stateCode: string, resource: Resource): boolean
   return getStateResourceAmount(stateCode, resource) > 0;
 }
 
-// Get total US pool for a resource
+// Cache for resource pool totals (computed once since state resources are static)
+const _resourcePoolCache: Map<Resource, number> = new Map();
+
+// Get total US pool for a resource (cached)
 export function getTotalResourcePool(resource: Resource): number {
+  const cached = _resourcePoolCache.get(resource);
+  if (cached !== undefined) {
+    return cached;
+  }
+  
   let total = 0;
   for (const stateCode of Object.keys(STATE_RESOURCES)) {
     total += STATE_RESOURCES[stateCode]?.[resource] || 0;
   }
+  
+  _resourcePoolCache.set(resource, total);
   return total;
 }
 
-// Get all states that have a specific resource, sorted by amount (descending)
+// Cache for states with resources (computed once)
+const _statesWithResourceCache: Map<Resource, Array<{ stateCode: string; amount: number }>> = new Map();
+
+// Get all states that have a specific resource, sorted by amount (descending) - cached
 export function getStatesWithResource(resource: Resource): Array<{ stateCode: string; amount: number }> {
+  const cached = _statesWithResourceCache.get(resource);
+  if (cached) {
+    return cached;
+  }
+
   const states: Array<{ stateCode: string; amount: number }> = [];
   
   for (const [stateCode, resources] of Object.entries(STATE_RESOURCES)) {
@@ -438,7 +456,9 @@ export function getStatesWithResource(resource: Resource): Array<{ stateCode: st
     }
   }
   
-  return states.sort((a, b) => b.amount - a.amount);
+  const result = states.sort((a, b) => b.amount - a.amount);
+  _statesWithResourceCache.set(resource, result);
+  return result;
 }
 
 // ============================================================================
@@ -792,8 +812,11 @@ export interface DynamicUnitEconomics {
   isDynamic: boolean;            // True if this uses commodity-based pricing
 }
 
+// Cache for dynamic unit economics (key = "unitType:sector")
+const _dynamicEconomicsCache: Map<string, DynamicUnitEconomics> = new Map();
+
 /**
- * Get dynamic economics for a unit type in a specific sector
+ * Get dynamic economics for a unit type in a specific sector (cached)
  * - Retail/Service: Use flat economics (no commodity dependency)
  * - Production: Cost = labor + (resource input * commodity price), Revenue = product output * product price
  * - Extraction: Revenue = extraction output * commodity price, Cost = labor only
@@ -802,6 +825,11 @@ export function getDynamicUnitEconomics(
   unitType: UnitType,
   sector: string
 ): DynamicUnitEconomics {
+  const cacheKey = `${unitType}:${sector}`;
+  const cached = _dynamicEconomicsCache.get(cacheKey);
+  if (cached) {
+    return cached;
+  }
   const laborCost = UNIT_LABOR_COSTS[unitType];
   
   // Default non-dynamic economics
@@ -821,6 +849,7 @@ export function getDynamicUnitEconomics(
   };
 
   if (!isValidSector(sector)) {
+    _dynamicEconomicsCache.set(cacheKey, defaultResult);
     return defaultResult;
   }
 
@@ -830,6 +859,7 @@ export function getDynamicUnitEconomics(
 
   // Retail and Service use flat economics
   if (unitType === 'retail' || unitType === 'service') {
+    _dynamicEconomicsCache.set(cacheKey, defaultResult);
     return defaultResult;
   }
 
@@ -837,6 +867,7 @@ export function getDynamicUnitEconomics(
   if (unitType === 'extraction') {
     const extractableResources = SECTOR_EXTRACTION[sectorTyped];
     if (!extractableResources || extractableResources.length === 0) {
+      _dynamicEconomicsCache.set(cacheKey, defaultResult);
       return defaultResult;
     }
 
@@ -846,7 +877,7 @@ export function getDynamicUnitEconomics(
     const extractionAmount = EXTRACTION_OUTPUT_RATE;
     const extractionRevenue = extractionAmount * commodityPrice.currentPrice;
 
-    return {
+    const result: DynamicUnitEconomics = {
       hourlyRevenue: extractionRevenue,
       hourlyCost: laborCost,
       hourlyProfit: extractionRevenue - laborCost,
@@ -859,6 +890,8 @@ export function getDynamicUnitEconomics(
       productProducedAmount: extractionAmount,
       isDynamic: true,
     };
+    _dynamicEconomicsCache.set(cacheKey, result);
+    return result;
   }
 
   // Production units: dynamic costs and revenue
@@ -893,7 +926,7 @@ export function getDynamicUnitEconomics(
     const totalCost = laborCost + resourceCost;
     const hourlyProfit = productRevenue - totalCost;
 
-    return {
+    const result: DynamicUnitEconomics = {
       hourlyRevenue: productRevenue,
       hourlyCost: totalCost,
       hourlyProfit,
@@ -906,8 +939,11 @@ export function getDynamicUnitEconomics(
       productProducedAmount,
       isDynamic: requiredResource !== null || producedProduct !== null,
     };
+    _dynamicEconomicsCache.set(cacheKey, result);
+    return result;
   }
 
+  _dynamicEconomicsCache.set(cacheKey, defaultResult);
   return defaultResult;
 }
 
@@ -1121,8 +1157,11 @@ export interface CommodityPrice {
   demandingSectors: Sector[];
 }
 
+// Cache for commodity prices (computed once since based on static resource pools)
+const _commodityPriceCache: Map<Resource, CommodityPrice> = new Map();
+
 /**
- * Calculate commodity price based on scarcity
+ * Calculate commodity price based on scarcity (cached)
  * Price = BasePrice * ScarcityFactor
  * ScarcityFactor = ReferencePoolSize / ActualPoolSize
  * 
@@ -1130,6 +1169,11 @@ export interface CommodityPrice {
  * When supply is high, price goes down (scarcity < 1)
  */
 export function calculateCommodityPrice(resource: Resource): CommodityPrice {
+  const cached = _commodityPriceCache.get(resource);
+  if (cached) {
+    return cached;
+  }
+
   const basePrice = RESOURCE_BASE_PRICES[resource];
   const totalSupply = getTotalResourcePool(resource);
   const referencePool = REFERENCE_POOL_SIZES[resource];
@@ -1161,7 +1205,7 @@ export function calculateCommodityPrice(resource: Resource): CommodityPrice {
     }
   }
   
-  return {
+  const result: CommodityPrice = {
     resource,
     basePrice,
     currentPrice,
@@ -1171,6 +1215,9 @@ export function calculateCommodityPrice(resource: Resource): CommodityPrice {
     topProducers,
     demandingSectors,
   };
+  
+  _commodityPriceCache.set(resource, result);
+  return result;
 }
 
 /**
