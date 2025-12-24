@@ -268,22 +268,23 @@ router.get('/resource/:name', async (req: Request, res: Response) => {
     
     const totalSuppliers = countQuery.rows.length;
     
-    // Calculate total demand across all demanding corps
+    // Calculate total demand across all demanding corps (with consumption rate)
     const totalDemandQuery = await pool.query(`
-      SELECT COALESCE(SUM(bu.count), 0)::int as total_demand
+      SELECT COALESCE(SUM(bu.count), 0)::int as total_production_units
       FROM market_entries me
       JOIN business_units bu ON me.id = bu.market_entry_id AND bu.unit_type = 'production'
       WHERE me.sector_type = ANY($1::text[])
     `, [demandingSectors]);
     
-    const totalDemand = totalDemandQuery.rows[0]?.total_demand || 0;
+    const totalProductionUnits = totalDemandQuery.rows[0]?.total_production_units || 0;
+    const totalDemand = totalProductionUnits * PRODUCTION_RESOURCE_CONSUMPTION;
     
     res.json({
       resource: resourceName,
       price: commodityPrice,
       info: resourceInfo,
-      total_supply: commodityPrice.totalSupply,
-      total_demand: totalDemand,
+      total_supply: actualSupply,  // Use calculated actualSupply (extraction output)
+      total_demand: totalDemand,   // Use calculated actualDemand (production consumption)
       demanding_sectors: demandingSectors,
       suppliers: suppliersQuery.rows.map(row => ({
         corporation_id: row.corporation_id,
@@ -293,7 +294,7 @@ router.get('/resource/:name', async (req: Request, res: Response) => {
         state_code: row.state_code,
         state_name: row.state_name,
         production_units: row.production_units,
-        resource_demand: row.production_units, // 1:1 ratio
+        resource_demand: row.production_units * PRODUCTION_RESOURCE_CONSUMPTION,
       })),
       pagination: {
         page,
