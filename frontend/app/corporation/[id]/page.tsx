@@ -163,6 +163,7 @@ const PRODUCT_BASE_PRICES: Record<string, number> = {
 const PRODUCTION_LABOR_COST = 400; // per hour
 const PRODUCTION_RESOURCE_CONSUMPTION = 0.5; // units per hour
 const PRODUCTION_OUTPUT_RATE = 1.0; // product units per hour
+const EXTRACTION_OUTPUT_RATE = 0.25; // resource units per hour (must match backend)
 
 // US States for display
 const US_STATES: Record<string, string> = {
@@ -299,6 +300,124 @@ export default function CorporationDetailPage() {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     }).format(value);
+  };
+
+  // Calculate revenue and cost breakdown by sector and unit type
+  const calculateRevenueCostBreakdown = () => {
+    const sectorBreakdown: Record<string, {
+      revenue: number;
+      cost: number;
+      unitBreakdown: {
+        retail: { revenue: number; cost: number; units: number };
+        production: { revenue: number; cost: number; units: number };
+        service: { revenue: number; cost: number; units: number };
+        extraction: { revenue: number; cost: number; units: number };
+      };
+    }> = {};
+
+    marketEntries.forEach(entry => {
+      const sector = entry.sector_type;
+      if (!sectorBreakdown[sector]) {
+        sectorBreakdown[sector] = {
+          revenue: 0,
+          cost: 0,
+          unitBreakdown: {
+            retail: { revenue: 0, cost: 0, units: 0 },
+            production: { revenue: 0, cost: 0, units: 0 },
+            service: { revenue: 0, cost: 0, units: 0 },
+            extraction: { revenue: 0, cost: 0, units: 0 },
+          },
+        };
+      }
+
+      const breakdown = sectorBreakdown[sector];
+      
+      // Retail units
+      if (entry.retail_count > 0) {
+        const unitRev = UNIT_ECONOMICS.retail.baseRevenue * DISPLAY_PERIOD_HOURS;
+        const unitCost = UNIT_ECONOMICS.retail.baseCost * DISPLAY_PERIOD_HOURS;
+        breakdown.unitBreakdown.retail.revenue += unitRev * entry.retail_count;
+        breakdown.unitBreakdown.retail.cost += unitCost * entry.retail_count;
+        breakdown.unitBreakdown.retail.units += entry.retail_count;
+      }
+
+      // Production units - use dynamic pricing if available
+      if (entry.production_count > 0) {
+        const requiredResource = SECTOR_RESOURCES[sector];
+        const producedProduct = SECTOR_PRODUCTS[sector];
+        
+        let unitRev = 0;
+        let unitCost = PRODUCTION_LABOR_COST * DISPLAY_PERIOD_HOURS; // Base labor cost
+        
+        // Resource cost
+        if (requiredResource && commodityPrices[requiredResource]) {
+          unitCost += PRODUCTION_RESOURCE_CONSUMPTION * commodityPrices[requiredResource].currentPrice * DISPLAY_PERIOD_HOURS;
+        }
+        
+        // Product revenue
+        if (producedProduct) {
+          const basePrice = PRODUCT_BASE_PRICES[producedProduct] || 0;
+          unitRev = basePrice * PRODUCTION_OUTPUT_RATE * DISPLAY_PERIOD_HOURS;
+        } else {
+          // Fallback to base revenue if no product
+          unitRev = UNIT_ECONOMICS.production.baseRevenue * DISPLAY_PERIOD_HOURS;
+          unitCost = UNIT_ECONOMICS.production.baseCost * DISPLAY_PERIOD_HOURS;
+        }
+        
+        breakdown.unitBreakdown.production.revenue += unitRev * entry.production_count;
+        breakdown.unitBreakdown.production.cost += unitCost * entry.production_count;
+        breakdown.unitBreakdown.production.units += entry.production_count;
+      }
+
+      // Service units
+      if (entry.service_count > 0) {
+        const unitRev = UNIT_ECONOMICS.service.baseRevenue * DISPLAY_PERIOD_HOURS;
+        const unitCost = UNIT_ECONOMICS.service.baseCost * DISPLAY_PERIOD_HOURS;
+        breakdown.unitBreakdown.service.revenue += unitRev * entry.service_count;
+        breakdown.unitBreakdown.service.cost += unitCost * entry.service_count;
+        breakdown.unitBreakdown.service.units += entry.service_count;
+      }
+
+      // Extraction units - use dynamic pricing if available
+      if (entry.extraction_count && entry.extraction_count > 0) {
+        const extractableResources = SECTORS_CAN_EXTRACT[sector];
+        let unitRev = 0;
+        
+        if (extractableResources && extractableResources.length > 0) {
+          // Use first extractable resource for revenue calculation
+          const resource = extractableResources[0];
+          if (commodityPrices[resource]) {
+            unitRev = commodityPrices[resource].currentPrice * EXTRACTION_OUTPUT_RATE * DISPLAY_PERIOD_HOURS;
+          }
+        }
+        
+        // Fallback if no commodity price available
+        if (unitRev === 0) {
+          unitRev = UNIT_ECONOMICS.extraction.baseRevenue * DISPLAY_PERIOD_HOURS;
+        }
+        
+        const unitCost = UNIT_ECONOMICS.extraction.baseCost * DISPLAY_PERIOD_HOURS; // Labor cost
+        
+        breakdown.unitBreakdown.extraction.revenue += unitRev * entry.extraction_count;
+        breakdown.unitBreakdown.extraction.cost += unitCost * entry.extraction_count;
+        breakdown.unitBreakdown.extraction.units += entry.extraction_count;
+      }
+
+      // Aggregate totals for sector
+      breakdown.revenue = 
+        breakdown.unitBreakdown.retail.revenue +
+        breakdown.unitBreakdown.production.revenue +
+        breakdown.unitBreakdown.service.revenue +
+        breakdown.unitBreakdown.extraction.revenue;
+      
+      breakdown.cost = 
+        breakdown.unitBreakdown.retail.cost +
+        breakdown.unitBreakdown.production.cost +
+        breakdown.unitBreakdown.service.cost +
+        breakdown.unitBreakdown.extraction.cost;
+    });
+
+    return sectorBreakdown;
   };
 
   const formatDate = (dateString: string) => {
@@ -1825,17 +1944,129 @@ export default function CorporationDetailPage() {
                   
                   <div className="rounded-xl border border-white/60 bg-white/70 dark:border-gray-800/70 dark:bg-gray-800/60 p-6 shadow-sm">
                     <div className="space-y-4">
-                      <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700">
+                      <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700 group relative">
                         <span className="text-sm text-gray-600 dark:text-gray-400">Revenue (96hr)</span>
                         <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400 font-mono">
                           {formatCurrency(corpFinances?.display_revenue || 0)}
                         </span>
+                        {/* Tooltip */}
+                        <div className="absolute bottom-full right-0 mb-2 hidden group-hover:block z-[9999] pointer-events-none">
+                          <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 shadow-xl max-w-md">
+                            <p className="font-medium mb-2 text-emerald-400">Revenue Breakdown (96hr)</p>
+                            <div className="space-y-2 max-h-96 overflow-y-auto">
+                              {(() => {
+                                const breakdown = calculateRevenueCostBreakdown();
+                                const sectors = Object.keys(breakdown).sort();
+                                return sectors.map(sector => {
+                                  const sectorData = breakdown[sector];
+                                  if (sectorData.revenue === 0) return null;
+                                  
+                                  return (
+                                    <div key={sector} className="border-t border-gray-700 pt-2 first:border-t-0 first:pt-0">
+                                      <p className="font-semibold text-white mb-1">{sector}</p>
+                                      <div className="ml-2 space-y-1 text-gray-300">
+                                        {sectorData.unitBreakdown.retail.units > 0 && (
+                                          <div className="flex justify-between">
+                                            <span>Retail ({sectorData.unitBreakdown.retail.units} units):</span>
+                                            <span className="font-mono text-emerald-300">{formatCurrency(sectorData.unitBreakdown.retail.revenue)}</span>
+                                          </div>
+                                        )}
+                                        {sectorData.unitBreakdown.production.units > 0 && (
+                                          <div className="flex justify-between">
+                                            <span>Production ({sectorData.unitBreakdown.production.units} units):</span>
+                                            <span className="font-mono text-emerald-300">{formatCurrency(sectorData.unitBreakdown.production.revenue)}</span>
+                                          </div>
+                                        )}
+                                        {sectorData.unitBreakdown.service.units > 0 && (
+                                          <div className="flex justify-between">
+                                            <span>Service ({sectorData.unitBreakdown.service.units} units):</span>
+                                            <span className="font-mono text-emerald-300">{formatCurrency(sectorData.unitBreakdown.service.revenue)}</span>
+                                          </div>
+                                        )}
+                                        {sectorData.unitBreakdown.extraction.units > 0 && (
+                                          <div className="flex justify-between">
+                                            <span>Extraction ({sectorData.unitBreakdown.extraction.units} units):</span>
+                                            <span className="font-mono text-emerald-300">{formatCurrency(sectorData.unitBreakdown.extraction.revenue)}</span>
+                                          </div>
+                                        )}
+                                        <div className="flex justify-between font-semibold text-white pt-1 border-t border-gray-700">
+                                          <span>Total:</span>
+                                          <span className="font-mono text-emerald-300">{formatCurrency(sectorData.revenue)}</span>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  );
+                                });
+                              })()}
+                            </div>
+                            <div className="border-t border-gray-700 pt-2 mt-2 flex justify-between font-semibold text-white">
+                              <span>Grand Total:</span>
+                              <span className="font-mono text-emerald-300">{formatCurrency(corpFinances?.display_revenue || 0)}</span>
+                            </div>
+                          </div>
+                        </div>
                       </div>
-                      <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700">
+                      <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700 group relative">
                         <span className="text-sm text-gray-600 dark:text-gray-400">Operating Costs (96hr)</span>
                         <span className="text-sm font-semibold text-red-600 dark:text-red-400 font-mono">
                           {formatCurrency(corpFinances?.display_costs || 0)}
                         </span>
+                        {/* Tooltip */}
+                        <div className="absolute bottom-full right-0 mb-2 hidden group-hover:block z-[9999] pointer-events-none">
+                          <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 shadow-xl max-w-md">
+                            <p className="font-medium mb-2 text-red-400">Operating Costs Breakdown (96hr)</p>
+                            <div className="space-y-2 max-h-96 overflow-y-auto">
+                              {(() => {
+                                const breakdown = calculateRevenueCostBreakdown();
+                                const sectors = Object.keys(breakdown).sort();
+                                return sectors.map(sector => {
+                                  const sectorData = breakdown[sector];
+                                  if (sectorData.cost === 0) return null;
+                                  
+                                  return (
+                                    <div key={sector} className="border-t border-gray-700 pt-2 first:border-t-0 first:pt-0">
+                                      <p className="font-semibold text-white mb-1">{sector}</p>
+                                      <div className="ml-2 space-y-1 text-gray-300">
+                                        {sectorData.unitBreakdown.retail.units > 0 && (
+                                          <div className="flex justify-between">
+                                            <span>Retail ({sectorData.unitBreakdown.retail.units} units):</span>
+                                            <span className="font-mono text-red-300">{formatCurrency(sectorData.unitBreakdown.retail.cost)}</span>
+                                          </div>
+                                        )}
+                                        {sectorData.unitBreakdown.production.units > 0 && (
+                                          <div className="flex justify-between">
+                                            <span>Production ({sectorData.unitBreakdown.production.units} units):</span>
+                                            <span className="font-mono text-red-300">{formatCurrency(sectorData.unitBreakdown.production.cost)}</span>
+                                          </div>
+                                        )}
+                                        {sectorData.unitBreakdown.service.units > 0 && (
+                                          <div className="flex justify-between">
+                                            <span>Service ({sectorData.unitBreakdown.service.units} units):</span>
+                                            <span className="font-mono text-red-300">{formatCurrency(sectorData.unitBreakdown.service.cost)}</span>
+                                          </div>
+                                        )}
+                                        {sectorData.unitBreakdown.extraction.units > 0 && (
+                                          <div className="flex justify-between">
+                                            <span>Extraction ({sectorData.unitBreakdown.extraction.units} units):</span>
+                                            <span className="font-mono text-red-300">{formatCurrency(sectorData.unitBreakdown.extraction.cost)}</span>
+                                          </div>
+                                        )}
+                                        <div className="flex justify-between font-semibold text-white pt-1 border-t border-gray-700">
+                                          <span>Total:</span>
+                                          <span className="font-mono text-red-300">{formatCurrency(sectorData.cost)}</span>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  );
+                                });
+                              })()}
+                            </div>
+                            <div className="border-t border-gray-700 pt-2 mt-2 flex justify-between font-semibold text-white">
+                              <span>Grand Total:</span>
+                              <span className="font-mono text-red-300">{formatCurrency(corpFinances?.display_costs || 0)}</span>
+                            </div>
+                          </div>
+                        </div>
                       </div>
                       <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700">
                         <div className="flex items-center gap-2">
