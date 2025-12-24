@@ -466,38 +466,47 @@ router.get('/states/:code', authenticateToken, async (req: AuthRequest, res: Res
     // Get all market entries for this state
     const marketEntries = await MarketEntryModel.findByStateCode(stateCode);
 
-    // Get corporation details for each entry
-    const marketsWithDetails = await Promise.all(
-      marketEntries.map(async (entry) => {
-        const corp = await CorporationModel.findById(entry.corporation_id);
-        const units = await BusinessUnitModel.getUnitCounts(entry.id);
-        return {
-          ...entry,
-          corporation: corp ? {
-            id: corp.id,
-            name: corp.name,
-            logo: corp.logo,
-          } : null,
-          units,
-        };
-      })
-    );
+    // Get all corporation IDs and entry IDs in one go
+    const corpIds = [...new Set(marketEntries.map(e => e.corporation_id))];
+    const entryIds = marketEntries.map(e => e.id);
+
+    // Batch fetch corporations and unit counts
+    const [corporations, unitCountsMap] = await Promise.all([
+      corpIds.length > 0 
+        ? pool.query('SELECT id, name, logo FROM corporations WHERE id = ANY($1)', [corpIds])
+        : { rows: [] },
+      BusinessUnitModel.getBulkUnitCounts(entryIds),
+    ]);
+
+    // Create corporation lookup map
+    const corpMap = new Map<number, { id: number; name: string; logo: string | null }>();
+    for (const corp of corporations.rows) {
+      corpMap.set(corp.id, { id: corp.id, name: corp.name, logo: corp.logo });
+    }
+
+    // Build markets with details using the pre-fetched data
+    const marketsWithDetails = marketEntries.map((entry) => ({
+      ...entry,
+      corporation: corpMap.get(entry.corporation_id) || null,
+      units: unitCountsMap.get(entry.id) || { retail: 0, production: 0, service: 0, extraction: 0 },
+    }));
 
     // Get user's corporation if they are CEO
     const userId = req.userId!;
     const userCorps = await CorporationModel.findByCeoId(userId);
     const userCorp = userCorps.length > 0 ? userCorps[0] : null;
 
-    // Get user's market entries in this state
+    // Get user's market entries in this state with unit counts
     let userMarketEntries: any[] = [];
     if (userCorp) {
       const entries = await MarketEntryModel.findByCorpAndState(userCorp.id, stateCode);
-      userMarketEntries = await Promise.all(
-        entries.map(async (entry) => {
-          const units = await BusinessUnitModel.getUnitCounts(entry.id);
-          return { ...entry, units };
-        })
-      );
+      const userEntryIds = entries.map(e => e.id);
+      const userUnitCountsMap = await BusinessUnitModel.getBulkUnitCounts(userEntryIds);
+      
+      userMarketEntries = entries.map((entry) => ({
+        ...entry,
+        units: userUnitCountsMap.get(entry.id) || { retail: 0, production: 0, service: 0, extraction: 0 },
+      }));
     }
 
     // Get resource breakdown for this state
@@ -775,22 +784,35 @@ router.get('/corporation/:corpId/finances', async (req: Request, res: Response) 
       special_dividend_per_share_last: specialDividendPerShareLast,
     };
 
-    // Get market entries with details
+    // Get market entries with details - use a single query with JOIN instead of N+1 queries
     const entries = await MarketEntryModel.findByCorporationIdWithUnits(corpId);
-
-    const marketsWithDetails = await Promise.all(
-      entries.map(async (entry) => {
-        const stateMeta = await pool.query(
-          'SELECT * FROM state_metadata WHERE state_code = $1',
-          [entry.state_code]
-        );
-        return {
-          ...entry,
-          state_name: stateMeta.rows[0]?.name || entry.state_code,
-          state_multiplier: parseFloat(stateMeta.rows[0]?.population_multiplier || '1'),
+    
+    // Get all state codes we need
+    const stateCodes = [...new Set(entries.map(e => e.state_code))];
+    
+    // Single query to get all state metadata
+    let stateMetadataMap: Record<string, { name: string; multiplier: number }> = {};
+    if (stateCodes.length > 0) {
+      const stateMetaResult = await pool.query(
+        'SELECT state_code, name, population_multiplier FROM state_metadata WHERE state_code = ANY($1)',
+        [stateCodes]
+      );
+      for (const row of stateMetaResult.rows) {
+        stateMetadataMap[row.state_code] = {
+          name: row.name || row.state_code,
+          multiplier: parseFloat(row.population_multiplier || '1'),
         };
-      })
-    );
+      }
+    }
+
+    const marketsWithDetails = entries.map((entry) => {
+      const stateMeta = stateMetadataMap[entry.state_code];
+      return {
+        ...entry,
+        state_name: stateMeta?.name || entry.state_code,
+        state_multiplier: stateMeta?.multiplier || 1,
+      };
+    });
 
     res.json({
       corporation_id: corpId,
@@ -815,20 +837,33 @@ router.get('/corporation/:corpId/entries', async (req: Request, res: Response) =
 
     const entries = await MarketEntryModel.findByCorporationIdWithUnits(corpId);
 
-    const marketsWithDetails = await Promise.all(
-      entries.map(async (entry) => {
-        const stateMeta = await pool.query(
-          'SELECT * FROM state_metadata WHERE state_code = $1',
-          [entry.state_code]
-        );
-        return {
-          ...entry,
-          state_name: stateMeta.rows[0]?.name || entry.state_code,
-          state_region: stateMeta.rows[0]?.region || 'Unknown',
-          state_multiplier: parseFloat(stateMeta.rows[0]?.population_multiplier || '1'),
+    // Get all state codes we need - single query instead of N+1
+    const stateCodes = [...new Set(entries.map(e => e.state_code))];
+    
+    let stateMetadataMap: Record<string, { name: string; region: string; multiplier: number }> = {};
+    if (stateCodes.length > 0) {
+      const stateMetaResult = await pool.query(
+        'SELECT state_code, name, region, population_multiplier FROM state_metadata WHERE state_code = ANY($1)',
+        [stateCodes]
+      );
+      for (const row of stateMetaResult.rows) {
+        stateMetadataMap[row.state_code] = {
+          name: row.name || row.state_code,
+          region: row.region || 'Unknown',
+          multiplier: parseFloat(row.population_multiplier || '1'),
         };
-      })
-    );
+      }
+    }
+
+    const marketsWithDetails = entries.map((entry) => {
+      const stateMeta = stateMetadataMap[entry.state_code];
+      return {
+        ...entry,
+        state_name: stateMeta?.name || entry.state_code,
+        state_region: stateMeta?.region || 'Unknown',
+        state_multiplier: stateMeta?.multiplier || 1,
+      };
+    });
 
     res.json(marketsWithDetails);
   } catch (error) {

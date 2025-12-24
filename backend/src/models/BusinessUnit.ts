@@ -113,6 +113,41 @@ export class BusinessUnitModel {
     };
   }
 
+  // Bulk get unit counts for multiple market entries - avoids N+1 queries
+  static async getBulkUnitCounts(marketEntryIds: number[]): Promise<Map<number, {
+    retail: number;
+    production: number;
+    service: number;
+    extraction: number;
+  }>> {
+    if (marketEntryIds.length === 0) {
+      return new Map();
+    }
+
+    const result = await pool.query(
+      `SELECT market_entry_id, unit_type, count 
+       FROM business_units 
+       WHERE market_entry_id = ANY($1)`,
+      [marketEntryIds]
+    );
+
+    // Initialize map with default values
+    const countsMap = new Map<number, { retail: number; production: number; service: number; extraction: number }>();
+    for (const id of marketEntryIds) {
+      countsMap.set(id, { retail: 0, production: 0, service: 0, extraction: 0 });
+    }
+
+    // Fill in actual values
+    for (const row of result.rows) {
+      const counts = countsMap.get(row.market_entry_id);
+      if (counts) {
+        counts[row.unit_type as UnitType] = row.count;
+      }
+    }
+
+    return countsMap;
+  }
+
   static async delete(id: number): Promise<void> {
     await pool.query('DELETE FROM business_units WHERE id = $1', [id]);
   }

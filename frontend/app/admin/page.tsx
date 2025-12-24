@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Trash2, Shield, ShieldOff, Eye, EyeOff, AlertTriangle, Flag, CheckCircle2, X, ChevronDown, ChevronUp, MessageSquare, Play, RefreshCw, DollarSign, Clock, Receipt, Search, ArrowUpRight, ArrowDownLeft } from 'lucide-react';
+import { Trash2, Shield, ShieldOff, Eye, EyeOff, AlertTriangle, Flag, CheckCircle2, X, ChevronDown, ChevronUp, MessageSquare, Play, RefreshCw, DollarSign, Clock, Receipt, Search, ArrowUpRight, ArrowDownLeft, Scissors } from 'lucide-react';
 import AppNavigation from '@/components/AppNavigation';
 import { authAPI, adminAPI, AdminUser, ReportedChat, Transaction, TransactionType, normalizeImageUrl } from '@/lib/api';
 import Link from 'next/link';
@@ -30,6 +30,16 @@ export default function AdminPage() {
   const [priceResult, setPriceResult] = useState<{
     corporations_updated: number;
     changes: Array<{ corporation_id: number; name: string; old_price: number; new_price: number }>;
+  } | null>(null);
+  // Stock split state
+  const [stockSplitCorpId, setStockSplitCorpId] = useState('');
+  const [runningSplit, setRunningSplit] = useState(false);
+  const [splitResult, setSplitResult] = useState<{
+    corporation_name: string;
+    split_ratio: string;
+    before: { total_shares: number; public_shares: number; share_price: number };
+    after: { total_shares: number; public_shares: number; share_price: number };
+    shareholders_updated: number;
   } | null>(null);
   // Transactions state
   const [transactionsExpanded, setTransactionsExpanded] = useState(false);
@@ -176,6 +186,37 @@ export default function AdminPage() {
       alert(err?.response?.data?.error || 'Failed to recalculate prices');
     } finally {
       setRecalculatingPrices(false);
+    }
+  };
+
+  const handleForceStockSplit = async () => {
+    const corpId = parseInt(stockSplitCorpId, 10);
+    if (isNaN(corpId) || corpId <= 0) {
+      alert('Please enter a valid corporation ID');
+      return;
+    }
+
+    if (!confirm(`Are you sure you want to execute a 2:1 stock split on corporation #${corpId}? This will double all shares and halve the price.`)) {
+      return;
+    }
+
+    try {
+      setRunningSplit(true);
+      setSplitResult(null);
+      const result = await adminAPI.forceStockSplit(corpId);
+      setSplitResult({
+        corporation_name: result.corporation_name,
+        split_ratio: result.split_ratio,
+        before: result.before,
+        after: result.after,
+        shareholders_updated: result.shareholders_updated,
+      });
+      setStockSplitCorpId('');
+    } catch (err: any) {
+      console.error('Force stock split error:', err);
+      alert(err?.response?.data?.error || 'Failed to execute stock split');
+    } finally {
+      setRunningSplit(false);
     }
   };
 
@@ -421,10 +462,77 @@ export default function AdminPage() {
                 </div>
               )}
 
+              {/* Stock Split Section */}
+              <div className="border-t border-gray-200 dark:border-gray-700 pt-4 mt-4">
+                <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Force Stock Split</h3>
+                <div className="flex flex-wrap gap-4 items-end">
+                  <div className="flex-1 min-w-[200px]">
+                    <label htmlFor="stockSplitCorpId" className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                      Corporation ID
+                    </label>
+                    <input
+                      type="number"
+                      id="stockSplitCorpId"
+                      value={stockSplitCorpId}
+                      onChange={(e) => setStockSplitCorpId(e.target.value)}
+                      placeholder="Enter corp ID"
+                      className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                      disabled={runningSplit}
+                    />
+                  </div>
+                  <button
+                    onClick={handleForceStockSplit}
+                    disabled={runningSplit || !stockSplitCorpId}
+                    className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md bg-amber-600 text-white hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {runningSplit ? (
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <Scissors className="w-4 h-4" />
+                    )}
+                    Execute 2:1 Split
+                  </button>
+                </div>
+              </div>
+
+              {/* Stock Split Result */}
+              {splitResult && (
+                <div className="p-4 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
+                  <h3 className="text-sm font-semibold text-amber-800 dark:text-amber-200 mb-2">
+                    Stock Split Completed: {splitResult.corporation_name}
+                  </h3>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <p className="text-amber-600 dark:text-amber-400 font-medium mb-1">Before</p>
+                      <p className="text-amber-800 dark:text-amber-200">
+                        Shares: {splitResult.before.total_shares.toLocaleString()}
+                      </p>
+                      <p className="text-amber-800 dark:text-amber-200">
+                        Price: ${splitResult.before.share_price.toFixed(2)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-amber-600 dark:text-amber-400 font-medium mb-1">After ({splitResult.split_ratio})</p>
+                      <p className="text-amber-800 dark:text-amber-200">
+                        Shares: {splitResult.after.total_shares.toLocaleString()}
+                      </p>
+                      <p className="text-amber-800 dark:text-amber-200">
+                        Price: ${splitResult.after.share_price.toFixed(2)}
+                      </p>
+                    </div>
+                  </div>
+                  <p className="text-xs text-amber-600 dark:text-amber-400 mt-2">
+                    {splitResult.shareholders_updated} shareholder position{splitResult.shareholders_updated !== 1 ? 's' : ''} updated
+                  </p>
+                </div>
+              )}
+
               <p className="text-xs text-gray-500 dark:text-gray-400">
                 <strong>Run Turn:</strong> Triggers hourly actions (+2 for all, +1 extra for CEOs), processes market revenue, and pays CEO salaries. Stock prices update automatically.
                 <br />
                 <strong>Recalculate Prices:</strong> Forces recalculation of all stock prices based on current book value (80%) and trade history (20%).
+                <br />
+                <strong>Force Stock Split:</strong> Executes a 2:1 stock split on a corporation (doubles shares, halves price). Use with caution.
               </p>
             </div>
           </div>

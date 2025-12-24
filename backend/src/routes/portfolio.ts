@@ -18,33 +18,52 @@ router.get('/:userId', async (req: Request, res: Response) => {
     // Get all shareholders records for this user
     const shareholders = await ShareholderModel.findByUserId(userId);
 
-    // Get full corporation details for each holding
-    const holdings = await Promise.all(
-      shareholders.map(async (sh) => {
-        const corporation = await CorporationModel.findById(sh.corporation_id);
-        if (!corporation) {
-          return null;
-        }
+    // Batch fetch all corporations in a single query
+    const corpIds = [...new Set(shareholders.map(sh => sh.corporation_id))];
+    let corpMap = new Map<number, any>();
+    if (corpIds.length > 0) {
+      const corpResult = await pool.query(
+        `SELECT id, name, logo, share_price, shares, type 
+         FROM corporations WHERE id = ANY($1)`,
+        [corpIds]
+      );
+      for (const corp of corpResult.rows) {
+        corpMap.set(corp.id, {
+          id: corp.id,
+          name: corp.name,
+          logo: normalizeImageUrl(corp.logo),
+          share_price: parseFloat(corp.share_price),
+          shares: corp.shares,
+          type: corp.type,
+        });
+      }
+    }
 
-        const currentValue = sh.shares * corporation.share_price;
-        const ownershipPercentage = (sh.shares / corporation.shares) * 100;
+    // Build holdings using pre-fetched corporation data
+    const holdings = shareholders.map((sh) => {
+      const corporation = corpMap.get(sh.corporation_id);
+      if (!corporation) {
+        return null;
+      }
 
-        return {
-          corporation: {
-            id: corporation.id,
-            name: corporation.name,
-            logo: normalizeImageUrl(corporation.logo),
-            share_price: corporation.share_price,
-            total_shares: corporation.shares,
-            type: corporation.type,
-          },
-          shares_owned: sh.shares,
-          current_value: currentValue,
-          ownership_percentage: ownershipPercentage,
-          purchased_at: sh.purchased_at,
-        };
-      })
-    );
+      const currentValue = sh.shares * corporation.share_price;
+      const ownershipPercentage = (sh.shares / corporation.shares) * 100;
+
+      return {
+        corporation: {
+          id: corporation.id,
+          name: corporation.name,
+          logo: corporation.logo,
+          share_price: corporation.share_price,
+          total_shares: corporation.shares,
+          type: corporation.type,
+        },
+        shares_owned: sh.shares,
+        current_value: currentValue,
+        ownership_percentage: ownershipPercentage,
+        purchased_at: sh.purchased_at,
+      };
+    });
 
     // Filter out null values (corporations that were deleted)
     const validHoldings = holdings.filter((h): h is NonNullable<typeof h> => h !== null);
@@ -74,3 +93,4 @@ router.get('/:userId', async (req: Request, res: Response) => {
 });
 
 export default router;
+

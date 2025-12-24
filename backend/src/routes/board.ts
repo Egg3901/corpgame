@@ -8,6 +8,7 @@ import { MessageModel } from '../models/Message';
 import { TransactionModel } from '../models/Transaction';
 import { SECTORS, isValidSector, US_STATE_CODES, isValidStateCode, getStateLabel } from '../constants/sectors';
 import { normalizeImageUrl } from '../utils/imageUrl';
+import pool from '../db/connection';
 
 const router = express.Router();
 
@@ -35,20 +36,30 @@ router.get('/:corpId', optionalAuth, async (req: AuthRequest, res: Response) => 
     const proposals = await BoardProposalModel.getProposalsWithVotes(corpId, userId);
     const activeProposals = proposals.filter(p => p.status === 'active');
 
-    // Get shareholders list (for nominee/appointee selection)
+    // Get shareholders list (for nominee/appointee selection) - batch fetch users
     const shareholders = await ShareholderModel.findByCorporationId(corpId);
-    const shareholdersWithUsers = await Promise.all(
-      shareholders.map(async (sh) => {
-        const user = await UserModel.findById(sh.user_id);
-        return {
-          user_id: sh.user_id,
-          shares: sh.shares,
-          username: user?.username,
-          player_name: user?.player_name,
-          profile_id: user?.profile_id,
-        };
-      })
-    );
+    const userIds = [...new Set(shareholders.map(sh => sh.user_id))];
+    let userMap = new Map<number, any>();
+    if (userIds.length > 0) {
+      const userResult = await pool.query(
+        `SELECT id, username, player_name, profile_id 
+         FROM users WHERE id = ANY($1)`,
+        [userIds]
+      );
+      for (const user of userResult.rows) {
+        userMap.set(user.id, user);
+      }
+    }
+    const shareholdersWithUsers = shareholders.map((sh) => {
+      const user = userMap.get(sh.user_id);
+      return {
+        user_id: sh.user_id,
+        shares: sh.shares,
+        username: user?.username,
+        player_name: user?.player_name,
+        profile_id: user?.profile_id,
+      };
+    });
 
     // Check if current user is on board
     const isOnBoard = userId ? await BoardModel.isOnBoard(corpId, userId) : false;

@@ -426,6 +426,81 @@ router.post('/fix-shares/:corpId', async (req: AuthRequest, res: Response) => {
   }
 });
 
+// POST /api/admin/force-stock-split/:corpId - Force a 2:1 stock split on a corporation
+router.post('/force-stock-split/:corpId', async (req: AuthRequest, res: Response) => {
+  try {
+    const corpId = parseInt(req.params.corpId, 10);
+    if (isNaN(corpId)) {
+      return res.status(400).json({ error: 'Invalid corporation ID' });
+    }
+
+    const corporation = await CorporationModel.findById(corpId);
+    if (!corporation) {
+      return res.status(404).json({ error: 'Corporation not found' });
+    }
+
+    console.log(`[Admin] Force stock split for corp ${corpId} (${corporation.name}) by user:`, req.userId);
+
+    // Get all shareholders
+    const shareholders = await ShareholderModel.findByCorporationId(corpId);
+    const totalHeldByPlayers = shareholders.reduce((sum, sh) => sum + sh.shares, 0);
+    const actualTotalShares = totalHeldByPlayers + corporation.public_shares;
+
+    // Calculate new values (2:1 split)
+    const newTotalShares = actualTotalShares * 2;
+    const newPublicShares = corporation.public_shares * 2;
+    const oldPrice = typeof corporation.share_price === 'string' 
+      ? parseFloat(corporation.share_price) 
+      : corporation.share_price;
+    const newSharePrice = Math.max(0.01, oldPrice / 2);
+
+    console.log(`[Admin Stock Split] Corp ${corpId}: Before - Total: ${actualTotalShares}, Public: ${corporation.public_shares}, Price: ${oldPrice}`);
+    console.log(`[Admin Stock Split] Corp ${corpId}: After - Total: ${newTotalShares}, Public: ${newPublicShares}, Price: ${newSharePrice}`);
+
+    // Update corporation
+    await CorporationModel.update(corpId, {
+      shares: newTotalShares,
+      public_shares: newPublicShares,
+      share_price: newSharePrice,
+    });
+
+    // Double all shareholder positions
+    const shareholderUpdates: { user_id: number; old_shares: number; new_shares: number }[] = [];
+    for (const sh of shareholders) {
+      const newShares = sh.shares * 2;
+      await ShareholderModel.updateShares(corpId, sh.user_id, newShares);
+      shareholderUpdates.push({
+        user_id: sh.user_id,
+        old_shares: sh.shares,
+        new_shares: newShares,
+      });
+      console.log(`[Admin Stock Split] Corp ${corpId}: User ${sh.user_id}: ${sh.shares} -> ${newShares}`);
+    }
+
+    res.json({
+      success: true,
+      corporation_id: corpId,
+      corporation_name: corporation.name,
+      split_ratio: '2:1',
+      before: {
+        total_shares: actualTotalShares,
+        public_shares: corporation.public_shares,
+        share_price: oldPrice,
+      },
+      after: {
+        total_shares: newTotalShares,
+        public_shares: newPublicShares,
+        share_price: newSharePrice,
+      },
+      shareholders_updated: shareholderUpdates.length,
+      shareholder_details: shareholderUpdates,
+    });
+  } catch (error) {
+    console.error('Force stock split error:', error);
+    res.status(500).json({ error: 'Failed to execute stock split' });
+  }
+});
+
 // POST /api/admin/fix-all-shares - Fix corrupted share data for ALL corporations
 router.post('/fix-all-shares', async (req: AuthRequest, res: Response) => {
   try {

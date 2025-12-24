@@ -9,6 +9,7 @@ import { UserModel } from '../models/User';
 import { TransactionModel } from '../models/Transaction';
 import { normalizeImageUrl } from '../utils/imageUrl';
 import { SECTORS, isValidSector, CORP_FOCUS_TYPES, isValidCorpFocus, CorpFocus } from '../constants/sectors';
+import pool from '../db/connection';
 
 const router = express.Router();
 
@@ -58,24 +59,35 @@ router.get('/', async (req: Request, res: Response) => {
   try {
     const corporations = await CorporationModel.findAll();
     
-    // Get CEO details for each corporation
-    const corporationsWithCeo = await Promise.all(
-      corporations.map(async (corp) => {
-        const ceo = await UserModel.findById(corp.ceo_id);
-        return {
-          ...corp,
-          logo: normalizeImageUrl(corp.logo),
-          ceo: ceo ? {
-            id: ceo.id,
-            profile_id: ceo.profile_id,
-            username: ceo.username,
-            player_name: ceo.player_name,
-            profile_slug: ceo.profile_slug,
-            profile_image_url: normalizeImageUrl(ceo.profile_image_url),
-          } : null,
-        };
-      })
-    );
+    // Get all unique CEO IDs
+    const ceoIds = [...new Set(corporations.map(c => c.ceo_id))];
+    
+    // Batch fetch all CEOs in a single query
+    let ceoMap = new Map<number, any>();
+    if (ceoIds.length > 0) {
+      const ceoResult = await pool.query(
+        `SELECT id, profile_id, username, player_name, profile_slug, profile_image_url 
+         FROM users WHERE id = ANY($1)`,
+        [ceoIds]
+      );
+      for (const ceo of ceoResult.rows) {
+        ceoMap.set(ceo.id, {
+          id: ceo.id,
+          profile_id: ceo.profile_id,
+          username: ceo.username,
+          player_name: ceo.player_name,
+          profile_slug: ceo.profile_slug,
+          profile_image_url: normalizeImageUrl(ceo.profile_image_url),
+        });
+      }
+    }
+    
+    // Build corporations with CEO details using pre-fetched data
+    const corporationsWithCeo = corporations.map((corp) => ({
+      ...corp,
+      logo: normalizeImageUrl(corp.logo),
+      ceo: ceoMap.get(corp.ceo_id) || null,
+    }));
     
     res.json(corporationsWithCeo);
   } catch (error) {
@@ -100,38 +112,39 @@ router.get('/:id', async (req: Request, res: Response) => {
     // Get shareholders
     const shareholders = await ShareholderModel.findByCorporationId(id);
     
-    // Get user details for shareholders
-    const shareholdersWithUsers = await Promise.all(
-      shareholders.map(async (sh) => {
-        const user = await UserModel.findById(sh.user_id);
-        return {
-          ...sh,
-          user: user ? {
-            id: user.id,
-            profile_id: user.profile_id,
-            username: user.username,
-            player_name: user.player_name,
-            profile_slug: user.profile_slug,
-            profile_image_url: normalizeImageUrl(user.profile_image_url),
-          } : null,
-        };
-      })
-    );
+    // Batch fetch all users (shareholders + CEO) in a single query
+    const userIds = [...new Set([...shareholders.map(sh => sh.user_id), corporation.ceo_id])];
+    let userMap = new Map<number, any>();
+    if (userIds.length > 0) {
+      const userResult = await pool.query(
+        `SELECT id, profile_id, username, player_name, profile_slug, profile_image_url 
+         FROM users WHERE id = ANY($1)`,
+        [userIds]
+      );
+      for (const user of userResult.rows) {
+        userMap.set(user.id, {
+          id: user.id,
+          profile_id: user.profile_id,
+          username: user.username,
+          player_name: user.player_name,
+          profile_slug: user.profile_slug,
+          profile_image_url: normalizeImageUrl(user.profile_image_url),
+        });
+      }
+    }
+    
+    // Build shareholders with user details using pre-fetched data
+    const shareholdersWithUsers = shareholders.map((sh) => ({
+      ...sh,
+      user: userMap.get(sh.user_id) || null,
+    }));
 
-    // Get CEO details
-    const ceo = await UserModel.findById(corporation.ceo_id);
+    const ceo = userMap.get(corporation.ceo_id);
 
     res.json({
       ...corporation,
       logo: normalizeImageUrl(corporation.logo),
-      ceo: ceo ? {
-        id: ceo.id,
-        profile_id: ceo.profile_id,
-        username: ceo.username,
-        player_name: ceo.player_name,
-        profile_slug: ceo.profile_slug,
-        profile_image_url: normalizeImageUrl(ceo.profile_image_url),
-      } : null,
+      ceo: ceo || null,
       shareholders: shareholdersWithUsers,
     });
   } catch (error) {

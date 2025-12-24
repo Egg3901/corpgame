@@ -600,6 +600,18 @@ export const adminAPI = {
     const response = await api.get(`/api/admin/transactions${query ? `?${query}` : ''}`);
     return response.data;
   },
+  forceStockSplit: async (corpId: number): Promise<{
+    success: boolean;
+    corporation_id: number;
+    corporation_name: string;
+    split_ratio: string;
+    before: { total_shares: number; public_shares: number; share_price: number };
+    after: { total_shares: number; public_shares: number; share_price: number };
+    shareholders_updated: number;
+  }> => {
+    const response = await api.post(`/api/admin/force-stock-split/${corpId}`);
+    return response.data;
+  },
 };
 
 export interface MessageResponse {
