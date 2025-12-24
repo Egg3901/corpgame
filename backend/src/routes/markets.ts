@@ -369,7 +369,7 @@ router.get('/product/:name', async (req: Request, res: Response) => {
     let totalCount = 0;
     
     if (tab === 'suppliers') {
-      const demandersQuery = await pool.query(`
+      const suppliersQuery = await pool.query(`
         SELECT 
           c.id as corporation_id,
           c.name as corporation_name,
@@ -416,7 +416,7 @@ router.get('/product/:name', async (req: Request, res: Response) => {
       
     } else {
       // Get demanders
-      const demandersQuery = await pool.query(`
+      const suppliersQuery = await pool.query(`
         SELECT 
           c.id as corporation_id,
           c.name as corporation_name,
