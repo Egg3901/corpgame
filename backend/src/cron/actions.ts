@@ -4,8 +4,12 @@ import { CorporationModel } from '../models/Corporation';
 import { BoardProposalModel, BoardVoteModel, BoardModel } from '../models/BoardProposal';
 import { MessageModel } from '../models/Message';
 import { MarketEntryModel } from '../models/MarketEntry';
+import { TransactionModel } from '../models/Transaction';
 import { updateStockPrice } from '../utils/valuation';
 import { SharePriceHistoryModel } from '../models/SharePriceHistory';
+
+// Default CEO salary constants (used only as fallback)
+const DEFAULT_CEO_SALARY_PER_96H = 100000; // $100,000 per 96 hours
 
 /**
  * Hourly cron job to add actions to all users
@@ -32,6 +36,9 @@ export function startActionsCron() {
 
       // Process market revenue/costs for all corporations
       await processMarketRevenue();
+      
+      // Process CEO salaries
+      await processCeoSalaries();
     } catch (error) {
       console.error('[Cron] Error incrementing actions:', error);
     }
@@ -151,6 +158,10 @@ async function applyProposalChanges(proposal: any): Promise<void> {
         await CorporationModel.update(corpId, { board_size: corp.board_size + 1 });
       }
       break;
+
+    case 'ceo_salary_change':
+      await CorporationModel.update(corpId, { ceo_salary: data.new_salary });
+      break;
   }
 }
 
@@ -169,6 +180,8 @@ function getProposalDescription(type: string, data: any): string {
       return `Change board size to ${data.new_size} members`;
     case 'appoint_member':
       return `Appoint ${data.appointee_name || 'a shareholder'} to the board`;
+    case 'ceo_salary_change':
+      return `Change CEO salary to $${data.new_salary.toLocaleString()}/96h`;
     default:
       return 'Unknown proposal';
   }
@@ -205,6 +218,14 @@ async function processMarketRevenue(): Promise<void> {
         const newCapital = Math.max(0, corp.capital + hourly_profit);
         await CorporationModel.update(corporation_id, { capital: newCapital });
 
+        // Record transaction for corporation revenue
+        await TransactionModel.create({
+          transaction_type: 'corp_revenue',
+          amount: hourly_profit,
+          corporation_id: corporation_id,
+          description: `Hourly ${hourly_profit >= 0 ? 'profit' : 'loss'}: $${Math.abs(hourly_profit).toLocaleString()}`,
+        });
+
         // Recalculate stock price based on new fundamentals (with hourly random variation)
         const newPrice = await updateStockPrice(corporation_id, true);
         
@@ -229,6 +250,127 @@ async function processMarketRevenue(): Promise<void> {
 }
 
 /**
+ * Process CEO salaries for all corporations
+ * Called hourly to pay CEOs from corporation capital
+ * Uses corporation's ceo_salary field (per 96h), divided by 96 for hourly rate
+ * If corporation can't afford salary, sets ceo_salary to 0
+ */
+async function processCeoSalaries(): Promise<void> {
+  try {
+    console.log('[Cron] Processing CEO salaries...');
+    
+    const corporations = await CorporationModel.findAll();
+    
+    if (corporations.length === 0) {
+      console.log('[Cron] No corporations to process for CEO salaries');
+      return;
+    }
+
+    let totalPaid = 0;
+    let ceosPaid = 0;
+    let salariesZeroed = 0;
+
+    for (const corp of corporations) {
+      if (!corp.ceo_id) continue;
+
+      try {
+        const currentCapital = typeof corp.capital === 'string' ? parseFloat(corp.capital) : corp.capital;
+        const ceoSalaryPer96h = typeof corp.ceo_salary === 'string' ? parseFloat(corp.ceo_salary) : (corp.ceo_salary || DEFAULT_CEO_SALARY_PER_96H);
+        
+        // Skip if salary is already 0
+        if (ceoSalaryPer96h <= 0) continue;
+        
+        const hourlySalary = ceoSalaryPer96h / 96;
+        
+        // Check if corporation has enough capital to pay salary
+        if (currentCapital < hourlySalary) {
+          console.log(`[Cron] Corporation ${corp.id} (${corp.name}) has insufficient capital for CEO salary - setting salary to $0`);
+          
+          // Set CEO salary to 0 since corporation can't afford it
+          await CorporationModel.update(corp.id, { ceo_salary: 0 });
+          salariesZeroed++;
+          continue;
+        }
+
+        // Deduct salary from corporation capital
+        const newCapital = currentCapital - hourlySalary;
+        await CorporationModel.update(corp.id, { capital: newCapital });
+
+        // Add salary to CEO's personal cash
+        await UserModel.updateCash(corp.ceo_id, hourlySalary);
+
+        // Record transaction
+        await TransactionModel.create({
+          transaction_type: 'ceo_salary',
+          amount: hourlySalary,
+          from_user_id: null, // From corporation
+          to_user_id: corp.ceo_id,
+          corporation_id: corp.id,
+          description: `CEO hourly salary from ${corp.name} ($${ceoSalaryPer96h.toLocaleString()}/96h)`,
+        });
+
+        ceosPaid++;
+        totalPaid += hourlySalary;
+      } catch (err) {
+        console.error(`[Cron] Error paying CEO salary for corporation ${corp.id}:`, err);
+      }
+    }
+
+    console.log(`[Cron] CEO salaries processed: ${ceosPaid} CEOs paid, total: $${totalPaid.toLocaleString()}, ${salariesZeroed} salaries zeroed`);
+  } catch (error) {
+    console.error('[Cron] Error processing CEO salaries:', error);
+  }
+}
+
+/**
+ * Manual trigger for CEO salary processing
+ */
+export async function triggerCeoSalaries(): Promise<{ ceosPaid: number; totalPaid: number; salariesZeroed: number }> {
+  const corporations = await CorporationModel.findAll();
+  
+  let totalPaid = 0;
+  let ceosPaid = 0;
+  let salariesZeroed = 0;
+
+  for (const corp of corporations) {
+    if (!corp.ceo_id) continue;
+
+    const currentCapital = typeof corp.capital === 'string' ? parseFloat(corp.capital) : corp.capital;
+    const ceoSalaryPer96h = typeof corp.ceo_salary === 'string' ? parseFloat(corp.ceo_salary) : (corp.ceo_salary || DEFAULT_CEO_SALARY_PER_96H);
+    
+    // Skip if salary is already 0
+    if (ceoSalaryPer96h <= 0) continue;
+    
+    const hourlySalary = ceoSalaryPer96h / 96;
+    
+    // If can't afford, zero the salary
+    if (currentCapital < hourlySalary) {
+      await CorporationModel.update(corp.id, { ceo_salary: 0 });
+      salariesZeroed++;
+      continue;
+    }
+
+    const newCapital = currentCapital - hourlySalary;
+    await CorporationModel.update(corp.id, { capital: newCapital });
+    await UserModel.updateCash(corp.ceo_id, hourlySalary);
+
+    await TransactionModel.create({
+      transaction_type: 'ceo_salary',
+      amount: hourlySalary,
+      from_user_id: null,
+      to_user_id: corp.ceo_id,
+      corporation_id: corp.id,
+      description: `CEO hourly salary from ${corp.name} ($${ceoSalaryPer96h.toLocaleString()}/96h)`,
+    });
+
+    ceosPaid++;
+    totalPaid += hourlySalary;
+  }
+
+  return { ceosPaid, totalPaid, salariesZeroed };
+}
+
+/**
  * Manual trigger for testing market revenue processing
  */
 export async function triggerMarketRevenue(): Promise<{ processed: number; totalProfit: number }> {
@@ -245,6 +387,14 @@ export async function triggerMarketRevenue(): Promise<{ processed: number; total
 
     const newCapital = Math.max(0, corp.capital + hourly_profit);
     await CorporationModel.update(corporation_id, { capital: newCapital });
+
+    // Record transaction for corporation revenue
+    await TransactionModel.create({
+      transaction_type: 'corp_revenue',
+      amount: hourly_profit,
+      corporation_id: corporation_id,
+      description: `Hourly ${hourly_profit >= 0 ? 'profit' : 'loss'}: $${Math.abs(hourly_profit).toLocaleString()}`,
+    });
 
     // Recalculate stock price (with hourly random variation)
     const newPrice = await updateStockPrice(corporation_id, true);

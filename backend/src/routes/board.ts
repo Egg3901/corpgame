@@ -63,6 +63,7 @@ router.get('/:corpId', optionalAuth, async (req: AuthRequest, res: Response) => 
         hq_state: corporation.hq_state,
         board_size: corporation.board_size || 3,
         elected_ceo_id: corporation.elected_ceo_id,
+        ceo_salary: corporation.ceo_salary || 100000,
       },
       board_members: boardMembers.map(m => ({
         ...m,
@@ -124,7 +125,7 @@ router.post('/:corpId/proposals', authenticateToken, async (req: AuthRequest, re
     }
 
     // Validate proposal type
-    const validTypes: ProposalType[] = ['ceo_nomination', 'sector_change', 'hq_change', 'board_size', 'appoint_member'];
+    const validTypes: ProposalType[] = ['ceo_nomination', 'sector_change', 'hq_change', 'board_size', 'appoint_member', 'ceo_salary_change'];
     if (!validTypes.includes(proposal_type)) {
       return res.status(400).json({ error: 'Invalid proposal type' });
     }
@@ -193,6 +194,19 @@ router.post('/:corpId/proposals', authenticateToken, async (req: AuthRequest, re
           appointee_id: appointeeId,
           appointee_name: appointee?.player_name || appointee?.username || 'Unknown',
         };
+        break;
+      }
+
+      case 'ceo_salary_change': {
+        const newSalary = proposal_data.new_salary;
+        if (newSalary === undefined || typeof newSalary !== 'number' || newSalary < 0) {
+          return res.status(400).json({ error: 'New salary must be a non-negative number' });
+        }
+        // Cap at $10 million per 96h
+        if (newSalary > 10000000) {
+          return res.status(400).json({ error: 'CEO salary cannot exceed $10,000,000 per 96 hours' });
+        }
+        validatedData = { new_salary: newSalary };
         break;
       }
 
@@ -400,6 +414,10 @@ async function applyProposalChanges(proposal: any): Promise<void> {
         await CorporationModel.update(corpId, { board_size: corp.board_size + 1 });
       }
       break;
+
+    case 'ceo_salary_change':
+      await CorporationModel.update(corpId, { ceo_salary: data.new_salary });
+      break;
   }
 }
 
@@ -416,6 +434,8 @@ function getProposalDescription(type: string, data: any): string {
       return `Change board size to ${data.new_size} members`;
     case 'appoint_member':
       return `Appoint ${data.appointee_name || 'a shareholder'} to the board`;
+    case 'ceo_salary_change':
+      return `Change CEO salary to $${data.new_salary?.toLocaleString() || 0}/96h`;
     default:
       return 'Unknown proposal';
   }

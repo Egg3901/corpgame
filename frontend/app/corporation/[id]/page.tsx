@@ -313,7 +313,7 @@ export default function CorporationDetailPage() {
                   )}
                 </div>
                 {corporation.ceo && (
-                  <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400 mb-2">
+                  <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400 mb-2 flex-wrap">
                     <User className="w-4 h-4" />
                     <span className="text-xs font-bold uppercase tracking-[0.1em]">CEO:</span>
                     <Link
@@ -322,6 +322,18 @@ export default function CorporationDetailPage() {
                     >
                       {corporation.ceo.player_name || corporation.ceo.username}
                     </Link>
+                    {(corporation.ceo_salary !== undefined && corporation.ceo_salary > 0) ? (
+                      <span 
+                        className="px-2 py-0.5 text-xs font-semibold bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded-full" 
+                        title={`$${((corporation.ceo_salary || 100000) / 96).toLocaleString(undefined, { maximumFractionDigits: 2 })} per hour`}
+                      >
+                        Salary: ${(corporation.ceo_salary || 100000).toLocaleString()}/96h
+                      </span>
+                    ) : (
+                      <span className="px-2 py-0.5 text-xs font-semibold bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded-full">
+                        No Salary
+                      </span>
+                    )}
                   </div>
                 )}
                 <div className="flex items-center gap-4 flex-wrap text-sm text-gray-500 dark:text-gray-500">
@@ -836,6 +848,17 @@ export default function CorporationDetailPage() {
                         <span className="text-sm text-gray-600 dark:text-gray-400">Operating Costs (96hr)</span>
                         <span className="text-sm font-semibold text-red-600 dark:text-red-400 font-mono">
                           {formatCurrency(corpFinances?.display_costs || 0)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-gray-600 dark:text-gray-400">CEO Salary (96hr)</span>
+                          <span className="text-xs text-gray-400 dark:text-gray-500" title={`$${((corporation.ceo_salary || 100000) / 96).toLocaleString(undefined, { maximumFractionDigits: 2 })}/hr`}>
+                            (${((corporation.ceo_salary || 100000) / 96).toLocaleString(undefined, { maximumFractionDigits: 2 })}/hr)
+                          </span>
+                        </div>
+                        <span className={`text-sm font-semibold font-mono ${(corporation.ceo_salary || 100000) > 0 ? 'text-purple-600 dark:text-purple-400' : 'text-gray-400 dark:text-gray-500'}`}>
+                          {formatCurrency(corporation.ceo_salary ?? 100000)}
                         </span>
                       </div>
                       <div className="flex justify-between items-center pt-3 border-t-2 border-gray-300 dark:border-gray-600">

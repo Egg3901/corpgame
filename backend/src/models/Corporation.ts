@@ -13,6 +13,7 @@ export interface Corporation {
   hq_state?: string | null;
   board_size: number;
   elected_ceo_id?: number | null;
+  ceo_salary: number; // Per 96 hours, default 100000
   created_at: Date;
 }
 
@@ -28,6 +29,7 @@ export interface CorporationInput {
   hq_state?: string | null;
   board_size?: number;
   elected_ceo_id?: number | null;
+  ceo_salary?: number;
 }
 
 export class CorporationModel {
@@ -72,7 +74,7 @@ export class CorporationModel {
   }
 
   static async update(id: number, updates: Partial<CorporationInput>): Promise<Corporation | null> {
-    const allowedFields = ['name', 'logo', 'type', 'share_price', 'capital', 'public_shares', 'hq_state', 'board_size', 'elected_ceo_id'];
+    const allowedFields = ['name', 'logo', 'type', 'share_price', 'capital', 'public_shares', 'hq_state', 'board_size', 'elected_ceo_id', 'ceo_salary'];
     const fields: string[] = [];
     const values: any[] = [];
     let paramIndex = 1;

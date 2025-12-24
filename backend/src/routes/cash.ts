@@ -1,5 +1,6 @@
 import express, { Request, Response } from 'express';
 import { UserModel } from '../models/User';
+import { TransactionModel } from '../models/Transaction';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 import pool from '../db/connection';
 
@@ -58,6 +59,15 @@ router.post('/transfer', authenticateToken, async (req: AuthRequest, res: Respon
     // Perform atomic transfer
     await UserModel.updateCash(senderId, -transferAmount);
     await UserModel.updateCash(recipientId, transferAmount);
+
+    // Record the transaction
+    await TransactionModel.create({
+      transaction_type: 'user_transfer',
+      amount: transferAmount,
+      from_user_id: senderId,
+      to_user_id: recipientId,
+      description: note ? `Transfer: ${note}` : 'Cash transfer',
+    });
 
     // Get updated balances
     const newSenderCash = await UserModel.getCash(senderId);

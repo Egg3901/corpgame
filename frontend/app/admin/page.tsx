@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Trash2, Shield, ShieldOff, Eye, EyeOff, AlertTriangle, Flag, CheckCircle2, X, ChevronDown, ChevronUp, MessageSquare, Play, RefreshCw, DollarSign, Clock } from 'lucide-react';
+import { Trash2, Shield, ShieldOff, Eye, EyeOff, AlertTriangle, Flag, CheckCircle2, X, ChevronDown, ChevronUp, MessageSquare, Play, RefreshCw, DollarSign, Clock, Receipt, Search, ArrowUpRight, ArrowDownLeft } from 'lucide-react';
 import AppNavigation from '@/components/AppNavigation';
-import { authAPI, adminAPI, AdminUser, ReportedChat, normalizeImageUrl } from '@/lib/api';
+import { authAPI, adminAPI, AdminUser, ReportedChat, Transaction, TransactionType, normalizeImageUrl } from '@/lib/api';
 import Link from 'next/link';
 
 export default function AdminPage() {
@@ -25,11 +25,21 @@ export default function AdminPage() {
   const [turnResult, setTurnResult] = useState<{
     actions: { users_updated: number; ceo_count: number };
     market_revenue: { corporations_processed: number; total_profit: number };
+    ceo_salaries?: { ceos_paid: number; total_paid: number; salaries_zeroed: number };
   } | null>(null);
   const [priceResult, setPriceResult] = useState<{
     corporations_updated: number;
     changes: Array<{ corporation_id: number; name: string; old_price: number; new_price: number }>;
   } | null>(null);
+  // Transactions state
+  const [transactionsExpanded, setTransactionsExpanded] = useState(false);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [transactionsLoading, setTransactionsLoading] = useState(false);
+  const [transactionsTotal, setTransactionsTotal] = useState(0);
+  const [transactionSearch, setTransactionSearch] = useState('');
+  const [transactionTypeFilter, setTransactionTypeFilter] = useState<TransactionType | ''>('');
+  const [transactionPage, setTransactionPage] = useState(0);
+  const TRANSACTIONS_PER_PAGE = 20;
 
   useEffect(() => {
     const loadData = async () => {
@@ -142,6 +152,7 @@ export default function AdminPage() {
       setTurnResult({
         actions: result.actions,
         market_revenue: result.market_revenue,
+        ceo_salaries: result.ceo_salaries,
       });
     } catch (err: any) {
       console.error('Run turn error:', err);
@@ -166,6 +177,63 @@ export default function AdminPage() {
     } finally {
       setRecalculatingPrices(false);
     }
+  };
+
+  const loadTransactions = async (page: number = 0) => {
+    try {
+      setTransactionsLoading(true);
+      const result = await adminAPI.getTransactions({
+        search: transactionSearch || undefined,
+        type: transactionTypeFilter || undefined,
+        limit: TRANSACTIONS_PER_PAGE,
+        offset: page * TRANSACTIONS_PER_PAGE,
+      });
+      setTransactions(result.transactions);
+      setTransactionsTotal(result.total);
+      setTransactionPage(page);
+    } catch (err: any) {
+      console.error('Load transactions error:', err);
+      alert(err?.response?.data?.error || 'Failed to load transactions');
+    } finally {
+      setTransactionsLoading(false);
+    }
+  };
+
+  // Load transactions when expanded or filters change
+  useEffect(() => {
+    if (transactionsExpanded && currentUser?.is_admin) {
+      loadTransactions(0);
+    }
+  }, [transactionsExpanded, transactionSearch, transactionTypeFilter, currentUser?.is_admin]);
+
+  const getTransactionTypeLabel = (type: TransactionType): string => {
+    const labels: Record<TransactionType, string> = {
+      corp_revenue: 'Corp Revenue',
+      ceo_salary: 'CEO Salary',
+      user_transfer: 'Transfer',
+      share_purchase: 'Share Purchase',
+      share_sale: 'Share Sale',
+      share_issue: 'Share Issue',
+      market_entry: 'Market Entry',
+      unit_build: 'Unit Build',
+      corp_founding: 'Corp Founded',
+    };
+    return labels[type] || type;
+  };
+
+  const getTransactionTypeColor = (type: TransactionType): string => {
+    const colors: Record<TransactionType, string> = {
+      corp_revenue: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300',
+      ceo_salary: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300',
+      user_transfer: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
+      share_purchase: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300',
+      share_sale: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300',
+      share_issue: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300',
+      market_entry: 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-300',
+      unit_build: 'bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-300',
+      corp_founding: 'bg-pink-100 text-pink-800 dark:bg-pink-900/30 dark:text-pink-300',
+    };
+    return colors[type] || 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
   };
 
   const formatDate = (dateString: string) => {
@@ -286,7 +354,7 @@ export default function AdminPage() {
               {turnResult && (
                 <div className="p-4 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800">
                   <h3 className="text-sm font-semibold text-emerald-800 dark:text-emerald-200 mb-2">Turn Completed</h3>
-                  <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div className="grid grid-cols-3 gap-4 text-sm">
                     <div>
                       <p className="text-emerald-600 dark:text-emerald-400">Actions Updated</p>
                       <p className="font-semibold text-emerald-800 dark:text-emerald-200">
@@ -299,6 +367,19 @@ export default function AdminPage() {
                         {turnResult.market_revenue.corporations_processed} corps, ${turnResult.market_revenue.total_profit.toLocaleString()} profit
                       </p>
                     </div>
+                    {turnResult.ceo_salaries && (
+                      <div>
+                        <p className="text-emerald-600 dark:text-emerald-400">CEO Salaries</p>
+                        <p className="font-semibold text-emerald-800 dark:text-emerald-200">
+                          {turnResult.ceo_salaries.ceos_paid} CEOs, ${turnResult.ceo_salaries.total_paid.toLocaleString()} paid
+                          {turnResult.ceo_salaries.salaries_zeroed > 0 && (
+                            <span className="text-amber-600 dark:text-amber-400 ml-2">
+                              ({turnResult.ceo_salaries.salaries_zeroed} zeroed)
+                            </span>
+                          )}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -341,11 +422,187 @@ export default function AdminPage() {
               )}
 
               <p className="text-xs text-gray-500 dark:text-gray-400">
-                <strong>Run Turn:</strong> Triggers hourly actions (+2 for all, +1 extra for CEOs) and processes market revenue. Stock prices update automatically.
+                <strong>Run Turn:</strong> Triggers hourly actions (+2 for all, +1 extra for CEOs), processes market revenue, and pays CEO salaries. Stock prices update automatically.
                 <br />
                 <strong>Recalculate Prices:</strong> Forces recalculation of all stock prices based on current book value (80%) and trade history (20%).
               </p>
             </div>
+          </div>
+
+          {/* Transactions Section */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700/50 mb-6">
+            <button
+              onClick={() => setTransactionsExpanded(!transactionsExpanded)}
+              className="w-full px-6 py-4 border-b border-gray-100 dark:border-gray-700/60 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors"
+            >
+              <div>
+                <h2 className="text-lg font-semibold flex items-center gap-2">
+                  <Receipt className="w-5 h-5 text-corporate-blue" />
+                  Transactions
+                </h2>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  View all money movements in the system
+                </p>
+              </div>
+              {transactionsExpanded ? (
+                <ChevronUp className="w-5 h-5 text-gray-400" />
+              ) : (
+                <ChevronDown className="w-5 h-5 text-gray-400" />
+              )}
+            </button>
+
+            {transactionsExpanded && (
+              <div className="p-6">
+                {/* Filters */}
+                <div className="flex flex-wrap gap-4 mb-4">
+                  <div className="flex-1 min-w-[200px]">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <input
+                        type="text"
+                        placeholder="Search by user, corporation, or description..."
+                        value={transactionSearch}
+                        onChange={(e) => setTransactionSearch(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-corporate-blue"
+                      />
+                    </div>
+                  </div>
+                  <select
+                    value={transactionTypeFilter}
+                    onChange={(e) => setTransactionTypeFilter(e.target.value as TransactionType | '')}
+                    className="px-4 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-corporate-blue"
+                  >
+                    <option value="">All Types</option>
+                    <option value="corp_revenue">Corp Revenue</option>
+                    <option value="ceo_salary">CEO Salary</option>
+                    <option value="user_transfer">User Transfer</option>
+                    <option value="share_purchase">Share Purchase</option>
+                    <option value="share_sale">Share Sale</option>
+                    <option value="share_issue">Share Issue</option>
+                    <option value="market_entry">Market Entry</option>
+                    <option value="unit_build">Unit Build</option>
+                    <option value="corp_founding">Corp Founding</option>
+                  </select>
+                </div>
+
+                {/* Transactions Table */}
+                {transactionsLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="w-6 h-6 border-2 border-corporate-blue border-t-transparent rounded-full animate-spin" />
+                  </div>
+                ) : transactions.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                    <Receipt className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                    <p>No transactions found</p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead className="text-xs text-gray-500 dark:text-gray-400 uppercase border-b border-gray-200 dark:border-gray-700">
+                          <tr>
+                            <th className="text-left py-3 px-2">Date</th>
+                            <th className="text-left py-3 px-2">Type</th>
+                            <th className="text-right py-3 px-2">Amount</th>
+                            <th className="text-left py-3 px-2">From</th>
+                            <th className="text-left py-3 px-2">To</th>
+                            <th className="text-left py-3 px-2">Description</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100 dark:divide-gray-700/60">
+                          {transactions.map((tx) => (
+                            <tr key={tx.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/30">
+                              <td className="py-2 px-2 whitespace-nowrap text-gray-600 dark:text-gray-400">
+                                {formatDate(tx.created_at)}
+                              </td>
+                              <td className="py-2 px-2">
+                                <span className={`px-2 py-1 text-xs font-medium rounded ${getTransactionTypeColor(tx.transaction_type)}`}>
+                                  {getTransactionTypeLabel(tx.transaction_type)}
+                                </span>
+                              </td>
+                              <td className={`py-2 px-2 text-right font-mono whitespace-nowrap ${
+                                tx.to_user_id ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'
+                              }`}>
+                                {tx.to_user_id && !tx.from_user_id ? '+' : tx.from_user_id && !tx.to_user_id ? '-' : ''}
+                                ${Math.abs(tx.amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </td>
+                              <td className="py-2 px-2">
+                                {tx.from_user ? (
+                                  <div className="flex items-center gap-2">
+                                    <img
+                                      src={tx.from_user.profile_image_url || '/defaultpfp.jpg'}
+                                      alt=""
+                                      className="w-6 h-6 rounded-full object-cover"
+                                      onError={(e) => { e.currentTarget.src = '/defaultpfp.jpg'; }}
+                                    />
+                                    <span className="text-gray-900 dark:text-gray-100">
+                                      {tx.from_user.player_name || tx.from_user.username}
+                                    </span>
+                                  </div>
+                                ) : tx.corporation ? (
+                                  <span className="text-gray-600 dark:text-gray-400 italic">
+                                    {tx.corporation.name}
+                                  </span>
+                                ) : (
+                                  <span className="text-gray-400">—</span>
+                                )}
+                              </td>
+                              <td className="py-2 px-2">
+                                {tx.to_user ? (
+                                  <div className="flex items-center gap-2">
+                                    <img
+                                      src={tx.to_user.profile_image_url || '/defaultpfp.jpg'}
+                                      alt=""
+                                      className="w-6 h-6 rounded-full object-cover"
+                                      onError={(e) => { e.currentTarget.src = '/defaultpfp.jpg'; }}
+                                    />
+                                    <span className="text-gray-900 dark:text-gray-100">
+                                      {tx.to_user.player_name || tx.to_user.username}
+                                    </span>
+                                  </div>
+                                ) : tx.corporation && !tx.from_user ? (
+                                  <span className="text-gray-600 dark:text-gray-400 italic">
+                                    {tx.corporation.name}
+                                  </span>
+                                ) : (
+                                  <span className="text-gray-400">—</span>
+                                )}
+                              </td>
+                              <td className="py-2 px-2 text-gray-600 dark:text-gray-400 max-w-xs truncate">
+                                {tx.description || '—'}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* Pagination */}
+                    <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        Showing {transactionPage * TRANSACTIONS_PER_PAGE + 1} - {Math.min((transactionPage + 1) * TRANSACTIONS_PER_PAGE, transactionsTotal)} of {transactionsTotal} transactions
+                      </p>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => loadTransactions(transactionPage - 1)}
+                          disabled={transactionPage === 0}
+                          className="px-3 py-1 text-sm font-medium rounded border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          Previous
+                        </button>
+                        <button
+                          onClick={() => loadTransactions(transactionPage + 1)}
+                          disabled={(transactionPage + 1) * TRANSACTIONS_PER_PAGE >= transactionsTotal}
+                          className="px-3 py-1 text-sm font-medium rounded border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          Next
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Reported Chats Section */}

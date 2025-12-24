@@ -6,7 +6,7 @@ import { boardAPI, BoardResponse, BoardProposal, CreateProposalData } from '@/li
 import { 
   Users, Crown, Clock, CheckCircle, XCircle, 
   ThumbsUp, ThumbsDown, Plus, ChevronDown, ChevronUp,
-  Building2, MapPin, UsersRound, UserPlus
+  Building2, MapPin, UsersRound, UserPlus, DollarSign
 } from 'lucide-react';
 
 // US States for display
@@ -49,6 +49,7 @@ export default function BoardTab({ corporationId, corporationName, viewerUserId 
   const [newState, setNewState] = useState('');
   const [newBoardSize, setNewBoardSize] = useState(3);
   const [appointeeId, setAppointeeId] = useState<number | ''>('');
+  const [newSalary, setNewSalary] = useState<number>(100000);
 
   const fetchBoardData = async () => {
     try {
@@ -114,6 +115,19 @@ export default function BoardTab({ corporationId, corporationName, viewerUserId 
           }
           data = { proposal_type: 'appoint_member', proposal_data: { appointee_id: Number(appointeeId) } };
           break;
+        case 'ceo_salary_change':
+          if (newSalary < 0) {
+            alert('Salary must be non-negative');
+            setSubmitting(false);
+            return;
+          }
+          if (newSalary > 10000000) {
+            alert('Salary cannot exceed $10,000,000');
+            setSubmitting(false);
+            return;
+          }
+          data = { proposal_type: 'ceo_salary_change', proposal_data: { new_salary: newSalary } };
+          break;
         default:
           return;
       }
@@ -161,6 +175,7 @@ export default function BoardTab({ corporationId, corporationName, viewerUserId 
     setNewState('');
     setNewBoardSize(3);
     setAppointeeId('');
+    setNewSalary(boardData?.corporation.ceo_salary || 100000);
   };
 
   const formatTimeRemaining = (expiresAt: string) => {
@@ -191,6 +206,8 @@ export default function BoardTab({ corporationId, corporationName, viewerUserId 
         return `Change board size to ${proposal.proposal_data.new_size} members`;
       case 'appoint_member':
         return `Appoint ${proposal.proposal_data.appointee_name || 'a shareholder'} to the board`;
+      case 'ceo_salary_change':
+        return `Change CEO salary to $${(proposal.proposal_data.new_salary || 0).toLocaleString()}/96h`;
       default:
         return 'Unknown proposal';
     }
@@ -203,6 +220,7 @@ export default function BoardTab({ corporationId, corporationName, viewerUserId 
       case 'hq_change': return <MapPin className="w-4 h-4" />;
       case 'board_size': return <UsersRound className="w-4 h-4" />;
       case 'appoint_member': return <UserPlus className="w-4 h-4" />;
+      case 'ceo_salary_change': return <DollarSign className="w-4 h-4" />;
       default: return <Users className="w-4 h-4" />;
     }
   };
@@ -347,6 +365,7 @@ export default function BoardTab({ corporationId, corporationName, viewerUserId 
                     <option value="hq_change">Change HQ State</option>
                     <option value="board_size">Change Board Size</option>
                     <option value="appoint_member">Appoint Board Member</option>
+                    <option value="ceo_salary_change">Change CEO Salary</option>
                   </select>
                 </div>
 
@@ -441,6 +460,38 @@ export default function BoardTab({ corporationId, corporationName, viewerUserId 
                           </option>
                         ))}
                     </select>
+                  </div>
+                )}
+
+                {proposalType === 'ceo_salary_change' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      New CEO Salary (per 96 hours)
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400">$</span>
+                      <input
+                        type="number"
+                        min={0}
+                        max={10000000}
+                        step={1000}
+                        value={newSalary}
+                        onChange={(e) => setNewSalary(Number(e.target.value))}
+                        className="w-full pl-7 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      />
+                    </div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      Current salary: ${(boardData.corporation.ceo_salary || 100000).toLocaleString()}/96h 
+                      (${((boardData.corporation.ceo_salary || 100000) / 96).toLocaleString(undefined, { maximumFractionDigits: 2 })}/hr)
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      New hourly rate: ${(newSalary / 96).toLocaleString(undefined, { maximumFractionDigits: 2 })}/hr
+                    </p>
+                    {newSalary === 0 && (
+                      <p className="text-xs text-amber-600 dark:text-amber-400 mt-1 font-semibold">
+                        ⚠️ Setting salary to $0 means CEO will not be paid
+                      </p>
+                    )}
                   </div>
                 )}
 

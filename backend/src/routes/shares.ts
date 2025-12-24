@@ -5,6 +5,7 @@ import { ShareholderModel } from '../models/Shareholder';
 import { ShareTransactionModel } from '../models/ShareTransaction';
 import { SharePriceHistoryModel } from '../models/SharePriceHistory';
 import { UserModel } from '../models/User';
+import { TransactionModel } from '../models/Transaction';
 import { calculateStockPrice, calculateBalanceSheet, updateStockPrice } from '../utils/valuation';
 import { STOCK_VALUATION } from '../constants/sectors';
 
@@ -88,14 +89,25 @@ router.post('/:id/buy', authenticateToken, async (req: AuthRequest, res: Respons
       });
     }
 
-    // Record transaction first (so it's included in price calculation)
-    await ShareTransactionModel.create({
+    // Record share transaction (for price calculation)
+    const shareTransaction = await ShareTransactionModel.create({
       corporation_id: corporationId,
       user_id: userId,
       transaction_type: 'buy',
       shares: requestedShares,
       price_per_share: buyPrice,
       total_amount: totalCost,
+    });
+
+    // Record financial transaction
+    await TransactionModel.create({
+      transaction_type: 'share_purchase',
+      amount: totalCost,
+      from_user_id: userId,
+      corporation_id: corporationId,
+      description: `Purchased ${requestedShares} shares at $${buyPrice.toFixed(2)}/share`,
+      reference_id: shareTransaction.id,
+      reference_type: 'share_transaction',
     });
 
     // Recalculate stock price using fundamentals-based valuation
@@ -189,14 +201,25 @@ router.post('/:id/sell', authenticateToken, async (req: AuthRequest, res: Respon
       await ShareholderModel.delete(corporationId, userId);
     }
 
-    // Record transaction first (so it's included in price calculation)
-    await ShareTransactionModel.create({
+    // Record share transaction (for price calculation)
+    const shareTransaction = await ShareTransactionModel.create({
       corporation_id: corporationId,
       user_id: userId,
       transaction_type: 'sell',
       shares: requestedShares,
       price_per_share: sellPrice,
       total_amount: totalRevenue,
+    });
+
+    // Record financial transaction
+    await TransactionModel.create({
+      transaction_type: 'share_sale',
+      amount: totalRevenue,
+      to_user_id: userId,
+      corporation_id: corporationId,
+      description: `Sold ${requestedShares} shares at $${sellPrice.toFixed(2)}/share`,
+      reference_id: shareTransaction.id,
+      reference_type: 'share_transaction',
     });
 
     // Recalculate stock price using fundamentals-based valuation
@@ -278,14 +301,25 @@ router.post('/:id/issue', authenticateToken, async (req: AuthRequest, res: Respo
       capital: newCapital,
     });
 
-    // Record transaction (issue is treated as a special buy transaction from the corporation)
-    await ShareTransactionModel.create({
+    // Record share transaction (issue is treated as a special buy transaction from the corporation)
+    const shareTransaction = await ShareTransactionModel.create({
       corporation_id: corporationId,
       user_id: userId, // CEO
       transaction_type: 'buy', // Issue is like buying from the corporation
       shares: requestedShares,
       price_per_share: issuePrice,
       total_amount: totalCapitalRaised,
+    });
+
+    // Record financial transaction
+    await TransactionModel.create({
+      transaction_type: 'share_issue',
+      amount: totalCapitalRaised,
+      to_user_id: userId, // CEO issued the shares
+      corporation_id: corporationId,
+      description: `Issued ${requestedShares} new shares at $${issuePrice.toFixed(2)}/share, raising $${totalCapitalRaised.toLocaleString()} capital`,
+      reference_id: shareTransaction.id,
+      reference_type: 'share_transaction',
     });
 
     // Recalculate stock price using fundamentals-based valuation

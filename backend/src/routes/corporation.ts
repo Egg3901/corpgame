@@ -6,6 +6,7 @@ import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { CorporationModel } from '../models/Corporation';
 import { ShareholderModel } from '../models/Shareholder';
 import { UserModel } from '../models/User';
+import { TransactionModel } from '../models/Transaction';
 import { normalizeImageUrl } from '../utils/imageUrl';
 
 const router = express.Router();
@@ -176,6 +177,15 @@ router.post('/', authenticateToken, async (req: AuthRequest, res: Response) => {
       corporation_id: corporation.id,
       user_id: userId,
       shares: 400000,
+    });
+
+    // Record corporation founding transaction
+    await TransactionModel.create({
+      transaction_type: 'corp_founding',
+      amount: 500000, // Initial capital
+      from_user_id: userId,
+      corporation_id: corporation.id,
+      description: `Founded ${corporation.name} with $500,000 initial capital`,
     });
 
     res.status(201).json(corporation);

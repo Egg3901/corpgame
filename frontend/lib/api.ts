@@ -160,6 +160,7 @@ export interface CorporationResponse {
   hq_state?: string | null;
   board_size?: number;
   elected_ceo_id?: number | null;
+  ceo_salary?: number;
   created_at: string;
   ceo?: {
     id: number;
@@ -452,6 +453,68 @@ export interface ReportedChat {
   } | null;
 }
 
+// Transaction types
+export type TransactionType = 
+  | 'corp_revenue'
+  | 'ceo_salary'
+  | 'user_transfer'
+  | 'share_purchase'
+  | 'share_sale'
+  | 'share_issue'
+  | 'market_entry'
+  | 'unit_build'
+  | 'corp_founding';
+
+export interface Transaction {
+  id: number;
+  transaction_type: TransactionType;
+  amount: number;
+  from_user_id: number | null;
+  to_user_id: number | null;
+  corporation_id: number | null;
+  description: string | null;
+  reference_id: number | null;
+  reference_type: string | null;
+  created_at: string;
+  from_user?: {
+    id: number;
+    profile_id: number;
+    username: string;
+    player_name?: string;
+    profile_image_url?: string | null;
+  } | null;
+  to_user?: {
+    id: number;
+    profile_id: number;
+    username: string;
+    player_name?: string;
+    profile_image_url?: string | null;
+  } | null;
+  corporation?: {
+    id: number;
+    name: string;
+    logo?: string | null;
+  } | null;
+}
+
+export interface TransactionFilters {
+  user_id?: number;
+  corporation_id?: number;
+  type?: TransactionType;
+  search?: string;
+  from_date?: string;
+  to_date?: string;
+  limit?: number;
+  offset?: number;
+}
+
+export interface TransactionsResponse {
+  transactions: Transaction[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
 export const adminAPI = {
   getAllUsers: async (): Promise<AdminUser[]> => {
     const response = await api.get('/api/admin/users');
@@ -503,6 +566,7 @@ export const adminAPI = {
     success: boolean;
     actions: { users_updated: number; ceo_count: number };
     market_revenue: { corporations_processed: number; total_profit: number };
+    ceo_salaries: { ceos_paid: number; total_paid: number; salaries_zeroed: number };
   }> => {
     const response = await api.post('/api/admin/run-turn');
     return response.data;
@@ -513,6 +577,20 @@ export const adminAPI = {
     changes: Array<{ corporation_id: number; name: string; old_price: number; new_price: number }>;
   }> => {
     const response = await api.post('/api/admin/recalculate-prices');
+    return response.data;
+  },
+  getTransactions: async (filters?: TransactionFilters): Promise<TransactionsResponse> => {
+    const params = new URLSearchParams();
+    if (filters?.user_id) params.append('user_id', filters.user_id.toString());
+    if (filters?.corporation_id) params.append('corporation_id', filters.corporation_id.toString());
+    if (filters?.type) params.append('type', filters.type);
+    if (filters?.search) params.append('search', filters.search);
+    if (filters?.from_date) params.append('from_date', filters.from_date);
+    if (filters?.to_date) params.append('to_date', filters.to_date);
+    if (filters?.limit) params.append('limit', filters.limit.toString());
+    if (filters?.offset) params.append('offset', filters.offset.toString());
+    const query = params.toString();
+    const response = await api.get(`/api/admin/transactions${query ? `?${query}` : ''}`);
     return response.data;
   },
 };
@@ -651,7 +729,7 @@ export interface BoardProposal {
   id: number;
   corporation_id: number;
   proposer_id: number;
-  proposal_type: 'ceo_nomination' | 'sector_change' | 'hq_change' | 'board_size' | 'appoint_member';
+  proposal_type: 'ceo_nomination' | 'sector_change' | 'hq_change' | 'board_size' | 'appoint_member' | 'ceo_salary_change';
   proposal_data: {
     nominee_id?: number;
     nominee_name?: string;
@@ -660,6 +738,7 @@ export interface BoardProposal {
     new_size?: number;
     appointee_id?: number;
     appointee_name?: string;
+    new_salary?: number;
   };
   status: 'active' | 'passed' | 'failed';
   created_at: string;
@@ -687,6 +766,7 @@ export interface BoardResponse {
     hq_state?: string | null;
     board_size: number;
     elected_ceo_id?: number | null;
+    ceo_salary: number;
   };
   board_members: BoardMember[];
   effective_ceo: { userId: number; isActing: boolean } | null;
@@ -705,13 +785,14 @@ export interface BoardResponse {
 }
 
 export interface CreateProposalData {
-  proposal_type: 'ceo_nomination' | 'sector_change' | 'hq_change' | 'board_size' | 'appoint_member';
+  proposal_type: 'ceo_nomination' | 'sector_change' | 'hq_change' | 'board_size' | 'appoint_member' | 'ceo_salary_change';
   proposal_data: {
     nominee_id?: number;
     new_sector?: string;
     new_state?: string;
     new_size?: number;
     appointee_id?: number;
+    new_salary?: number;
   };
 }
 

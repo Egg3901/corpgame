@@ -3,7 +3,7 @@ import { ShareholderModel } from './Shareholder';
 import { CorporationModel } from './Corporation';
 
 // Proposal types
-export type ProposalType = 'ceo_nomination' | 'sector_change' | 'hq_change' | 'board_size' | 'appoint_member';
+export type ProposalType = 'ceo_nomination' | 'sector_change' | 'hq_change' | 'board_size' | 'appoint_member' | 'ceo_salary_change';
 
 // Proposal data structures
 export interface CeoNominationData {
@@ -28,7 +28,11 @@ export interface AppointMemberData {
   appointee_name?: string;
 }
 
-export type ProposalData = CeoNominationData | SectorChangeData | HqChangeData | BoardSizeData | AppointMemberData;
+export interface CeoSalaryChangeData {
+  new_salary: number; // Per 96 hours
+}
+
+export type ProposalData = CeoNominationData | SectorChangeData | HqChangeData | BoardSizeData | AppointMemberData | CeoSalaryChangeData;
 
 export interface BoardProposal {
   id: number;

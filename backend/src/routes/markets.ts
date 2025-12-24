@@ -4,6 +4,7 @@ import { MarketEntryModel } from '../models/MarketEntry';
 import { BusinessUnitModel } from '../models/BusinessUnit';
 import { CorporationModel } from '../models/Corporation';
 import { UserModel } from '../models/User';
+import { TransactionModel } from '../models/Transaction';
 import {
   US_STATES,
   US_REGIONS,
@@ -216,6 +217,17 @@ router.post('/states/:code/enter', authenticateToken, async (req: AuthRequest, r
       sector_type,
     });
 
+    // Record transaction
+    await TransactionModel.create({
+      transaction_type: 'market_entry',
+      amount: MARKET_ENTRY_COST,
+      from_user_id: userId,
+      corporation_id: corporation_id,
+      description: `Entered ${getStateLabel(stateCode) || stateCode} market in ${sector_type} sector`,
+      reference_id: marketEntry.id,
+      reference_type: 'market_entry',
+    });
+
     res.status(201).json({
       success: true,
       market_entry: marketEntry,
@@ -290,6 +302,17 @@ router.post('/entries/:entryId/build', authenticateToken, async (req: AuthReques
 
     // Get updated unit counts
     const unitCounts = await BusinessUnitModel.getUnitCounts(entryId);
+
+    // Record transaction
+    await TransactionModel.create({
+      transaction_type: 'unit_build',
+      amount: BUILD_UNIT_COST,
+      from_user_id: userId,
+      corporation_id: marketEntry.corporation_id,
+      description: `Built ${unit_type} unit in ${marketEntry.state_code}`,
+      reference_id: unit.id,
+      reference_type: 'business_unit',
+    });
 
     // Update stock price since asset value changed
     const newStockPrice = await updateStockPrice(marketEntry.corporation_id);

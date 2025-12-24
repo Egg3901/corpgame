@@ -5,8 +5,9 @@ import { UserModel } from '../models/User';
 import { ReportedChatModel } from '../models/ReportedChat';
 import { MessageModel } from '../models/Message';
 import { CorporationModel } from '../models/Corporation';
+import { TransactionModel, TransactionType } from '../models/Transaction';
 import { normalizeImageUrl } from '../utils/imageUrl';
-import { triggerActionsIncrement, triggerMarketRevenue } from '../cron/actions';
+import { triggerActionsIncrement, triggerMarketRevenue, triggerCeoSalaries } from '../cron/actions';
 import { updateStockPrice } from '../utils/valuation';
 
 const router = express.Router();
@@ -208,7 +209,7 @@ router.get('/conversation/:userId1/:userId2', async (req: AuthRequest, res: Resp
   }
 });
 
-// POST /api/admin/run-turn - Manually trigger hourly turn (actions + market revenue)
+// POST /api/admin/run-turn - Manually trigger hourly turn (actions + market revenue + CEO salaries)
 router.post('/run-turn', async (req: AuthRequest, res: Response) => {
   try {
     console.log('[Admin] Manual turn trigger by user:', req.userId);
@@ -219,6 +220,9 @@ router.post('/run-turn', async (req: AuthRequest, res: Response) => {
     // Run market revenue processing (includes stock price updates)
     const revenueResult = await triggerMarketRevenue();
     
+    // Run CEO salary processing
+    const salaryResult = await triggerCeoSalaries();
+    
     res.json({
       success: true,
       actions: {
@@ -228,6 +232,11 @@ router.post('/run-turn', async (req: AuthRequest, res: Response) => {
       market_revenue: {
         corporations_processed: revenueResult.processed,
         total_profit: revenueResult.totalProfit,
+      },
+      ceo_salaries: {
+        ceos_paid: salaryResult.ceosPaid,
+        total_paid: salaryResult.totalPaid,
+        salaries_zeroed: salaryResult.salariesZeroed,
       },
     });
   } catch (error) {
@@ -267,6 +276,92 @@ router.post('/recalculate-prices', async (req: AuthRequest, res: Response) => {
   } catch (error) {
     console.error('Recalculate prices error:', error);
     res.status(500).json({ error: 'Failed to recalculate prices' });
+  }
+});
+
+// GET /api/admin/transactions - Get all transactions with filters
+router.get('/transactions', async (req: AuthRequest, res: Response) => {
+  try {
+    const {
+      user_id,
+      corporation_id,
+      type,
+      search,
+      from_date,
+      to_date,
+      limit = '50',
+      offset = '0',
+    } = req.query;
+
+    const filters: {
+      user_id?: number;
+      corporation_id?: number;
+      transaction_type?: TransactionType;
+      search?: string;
+      from_date?: Date;
+      to_date?: Date;
+    } = {};
+
+    if (user_id) {
+      const parsedUserId = parseInt(user_id as string, 10);
+      if (!isNaN(parsedUserId)) {
+        filters.user_id = parsedUserId;
+      }
+    }
+
+    if (corporation_id) {
+      const parsedCorpId = parseInt(corporation_id as string, 10);
+      if (!isNaN(parsedCorpId)) {
+        filters.corporation_id = parsedCorpId;
+      }
+    }
+
+    if (type) {
+      filters.transaction_type = type as TransactionType;
+    }
+
+    if (search) {
+      filters.search = search as string;
+    }
+
+    if (from_date) {
+      filters.from_date = new Date(from_date as string);
+    }
+
+    if (to_date) {
+      filters.to_date = new Date(to_date as string);
+    }
+
+    const parsedLimit = parseInt(limit as string, 10) || 50;
+    const parsedOffset = parseInt(offset as string, 10) || 0;
+
+    const [transactions, totalCount] = await Promise.all([
+      TransactionModel.findAll(filters, parsedLimit, parsedOffset),
+      TransactionModel.getCount(filters),
+    ]);
+
+    // Normalize image URLs
+    const normalizedTransactions = transactions.map(tx => ({
+      ...tx,
+      from_user: tx.from_user ? {
+        ...tx.from_user,
+        profile_image_url: normalizeImageUrl(tx.from_user.profile_image_url),
+      } : null,
+      to_user: tx.to_user ? {
+        ...tx.to_user,
+        profile_image_url: normalizeImageUrl(tx.to_user.profile_image_url),
+      } : null,
+    }));
+
+    res.json({
+      transactions: normalizedTransactions,
+      total: totalCount,
+      limit: parsedLimit,
+      offset: parsedOffset,
+    });
+  } catch (error) {
+    console.error('Get transactions error:', error);
+    res.status(500).json({ error: 'Failed to get transactions' });
   }
 });
 

@@ -205,7 +205,7 @@ export default function AppNavigation({ children }: AppNavigationProps) {
           }`}
         >
           <div 
-            className={`flex items-center justify-between rounded-2xl border px-4 backdrop-blur-md transition-all duration-300 ease-out ${
+            className={`flex items-center justify-between rounded-2xl border px-2 sm:px-4 backdrop-blur-md transition-all duration-300 ease-out overflow-hidden ${
               scrolled 
                 ? 'py-2 border-white/80 bg-white/95 shadow-2xl shadow-gray-200/50 dark:border-gray-700/80 dark:bg-gray-900/95 dark:shadow-black/30 scale-[0.98] sm:scale-[0.99]' 
                 : 'py-3 border-white/60 bg-white/90 shadow-xl dark:border-gray-800/60 dark:bg-gray-900/90'
@@ -222,24 +222,24 @@ export default function AppNavigation({ children }: AppNavigationProps) {
                 : 'scale(1) translateY(0)',
             }}
           >
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-shrink">
               <button
                 type="button"
                 onClick={() => setNavOpen(true)}
-                className="inline-flex items-center justify-center rounded-xl border border-gray-200 bg-white px-3 py-2 text-gray-700 shadow-sm transition hover:-translate-y-0.5 hover:border-corporate-blue hover:text-corporate-blue dark:border-gray-800 dark:bg-gray-800 dark:text-gray-200"
+                className="inline-flex items-center justify-center rounded-xl border border-gray-200 bg-white px-2 sm:px-3 py-2 text-gray-700 shadow-sm transition hover:-translate-y-0.5 hover:border-corporate-blue hover:text-corporate-blue dark:border-gray-800 dark:bg-gray-800 dark:text-gray-200 flex-shrink-0"
                 aria-label="Open navigation"
               >
                 <Menu className="w-5 h-5" />
               </button>
-              <div className="leading-tight">
-                <p className="text-[11px] uppercase tracking-[0.2em] text-gray-500 dark:text-gray-400">Navigation</p>
-                <p className="text-sm font-semibold text-gray-900 dark:text-white">Corporate Sim</p>
+              <div className="leading-tight min-w-0">
+                <p className="text-[11px] uppercase tracking-[0.2em] text-gray-500 dark:text-gray-400 hidden sm:block">Navigation</p>
+                <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">Corporate Sim</p>
               </div>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-shrink">
               {/* Actions Display */}
               {viewerProfileId && (
-                <div className="inline-flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-amber-700 shadow-sm dark:border-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
+                <div className="inline-flex items-center gap-1 sm:gap-2 rounded-xl border border-amber-200 bg-amber-50 px-2 sm:px-3 py-2 text-amber-700 shadow-sm dark:border-amber-800 dark:bg-amber-900/30 dark:text-amber-300 flex-shrink-0">
                   <Zap className="w-4 h-4" />
                   <span className="text-sm font-semibold">{userActions}</span>
                   <span className="text-xs text-amber-600 dark:text-amber-400 hidden sm:inline">Actions</span>
@@ -249,7 +249,7 @@ export default function AppNavigation({ children }: AppNavigationProps) {
               <button
                 type="button"
                 onClick={toggleTheme}
-                className="inline-flex items-center justify-center rounded-xl border border-gray-200 bg-white px-3 py-2 text-gray-700 shadow-sm transition hover:-translate-y-0.5 hover:border-corporate-blue hover:text-corporate-blue dark:border-gray-800 dark:bg-gray-800 dark:text-gray-200 dark:hover:border-corporate-blue-light dark:hover:text-corporate-blue-light"
+                className="inline-flex items-center justify-center rounded-xl border border-gray-200 bg-white px-2 sm:px-3 py-2 text-gray-700 shadow-sm transition hover:-translate-y-0.5 hover:border-corporate-blue hover:text-corporate-blue dark:border-gray-800 dark:bg-gray-800 dark:text-gray-200 dark:hover:border-corporate-blue-light dark:hover:text-corporate-blue-light flex-shrink-0"
                 aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
               >
                 {theme === 'light' ? (
@@ -259,13 +259,13 @@ export default function AppNavigation({ children }: AppNavigationProps) {
                 )}
               </button>
               {viewerProfileId && (
-                <div className="relative" ref={profileDropdownRef}>
+                <div className="relative flex-shrink-0" ref={profileDropdownRef}>
                   <button
                     type="button"
                     onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
-                    className="group inline-flex items-center gap-3 rounded-2xl border border-white/70 bg-gradient-to-r from-white/90 to-white/60 px-3 py-2 text-left shadow-md transition hover:-translate-y-0.5 hover:shadow-lg dark:border-gray-800 dark:from-gray-800/90 dark:to-gray-900/80"
+                    className="group inline-flex items-center gap-2 sm:gap-3 rounded-2xl border border-white/70 bg-gradient-to-r from-white/90 to-white/60 px-2 sm:px-3 py-2 text-left shadow-md transition hover:-translate-y-0.5 hover:shadow-lg dark:border-gray-800 dark:from-gray-800/90 dark:to-gray-900/80"
                   >
-                    <div className="relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl border border-white/60 bg-corporate-blue/10 dark:border-gray-700 dark:bg-gray-800">
+                    <div className="relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl border border-white/60 bg-corporate-blue/10 dark:border-gray-700 dark:bg-gray-800 flex-shrink-0">
                       <img
                         src={viewerProfile?.profile_image_url || "/defaultpfp.jpg"}
                         alt="Your profile avatar"
@@ -281,14 +281,14 @@ export default function AppNavigation({ children }: AppNavigationProps) {
                         </div>
                       )}
                     </div>
-                    <div className="leading-tight">
+                    <div className="leading-tight hidden sm:block min-w-0">
                       <p className="text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400">Profile</p>
-                      <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                      <p className="text-sm font-semibold text-gray-900 dark:text-white truncate max-w-[120px]">
                         {viewerProfile?.player_name || viewerProfile?.username || 'Your Profile'}
                       </p>
                       <p className="text-[11px] text-gray-500 dark:text-gray-400">#{viewerProfileId}</p>
                     </div>
-                    <ChevronDown className={`w-4 h-4 text-gray-500 dark:text-gray-400 transition-transform ${profileDropdownOpen ? 'rotate-180' : ''}`} />
+                    <ChevronDown className={`w-4 h-4 text-gray-500 dark:text-gray-400 transition-transform flex-shrink-0 hidden sm:block ${profileDropdownOpen ? 'rotate-180' : ''}`} />
                   </button>
 
                   {profileDropdownOpen && (

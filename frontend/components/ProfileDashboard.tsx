@@ -383,7 +383,7 @@ export default function ProfileDashboard({ profileId }: ProfileDashboardProps) {
                     </div>
                     <p className="text-xl font-bold text-gray-900 dark:text-white">{formatCurrency(portfolioValue)}</p>
                   </div>
-                  <div className="rounded-xl border border-white/60 bg-white/70 p-4 shadow-sm dark:border-gray-800/70 dark:bg-gray-800/70">
+                  <div className="rounded-xl border border-white/60 bg-white/70 p-4 shadow-sm dark:border-gray-800/70 dark:bg-gray-800/70 group relative">
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.1em] text-gray-500 dark:text-gray-400">
                         <DollarSign className="h-4 w-4" />
@@ -397,6 +397,15 @@ export default function ProfileDashboard({ profileId }: ProfileDashboardProps) {
                       )}
                     </div>
                     <p className="text-xl font-bold text-gray-900 dark:text-white">{formatCurrency(userCash)}</p>
+                    {/* CEO Income Tooltip */}
+                    {primaryCorporation && (primaryCorporation.ceo_salary ?? 100000) > 0 && (
+                      <div className="mt-2 flex items-center gap-1">
+                        <span className="px-2 py-0.5 text-xs font-semibold bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded-full" title={`CEO salary: $${(primaryCorporation.ceo_salary ?? 100000).toLocaleString()} per 96 hours from ${primaryCorporation.name}`}>
+                          +${((primaryCorporation.ceo_salary ?? 100000) / 96).toLocaleString(undefined, { maximumFractionDigits: 2 })}/hr
+                        </span>
+                        <span className="text-xs text-gray-400 dark:text-gray-500">CEO</span>
+                      </div>
+                    )}
                   </div>
                   <div className="rounded-xl border border-amber-200/60 bg-amber-50/70 p-4 shadow-sm dark:border-amber-800/70 dark:bg-amber-900/30">
                     <div className="flex items-center justify-between mb-2">
