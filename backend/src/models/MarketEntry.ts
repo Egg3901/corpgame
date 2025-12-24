@@ -19,6 +19,7 @@ export interface MarketEntryWithUnits extends MarketEntry {
   retail_count: number;
   production_count: number;
   service_count: number;
+  extraction_count: number;
 }
 
 export interface CorporationFinances {
@@ -32,6 +33,7 @@ export interface CorporationFinances {
   total_retail_units: number;
   total_production_units: number;
   total_service_units: number;
+  total_extraction_units: number;
   markets_count: number;
   dividend_per_share_96h?: number;
   special_dividend_last_paid_at?: Date | string | null;
@@ -113,7 +115,8 @@ export class MarketEntryModel {
         me.*,
         COALESCE(SUM(CASE WHEN bu.unit_type = 'retail' THEN bu.count ELSE 0 END), 0)::int as retail_count,
         COALESCE(SUM(CASE WHEN bu.unit_type = 'production' THEN bu.count ELSE 0 END), 0)::int as production_count,
-        COALESCE(SUM(CASE WHEN bu.unit_type = 'service' THEN bu.count ELSE 0 END), 0)::int as service_count
+        COALESCE(SUM(CASE WHEN bu.unit_type = 'service' THEN bu.count ELSE 0 END), 0)::int as service_count,
+        COALESCE(SUM(CASE WHEN bu.unit_type = 'extraction' THEN bu.count ELSE 0 END), 0)::int as extraction_count
       FROM market_entries me
       LEFT JOIN business_units bu ON me.id = bu.market_entry_id
       WHERE me.corporation_id = $1
@@ -134,6 +137,7 @@ export class MarketEntryModel {
     let totalRetail = 0;
     let totalProduction = 0;
     let totalService = 0;
+    let totalExtraction = 0;
 
     for (const entry of entries) {
       const multiplier = getStateMultiplier(entry.state_code);
@@ -142,16 +146,19 @@ export class MarketEntryModel {
       hourlyRevenue += entry.retail_count * UNIT_ECONOMICS.retail.baseRevenue * multiplier;
       hourlyRevenue += entry.production_count * UNIT_ECONOMICS.production.baseRevenue * multiplier;
       hourlyRevenue += entry.service_count * UNIT_ECONOMICS.service.baseRevenue * multiplier;
+      hourlyRevenue += entry.extraction_count * UNIT_ECONOMICS.extraction.baseRevenue * multiplier;
 
       // Calculate costs (not affected by multiplier)
       hourlyCosts += entry.retail_count * UNIT_ECONOMICS.retail.baseCost;
       hourlyCosts += entry.production_count * UNIT_ECONOMICS.production.baseCost;
       hourlyCosts += entry.service_count * UNIT_ECONOMICS.service.baseCost;
+      hourlyCosts += entry.extraction_count * UNIT_ECONOMICS.extraction.baseCost;
 
       // Sum up units
       totalRetail += entry.retail_count;
       totalProduction += entry.production_count;
       totalService += entry.service_count;
+      totalExtraction += entry.extraction_count;
     }
 
     const hourlyProfit = hourlyRevenue - hourlyCosts;
@@ -167,6 +174,7 @@ export class MarketEntryModel {
       total_retail_units: totalRetail,
       total_production_units: totalProduction,
       total_service_units: totalService,
+      total_extraction_units: totalExtraction,
       markets_count: entries.length,
     };
   }
@@ -182,6 +190,7 @@ export class MarketEntryModel {
             WHEN 'retail' THEN (${UNIT_ECONOMICS.retail.baseRevenue} * sm.population_multiplier - ${UNIT_ECONOMICS.retail.baseCost})
             WHEN 'production' THEN (${UNIT_ECONOMICS.production.baseRevenue} * sm.population_multiplier - ${UNIT_ECONOMICS.production.baseCost})
             WHEN 'service' THEN (${UNIT_ECONOMICS.service.baseRevenue} * sm.population_multiplier - ${UNIT_ECONOMICS.service.baseCost})
+            WHEN 'extraction' THEN (${UNIT_ECONOMICS.extraction.baseRevenue} * sm.population_multiplier - ${UNIT_ECONOMICS.extraction.baseCost})
             ELSE 0
           END
         )::numeric as hourly_profit
@@ -198,3 +207,4 @@ export class MarketEntryModel {
     }));
   }
 }
+

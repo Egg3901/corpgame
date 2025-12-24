@@ -99,6 +99,7 @@ export class BusinessUnitModel {
     retail: number;
     production: number;
     service: number;
+    extraction: number;
   }> {
     const units = await this.findByMarketEntryId(marketEntryId);
     
@@ -106,6 +107,7 @@ export class BusinessUnitModel {
       retail: units.find(u => u.unit_type === 'retail')?.count || 0,
       production: units.find(u => u.unit_type === 'production')?.count || 0,
       service: units.find(u => u.unit_type === 'service')?.count || 0,
+      extraction: units.find(u => u.unit_type === 'extraction')?.count || 0,
     };
   }
 
@@ -117,3 +119,4 @@ export class BusinessUnitModel {
     await pool.query('DELETE FROM business_units WHERE market_entry_id = $1', [marketEntryId]);
   }
 }
+

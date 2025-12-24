@@ -24,6 +24,7 @@ import {
   Trees,
   FlaskConical,
   Gem,
+  Pickaxe,
 } from 'lucide-react';
 
 // Resource icon mapping
@@ -63,6 +64,27 @@ const UNIT_ECONOMICS = {
   retail: { baseRevenue: 500, baseCost: 300 },
   production: { baseRevenue: 800, baseCost: 600 },
   service: { baseRevenue: 400, baseCost: 200 },
+  extraction: { baseRevenue: 1000, baseCost: 700 },  // High revenue, high cost
+};
+
+// Sectors that can build extraction units (must match backend SECTOR_EXTRACTION)
+const SECTORS_CAN_EXTRACT: Record<string, boolean> = {
+  'Technology': false,
+  'Finance': false,
+  'Healthcare': false,
+  'Manufacturing': true,  // Steel extraction
+  'Energy': true,         // Oil extraction
+  'Retail': false,
+  'Real Estate': false,
+  'Transportation': false,
+  'Media': false,
+  'Telecommunications': false,
+  'Agriculture': true,    // Farming and forestry
+  'Defense': false,
+  'Hospitality': false,
+  'Construction': true,   // Lumber
+  'Pharmaceuticals': true, // Chemical extraction
+  'Mining': true,          // Mining operations
 };
 
 const MARKET_ENTRY_COST = 50000;
@@ -217,7 +239,7 @@ export default function StateDetailPage() {
     }
   };
 
-  const handleBuildUnit = async (entryId: number, unitType: 'retail' | 'production' | 'service') => {
+  const handleBuildUnit = async (entryId: number, unitType: 'retail' | 'production' | 'service' | 'extraction') => {
     if (!stateData?.user_corporation) return;
 
     setBuilding(`${entryId}-${unitType}`);
@@ -252,17 +274,17 @@ export default function StateDetailPage() {
     return 'text-gray-600 dark:text-gray-400';
   };
 
-  const calculateUnitRevenue = (unitType: 'retail' | 'production' | 'service', multiplier: number) => {
+  const calculateUnitRevenue = (unitType: 'retail' | 'production' | 'service' | 'extraction', multiplier: number) => {
     const hourly = UNIT_ECONOMICS[unitType].baseRevenue * multiplier;
     return hourly * DISPLAY_PERIOD_HOURS;
   };
 
-  const calculateUnitCost = (unitType: 'retail' | 'production' | 'service') => {
+  const calculateUnitCost = (unitType: 'retail' | 'production' | 'service' | 'extraction') => {
     const hourly = UNIT_ECONOMICS[unitType].baseCost;
     return hourly * DISPLAY_PERIOD_HOURS;
   };
 
-  const calculateUnitProfit = (unitType: 'retail' | 'production' | 'service', multiplier: number) => {
+  const calculateUnitProfit = (unitType: 'retail' | 'production' | 'service' | 'extraction', multiplier: number) => {
     return calculateUnitRevenue(unitType, multiplier) - calculateUnitCost(unitType);
   };
 
@@ -423,7 +445,7 @@ export default function StateDetailPage() {
                         </div>
 
                         {/* Unit Types */}
-                        <div className="grid grid-cols-3 gap-3">
+                        <div className={`grid gap-3 ${SECTORS_CAN_EXTRACT[entry.sector_type] ? 'grid-cols-4' : 'grid-cols-3'}`}>
                           {/* Retail */}
                           <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3">
                             <div className="flex items-center gap-2 mb-2">
@@ -480,6 +502,27 @@ export default function StateDetailPage() {
                               {building === `${entry.id}-service` ? '...' : `+1 (${formatCurrency(BUILD_UNIT_COST)})`}
                             </button>
                           </div>
+
+                          {/* Extraction - only shown for sectors that support it */}
+                          {SECTORS_CAN_EXTRACT[entry.sector_type] && (
+                            <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3">
+                              <div className="flex items-center gap-2 mb-2">
+                                <Pickaxe className="h-4 w-4 text-amber-500" />
+                                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Extraction</span>
+                              </div>
+                              <p className="text-2xl font-bold text-gray-900 dark:text-white">{entry.units.extraction || 0}</p>
+                              <p className="text-xs text-emerald-600 dark:text-emerald-400">
+                                +{formatCurrency(calculateUnitProfit('extraction', state.multiplier) * (entry.units.extraction || 0))}/96hr
+                              </p>
+                              <button
+                                onClick={() => handleBuildUnit(entry.id, 'extraction')}
+                                disabled={building === `${entry.id}-extraction` || user_corporation.capital < BUILD_UNIT_COST || userActions < 1}
+                                className="mt-2 w-full px-2 py-1 text-xs bg-amber-500 text-white rounded hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                              >
+                                {building === `${entry.id}-extraction` ? '...' : `+1 (${formatCurrency(BUILD_UNIT_COST)})`}
+                              </button>
+                            </div>
+                          )}
                         </div>
                       </div>
                     ))}
@@ -533,10 +576,10 @@ export default function StateDetailPage() {
                         </div>
                         <div className="text-right">
                           <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                            {market.units.retail + market.units.production + market.units.service} units
+                            {market.units.retail + market.units.production + market.units.service + (market.units.extraction || 0)} units
                           </p>
                           <p className="text-xs text-gray-500 dark:text-gray-400">
-                            {market.units.retail}R / {market.units.production}P / {market.units.service}S
+                            {market.units.retail}R / {market.units.production}P / {market.units.service}S{market.units.extraction ? ` / ${market.units.extraction}E` : ''}
                           </p>
                         </div>
                       </div>
@@ -709,6 +752,28 @@ export default function StateDetailPage() {
                         Profit: <span className="text-emerald-600 dark:text-emerald-400">{formatCurrency(calculateUnitProfit('service', state.multiplier))}</span>
                       </p>
                     </div>
+                  </div>
+
+                  {/* Extraction */}
+                  <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Pickaxe className="h-4 w-4 text-amber-500" />
+                      <span className="font-medium text-gray-700 dark:text-gray-300">Extraction</span>
+                    </div>
+                    <div className="text-sm space-y-1">
+                      <p className="text-gray-600 dark:text-gray-400">
+                        Revenue: <span className="text-emerald-600 dark:text-emerald-400">{formatCurrency(calculateUnitRevenue('extraction', state.multiplier))}</span>
+                      </p>
+                      <p className="text-gray-600 dark:text-gray-400">
+                        Cost: <span className="text-red-600 dark:text-red-400">{formatCurrency(calculateUnitCost('extraction'))}</span>
+                      </p>
+                      <p className="font-semibold text-gray-900 dark:text-white">
+                        Profit: <span className="text-emerald-600 dark:text-emerald-400">{formatCurrency(calculateUnitProfit('extraction', state.multiplier))}</span>
+                      </p>
+                    </div>
+                    <p className="text-xs text-amber-600 dark:text-amber-400 mt-2">
+                      Available in: Mining, Energy, Agriculture, Manufacturing, Construction, Pharmaceuticals
+                    </p>
                   </div>
                 </div>
               </div>

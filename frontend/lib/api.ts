@@ -948,6 +948,7 @@ export interface CorporationFinances {
   total_retail_units: number;
   total_production_units: number;
   total_service_units: number;
+  total_extraction_units: number;
   markets_count: number;
   dividend_per_share_96h?: number;
   special_dividend_last_paid_at?: string | null;

@@ -650,16 +650,19 @@ router.post('/entries/:entryId/build', authenticateToken, async (req: AuthReques
       return res.status(403).json({ error: 'Only the CEO can build units' });
     }
 
-    // Check if corporation's focus and sector allow this unit type
+    // Check if corporation's focus and the MARKET ENTRY'S sector allow this unit type
+    // Note: We use the market entry's sector_type (the sector you're operating in),
+    // not the corporation's main sector. This allows corps to build extraction in
+    // sectors that support it (e.g. Mining, Energy, Agriculture) regardless of their main sector.
     const corpFocus = corporation.focus || 'diversified';
-    const corpSector = corporation.type || '';
-    const buildCheck = canBuildUnit(corpSector, corpFocus as CorpFocus, unit_type as UnitType);
+    const entrySector = marketEntry.sector_type; // Use the market entry's sector, not corp's
+    const buildCheck = canBuildUnit(entrySector, corpFocus as CorpFocus, unit_type as UnitType);
     
     if (!buildCheck.allowed) {
       return res.status(400).json({ 
         error: buildCheck.reason || `Cannot build ${unit_type} units`,
         focus: corpFocus,
-        sector: corpSector,
+        sector: entrySector,
       });
     }
 
