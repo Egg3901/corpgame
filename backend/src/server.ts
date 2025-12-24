@@ -41,16 +41,31 @@ try {
   
   // Also parse ALLOWED_ORIGINS if set (comma-separated list)
   if (process.env.ALLOWED_ORIGINS) {
-    allowedOrigins = process.env.ALLOWED_ORIGINS.split(',').map(o => {
+    const parsedOrigins = process.env.ALLOWED_ORIGINS.split(',').map(o => {
+      const trimmed = o.trim();
       try {
-        const u = new URL(o.trim());
-        return `${u.protocol}//${u.hostname}`;
+        const u = new URL(trimmed);
+        // Return both the full origin and the base (protocol + hostname)
+        return {
+          full: trimmed,
+          base: `${u.protocol}//${u.hostname}`
+        };
       } catch {
-        return o.trim();
+        // If it's not a valid URL, treat it as a base origin
+        return {
+          full: trimmed,
+          base: trimmed
+        };
       }
+    });
+    // Add both full and base origins to the allowed list
+    parsedOrigins.forEach(origin => {
+      allowedOrigins.push(origin.full);
+      allowedOrigins.push(origin.base);
     });
   }
   allowedOrigins.push(baseOrigin); // Always include FRONTEND_URL
+  allowedOrigins.push(frontendUrl); // Also include full FRONTEND_URL
 } catch (error) {
   console.error('Invalid FRONTEND_URL in environment:', frontendUrl);
   baseOrigin = 'http://localhost';
@@ -60,6 +75,7 @@ try {
 // Log CORS configuration for debugging
 console.log(`CORS Configuration:`);
 console.log(`  FRONTEND_URL: ${frontendUrl}`);
+console.log(`  ALLOWED_ORIGINS env: ${process.env.ALLOWED_ORIGINS || 'not set'}`);
 console.log(`  Base Origin (any port): ${baseOrigin}`);
 console.log(`  Allowed Origins: ${allowedOrigins.join(', ')}`);
 console.log(`  NODE_ENV: ${process.env.NODE_ENV || 'not set'}`);
@@ -81,9 +97,17 @@ const corsOptions = {
       // Log all CORS requests for debugging
       console.log(`CORS request from origin: ${origin} (base: ${originBase})`);
       
-      // Check if origin matches any allowed origin
+      // Check if origin matches any allowed origin (exact match or base match)
       const isAllowed = allowedOrigins.some(allowed => {
-        return originBase === allowed || origin === frontendUrl || origin.startsWith(allowed + ':');
+        // Exact match
+        if (origin === allowed) return true;
+        // Base match (protocol + hostname)
+        if (originBase === allowed) return true;
+        // Allow if origin starts with allowed base (for ports)
+        if (origin.startsWith(allowed + ':')) return true;
+        // Allow if allowed starts with origin base (for subdomains)
+        if (allowed.startsWith(originBase)) return true;
+        return false;
       });
       
       if (isAllowed) {
