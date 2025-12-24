@@ -5,8 +5,8 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import AppNavigation from '@/components/AppNavigation';
 import TickerTape from '@/components/TickerTape';
-import { corporationAPI, CorporationResponse, marketsAPI, CommodityPrice } from '@/lib/api';
-import { Building2, Plus, TrendingUp, TrendingDown, Clock, FileText, ChevronRight, ArrowUpRight, ArrowDownRight, Package, Droplets, Cpu, Zap, Wheat, Trees, FlaskConical, MapPin } from 'lucide-react';
+import { corporationAPI, CorporationResponse, marketsAPI, CommodityPrice, ProductMarketData } from '@/lib/api';
+import { Building2, Plus, TrendingUp, TrendingDown, Clock, FileText, ChevronRight, ArrowUpRight, ArrowDownRight, Package, Droplets, Cpu, Zap, Wheat, Trees, FlaskConical, MapPin, Box, Lightbulb, Pill, Wrench, Truck, Shield, UtensilsCrossed } from 'lucide-react';
 
 // Resource icon mapping
 const RESOURCE_ICONS: Record<string, React.ReactNode> = {
@@ -30,12 +30,38 @@ const RESOURCE_COLORS: Record<string, { bg: string; text: string; border: string
   'Chemical Compounds': { bg: 'bg-cyan-600', text: 'text-cyan-100', border: 'border-cyan-500' },
 };
 
+// Product icon mapping
+const PRODUCT_ICONS: Record<string, React.ReactNode> = {
+  'Technology Products': <Cpu className="w-5 h-5" />,
+  'Manufactured Goods': <Wrench className="w-5 h-5" />,
+  'Electricity': <Lightbulb className="w-5 h-5" />,
+  'Food Products': <UtensilsCrossed className="w-5 h-5" />,
+  'Construction Capacity': <Building2 className="w-5 h-5" />,
+  'Pharmaceutical Products': <Pill className="w-5 h-5" />,
+  'Defense Equipment': <Shield className="w-5 h-5" />,
+  'Logistics Capacity': <Truck className="w-5 h-5" />,
+};
+
+// Product color mapping
+const PRODUCT_COLORS: Record<string, { bg: string; text: string; border: string }> = {
+  'Technology Products': { bg: 'bg-indigo-600', text: 'text-indigo-100', border: 'border-indigo-500' },
+  'Manufactured Goods': { bg: 'bg-gray-600', text: 'text-gray-100', border: 'border-gray-500' },
+  'Electricity': { bg: 'bg-yellow-500', text: 'text-yellow-900', border: 'border-yellow-400' },
+  'Food Products': { bg: 'bg-green-600', text: 'text-green-100', border: 'border-green-500' },
+  'Construction Capacity': { bg: 'bg-stone-600', text: 'text-stone-100', border: 'border-stone-500' },
+  'Pharmaceutical Products': { bg: 'bg-rose-600', text: 'text-rose-100', border: 'border-rose-500' },
+  'Defense Equipment': { bg: 'bg-red-700', text: 'text-red-100', border: 'border-red-600' },
+  'Logistics Capacity': { bg: 'bg-blue-600', text: 'text-blue-100', border: 'border-blue-500' },
+};
+
 export default function StockMarketPage() {
   const router = useRouter();
   const [corporations, setCorporations] = useState<CorporationResponse[]>([]);
   const [commodities, setCommodities] = useState<CommodityPrice[]>([]);
+  const [products, setProducts] = useState<ProductMarketData[]>([]);
   const [loading, setLoading] = useState(true);
   const [commoditiesLoading, setCommoditiesLoading] = useState(false);
+  const [activeSubTab, setActiveSubTab] = useState<'resources' | 'products'>('resources');
   const [error, setError] = useState('');
   const [currentTime, setCurrentTime] = useState(new Date());
   const [activeTab, setActiveTab] = useState<'stocks' | 'products' | 'bonds'>('stocks');
@@ -64,6 +90,7 @@ export default function StockMarketPage() {
         try {
           const data = await marketsAPI.getCommodities();
           setCommodities(data.commodities);
+          setProducts(data.products);
         } catch (err) {
           console.error('Failed to fetch commodities:', err);
         } finally {
@@ -451,130 +478,294 @@ export default function StockMarketPage() {
             </div>
           ) : (
             <div className="space-y-6">
-              {/* Info Banner */}
-              <div className="rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 p-4">
-                <div className="flex items-start gap-3">
-                  <Package className="h-5 w-5 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
-                  <div>
-                    <p className="text-sm font-medium text-amber-800 dark:text-amber-200">Commodity Prices</p>
-                    <p className="text-sm text-amber-700 dark:text-amber-300">
-                      Prices are calculated based on supply scarcity. Lower supply = higher prices.
-                      Production units in sectors require these resources to operate at full efficiency.
-                    </p>
-                  </div>
-                </div>
+              {/* Sub-tabs for Resources vs Products */}
+              <div className="flex bg-gray-100 dark:bg-gray-800 rounded-lg p-1 max-w-md">
+                <button
+                  onClick={() => setActiveSubTab('resources')}
+                  className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                    activeSubTab === 'resources'
+                      ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                  }`}
+                >
+                  <Droplets className="w-4 h-4" />
+                  Raw Resources
+                </button>
+                <button
+                  onClick={() => setActiveSubTab('products')}
+                  className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                    activeSubTab === 'products'
+                      ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                  }`}
+                >
+                  <Box className="w-4 h-4" />
+                  Products
+                </button>
               </div>
 
-              {/* Commodities Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                {commodities.map((commodity) => {
-                  const colors = RESOURCE_COLORS[commodity.resource] || { bg: 'bg-gray-600', text: 'text-gray-100', border: 'border-gray-500' };
-                  const isPositive = commodity.priceChange >= 0;
-                  
-                  return (
-                    <div
-                      key={commodity.resource}
-                      className="relative bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden hover:border-corporate-blue/50 dark:hover:border-corporate-blue/50 transition-all group"
-                    >
-                      {/* Header with icon and name */}
-                      <div className={`${colors.bg} ${colors.text} px-4 py-3 flex items-center justify-between`}>
-                        <div className="flex items-center gap-2">
-                          {RESOURCE_ICONS[commodity.resource] || <Package className="w-5 h-5" />}
-                          <span className="font-semibold">{commodity.resource}</span>
-                        </div>
-                        <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                          isPositive 
-                            ? 'bg-emerald-500/20 text-emerald-200' 
-                            : 'bg-red-500/20 text-red-200'
-                        }`}>
-                          {isPositive ? '+' : ''}{commodity.priceChange.toFixed(1)}%
-                        </span>
-                      </div>
+              {/* Info Banner - Resources */}
+              {activeSubTab === 'resources' && (
+                <div className="rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 p-4">
+                  <div className="flex items-start gap-3">
+                    <Droplets className="h-5 w-5 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="text-sm font-medium text-amber-800 dark:text-amber-200">Raw Resources</p>
+                      <p className="text-sm text-amber-700 dark:text-amber-300">
+                        Natural resources from state pools. Prices based on supply scarcity. 
+                        Production units in manufacturing sectors require these to operate at full efficiency.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
 
-                      {/* Price info */}
-                      <div className="p-4 space-y-3">
-                        <div className="flex items-end justify-between">
-                          <div>
-                            <p className="text-xs text-gray-500 dark:text-gray-400 mb-0.5">Current Price</p>
-                            <p className="text-2xl font-bold font-mono text-gray-900 dark:text-white">
-                              {formatCurrency(commodity.currentPrice)}
-                            </p>
+              {/* Info Banner - Products */}
+              {activeSubTab === 'products' && (
+                <div className="rounded-xl border border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-900/20 p-4">
+                  <div className="flex items-start gap-3">
+                    <Box className="h-5 w-5 text-indigo-600 dark:text-indigo-400 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="text-sm font-medium text-indigo-800 dark:text-indigo-200">Manufactured Products</p>
+                      <p className="text-sm text-indigo-700 dark:text-indigo-300">
+                        Products created by production units. Prices based on supply vs demand ratio.
+                        Service sectors require these products to operate efficiently.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Raw Resources Grid */}
+              {activeSubTab === 'resources' && (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {commodities.map((commodity) => {
+                    const colors = RESOURCE_COLORS[commodity.resource] || { bg: 'bg-gray-600', text: 'text-gray-100', border: 'border-gray-500' };
+                    const isPositive = commodity.priceChange >= 0;
+                    
+                    return (
+                      <div
+                        key={commodity.resource}
+                        className="relative bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden hover:border-corporate-blue/50 dark:hover:border-corporate-blue/50 transition-all group"
+                      >
+                        {/* Header with icon and name */}
+                        <div className={`${colors.bg} ${colors.text} px-4 py-3 flex items-center justify-between`}>
+                          <div className="flex items-center gap-2">
+                            {RESOURCE_ICONS[commodity.resource] || <Package className="w-5 h-5" />}
+                            <span className="font-semibold">{commodity.resource}</span>
                           </div>
-                          <div className="text-right">
-                            <p className="text-xs text-gray-500 dark:text-gray-400 mb-0.5">Base Price</p>
-                            <p className="text-sm font-mono text-gray-600 dark:text-gray-400">
-                              {formatCurrency(commodity.basePrice)}
-                            </p>
-                          </div>
-                        </div>
-
-                        {/* Supply info */}
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-gray-500 dark:text-gray-400">Total Supply</span>
-                          <span className="font-mono text-gray-700 dark:text-gray-300">
-                            {formatCompactNumber(commodity.totalSupply)} units
-                          </span>
-                        </div>
-
-                        {/* Scarcity indicator */}
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-gray-500 dark:text-gray-400">Scarcity</span>
-                          <span className={`font-medium ${
-                            commodity.scarcityFactor >= 1.5 
-                              ? 'text-red-600 dark:text-red-400'
-                              : commodity.scarcityFactor >= 1.0
-                              ? 'text-amber-600 dark:text-amber-400'
-                              : 'text-emerald-600 dark:text-emerald-400'
+                          <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                            isPositive 
+                              ? 'bg-emerald-500/20 text-emerald-200' 
+                              : 'bg-red-500/20 text-red-200'
                           }`}>
-                            {commodity.scarcityFactor >= 1.5 ? 'High' : commodity.scarcityFactor >= 1.0 ? 'Normal' : 'Low'}
-                            <span className="text-xs ml-1 font-mono">({commodity.scarcityFactor.toFixed(2)}x)</span>
+                            {isPositive ? '+' : ''}{commodity.priceChange.toFixed(1)}%
                           </span>
                         </div>
 
-                        {/* Demanding sectors */}
-                        {commodity.demandingSectors.length > 0 && (
+                        {/* Price info */}
+                        <div className="p-4 space-y-3">
+                          <div className="flex items-end justify-between">
+                            <div>
+                              <p className="text-xs text-gray-500 dark:text-gray-400 mb-0.5">Current Price</p>
+                              <p className="text-2xl font-bold font-mono text-gray-900 dark:text-white">
+                                {formatCurrency(commodity.currentPrice)}
+                              </p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-xs text-gray-500 dark:text-gray-400 mb-0.5">Base Price</p>
+                              <p className="text-sm font-mono text-gray-600 dark:text-gray-400">
+                                {formatCurrency(commodity.basePrice)}
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Supply info */}
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-gray-500 dark:text-gray-400">Total Supply</span>
+                            <span className="font-mono text-gray-700 dark:text-gray-300">
+                              {formatCompactNumber(commodity.totalSupply)} units
+                            </span>
+                          </div>
+
+                          {/* Scarcity indicator */}
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-gray-500 dark:text-gray-400">Scarcity</span>
+                            <span className={`font-medium ${
+                              commodity.scarcityFactor >= 1.5 
+                                ? 'text-red-600 dark:text-red-400'
+                                : commodity.scarcityFactor >= 1.0
+                                ? 'text-amber-600 dark:text-amber-400'
+                                : 'text-emerald-600 dark:text-emerald-400'
+                            }`}>
+                              {commodity.scarcityFactor >= 1.5 ? 'High' : commodity.scarcityFactor >= 1.0 ? 'Normal' : 'Low'}
+                              <span className="text-xs ml-1 font-mono">({commodity.scarcityFactor.toFixed(2)}x)</span>
+                            </span>
+                          </div>
+
+                          {/* Demanding sectors */}
+                          {commodity.demandingSectors.length > 0 && (
+                            <div className="pt-2 border-t border-gray-100 dark:border-gray-700">
+                              <p className="text-xs text-gray-500 dark:text-gray-400 mb-1.5">Used by:</p>
+                              <div className="flex flex-wrap gap-1">
+                                {commodity.demandingSectors.map((sector) => (
+                                  <span
+                                    key={sector}
+                                    className="text-xs px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300"
+                                  >
+                                    {sector}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Top producers */}
                           <div className="pt-2 border-t border-gray-100 dark:border-gray-700">
-                            <p className="text-xs text-gray-500 dark:text-gray-400 mb-1.5">Used by:</p>
-                            <div className="flex flex-wrap gap-1">
-                              {commodity.demandingSectors.map((sector) => (
-                                <span
-                                  key={sector}
-                                  className="text-xs px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300"
-                                >
-                                  {sector}
-                                </span>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mb-2 flex items-center gap-1">
+                              <MapPin className="w-3 h-3" />
+                              Top Producers
+                            </p>
+                            <div className="space-y-1.5">
+                              {commodity.topProducers.slice(0, 3).map((producer, idx) => (
+                                <div key={producer.stateCode} className="flex items-center justify-between text-xs">
+                                  <Link
+                                    href={`/states/${producer.stateCode}`}
+                                    className="text-gray-700 dark:text-gray-300 hover:text-corporate-blue dark:hover:text-corporate-blue-light transition-colors"
+                                  >
+                                    {idx + 1}. {producer.stateName}
+                                  </Link>
+                                  <span className="font-mono text-gray-500 dark:text-gray-400">
+                                    {producer.percentage.toFixed(1)}%
+                                  </span>
+                                </div>
                               ))}
                             </div>
                           </div>
-                        )}
-
-                        {/* Top producers */}
-                        <div className="pt-2 border-t border-gray-100 dark:border-gray-700">
-                          <p className="text-xs text-gray-500 dark:text-gray-400 mb-2 flex items-center gap-1">
-                            <MapPin className="w-3 h-3" />
-                            Top Producers
-                          </p>
-                          <div className="space-y-1.5">
-                            {commodity.topProducers.slice(0, 3).map((producer, idx) => (
-                              <div key={producer.stateCode} className="flex items-center justify-between text-xs">
-                                <Link
-                                  href={`/states/${producer.stateCode}`}
-                                  className="text-gray-700 dark:text-gray-300 hover:text-corporate-blue dark:hover:text-corporate-blue-light transition-colors"
-                                >
-                                  {idx + 1}. {producer.stateName}
-                                </Link>
-                                <span className="font-mono text-gray-500 dark:text-gray-400">
-                                  {producer.percentage.toFixed(1)}%
-                                </span>
-                              </div>
-                            ))}
-                          </div>
                         </div>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Products Grid */}
+              {activeSubTab === 'products' && (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {products.map((product) => {
+                    const colors = PRODUCT_COLORS[product.product] || { bg: 'bg-gray-600', text: 'text-gray-100', border: 'border-gray-500' };
+                    const priceChange = product.referenceValue > 0 
+                      ? ((product.currentPrice - product.referenceValue) / product.referenceValue) * 100 
+                      : 0;
+                    const isPositive = priceChange >= 0;
+                    
+                    return (
+                      <div
+                        key={product.product}
+                        className="relative bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden hover:border-corporate-blue/50 dark:hover:border-corporate-blue/50 transition-all group"
+                      >
+                        {/* Header with icon and name */}
+                        <div className={`${colors.bg} ${colors.text} px-4 py-3 flex items-center justify-between`}>
+                          <div className="flex items-center gap-2">
+                            {PRODUCT_ICONS[product.product] || <Box className="w-5 h-5" />}
+                            <span className="font-semibold text-sm">{product.product}</span>
+                          </div>
+                          <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                            isPositive 
+                              ? 'bg-emerald-500/20 text-emerald-200' 
+                              : 'bg-red-500/20 text-red-200'
+                          }`}>
+                            {isPositive ? '+' : ''}{priceChange.toFixed(1)}%
+                          </span>
+                        </div>
+
+                        {/* Price info */}
+                        <div className="p-4 space-y-3">
+                          <div className="flex items-end justify-between">
+                            <div>
+                              <p className="text-xs text-gray-500 dark:text-gray-400 mb-0.5">Current Price</p>
+                              <p className="text-2xl font-bold font-mono text-gray-900 dark:text-white">
+                                {formatCurrency(product.currentPrice)}
+                              </p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-xs text-gray-500 dark:text-gray-400 mb-0.5">Reference</p>
+                              <p className="text-sm font-mono text-gray-600 dark:text-gray-400">
+                                {formatCurrency(product.referenceValue)}
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Supply/Demand */}
+                          <div className="grid grid-cols-2 gap-2 text-sm">
+                            <div className="flex items-center justify-between">
+                              <span className="text-gray-500 dark:text-gray-400">Supply</span>
+                              <span className="font-mono text-emerald-600 dark:text-emerald-400 font-medium">
+                                {product.supply}
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-gray-500 dark:text-gray-400">Demand</span>
+                              <span className="font-mono text-orange-600 dark:text-orange-400 font-medium">
+                                {product.demand}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Scarcity indicator */}
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-gray-500 dark:text-gray-400">Market</span>
+                            <span className={`font-medium ${
+                              product.scarcityFactor >= 1.5 
+                                ? 'text-red-600 dark:text-red-400'
+                                : product.scarcityFactor >= 0.8
+                                ? 'text-amber-600 dark:text-amber-400'
+                                : 'text-emerald-600 dark:text-emerald-400'
+                            }`}>
+                              {product.scarcityFactor >= 1.5 ? 'Shortage' : product.scarcityFactor >= 0.8 ? 'Balanced' : 'Surplus'}
+                              <span className="text-xs ml-1 font-mono">({product.scarcityFactor.toFixed(2)}x)</span>
+                            </span>
+                          </div>
+
+                          {/* Producing sectors */}
+                          {product.producingSectors.length > 0 && (
+                            <div className="pt-2 border-t border-gray-100 dark:border-gray-700">
+                              <p className="text-xs text-gray-500 dark:text-gray-400 mb-1.5">Produced by:</p>
+                              <div className="flex flex-wrap gap-1">
+                                {product.producingSectors.map((sector) => (
+                                  <span
+                                    key={sector}
+                                    className="text-xs px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300"
+                                  >
+                                    {sector}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Demanding sectors */}
+                          {product.demandingSectors.length > 0 && (
+                            <div className="pt-2 border-t border-gray-100 dark:border-gray-700">
+                              <p className="text-xs text-gray-500 dark:text-gray-400 mb-1.5">Consumed by:</p>
+                              <div className="flex flex-wrap gap-1">
+                                {product.demandingSectors.map((sector) => (
+                                  <span
+                                    key={sector}
+                                    className="text-xs px-2 py-0.5 rounded-full bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300"
+                                  >
+                                    {sector}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )
         )}

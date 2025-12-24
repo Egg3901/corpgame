@@ -1021,10 +1021,28 @@ export interface CommodityPrice {
   demandingSectors: string[];
 }
 
+// Product market types (manufactured goods)
+export interface ProductMarketData {
+  product: string;
+  supply: number;
+  demand: number;
+  currentPrice: number;
+  scarcityFactor: number;
+  referenceValue: number;
+  producingSectors: string[];
+  demandingSectors: string[];
+}
+
 export interface CommoditiesResponse {
   commodities: CommodityPrice[];
+  products: ProductMarketData[];
   resources: string[];
+  product_types: string[];
   sector_resources: Record<string, string | null>;
+  sector_products: Record<string, string | null>;
+  sector_product_demands: Record<string, string[] | null>;
+  product_supply: Record<string, number>;
+  product_demand: Record<string, number>;
 }
 
 export const marketsAPI = {

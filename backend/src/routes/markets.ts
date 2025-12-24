@@ -23,20 +23,81 @@ import {
   getStateResourceBreakdown,
   RESOURCES,
   SECTOR_RESOURCES,
+  PRODUCTS,
+  SECTOR_PRODUCTS,
+  SECTOR_PRODUCT_DEMANDS,
+  calculateProductPrice,
+  getAllProductsInfo,
+  Product,
+  Sector,
 } from '../constants/sectors';
 import pool from '../db/connection';
 import { calculateBalanceSheet, updateStockPrice } from '../utils/valuation';
 
 const router = express.Router();
 
-// GET /api/markets/commodities - Get all commodity prices
+// GET /api/markets/commodities - Get all commodity prices and product market data
 router.get('/commodities', async (req: Request, res: Response) => {
   try {
     const commodities = getAllCommodityPrices();
+    
+    // Calculate product supply/demand from database
+    // Supply = total production units in sectors that produce each product
+    // Demand = total production units in sectors that demand each product
+    const productSupplyQuery = await pool.query(`
+      SELECT 
+        me.sector_type,
+        COALESCE(SUM(bu.count), 0)::int as production_units
+      FROM market_entries me
+      LEFT JOIN business_units bu ON me.id = bu.market_entry_id AND bu.unit_type = 'production'
+      GROUP BY me.sector_type
+    `);
+    
+    // Build sector -> production unit count map
+    const sectorProductionUnits: Record<string, number> = {};
+    for (const row of productSupplyQuery.rows) {
+      sectorProductionUnits[row.sector_type] = row.production_units || 0;
+    }
+    
+    // Calculate supply for each product (sum of production units in producing sectors)
+    const productSupply: Record<Product, number> = {} as Record<Product, number>;
+    for (const product of PRODUCTS) {
+      let supply = 0;
+      for (const [sector, producedProduct] of Object.entries(SECTOR_PRODUCTS)) {
+        if (producedProduct === product) {
+          supply += sectorProductionUnits[sector] || 0;
+        }
+      }
+      productSupply[product] = supply;
+    }
+    
+    // Calculate demand for each product (sum of production units in demanding sectors)
+    const productDemand: Record<Product, number> = {} as Record<Product, number>;
+    for (const product of PRODUCTS) {
+      let demand = 0;
+      for (const [sector, demandedProducts] of Object.entries(SECTOR_PRODUCT_DEMANDS)) {
+        if (demandedProducts && demandedProducts.includes(product)) {
+          demand += sectorProductionUnits[sector] || 0;
+        }
+      }
+      productDemand[product] = demand;
+    }
+    
+    // Calculate prices for all products
+    const products = PRODUCTS.map(product => 
+      calculateProductPrice(product, productSupply[product], productDemand[product])
+    );
+    
     res.json({
       commodities,
+      products,
       resources: RESOURCES,
+      product_types: PRODUCTS,
       sector_resources: SECTOR_RESOURCES,
+      sector_products: SECTOR_PRODUCTS,
+      sector_product_demands: SECTOR_PRODUCT_DEMANDS,
+      product_supply: productSupply,
+      product_demand: productDemand,
     });
   } catch (error) {
     console.error('Get commodities error:', error);

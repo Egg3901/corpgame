@@ -5,7 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import AppNavigation from '@/components/AppNavigation';
 import { corporationAPI, CorporationResponse, authAPI, sharesAPI, marketsAPI, CorporationFinances, MarketEntryWithUnits, BalanceSheet } from '@/lib/api';
-import { Building2, Edit, Trash2, TrendingUp, DollarSign, Users, User, Calendar, ArrowUp, ArrowDown, TrendingDown, Plus, BarChart3, MapPin, Store, Factory, Briefcase, Layers, Droplets, Package, Cpu, Zap, Wheat, Trees, FlaskConical, Box } from 'lucide-react';
+import { Building2, Edit, Trash2, TrendingUp, DollarSign, Users, User, Calendar, ArrowUp, ArrowDown, TrendingDown, Plus, BarChart3, MapPin, Store, Factory, Briefcase, Layers, Droplets, Package, Cpu, Zap, Wheat, Trees, FlaskConical, Box, Lightbulb, Pill, Wrench, Truck, Shield, UtensilsCrossed, Info, ArrowRight } from 'lucide-react';
 import BoardTab from '@/components/BoardTab';
 import StockPriceChart from '@/components/StockPriceChart';
 
@@ -28,6 +28,44 @@ const SECTOR_RESOURCES: Record<string, string | null> = {
   'Pharmaceuticals': 'Chemical Compounds',
 };
 
+// Sector to Product output mapping (what production units create)
+const SECTOR_PRODUCTS: Record<string, string | null> = {
+  'Technology': 'Technology Products',
+  'Finance': null,
+  'Healthcare': null,
+  'Manufacturing': 'Manufactured Goods',
+  'Energy': 'Electricity',
+  'Retail': null,
+  'Real Estate': null,
+  'Transportation': 'Logistics Capacity',
+  'Media': null,
+  'Telecommunications': null,
+  'Agriculture': 'Food Products',
+  'Defense': 'Defense Equipment',
+  'Hospitality': null,
+  'Construction': 'Construction Capacity',
+  'Pharmaceuticals': 'Pharmaceutical Products',
+};
+
+// Sector product demands (what products sectors need to operate)
+const SECTOR_PRODUCT_DEMANDS: Record<string, string[] | null> = {
+  'Technology': null,
+  'Finance': ['Technology Products'],
+  'Healthcare': ['Pharmaceutical Products'],
+  'Manufacturing': null,
+  'Energy': null,
+  'Retail': ['Manufactured Goods'],
+  'Real Estate': ['Construction Capacity'],
+  'Transportation': null,
+  'Media': ['Technology Products'],
+  'Telecommunications': ['Technology Products'],
+  'Agriculture': null,
+  'Defense': null,
+  'Hospitality': ['Food Products'],
+  'Construction': null,
+  'Pharmaceuticals': null,
+};
+
 // Resource icon mapping
 const RESOURCE_ICONS: Record<string, React.ReactNode> = {
   'Oil': <Droplets className="w-4 h-4" />,
@@ -48,6 +86,30 @@ const RESOURCE_COLORS: Record<string, string> = {
   'Fertile Land': 'text-lime-700 dark:text-lime-300 bg-lime-100 dark:bg-lime-800',
   'Lumber': 'text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-800',
   'Chemical Compounds': 'text-cyan-700 dark:text-cyan-300 bg-cyan-100 dark:bg-cyan-800',
+};
+
+// Product icon mapping
+const PRODUCT_ICONS: Record<string, React.ReactNode> = {
+  'Technology Products': <Cpu className="w-4 h-4" />,
+  'Manufactured Goods': <Wrench className="w-4 h-4" />,
+  'Electricity': <Lightbulb className="w-4 h-4" />,
+  'Food Products': <UtensilsCrossed className="w-4 h-4" />,
+  'Construction Capacity': <Building2 className="w-4 h-4" />,
+  'Pharmaceutical Products': <Pill className="w-4 h-4" />,
+  'Defense Equipment': <Shield className="w-4 h-4" />,
+  'Logistics Capacity': <Truck className="w-4 h-4" />,
+};
+
+// Product color classes
+const PRODUCT_COLORS: Record<string, string> = {
+  'Technology Products': 'text-indigo-700 dark:text-indigo-300 bg-indigo-100 dark:bg-indigo-900/50',
+  'Manufactured Goods': 'text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800',
+  'Electricity': 'text-yellow-700 dark:text-yellow-300 bg-yellow-100 dark:bg-yellow-900/50',
+  'Food Products': 'text-green-700 dark:text-green-300 bg-green-100 dark:bg-green-900/50',
+  'Construction Capacity': 'text-stone-700 dark:text-stone-300 bg-stone-100 dark:bg-stone-800',
+  'Pharmaceutical Products': 'text-rose-700 dark:text-rose-300 bg-rose-100 dark:bg-rose-900/50',
+  'Defense Equipment': 'text-red-700 dark:text-red-300 bg-red-100 dark:bg-red-900/50',
+  'Logistics Capacity': 'text-blue-700 dark:text-blue-300 bg-blue-100 dark:bg-blue-900/50',
 };
 
 // Unit economics for revenue calculation (must match backend)
@@ -794,40 +856,90 @@ export default function CorporationDetailPage() {
                                         </div>
                                       </div>
 
-                                      {/* Resource Demand & Production Output */}
-                                      <div className="flex items-center justify-between pt-3 border-t border-gray-100 dark:border-gray-700/50">
-                                        <div className="flex items-center gap-3">
-                                          {/* Resource Demand */}
-                                          <div className="flex items-center gap-2">
-                                            <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Resource:</span>
+                                      {/* Production Chain */}
+                                      <div className="pt-3 border-t border-gray-100 dark:border-gray-700/50 space-y-2">
+                                        {/* Resource Input → Product Output chain */}
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                          {/* Resource Input */}
+                                          <div className="flex items-center gap-1.5 group relative">
+                                            <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Input:</span>
                                             {requiredResource ? (
-                                              <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium ${RESOURCE_COLORS[requiredResource] || 'bg-gray-100 text-gray-700'}`}>
+                                              <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${RESOURCE_COLORS[requiredResource] || 'bg-gray-100 text-gray-700'}`}>
                                                 {RESOURCE_ICONS[requiredResource]}
                                                 {requiredResource}
+                                              </span>
+                                            ) : (
+                                              <span className="text-xs text-gray-400 dark:text-gray-500 italic px-2 py-1">None</span>
+                                            )}
+                                            {/* Tooltip */}
+                                            {requiredResource && entry.production_count > 0 && (
+                                              <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block z-10">
+                                                <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 whitespace-nowrap shadow-lg">
+                                                  <p className="font-medium">Resource Efficiency</p>
+                                                  <p className="text-gray-300">Requires {entry.production_count} {requiredResource} units</p>
+                                                  <p className="text-gray-400 mt-1">efficiency = min(1, available / required)</p>
+                                                </div>
+                                              </div>
+                                            )}
+                                          </div>
+
+                                          {/* Arrow */}
+                                          {(requiredResource || SECTOR_PRODUCTS[entry.sector_type]) && (
+                                            <ArrowRight className="w-4 h-4 text-gray-400 dark:text-gray-500" />
+                                          )}
+
+                                          {/* Product Output */}
+                                          <div className="flex items-center gap-1.5 group relative">
+                                            <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Produces:</span>
+                                            {SECTOR_PRODUCTS[entry.sector_type] ? (
+                                              <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${PRODUCT_COLORS[SECTOR_PRODUCTS[entry.sector_type]!] || 'bg-purple-100 text-purple-700'}`}>
+                                                {PRODUCT_ICONS[SECTOR_PRODUCTS[entry.sector_type]!] || <Box className="w-3 h-3" />}
+                                                {SECTOR_PRODUCTS[entry.sector_type]}
                                                 {entry.production_count > 0 && (
-                                                  <span className="text-xs opacity-75">
-                                                    ({entry.production_count} units)
-                                                  </span>
+                                                  <span className="opacity-75">×{entry.production_count}</span>
                                                 )}
                                               </span>
                                             ) : (
-                                              <span className="text-xs text-gray-400 dark:text-gray-500 italic">None</span>
+                                              <span className="text-xs text-gray-400 dark:text-gray-500 italic px-2 py-1">Service only</span>
+                                            )}
+                                            {/* Tooltip */}
+                                            {SECTOR_PRODUCTS[entry.sector_type] && entry.production_count > 0 && (
+                                              <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block z-10">
+                                                <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 whitespace-nowrap shadow-lg">
+                                                  <p className="font-medium">Product Output</p>
+                                                  <p className="text-gray-300">{entry.production_count} production units</p>
+                                                  <p className="text-gray-300">= {entry.production_count} {SECTOR_PRODUCTS[entry.sector_type]} per cycle</p>
+                                                </div>
+                                              </div>
                                             )}
                                           </div>
                                         </div>
 
-                                        {/* Production Output (Placeholder) */}
-                                        <div className="flex items-center gap-2">
-                                          <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Output:</span>
-                                          <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300">
-                                            <Box className="w-3 h-3" />
-                                            {entry.production_count > 0 ? (
-                                              <>{entry.sector_type} Products</>
-                                            ) : (
-                                              <span className="italic opacity-75">No production</span>
-                                            )}
-                                          </span>
-                                        </div>
+                                        {/* Product Demands (if sector consumes products) */}
+                                        {SECTOR_PRODUCT_DEMANDS[entry.sector_type] && (
+                                          <div className="flex items-center gap-1.5 group relative">
+                                            <span className="text-xs font-medium text-orange-600 dark:text-orange-400">Needs:</span>
+                                            <div className="flex items-center gap-1 flex-wrap">
+                                              {SECTOR_PRODUCT_DEMANDS[entry.sector_type]!.map((product) => (
+                                                <span 
+                                                  key={product}
+                                                  className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${PRODUCT_COLORS[product] || 'bg-orange-100 text-orange-700'}`}
+                                                >
+                                                  {PRODUCT_ICONS[product] || <Box className="w-3 h-3" />}
+                                                  {product}
+                                                </span>
+                                              ))}
+                                            </div>
+                                            {/* Tooltip */}
+                                            <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block z-10">
+                                              <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 whitespace-nowrap shadow-lg">
+                                                <p className="font-medium">Product Demand</p>
+                                                <p className="text-gray-300">Requires {entry.production_count} product units from national pool</p>
+                                                <p className="text-gray-400 mt-1">efficiency = min(1, supply / demand)</p>
+                                              </div>
+                                            </div>
+                                          </div>
+                                        )}
                                       </div>
                                     </div>
                                   );
@@ -841,8 +953,8 @@ export default function CorporationDetailPage() {
                       {/* Resource Demand Summary */}
                       <div className="rounded-xl border border-white/60 bg-white/70 dark:border-gray-800/70 dark:bg-gray-800/60 p-6 shadow-sm mt-6">
                         <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                          <Package className="w-5 h-5 text-corporate-blue" />
-                          Total Resource Demand
+                          <Droplets className="w-5 h-5 text-amber-600" />
+                          Resource Inputs Required
                         </h3>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                           {(() => {
@@ -876,6 +988,97 @@ export default function CorporationDetailPage() {
                                 </div>
                                 <p className="text-2xl font-bold">{demand}</p>
                                 <p className="text-xs opacity-75">units required</p>
+                              </div>
+                            ));
+                          })()}
+                        </div>
+                      </div>
+
+                      {/* Product Output Summary */}
+                      <div className="rounded-xl border border-white/60 bg-white/70 dark:border-gray-800/70 dark:bg-gray-800/60 p-6 shadow-sm mt-6">
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                          <Box className="w-5 h-5 text-emerald-600" />
+                          Product Output
+                        </h3>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                          {(() => {
+                            // Calculate total product output across all market entries
+                            const productOutput: Record<string, number> = {};
+                            marketEntries.forEach(entry => {
+                              const product = SECTOR_PRODUCTS[entry.sector_type];
+                              if (product && entry.production_count > 0) {
+                                productOutput[product] = (productOutput[product] || 0) + entry.production_count;
+                              }
+                            });
+
+                            if (Object.keys(productOutput).length === 0) {
+                              return (
+                                <div className="col-span-full text-center py-4">
+                                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                                    No production units creating products
+                                  </p>
+                                </div>
+                              );
+                            }
+
+                            return Object.entries(productOutput).map(([product, output]) => (
+                              <div 
+                                key={product} 
+                                className={`rounded-lg p-4 ${PRODUCT_COLORS[product] || 'bg-gray-100 dark:bg-gray-800'}`}
+                              >
+                                <div className="flex items-center gap-2 mb-2">
+                                  {PRODUCT_ICONS[product]}
+                                  <span className="font-medium text-sm">{product}</span>
+                                </div>
+                                <p className="text-2xl font-bold">{output}</p>
+                                <p className="text-xs opacity-75">units produced</p>
+                              </div>
+                            ));
+                          })()}
+                        </div>
+                      </div>
+
+                      {/* Product Demand Summary */}
+                      <div className="rounded-xl border border-white/60 bg-white/70 dark:border-gray-800/70 dark:bg-gray-800/60 p-6 shadow-sm mt-6">
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                          <Package className="w-5 h-5 text-orange-600" />
+                          Product Inputs Required
+                          <span className="text-xs font-normal text-gray-500 dark:text-gray-400 ml-2">(from national pool)</span>
+                        </h3>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                          {(() => {
+                            // Calculate total product demand across all market entries
+                            const productDemand: Record<string, number> = {};
+                            marketEntries.forEach(entry => {
+                              const demands = SECTOR_PRODUCT_DEMANDS[entry.sector_type];
+                              if (demands && entry.production_count > 0) {
+                                demands.forEach(product => {
+                                  productDemand[product] = (productDemand[product] || 0) + entry.production_count;
+                                });
+                              }
+                            });
+
+                            if (Object.keys(productDemand).length === 0) {
+                              return (
+                                <div className="col-span-full text-center py-4">
+                                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                                    No production units requiring products
+                                  </p>
+                                </div>
+                              );
+                            }
+
+                            return Object.entries(productDemand).map(([product, demand]) => (
+                              <div 
+                                key={product} 
+                                className={`rounded-lg p-4 ${PRODUCT_COLORS[product] || 'bg-gray-100 dark:bg-gray-800'}`}
+                              >
+                                <div className="flex items-center gap-2 mb-2">
+                                  {PRODUCT_ICONS[product]}
+                                  <span className="font-medium text-sm">{product}</span>
+                                </div>
+                                <p className="text-2xl font-bold">{demand}</p>
+                                <p className="text-xs opacity-75">units needed</p>
                               </div>
                             ));
                           })()}

@@ -826,3 +826,388 @@ export function getStateResourceBreakdown(stateCode: string): {
   };
 }
 
+// ============================================================================
+// MANUFACTURED PRODUCTS SYSTEM
+// Products are created by production units and consumed by other sectors
+// ============================================================================
+
+// Product types that production units can create
+export const PRODUCTS = [
+  'Technology Products',
+  'Manufactured Goods',
+  'Electricity',
+  'Food Products',
+  'Construction Capacity',
+  'Pharmaceutical Products',
+  'Defense Equipment',
+  'Logistics Capacity',
+] as const;
+
+export type Product = typeof PRODUCTS[number];
+
+// What each sector's production units produce (null = doesn't produce products)
+export const SECTOR_PRODUCTS: Record<Sector, Product | null> = {
+  'Technology': 'Technology Products',
+  'Finance': null,                    // Service sector
+  'Healthcare': null,                 // Service sector (consumes pharma)
+  'Manufacturing': 'Manufactured Goods',
+  'Energy': 'Electricity',
+  'Retail': null,                     // Service sector (sells goods)
+  'Real Estate': null,                // Service sector (uses construction)
+  'Transportation': 'Logistics Capacity',
+  'Media': null,                      // Service sector
+  'Telecommunications': null,         // Service sector
+  'Agriculture': 'Food Products',
+  'Defense': 'Defense Equipment',
+  'Hospitality': null,                // Service sector
+  'Construction': 'Construction Capacity',
+  'Pharmaceuticals': 'Pharmaceutical Products',
+};
+
+// What each sector's production units demand (products they need to operate)
+// null = no product demand, array = can demand multiple products
+export const SECTOR_PRODUCT_DEMANDS: Record<Sector, Product[] | null> = {
+  'Technology': null,                              // Produces, doesn't consume products
+  'Finance': ['Technology Products'],              // Trading systems, software
+  'Healthcare': ['Pharmaceutical Products'],       // Medicine
+  'Manufacturing': null,                           // Produces, doesn't consume products
+  'Energy': null,                                  // Produces, doesn't consume products
+  'Retail': ['Manufactured Goods'],                // Sells manufactured goods
+  'Real Estate': ['Construction Capacity'],        // Needs construction for development
+  'Transportation': null,                          // Produces logistics
+  'Media': ['Technology Products'],                // Broadcasting equipment, software
+  'Telecommunications': ['Technology Products'],   // Network equipment
+  'Agriculture': null,                             // Produces, doesn't consume products
+  'Defense': null,                                 // Produces, doesn't consume products
+  'Hospitality': ['Food Products'],                // Restaurants, hotels
+  'Construction': null,                            // Produces, doesn't consume products
+  'Pharmaceuticals': null,                         // Produces, doesn't consume products
+};
+
+// Get what product a sector produces
+export function getSectorProduct(sector: Sector): Product | null {
+  return SECTOR_PRODUCTS[sector];
+}
+
+// Get what products a sector demands
+export function getSectorProductDemands(sector: Sector): Product[] | null {
+  return SECTOR_PRODUCT_DEMANDS[sector];
+}
+
+// Check if a sector produces products
+export function sectorProducesProduct(sector: string): boolean {
+  if (!isValidSector(sector)) return false;
+  return SECTOR_PRODUCTS[sector] !== null;
+}
+
+// Check if a sector demands products
+export function sectorDemandsProducts(sector: string): boolean {
+  if (!isValidSector(sector)) return false;
+  const demands = SECTOR_PRODUCT_DEMANDS[sector];
+  return demands !== null && demands.length > 0;
+}
+
+// Get all sectors that produce a specific product
+export function getSectorsProducingProduct(product: Product): Sector[] {
+  const sectors: Sector[] = [];
+  for (const [sector, produced] of Object.entries(SECTOR_PRODUCTS)) {
+    if (produced === product) {
+      sectors.push(sector as Sector);
+    }
+  }
+  return sectors;
+}
+
+// Get all sectors that demand a specific product
+export function getSectorsDemandingProduct(product: Product): Sector[] {
+  const sectors: Sector[] = [];
+  for (const [sector, demands] of Object.entries(SECTOR_PRODUCT_DEMANDS)) {
+    if (demands && demands.includes(product)) {
+      sectors.push(sector as Sector);
+    }
+  }
+  return sectors;
+}
+
+// ============================================================================
+// PRODUCT PRICING
+// Price based on scarcity (supply vs demand) with low floor
+// Supply = total production units in producing sectors
+// Demand = total production units in demanding sectors
+// ============================================================================
+
+// Minimum price floor for products (very low)
+export const PRODUCT_MIN_PRICE = 10;
+
+// Base value per unit for price calculation (used as reference)
+const PRODUCT_REFERENCE_VALUES: Record<Product, number> = {
+  'Technology Products': 5000,
+  'Manufactured Goods': 1500,
+  'Electricity': 200,
+  'Food Products': 500,
+  'Construction Capacity': 2500,
+  'Pharmaceutical Products': 8000,
+  'Defense Equipment': 15000,
+  'Logistics Capacity': 1000,
+};
+
+export interface ProductMarketData {
+  product: Product;
+  supply: number;              // Total production units creating this product
+  demand: number;              // Total production units needing this product
+  currentPrice: number;        // Calculated price based on scarcity
+  scarcityFactor: number;      // demand/supply ratio
+  referenceValue: number;      // Base reference value
+  producingSectors: Sector[];
+  demandingSectors: Sector[];
+}
+
+/**
+ * Calculate product price based on supply and demand
+ * This is a static calculation - actual supply/demand comes from database
+ * 
+ * @param product - The product type
+ * @param totalSupply - Total production units in sectors that produce this product
+ * @param totalDemand - Total production units in sectors that demand this product
+ */
+export function calculateProductPrice(
+  product: Product,
+  totalSupply: number,
+  totalDemand: number
+): ProductMarketData {
+  const referenceValue = PRODUCT_REFERENCE_VALUES[product];
+  const producingSectors = getSectorsProducingProduct(product);
+  const demandingSectors = getSectorsDemandingProduct(product);
+  
+  // Calculate scarcity factor
+  // If supply is 0, max scarcity. If demand is 0, min scarcity.
+  let scarcityFactor: number;
+  if (totalSupply === 0) {
+    scarcityFactor = totalDemand > 0 ? 3.0 : 1.0; // Max scarcity if demand exists
+  } else if (totalDemand === 0) {
+    scarcityFactor = 0.1; // Very low if no demand
+  } else {
+    // Scarcity = demand / supply, clamped between 0.1 and 3.0
+    scarcityFactor = Math.min(3.0, Math.max(0.1, totalDemand / totalSupply));
+  }
+  
+  // Calculate price: referenceValue * scarcityFactor
+  let currentPrice = Math.round(referenceValue * scarcityFactor * 100) / 100;
+  
+  // Apply minimum floor
+  currentPrice = Math.max(PRODUCT_MIN_PRICE, currentPrice);
+  
+  return {
+    product,
+    supply: totalSupply,
+    demand: totalDemand,
+    currentPrice,
+    scarcityFactor,
+    referenceValue,
+    producingSectors,
+    demandingSectors,
+  };
+}
+
+// ============================================================================
+// PRODUCT EFFICIENCY CALCULATION
+// Same formula as resources: efficiency = min(1, available / required)
+// ============================================================================
+
+export interface ProductEfficiencyResult {
+  efficiency: number;           // 0.0 to 1.0
+  availableProducts: number;    // How many product units available (national supply)
+  requiredProducts: number;     // How many product units needed (production unit count)
+  productType: Product | null;  // The product type required (null if sector needs none)
+  products: Product[];          // All products this sector demands
+  hasShortage: boolean;         // True if efficiency < 1.0
+  shortageDetails: Array<{
+    product: Product;
+    available: number;
+    required: number;
+    efficiency: number;
+  }>;
+}
+
+/**
+ * Calculate product efficiency for a sector
+ * For sectors that demand multiple products, efficiency is the minimum across all
+ * 
+ * @param sector - The sector type
+ * @param productionUnitCount - Number of production units operating
+ * @param productSupplies - Map of product -> total national supply
+ * @returns Efficiency calculation result
+ */
+export function calculateProductEfficiency(
+  sector: string,
+  productionUnitCount: number,
+  productSupplies: Record<Product, number>
+): ProductEfficiencyResult {
+  // If sector doesn't demand products, always 100% efficient
+  if (!isValidSector(sector)) {
+    return {
+      efficiency: 1.0,
+      availableProducts: 0,
+      requiredProducts: 0,
+      productType: null,
+      products: [],
+      hasShortage: false,
+      shortageDetails: [],
+    };
+  }
+
+  const demandedProducts = SECTOR_PRODUCT_DEMANDS[sector];
+  
+  // Sectors without product requirements are always efficient
+  if (demandedProducts === null || demandedProducts.length === 0) {
+    return {
+      efficiency: 1.0,
+      availableProducts: 0,
+      requiredProducts: 0,
+      productType: null,
+      products: [],
+      hasShortage: false,
+      shortageDetails: [],
+    };
+  }
+
+  // No production units = no requirements = 100% efficient
+  if (productionUnitCount <= 0) {
+    return {
+      efficiency: 1.0,
+      availableProducts: 0,
+      requiredProducts: 0,
+      productType: demandedProducts[0],
+      products: demandedProducts,
+      hasShortage: false,
+      shortageDetails: [],
+    };
+  }
+
+  // Calculate efficiency for each demanded product
+  const shortageDetails: Array<{
+    product: Product;
+    available: number;
+    required: number;
+    efficiency: number;
+  }> = [];
+  
+  let minEfficiency = 1.0;
+  let totalAvailable = 0;
+  const requiredProducts = productionUnitCount; // 1 product unit per production unit
+  
+  for (const product of demandedProducts) {
+    const available = productSupplies[product] || 0;
+    const productEfficiency = Math.min(1.0, available / requiredProducts);
+    
+    shortageDetails.push({
+      product,
+      available,
+      required: requiredProducts,
+      efficiency: productEfficiency,
+    });
+    
+    if (productEfficiency < minEfficiency) {
+      minEfficiency = productEfficiency;
+    }
+    totalAvailable += available;
+  }
+  
+  return {
+    efficiency: minEfficiency,
+    availableProducts: totalAvailable,
+    requiredProducts,
+    productType: demandedProducts[0], // Primary product
+    products: demandedProducts,
+    hasShortage: minEfficiency < 1.0,
+    shortageDetails,
+  };
+}
+
+/**
+ * Get combined efficiency considering both resources AND products
+ * Final efficiency = resourceEfficiency * productEfficiency
+ * 
+ * @param stateCode - The US state code
+ * @param sector - The sector type
+ * @param productionUnitCount - Number of production units
+ * @param productSupplies - Map of product -> total national supply
+ */
+export function getCombinedEfficiency(
+  stateCode: string,
+  sector: string,
+  productionUnitCount: number,
+  productSupplies: Record<Product, number>
+): {
+  resourceEfficiency: number;
+  productEfficiency: number;
+  combinedEfficiency: number;
+  resourceType: Resource | null;
+  productTypes: Product[];
+} {
+  const resourceResult = calculateResourceEfficiency(stateCode, sector, productionUnitCount);
+  const productResult = calculateProductEfficiency(sector, productionUnitCount, productSupplies);
+  
+  return {
+    resourceEfficiency: resourceResult.efficiency,
+    productEfficiency: productResult.efficiency,
+    combinedEfficiency: resourceResult.efficiency * productResult.efficiency,
+    resourceType: resourceResult.resourceType,
+    productTypes: productResult.products,
+  };
+}
+
+// ============================================================================
+// PRODUCT INFO HELPERS
+// ============================================================================
+
+// Get product info for display
+export function getProductInfo(product: Product): {
+  name: Product;
+  referenceValue: number;
+  producingSectors: Sector[];
+  demandingSectors: Sector[];
+  inputResource: Resource | null;
+} {
+  const producingSectors = getSectorsProducingProduct(product);
+  const demandingSectors = getSectorsDemandingProduct(product);
+  
+  // Find what resource is needed to produce this product
+  let inputResource: Resource | null = null;
+  for (const sector of producingSectors) {
+    const resource = SECTOR_RESOURCES[sector];
+    if (resource) {
+      inputResource = resource;
+      break;
+    }
+  }
+  
+  return {
+    name: product,
+    referenceValue: PRODUCT_REFERENCE_VALUES[product],
+    producingSectors,
+    demandingSectors,
+    inputResource,
+  };
+}
+
+// Get all products with their info
+export function getAllProductsInfo(): Array<ReturnType<typeof getProductInfo>> {
+  return PRODUCTS.map(product => getProductInfo(product));
+}
+
+// Get the full production chain for a sector
+export function getSectorProductionChain(sector: Sector): {
+  sector: Sector;
+  consumesResource: Resource | null;
+  producesProduct: Product | null;
+  consumesProducts: Product[] | null;
+} {
+  return {
+    sector,
+    consumesResource: SECTOR_RESOURCES[sector],
+    producesProduct: SECTOR_PRODUCTS[sector],
+    consumesProducts: SECTOR_PRODUCT_DEMANDS[sector],
+  };
+}
+
