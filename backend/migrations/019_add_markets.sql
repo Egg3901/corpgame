@@ -98,3 +98,4 @@ INSERT INTO state_metadata (state_code, name, region, population_multiplier) VAL
     ('DE', 'Delaware', 'Northeast', 1.00)
 ON CONFLICT (state_code) DO NOTHING;
 
+

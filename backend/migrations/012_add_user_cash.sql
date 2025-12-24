@@ -5,3 +5,4 @@ ADD COLUMN IF NOT EXISTS cash DECIMAL(15,2) NOT NULL DEFAULT 500000.00 CHECK (ca
 -- Create index for faster lookups
 CREATE INDEX IF NOT EXISTS idx_users_cash ON users(cash);
 
+

@@ -10,3 +10,4 @@ UPDATE users
 SET last_seen_at = last_login_at 
 WHERE last_seen_at IS NULL AND last_login_at IS NOT NULL;
 
+

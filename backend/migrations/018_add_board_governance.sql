@@ -36,3 +36,4 @@ CREATE INDEX IF NOT EXISTS idx_proposals_expires ON board_proposals(expires_at);
 CREATE INDEX IF NOT EXISTS idx_votes_proposal ON board_votes(proposal_id);
 CREATE INDEX IF NOT EXISTS idx_votes_voter ON board_votes(voter_id);
 
+

@@ -11,3 +11,4 @@ COMMENT ON COLUMN corporations.dividend_percentage IS 'Percentage of total profi
 COMMENT ON COLUMN corporations.special_dividend_last_paid_at IS 'Timestamp of last special dividend payment';
 COMMENT ON COLUMN corporations.special_dividend_last_amount IS 'Total amount of last special dividend paid';
 
+

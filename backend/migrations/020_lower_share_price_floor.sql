@@ -13,3 +13,4 @@ ALTER TABLE share_transactions DROP CONSTRAINT IF EXISTS share_transactions_shar
 -- Add new constraint with $0.01 minimum for transactions
 ALTER TABLE share_transactions ADD CONSTRAINT share_transactions_share_price_check CHECK (price_per_share >= 0.01);
 
+

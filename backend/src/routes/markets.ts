@@ -236,24 +236,17 @@ router.get('/resource/:name', async (req: Request, res: Response) => {
         me.sector_type,
         me.state_code,
         sm.name as state_name,
-        COALESCE(SUM(bu.count), 0)::int as production_units,
-        sr.amount as state_resource_amount
+        COALESCE(SUM(bu.count), 0)::int as production_units
       FROM corporations c
       JOIN market_entries me ON c.id = me.corporation_id
       LEFT JOIN business_units bu ON me.id = bu.market_entry_id AND bu.unit_type = 'production'
       LEFT JOIN state_metadata sm ON me.state_code = sm.state_code
-      LEFT JOIN (
-        SELECT state_code, $1 as resource_name, 
-               COALESCE((state_resources->$1)::int, 0) as amount
-        FROM state_metadata
-        WHERE state_resources ? $1
-      ) sr ON me.state_code = sr.state_code
-      WHERE me.sector_type = ANY($2::text[])
-      GROUP BY c.id, c.name, c.logo, me.sector_type, me.state_code, sm.name, sr.amount
+      WHERE me.sector_type = ANY($1::text[])
+      GROUP BY c.id, c.name, c.logo, me.sector_type, me.state_code, sm.name
       HAVING COALESCE(SUM(bu.count), 0) > 0
       ORDER BY production_units DESC
-      LIMIT $3 OFFSET $4
-    `, [resourceName, demandingSectors, limit, offset]);
+      LIMIT $2 OFFSET $3
+    `, [demandingSectors, limit, offset]);
     
     // Get total count for pagination
     const countQuery = await pool.query(`

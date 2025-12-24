@@ -5,6 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import AppNavigation from '@/components/AppNavigation';
 import { corporationAPI, CorporationResponse, authAPI, sharesAPI, marketsAPI, CorporationFinances, MarketEntryWithUnits, BalanceSheet, CommodityPrice, ProductMarketData } from '@/lib/api';
+import { formatCash } from '@/lib/utils';
 import { Building2, Edit, Trash2, TrendingUp, DollarSign, Users, User, Calendar, ArrowUp, ArrowDown, TrendingDown, Plus, BarChart3, MapPin, Store, Factory, Briefcase, Layers, Droplets, Package, Cpu, Zap, Wheat, Trees, FlaskConical, Box, Lightbulb, Pill, Wrench, Truck, Shield, UtensilsCrossed, Info, ArrowRight, Pickaxe, HelpCircle } from 'lucide-react';
 import BoardTab from '@/components/BoardTab';
 import StockPriceChart from '@/components/StockPriceChart';
@@ -794,7 +795,7 @@ export default function CorporationDetailPage() {
                       Market Cap
                     </div>
                     <p className="text-3xl font-bold text-corporate-blue dark:text-corporate-blue-light font-mono">
-                      {formatCurrency(marketCap)}
+                      {formatCash(marketCap)}
                     </p>
                   </div>
                   <div className="relative rounded-xl border border-white/60 bg-white/70 dark:border-gray-800/70 dark:bg-gray-800/60 p-5 shadow-sm hover:shadow-md transition-shadow">
@@ -815,7 +816,7 @@ export default function CorporationDetailPage() {
                       Corporate Capital
                     </div>
                     <p className="text-3xl font-bold text-emerald-600 dark:text-emerald-400 font-mono">
-                      {formatCurrency(corporation.capital || 500000)}
+                      {formatCash(balanceSheet?.cash ?? corporation.capital ?? 0)}
                     </p>
                   </div>
                 </div>
@@ -1835,13 +1836,13 @@ export default function CorporationDetailPage() {
                           <div>
                             <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Current Capital</p>
                             <p className="text-2xl font-bold text-gray-900 dark:text-white font-mono">
-                              {formatCurrency(corporation.capital || 500000)}
+                              {formatCash(balanceSheet?.cash ?? corporation.capital ?? 0)}
                             </p>
                           </div>
                           <div>
                             <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Market Cap</p>
                             <p className="text-2xl font-bold text-corporate-blue dark:text-corporate-blue-light font-mono">
-                              {formatCurrency(marketCap)}
+                              {formatCash(marketCap)}
                             </p>
                           </div>
                         </div>
@@ -1876,7 +1877,7 @@ export default function CorporationDetailPage() {
                         <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700">
                           <span className="text-sm text-gray-600 dark:text-gray-400">Cash (Corporate Capital)</span>
                           <span className="text-sm font-semibold text-gray-900 dark:text-white font-mono">
-                            {formatCurrency(balanceSheet?.cash || corporation.capital || 0)}
+                            {formatCash(balanceSheet?.cash ?? corporation.capital ?? 0)}
                           </span>
                         </div>
                         <div className="py-2 border-b border-gray-200 dark:border-gray-700">
