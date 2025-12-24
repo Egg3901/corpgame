@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import AppNavigation from '@/components/AppNavigation';
-import { corporationAPI, CorporationResponse, authAPI, sharesAPI, marketsAPI, CorporationFinances, MarketEntryWithUnits, BalanceSheet } from '@/lib/api';
+import { corporationAPI, CorporationResponse, authAPI, sharesAPI, marketsAPI, CorporationFinances, MarketEntryWithUnits, BalanceSheet, CommodityPrice, ProductMarketData } from '@/lib/api';
 import { Building2, Edit, Trash2, TrendingUp, DollarSign, Users, User, Calendar, ArrowUp, ArrowDown, TrendingDown, Plus, BarChart3, MapPin, Store, Factory, Briefcase, Layers, Droplets, Package, Cpu, Zap, Wheat, Trees, FlaskConical, Box, Lightbulb, Pill, Wrench, Truck, Shield, UtensilsCrossed, Info, ArrowRight, Pickaxe, HelpCircle } from 'lucide-react';
 import BoardTab from '@/components/BoardTab';
 import StockPriceChart from '@/components/StockPriceChart';
@@ -147,6 +147,24 @@ const sectorCanExtract = (sector: string): boolean => {
   return resources !== null && resources.length > 0;
 };
 
+// Base product prices (must match backend PRODUCT_REFERENCE_VALUES)
+const PRODUCT_BASE_PRICES: Record<string, number> = {
+  'Technology Products': 5000,
+  'Manufactured Goods': 1500,
+  'Electricity': 200,
+  'Food Products': 500,
+  'Construction Capacity': 2500,
+  'Pharmaceutical Products': 8000,
+  'Defense Equipment': 15000,
+  'Logistics Capacity': 1000,
+};
+
+// Production unit constants (must match backend)
+const PRODUCTION_LABOR_COST = 400; // per hour
+const PRODUCTION_RESOURCE_CONSUMPTION = 0.5; // units per hour
+const PRODUCTION_OUTPUT_RATE = 1.0; // product units per hour
+const DISPLAY_PERIOD_HOURS = 96;
+
 // US States for display
 const US_STATES: Record<string, string> = {
   'AL': 'Alabama', 'AK': 'Alaska', 'AZ': 'Arizona', 'AR': 'Arkansas',
@@ -183,14 +201,17 @@ export default function CorporationDetailPage() {
   const [corpFinances, setCorpFinances] = useState<CorporationFinances | null>(null);
   const [balanceSheet, setBalanceSheet] = useState<BalanceSheet | null>(null);
   const [marketEntries, setMarketEntries] = useState<MarketEntryWithUnits[]>([]);
+  const [commodityPrices, setCommodityPrices] = useState<Record<string, CommodityPrice>>({});
+  const [productPrices, setProductPrices] = useState<Record<string, ProductMarketData>>({});
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [corpData, userData, financesData] = await Promise.all([
+        const [corpData, userData, financesData, commoditiesData] = await Promise.all([
           corporationAPI.getById(corpId),
           authAPI.getMe().catch(() => null),
           marketsAPI.getCorporationFinances(corpId).catch(() => null),
+          marketsAPI.getCommodities().catch(() => null),
         ]);
         setCorporation(corpData);
         if (userData) {
@@ -203,6 +224,21 @@ export default function CorporationDetailPage() {
           setCorpFinances(financesData.finances);
           setBalanceSheet(financesData.balance_sheet || null);
           setMarketEntries(financesData.market_entries || []);
+        }
+        if (commoditiesData) {
+          // Create a lookup map by resource name
+          const pricesMap: Record<string, CommodityPrice> = {};
+          commoditiesData.commodities.forEach(price => {
+            pricesMap[price.resource] = price;
+          });
+          setCommodityPrices(pricesMap);
+          
+          // Create a lookup map by product name
+          const productMap: Record<string, ProductMarketData> = {};
+          commoditiesData.products.forEach(product => {
+            productMap[product.product] = product;
+          });
+          setProductPrices(productMap);
         }
       } catch (err: any) {
         console.error('Failed to fetch corporation:', err);
@@ -1079,13 +1115,35 @@ export default function CorporationDetailPage() {
                                             ) : (
                                               <span className="text-xs text-gray-400 dark:text-gray-500 italic px-2 py-1">None</span>
                                             )}
-                                            {/* Tooltip */}
+                                            {/* Tooltip - Detailed Cost Breakdown */}
                                             {requiredResource && entry.production_count > 0 && (
-                                              <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block z-10">
-                                                <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 whitespace-nowrap shadow-lg">
-                                                  <p className="font-medium">Resource Efficiency</p>
-                                                  <p className="text-gray-300">Requires {entry.production_count} {requiredResource} units</p>
-                                                  <p className="text-gray-400 mt-1">efficiency = min(1, available / required)</p>
+                                              <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block z-[9999] pointer-events-none">
+                                                <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 shadow-xl max-w-xs">
+                                                  <p className="font-medium mb-2">Production Unit Costs</p>
+                                                  <div className="space-y-1.5 text-gray-300">
+                                                    {commodityPrices[requiredResource] ? (
+                                                      <>
+                                                        <div className="flex justify-between">
+                                                          <span>Labor:</span>
+                                                          <span className="font-mono">${(PRODUCTION_LABOR_COST * DISPLAY_PERIOD_HOURS).toLocaleString()}/96hr</span>
+                                                        </div>
+                                                        <div className="flex justify-between">
+                                                          <span>{requiredResource} ({commodityPrices[requiredResource].currentPrice.toLocaleString()}/unit):</span>
+                                                          <span className="font-mono">${(PRODUCTION_RESOURCE_CONSUMPTION * commodityPrices[requiredResource].currentPrice * DISPLAY_PERIOD_HOURS).toLocaleString()}/96hr</span>
+                                                        </div>
+                                                        <div className="border-t border-gray-700 pt-1 mt-1 flex justify-between font-semibold">
+                                                          <span>Total per unit:</span>
+                                                          <span className="font-mono">${((PRODUCTION_LABOR_COST + PRODUCTION_RESOURCE_CONSUMPTION * commodityPrices[requiredResource].currentPrice) * DISPLAY_PERIOD_HOURS).toLocaleString()}/96hr</span>
+                                                        </div>
+                                                        <div className="border-t border-gray-700 pt-1 mt-1 flex justify-between font-semibold text-red-300">
+                                                          <span>Total ({entry.production_count} units):</span>
+                                                          <span className="font-mono">${((PRODUCTION_LABOR_COST + PRODUCTION_RESOURCE_CONSUMPTION * commodityPrices[requiredResource].currentPrice) * DISPLAY_PERIOD_HOURS * entry.production_count).toLocaleString()}/96hr</span>
+                                                        </div>
+                                                      </>
+                                                    ) : (
+                                                      <p className="text-gray-400">Loading commodity prices...</p>
+                                                    )}
+                                                  </div>
                                                 </div>
                                               </div>
                                             )}
@@ -1110,13 +1168,46 @@ export default function CorporationDetailPage() {
                                             ) : (
                                               <span className="text-xs text-gray-400 dark:text-gray-500 italic px-2 py-1">Service only</span>
                                             )}
-                                            {/* Tooltip */}
+                                            {/* Tooltip - Revenue Breakdown */}
                                             {SECTOR_PRODUCTS[entry.sector_type] && entry.production_count > 0 && (
-                                              <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block z-10">
-                                                <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 whitespace-nowrap shadow-lg">
-                                                  <p className="font-medium">Product Output</p>
-                                                  <p className="text-gray-300">{entry.production_count} production units</p>
-                                                  <p className="text-gray-300">= {entry.production_count} {SECTOR_PRODUCTS[entry.sector_type]} per cycle</p>
+                                              <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block z-[9999] pointer-events-none">
+                                                <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 shadow-xl max-w-xs">
+                                                  <p className="font-medium mb-2">Production Unit Revenue</p>
+                                                  <div className="space-y-1.5 text-gray-300">
+                                                    {(() => {
+                                                      const productName = SECTOR_PRODUCTS[entry.sector_type]!;
+                                                      const basePrice = PRODUCT_BASE_PRICES[productName] || 0;
+                                                      const marketPrice = productPrices[productName]?.currentPrice;
+                                                      return basePrice > 0 ? (
+                                                        <>
+                                                          <div className="flex justify-between">
+                                                            <span>Output rate:</span>
+                                                            <span className="font-mono">{PRODUCTION_OUTPUT_RATE} units/hr</span>
+                                                          </div>
+                                                          <div className="flex justify-between">
+                                                            <span>Base price (used):</span>
+                                                            <span className="font-mono">${basePrice.toLocaleString()}/unit</span>
+                                                          </div>
+                                                          {marketPrice && (
+                                                            <div className="flex justify-between text-gray-400">
+                                                              <span>Market price:</span>
+                                                              <span className="font-mono">${marketPrice.toLocaleString()}/unit</span>
+                                                            </div>
+                                                          )}
+                                                          <div className="border-t border-gray-700 pt-1 mt-1 flex justify-between font-semibold">
+                                                            <span>Revenue per unit:</span>
+                                                            <span className="font-mono text-emerald-300">${(basePrice * PRODUCTION_OUTPUT_RATE * DISPLAY_PERIOD_HOURS).toLocaleString()}/96hr</span>
+                                                          </div>
+                                                          <div className="border-t border-gray-700 pt-1 mt-1 flex justify-between font-semibold text-emerald-300">
+                                                            <span>Total ({entry.production_count} units):</span>
+                                                            <span className="font-mono">${(basePrice * PRODUCTION_OUTPUT_RATE * DISPLAY_PERIOD_HOURS * entry.production_count).toLocaleString()}/96hr</span>
+                                                          </div>
+                                                        </>
+                                                      ) : (
+                                                        <p className="text-gray-400">Loading product data...</p>
+                                                      );
+                                                    })()}
+                                                  </div>
                                                 </div>
                                               </div>
                                             )}
