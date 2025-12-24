@@ -163,7 +163,6 @@ const PRODUCT_BASE_PRICES: Record<string, number> = {
 const PRODUCTION_LABOR_COST = 400; // per hour
 const PRODUCTION_RESOURCE_CONSUMPTION = 0.5; // units per hour
 const PRODUCTION_OUTPUT_RATE = 1.0; // product units per hour
-const DISPLAY_PERIOD_HOURS = 96;
 
 // US States for display
 const US_STATES: Record<string, string> = {
