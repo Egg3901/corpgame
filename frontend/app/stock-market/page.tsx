@@ -59,6 +59,8 @@ export default function StockMarketPage() {
   const [corporations, setCorporations] = useState<CorporationResponse[]>([]);
   const [commodities, setCommodities] = useState<CommodityPrice[]>([]);
   const [products, setProducts] = useState<ProductMarketData[]>([]);
+  const [commoditySupply, setCommoditySupply] = useState<Record<string, number>>({});
+  const [commodityDemand, setCommodityDemand] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [commoditiesLoading, setCommoditiesLoading] = useState(false);
   const [activeSubTab, setActiveSubTab] = useState<'resources' | 'products'>('resources');
@@ -91,6 +93,8 @@ export default function StockMarketPage() {
           const data = await marketsAPI.getCommodities();
           setCommodities(data.commodities);
           setProducts(data.products);
+          setCommoditySupply(data.commodity_supply || {});
+          setCommodityDemand(data.commodity_demand || {});
         } catch (err) {
           console.error('Failed to fetch commodities:', err);
         } finally {
@@ -582,11 +586,19 @@ export default function StockMarketPage() {
                           </div>
 
                           {/* Supply info */}
-                          <div className="flex items-center justify-between text-sm">
-                            <span className="text-gray-500 dark:text-gray-400">Total Supply</span>
-                            <span className="font-mono text-gray-700 dark:text-gray-300">
-                              {formatCompactNumber(commodity.totalSupply)} units
-                            </span>
+                          <div className="grid grid-cols-2 gap-2 text-sm">
+                            <div className="flex flex-col">
+                              <span className="text-gray-500 dark:text-gray-400 text-xs mb-0.5">Supply</span>
+                              <span className="font-mono text-emerald-600 dark:text-emerald-400 font-medium">
+                                {formatCompactNumber(commoditySupply[commodity.resource] || 0)}
+                              </span>
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-gray-500 dark:text-gray-400 text-xs mb-0.5">Demand</span>
+                              <span className="font-mono text-orange-600 dark:text-orange-400 font-medium">
+                                {formatCompactNumber(commodityDemand[commodity.resource] || 0)}
+                              </span>
+                            </div>
                           </div>
 
                           {/* Scarcity indicator */}

@@ -1082,6 +1082,8 @@ export interface CommoditiesResponse {
   sector_resources: Record<string, string | null>;
   sector_products: Record<string, string | null>;
   sector_product_demands: Record<string, string[] | null>;
+  commodity_supply: Record<string, number>;
+  commodity_demand: Record<string, number>;
   product_supply: Record<string, number>;
   product_demand: Record<string, number>;
 }
