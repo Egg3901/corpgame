@@ -5,6 +5,7 @@ import { BoardProposalModel, BoardVoteModel, BoardModel } from '../models/BoardP
 import { MessageModel } from '../models/Message';
 import { MarketEntryModel } from '../models/MarketEntry';
 import { TransactionModel } from '../models/Transaction';
+import { ShareholderModel } from '../models/Shareholder';
 import { updateStockPrice } from '../utils/valuation';
 import { SharePriceHistoryModel } from '../models/SharePriceHistory';
 
@@ -39,6 +40,9 @@ export function startActionsCron() {
       
       // Process CEO salaries
       await processCeoSalaries();
+      
+      // Process dividends
+      await processDividends();
     } catch (error) {
       console.error('[Cron] Error incrementing actions:', error);
     }
@@ -368,6 +372,160 @@ export async function triggerCeoSalaries(): Promise<{ ceosPaid: number; totalPai
   }
 
   return { ceosPaid, totalPaid, salariesZeroed };
+}
+
+/**
+ * Process dividends for all corporations
+ * Called hourly to pay dividends from corporation capital based on total profit
+ */
+async function processDividends(): Promise<void> {
+  try {
+    console.log('[Cron] Processing dividends...');
+    
+    // Get all corporations with dividend_percentage > 0
+    const corporations = await CorporationModel.findAll();
+    const corpsWithDividends = corporations.filter(corp => {
+      const divPercent = typeof corp.dividend_percentage === 'string' ? parseFloat(corp.dividend_percentage) : (corp.dividend_percentage || 0);
+      return divPercent > 0;
+    });
+    
+    if (corpsWithDividends.length === 0) {
+      console.log('[Cron] No corporations with dividend percentage set');
+      return;
+    }
+
+    // Get financials for all corporations
+    const corpFinancials = await MarketEntryModel.getAllCorporationsFinancials();
+    const financialsMap = new Map(corpFinancials.map(f => [f.corporation_id, f.hourly_profit]));
+
+    let totalPaid = 0;
+    let dividendsPaid = 0;
+
+    for (const corp of corpsWithDividends) {
+      try {
+        const dividendPercentage = typeof corp.dividend_percentage === 'string' ? parseFloat(corp.dividend_percentage) : (corp.dividend_percentage || 0);
+        if (dividendPercentage <= 0) continue;
+
+        // Get hourly profit for this corporation (0 if no market entries)
+        const hourlyProfit = financialsMap.get(corp.id) || 0;
+        
+        // Calculate 96-hour total profit
+        const totalProfit96h = hourlyProfit * 96;
+        
+        // Calculate hourly dividend: (total_profit * dividend_percentage / 100) / 96
+        const hourlyDividend = (totalProfit96h * dividendPercentage / 100) / 96;
+        
+        // Skip if no profit or negative
+        if (hourlyDividend <= 0) continue;
+
+        // Get all shareholders
+        const shareholders = await ShareholderModel.findByCorporationId(corp.id);
+        if (shareholders.length === 0) continue;
+
+        // Calculate total shares
+        const totalShares = shareholders.reduce((sum, sh) => sum + sh.shares, 0);
+        if (totalShares === 0) continue;
+
+        // Check if corporation has enough capital
+        const currentCapital = typeof corp.capital === 'string' ? parseFloat(corp.capital) : corp.capital;
+        if (currentCapital < hourlyDividend) {
+          console.log(`[Cron] Corporation ${corp.id} (${corp.name}) has insufficient capital for dividends`);
+          continue;
+        }
+
+        // Pay each shareholder
+        for (const shareholder of shareholders) {
+          // Calculate shareholder's dividend: (hourly_dividend * shareholder.shares) / total_shares
+          const shareholderDividend = (hourlyDividend * shareholder.shares) / totalShares;
+          
+          // Add dividend to shareholder's cash
+          await UserModel.updateCash(shareholder.user_id, shareholderDividend);
+
+          // Record transaction
+          await TransactionModel.create({
+            transaction_type: 'dividend',
+            amount: shareholderDividend,
+            from_user_id: null, // From corporation
+            to_user_id: shareholder.user_id,
+            corporation_id: corp.id,
+            description: `Regular dividend from ${corp.name}`,
+          });
+        }
+
+        // Deduct total dividend from corporation capital
+        const newCapital = currentCapital - hourlyDividend;
+        await CorporationModel.update(corp.id, { capital: newCapital });
+
+        dividendsPaid++;
+        totalPaid += hourlyDividend;
+      } catch (err) {
+        console.error(`[Cron] Error paying dividends for corporation ${corp.id}:`, err);
+      }
+    }
+
+    console.log(`[Cron] Dividends processed: ${dividendsPaid} corporations paid, total: $${totalPaid.toLocaleString()}`);
+  } catch (error) {
+    console.error('[Cron] Error processing dividends:', error);
+  }
+}
+
+/**
+ * Manual trigger for dividend processing
+ */
+export async function triggerDividends(): Promise<{ dividendsPaid: number; totalPaid: number }> {
+  const corporations = await CorporationModel.findAll();
+  const corpsWithDividends = corporations.filter(corp => {
+    const divPercent = typeof corp.dividend_percentage === 'string' ? parseFloat(corp.dividend_percentage) : (corp.dividend_percentage || 0);
+    return divPercent > 0;
+  });
+  
+  const corpFinancials = await MarketEntryModel.getAllCorporationsFinancials();
+  const financialsMap = new Map(corpFinancials.map(f => [f.corporation_id, f.hourly_profit]));
+
+  let totalPaid = 0;
+  let dividendsPaid = 0;
+
+  for (const corp of corpsWithDividends) {
+    const dividendPercentage = typeof corp.dividend_percentage === 'string' ? parseFloat(corp.dividend_percentage) : (corp.dividend_percentage || 0);
+    if (dividendPercentage <= 0) continue;
+
+    const hourlyProfit = financialsMap.get(corp.id) || 0;
+    const totalProfit96h = hourlyProfit * 96;
+    const hourlyDividend = (totalProfit96h * dividendPercentage / 100) / 96;
+    
+    if (hourlyDividend <= 0) continue;
+
+    const shareholders = await ShareholderModel.findByCorporationId(corp.id);
+    if (shareholders.length === 0) continue;
+
+    const totalShares = shareholders.reduce((sum, sh) => sum + sh.shares, 0);
+    if (totalShares === 0) continue;
+
+    const currentCapital = typeof corp.capital === 'string' ? parseFloat(corp.capital) : corp.capital;
+    if (currentCapital < hourlyDividend) continue;
+
+    for (const shareholder of shareholders) {
+      const shareholderDividend = (hourlyDividend * shareholder.shares) / totalShares;
+      await UserModel.updateCash(shareholder.user_id, shareholderDividend);
+
+      await TransactionModel.create({
+        transaction_type: 'dividend',
+        amount: shareholderDividend,
+        from_user_id: null,
+        to_user_id: shareholder.user_id,
+        corporation_id: corp.id,
+        description: `Regular dividend from ${corp.name}`,
+      });
+    }
+
+    const newCapital = currentCapital - hourlyDividend;
+    await CorporationModel.update(corp.id, { capital: newCapital });
+
+    dividendsPaid++;
+    totalPaid += hourlyDividend;
+  }
+
+  return { dividendsPaid, totalPaid };
 }
 
 /**

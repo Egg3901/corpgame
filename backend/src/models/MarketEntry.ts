@@ -33,6 +33,10 @@ export interface CorporationFinances {
   total_production_units: number;
   total_service_units: number;
   markets_count: number;
+  dividend_per_share_96h?: number;
+  special_dividend_last_paid_at?: Date | string | null;
+  special_dividend_last_amount?: number | null;
+  special_dividend_per_share_last?: number | null;
 }
 
 export class MarketEntryModel {

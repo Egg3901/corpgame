@@ -521,9 +521,9 @@ export default function AdminPage() {
                                 </span>
                               </td>
                               <td className={`py-2 px-2 text-right font-mono whitespace-nowrap ${
-                                tx.to_user_id ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'
+                                (tx.to_user_id && !tx.from_user_id) || tx.transaction_type === 'corp_revenue' ? 'text-emerald-600 dark:text-emerald-400' : tx.from_user_id && !tx.to_user_id ? 'text-red-600 dark:text-red-400' : 'text-gray-600 dark:text-gray-400'
                               }`}>
-                                {tx.to_user_id && !tx.from_user_id ? '+' : tx.from_user_id && !tx.to_user_id ? '-' : ''}
+                                {(tx.to_user_id && !tx.from_user_id) || tx.transaction_type === 'corp_revenue' ? '+' : tx.from_user_id && !tx.to_user_id ? '-' : ''}
                                 ${Math.abs(tx.amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                               </td>
                               <td className="py-2 px-2">
@@ -1083,4 +1083,5 @@ export default function AdminPage() {
     </AppNavigation>
   );
 }
+
 

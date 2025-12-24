@@ -161,6 +161,9 @@ export interface CorporationResponse {
   board_size?: number;
   elected_ceo_id?: number | null;
   ceo_salary?: number;
+  dividend_percentage?: number;
+  special_dividend_last_paid_at?: string | null;
+  special_dividend_last_amount?: number | null;
   created_at: string;
   ceo?: {
     id: number;
@@ -208,6 +211,7 @@ export interface PortfolioResponse {
   user_id: number;
   holdings: PortfolioHolding[];
   total_value: number;
+  dividend_income: number;
 }
 
 export const authAPI = {
@@ -729,7 +733,7 @@ export interface BoardProposal {
   id: number;
   corporation_id: number;
   proposer_id: number;
-  proposal_type: 'ceo_nomination' | 'sector_change' | 'hq_change' | 'board_size' | 'appoint_member' | 'ceo_salary_change';
+  proposal_type: 'ceo_nomination' | 'sector_change' | 'hq_change' | 'board_size' | 'appoint_member' | 'ceo_salary_change' | 'dividend_change' | 'special_dividend';
   proposal_data: {
     nominee_id?: number;
     nominee_name?: string;
@@ -767,6 +771,9 @@ export interface BoardResponse {
     board_size: number;
     elected_ceo_id?: number | null;
     ceo_salary: number;
+    dividend_percentage?: number;
+    special_dividend_last_paid_at?: string | null;
+    special_dividend_last_amount?: number | null;
   };
   board_members: BoardMember[];
   effective_ceo: { userId: number; isActing: boolean } | null;
@@ -785,7 +792,7 @@ export interface BoardResponse {
 }
 
 export interface CreateProposalData {
-  proposal_type: 'ceo_nomination' | 'sector_change' | 'hq_change' | 'board_size' | 'appoint_member' | 'ceo_salary_change';
+  proposal_type: 'ceo_nomination' | 'sector_change' | 'hq_change' | 'board_size' | 'appoint_member' | 'ceo_salary_change' | 'dividend_change' | 'special_dividend';
   proposal_data: {
     nominee_id?: number;
     new_sector?: string;
@@ -793,6 +800,8 @@ export interface CreateProposalData {
     new_size?: number;
     appointee_id?: number;
     new_salary?: number;
+    new_percentage?: number;
+    capital_percentage?: number;
   };
 }
 
@@ -918,6 +927,10 @@ export interface CorporationFinances {
   total_production_units: number;
   total_service_units: number;
   markets_count: number;
+  dividend_per_share_96h?: number;
+  special_dividend_last_paid_at?: string | null;
+  special_dividend_last_amount?: number | null;
+  special_dividend_per_share_last?: number | null;
 }
 
 export interface BalanceSheet {

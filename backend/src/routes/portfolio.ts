@@ -1,4 +1,5 @@
 import express, { Request, Response } from 'express';
+import pool from '../db/connection';
 import { ShareholderModel } from '../models/Shareholder';
 import { CorporationModel } from '../models/Corporation';
 import { UserModel } from '../models/User';
@@ -51,10 +52,20 @@ router.get('/:userId', async (req: Request, res: Response) => {
     // Calculate total portfolio value
     const totalValue = validHoldings.reduce((sum, h) => sum + h.current_value, 0);
 
+    // Calculate total dividend income from transactions
+    const dividendResult = await pool.query(
+      `SELECT COALESCE(SUM(amount), 0) as total
+       FROM transactions
+       WHERE to_user_id = $1 AND transaction_type IN ('dividend', 'special_dividend')`,
+      [userId]
+    );
+    const dividendIncome = parseFloat(dividendResult.rows[0].total) || 0;
+
     res.json({
       user_id: userId,
       holdings: validHoldings,
       total_value: totalValue,
+      dividend_income: dividendIncome,
     });
   } catch (error) {
     console.error('Get portfolio error:', error);

@@ -5,6 +5,7 @@ import { CorporationModel } from '../models/Corporation';
 import { ShareholderModel } from '../models/Shareholder';
 import { UserModel } from '../models/User';
 import { MessageModel } from '../models/Message';
+import { TransactionModel } from '../models/Transaction';
 import { SECTORS, isValidSector, US_STATE_CODES, isValidStateCode, getStateLabel } from '../constants/sectors';
 import { normalizeImageUrl } from '../utils/imageUrl';
 
@@ -64,6 +65,9 @@ router.get('/:corpId', optionalAuth, async (req: AuthRequest, res: Response) => 
         board_size: corporation.board_size || 3,
         elected_ceo_id: corporation.elected_ceo_id,
         ceo_salary: corporation.ceo_salary || 100000,
+        dividend_percentage: corporation.dividend_percentage || 0,
+        special_dividend_last_paid_at: corporation.special_dividend_last_paid_at,
+        special_dividend_last_amount: corporation.special_dividend_last_amount,
       },
       board_members: boardMembers.map(m => ({
         ...m,
@@ -207,6 +211,39 @@ router.post('/:corpId/proposals', authenticateToken, async (req: AuthRequest, re
           return res.status(400).json({ error: 'CEO salary cannot exceed $10,000,000 per 96 hours' });
         }
         validatedData = { new_salary: newSalary };
+        break;
+      }
+
+      case 'dividend_change': {
+        const newPercentage = proposal_data.new_percentage;
+        if (newPercentage === undefined || typeof newPercentage !== 'number' || newPercentage < 0 || newPercentage > 100) {
+          return res.status(400).json({ error: 'Dividend percentage must be between 0 and 100' });
+        }
+        validatedData = { new_percentage: newPercentage };
+        break;
+      }
+
+      case 'special_dividend': {
+        const capitalPercentage = proposal_data.capital_percentage;
+        if (capitalPercentage === undefined || typeof capitalPercentage !== 'number' || capitalPercentage < 0 || capitalPercentage > 100) {
+          return res.status(400).json({ error: 'Capital percentage must be between 0 and 100' });
+        }
+        
+        // Check if 96 hours have passed since last special dividend
+        const corp = await CorporationModel.findById(corpId);
+        if (corp?.special_dividend_last_paid_at) {
+          const lastPaid = new Date(corp.special_dividend_last_paid_at);
+          const now = new Date();
+          const hoursSinceLast = (now.getTime() - lastPaid.getTime()) / (1000 * 60 * 60);
+          if (hoursSinceLast < 96) {
+            const hoursRemaining = Math.ceil(96 - hoursSinceLast);
+            return res.status(400).json({ 
+              error: `Special dividend can only be paid once every 96 hours. ${hoursRemaining} hours remaining.` 
+            });
+          }
+        }
+        
+        validatedData = { capital_percentage: capitalPercentage };
         break;
       }
 
@@ -436,6 +473,10 @@ function getProposalDescription(type: string, data: any): string {
       return `Appoint ${data.appointee_name || 'a shareholder'} to the board`;
     case 'ceo_salary_change':
       return `Change CEO salary to $${data.new_salary?.toLocaleString() || 0}/96h`;
+    case 'dividend_change':
+      return `Change dividend percentage to ${data.new_percentage?.toFixed(2) || 0}%`;
+    case 'special_dividend':
+      return `Pay special dividend of ${data.capital_percentage?.toFixed(2) || 0}% of capital`;
     default:
       return 'Unknown proposal';
   }

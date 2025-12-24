@@ -3,7 +3,7 @@ import { ShareholderModel } from './Shareholder';
 import { CorporationModel } from './Corporation';
 
 // Proposal types
-export type ProposalType = 'ceo_nomination' | 'sector_change' | 'hq_change' | 'board_size' | 'appoint_member' | 'ceo_salary_change';
+export type ProposalType = 'ceo_nomination' | 'sector_change' | 'hq_change' | 'board_size' | 'appoint_member' | 'ceo_salary_change' | 'dividend_change' | 'special_dividend';
 
 // Proposal data structures
 export interface CeoNominationData {
@@ -32,7 +32,15 @@ export interface CeoSalaryChangeData {
   new_salary: number; // Per 96 hours
 }
 
-export type ProposalData = CeoNominationData | SectorChangeData | HqChangeData | BoardSizeData | AppointMemberData | CeoSalaryChangeData;
+export interface DividendChangeData {
+  new_percentage: number; // 0-100
+}
+
+export interface SpecialDividendData {
+  capital_percentage: number; // 0-100
+}
+
+export type ProposalData = CeoNominationData | SectorChangeData | HqChangeData | BoardSizeData | AppointMemberData | CeoSalaryChangeData | DividendChangeData | SpecialDividendData;
 
 export interface BoardProposal {
   id: number;

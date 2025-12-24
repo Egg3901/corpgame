@@ -14,6 +14,9 @@ export interface Corporation {
   board_size: number;
   elected_ceo_id?: number | null;
   ceo_salary: number; // Per 96 hours, default 100000
+  dividend_percentage: number; // Percentage of total profit (0-100), default 0.00
+  special_dividend_last_paid_at?: Date | null;
+  special_dividend_last_amount?: number | null;
   created_at: Date;
 }
 
@@ -30,6 +33,9 @@ export interface CorporationInput {
   board_size?: number;
   elected_ceo_id?: number | null;
   ceo_salary?: number;
+  dividend_percentage?: number;
+  special_dividend_last_paid_at?: Date | null;
+  special_dividend_last_amount?: number | null;
 }
 
 export class CorporationModel {
@@ -74,7 +80,7 @@ export class CorporationModel {
   }
 
   static async update(id: number, updates: Partial<CorporationInput>): Promise<Corporation | null> {
-    const allowedFields = ['name', 'logo', 'type', 'share_price', 'capital', 'public_shares', 'hq_state', 'board_size', 'elected_ceo_id', 'ceo_salary'];
+    const allowedFields = ['name', 'logo', 'type', 'share_price', 'capital', 'public_shares', 'hq_state', 'board_size', 'elected_ceo_id', 'ceo_salary', 'dividend_percentage', 'special_dividend_last_paid_at', 'special_dividend_last_amount'];
     const fields: string[] = [];
     const values: any[] = [];
     let paramIndex = 1;

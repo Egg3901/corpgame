@@ -9,7 +9,9 @@ export type TransactionType =
   | 'share_issue'
   | 'market_entry'
   | 'unit_build'
-  | 'corp_founding';
+  | 'corp_founding'
+  | 'dividend'
+  | 'special_dividend';
 
 export interface Transaction {
   id: number;

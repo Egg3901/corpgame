@@ -6,7 +6,7 @@ import { boardAPI, BoardResponse, BoardProposal, CreateProposalData } from '@/li
 import { 
   Users, Crown, Clock, CheckCircle, XCircle, 
   ThumbsUp, ThumbsDown, Plus, ChevronDown, ChevronUp,
-  Building2, MapPin, UsersRound, UserPlus, DollarSign
+  Building2, MapPin, UsersRound, UserPlus, DollarSign, Percent, Gift
 } from 'lucide-react';
 
 // US States for display
@@ -50,6 +50,8 @@ export default function BoardTab({ corporationId, corporationName, viewerUserId 
   const [newBoardSize, setNewBoardSize] = useState(3);
   const [appointeeId, setAppointeeId] = useState<number | ''>('');
   const [newSalary, setNewSalary] = useState<number>(100000);
+  const [newDividendPercentage, setNewDividendPercentage] = useState<number>(0);
+  const [specialDividendCapitalPercentage, setSpecialDividendCapitalPercentage] = useState<number>(0);
 
   const fetchBoardData = async () => {
     try {
@@ -128,6 +130,22 @@ export default function BoardTab({ corporationId, corporationName, viewerUserId 
           }
           data = { proposal_type: 'ceo_salary_change', proposal_data: { new_salary: newSalary } };
           break;
+        case 'dividend_change':
+          if (newDividendPercentage < 0 || newDividendPercentage > 100) {
+            alert('Dividend percentage must be between 0 and 100');
+            setSubmitting(false);
+            return;
+          }
+          data = { proposal_type: 'dividend_change', proposal_data: { new_percentage: newDividendPercentage } };
+          break;
+        case 'special_dividend':
+          if (specialDividendCapitalPercentage < 0 || specialDividendCapitalPercentage > 100) {
+            alert('Capital percentage must be between 0 and 100');
+            setSubmitting(false);
+            return;
+          }
+          data = { proposal_type: 'special_dividend', proposal_data: { capital_percentage: specialDividendCapitalPercentage } };
+          break;
         default:
           return;
       }
@@ -176,6 +194,8 @@ export default function BoardTab({ corporationId, corporationName, viewerUserId 
     setNewBoardSize(3);
     setAppointeeId('');
     setNewSalary(boardData?.corporation.ceo_salary || 100000);
+    setNewDividendPercentage(0);
+    setSpecialDividendCapitalPercentage(0);
   };
 
   const formatTimeRemaining = (expiresAt: string) => {
@@ -208,6 +228,10 @@ export default function BoardTab({ corporationId, corporationName, viewerUserId 
         return `Appoint ${proposal.proposal_data.appointee_name || 'a shareholder'} to the board`;
       case 'ceo_salary_change':
         return `Change CEO salary to $${(proposal.proposal_data.new_salary || 0).toLocaleString()}/96h`;
+      case 'dividend_change':
+        return `Change dividend percentage to ${((proposal.proposal_data as any).new_percentage || 0).toFixed(2)}%`;
+      case 'special_dividend':
+        return `Pay special dividend of ${((proposal.proposal_data as any).capital_percentage || 0).toFixed(2)}% of capital`;
       default:
         return 'Unknown proposal';
     }
@@ -221,6 +245,8 @@ export default function BoardTab({ corporationId, corporationName, viewerUserId 
       case 'board_size': return <UsersRound className="w-4 h-4" />;
       case 'appoint_member': return <UserPlus className="w-4 h-4" />;
       case 'ceo_salary_change': return <DollarSign className="w-4 h-4" />;
+      case 'dividend_change': return <Percent className="w-4 h-4" />;
+      case 'special_dividend': return <Gift className="w-4 h-4" />;
       default: return <Users className="w-4 h-4" />;
     }
   };
@@ -366,6 +392,8 @@ export default function BoardTab({ corporationId, corporationName, viewerUserId 
                     <option value="board_size">Change Board Size</option>
                     <option value="appoint_member">Appoint Board Member</option>
                     <option value="ceo_salary_change">Change CEO Salary</option>
+                    <option value="dividend_change">Change Dividend Percentage</option>
+                    <option value="special_dividend">Pay Special Dividend</option>
                   </select>
                 </div>
 
@@ -492,6 +520,83 @@ export default function BoardTab({ corporationId, corporationName, viewerUserId 
                         ⚠️ Setting salary to $0 means CEO will not be paid
                       </p>
                     )}
+                  </div>
+                )}
+
+                {proposalType === 'dividend_change' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      New Dividend Percentage (0-100%)
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        min={0}
+                        max={100}
+                        step={0.1}
+                        value={newDividendPercentage}
+                        onChange={(e) => setNewDividendPercentage(Number(e.target.value))}
+                        className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400">%</span>
+                    </div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      Current: {((boardData.corporation.dividend_percentage || 0)).toFixed(2)}% of total profit
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      This percentage of total profit will be paid as dividends hourly to shareholders
+                    </p>
+                  </div>
+                )}
+
+                {proposalType === 'special_dividend' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Capital Percentage (0-100%)
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        min={0}
+                        max={100}
+                        step={0.1}
+                        value={specialDividendCapitalPercentage}
+                        onChange={(e) => setSpecialDividendCapitalPercentage(Number(e.target.value))}
+                        className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400">%</span>
+                    </div>
+                    {boardData.corporation.special_dividend_last_paid_at && (
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        Last special dividend: ${(boardData.corporation.special_dividend_last_amount || 0).toLocaleString()} paid{' '}
+                        {(() => {
+                          const lastPaid = new Date(boardData.corporation.special_dividend_last_paid_at);
+                          const now = new Date();
+                          const hoursSince = (now.getTime() - lastPaid.getTime()) / (1000 * 60 * 60);
+                          if (hoursSince < 96) {
+                            const hoursRemaining = Math.ceil(96 - hoursSince);
+                            return `${hoursRemaining} hours ago (${hoursRemaining}h cooldown remaining)`;
+                          }
+                          return `${Math.floor(hoursSince / 24)} days ago`;
+                        })()}
+                      </p>
+                    )}
+                    {boardData.corporation.special_dividend_last_paid_at && (() => {
+                      const lastPaid = new Date(boardData.corporation.special_dividend_last_paid_at);
+                      const now = new Date();
+                      const hoursSince = (now.getTime() - lastPaid.getTime()) / (1000 * 60 * 60);
+                      if (hoursSince < 96) {
+                        return (
+                          <p className="text-xs text-amber-600 dark:text-amber-400 mt-1 font-semibold">
+                            ⚠️ Special dividend can only be paid once every 96 hours
+                          </p>
+                        );
+                      }
+                      return null;
+                    })()}
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      This percentage of corporation capital will be paid as a one-time special dividend to all shareholders
+                    </p>
                   </div>
                 )}
 

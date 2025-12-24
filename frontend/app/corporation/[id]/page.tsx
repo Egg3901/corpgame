@@ -870,6 +870,67 @@ export default function CorporationDetailPage() {
                     </div>
                   </div>
 
+                  {/* Dividends Section */}
+                  <div className="mt-6 rounded-xl border border-white/60 bg-white/70 dark:border-gray-800/70 dark:bg-gray-800/60 p-6 shadow-sm">
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Dividends</h3>
+                    <div className="space-y-4">
+                      <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700">
+                        <span className="text-sm text-gray-600 dark:text-gray-400">Current Dividend Rate</span>
+                        <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                          {(corporation.dividend_percentage || 0).toFixed(2)}% of profit
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-gray-600 dark:text-gray-400">Dividend per Share (96hr)</span>
+                          <span className="text-xs text-gray-400 dark:text-gray-500">
+                            ({((corpFinances?.dividend_per_share_96h || 0) * 4).toLocaleString(undefined, { maximumFractionDigits: 4 })}/share annualized)
+                          </span>
+                        </div>
+                        <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400 font-mono">
+                          {formatCurrency(corpFinances?.dividend_per_share_96h || 0)}
+                        </span>
+                      </div>
+                      {corpFinances?.special_dividend_last_amount && (
+                        <>
+                          <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700">
+                            <span className="text-sm text-gray-600 dark:text-gray-400">Last Special Dividend</span>
+                            <span className="text-sm font-semibold text-purple-600 dark:text-purple-400 font-mono">
+                              {formatCurrency(corpFinances.special_dividend_last_amount)}
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700">
+                            <span className="text-sm text-gray-600 dark:text-gray-400">Per Share</span>
+                            <span className="text-sm font-semibold text-purple-600 dark:text-purple-400 font-mono">
+                              {formatCurrency(corpFinances.special_dividend_per_share_last || 0)}
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center py-2">
+                            <span className="text-sm text-gray-600 dark:text-gray-400">Time Since Last</span>
+                            <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                              {corpFinances.special_dividend_last_paid_at ? (() => {
+                                const lastPaid = new Date(corpFinances.special_dividend_last_paid_at);
+                                const now = new Date();
+                                const hoursSince = (now.getTime() - lastPaid.getTime()) / (1000 * 60 * 60);
+                                const daysSince = Math.floor(hoursSince / 24);
+                                const hoursRemaining = Math.ceil(96 - (hoursSince % 96));
+                                if (hoursSince < 96) {
+                                  return `${hoursRemaining}h until next available`;
+                                }
+                                return `${daysSince}d ${Math.floor((hoursSince % 24))}h ago`;
+                              })() : 'Never'}
+                            </span>
+                          </div>
+                        </>
+                      )}
+                      {!corpFinances?.special_dividend_last_amount && (
+                        <div className="text-sm text-gray-500 dark:text-gray-400 py-2">
+                          No special dividend has been paid yet
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
                   {/* Unit Breakdown */}
                   {corpFinances && corpFinances.markets_count > 0 && (
                     <div className="mt-6 rounded-xl border border-white/60 bg-white/70 dark:border-gray-800/70 dark:bg-gray-800/60 p-6 shadow-sm">

@@ -353,6 +353,34 @@ router.get('/corporation/:corpId/finances', async (req: Request, res: Response) 
       calculateBalanceSheet(corpId),
     ]);
 
+    // Calculate dividend fields
+    const dividendPercentage = typeof corporation.dividend_percentage === 'string' ? parseFloat(corporation.dividend_percentage) : (corporation.dividend_percentage || 0);
+    const totalShares = corporation.shares || 1;
+    const totalProfit96h = finances.display_profit; // 96-hour profit projection
+    
+    // Calculate dividend per share (96hr): (total_profit * dividend_percentage / 100) / total_shares
+    const dividendPerShare96h = totalShares > 0 && dividendPercentage > 0 
+      ? (totalProfit96h * dividendPercentage / 100) / totalShares 
+      : 0;
+
+    // Special dividend info
+    const specialDividendLastPaidAt = corporation.special_dividend_last_paid_at;
+    const specialDividendLastAmount = typeof corporation.special_dividend_last_amount === 'string' 
+      ? parseFloat(corporation.special_dividend_last_amount) 
+      : (corporation.special_dividend_last_amount || null);
+    const specialDividendPerShareLast = specialDividendLastAmount && totalShares > 0
+      ? specialDividendLastAmount / totalShares
+      : null;
+
+    // Add dividend fields to finances
+    const financesWithDividends = {
+      ...finances,
+      dividend_per_share_96h: dividendPerShare96h,
+      special_dividend_last_paid_at: specialDividendLastPaidAt,
+      special_dividend_last_amount: specialDividendLastAmount,
+      special_dividend_per_share_last: specialDividendPerShareLast,
+    };
+
     // Get market entries with details
     const entries = await MarketEntryModel.findByCorporationIdWithUnits(corpId);
 
@@ -372,7 +400,7 @@ router.get('/corporation/:corpId/finances', async (req: Request, res: Response) 
 
     res.json({
       corporation_id: corpId,
-      finances,
+      finances: financesWithDividends,
       balance_sheet: balanceSheet,
       market_entries: marketsWithDetails,
     });

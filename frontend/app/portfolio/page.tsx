@@ -98,14 +98,18 @@ export default function PortfolioPage() {
           <div className="absolute inset-0 bg-gradient-to-br from-corporate-blue/5 via-transparent to-corporate-blue-light/5 dark:from-corporate-blue/10 dark:via-transparent dark:to-corporate-blue-dark/10 pointer-events-none" />
           <div className="absolute inset-0 ring-1 ring-inset ring-white/20 dark:ring-gray-700/30 pointer-events-none" />
           <div className="relative p-6">
-            <div className="flex items-center justify-between">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div>
                 <p className="text-xs font-bold uppercase tracking-[0.15em] text-gray-600 dark:text-gray-400 mb-2">Total Portfolio Value</p>
                 <p className="text-4xl font-bold text-corporate-blue dark:text-corporate-blue-light">{formatCurrency(portfolio.total_value)}</p>
               </div>
-              <div className="text-right">
+              <div>
                 <p className="text-xs font-bold uppercase tracking-[0.15em] text-gray-600 dark:text-gray-400 mb-2">Holdings</p>
                 <p className="text-4xl font-bold text-gray-900 dark:text-white">{portfolio.holdings.length}</p>
+              </div>
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.15em] text-gray-600 dark:text-gray-400 mb-2">Dividend Income</p>
+                <p className="text-4xl font-bold text-emerald-600 dark:text-emerald-400">{formatCurrency(portfolio.dividend_income || 0)}</p>
               </div>
             </div>
           </div>

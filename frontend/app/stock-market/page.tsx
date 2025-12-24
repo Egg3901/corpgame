@@ -216,6 +216,7 @@ export default function StockMarketPage() {
                       <th className="text-left py-3 px-4 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Company</th>
                       <th className="text-right py-3 px-4 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Price</th>
                       <th className="text-right py-3 px-4 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Change</th>
+                      <th className="text-right py-3 px-4 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Div Yield</th>
                       <th className="text-right py-3 px-4 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Volume</th>
                       <th className="text-right py-3 px-4 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Market Cap</th>
                       <th className="w-10"></th>
@@ -274,6 +275,11 @@ export default function StockMarketPage() {
                             }`}>
                               {isPositive ? <ArrowUpRight className="w-3.5 h-3.5" /> : <ArrowDownRight className="w-3.5 h-3.5" />}
                               {Math.abs(change).toFixed(2)}%
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-right">
+                            <span className="font-mono text-sm font-medium text-gray-900 dark:text-white">
+                              {(corp.dividend_percentage || 0) > 0 ? `${(corp.dividend_percentage || 0).toFixed(2)}%` : '-'}
                             </span>
                           </td>
                           <td className="py-3 px-4 text-right">
@@ -355,6 +361,12 @@ export default function StockMarketPage() {
                       {/* Bottom row: Stats */}
                       <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100 dark:border-gray-700">
                         <div className="flex items-center gap-4">
+                          <div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400 mb-0.5">Div Yield</div>
+                            <div className="font-mono text-sm font-medium text-gray-700 dark:text-gray-300">
+                              {(corp.dividend_percentage || 0) > 0 ? `${(corp.dividend_percentage || 0).toFixed(2)}%` : '-'}
+                            </div>
+                          </div>
                           <div>
                             <div className="text-xs text-gray-500 dark:text-gray-400 mb-0.5">Volume</div>
                             <div className="font-mono text-sm font-medium text-gray-700 dark:text-gray-300">
