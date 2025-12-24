@@ -242,7 +242,7 @@ export default function AppNavigation({ children }: AppNavigationProps) {
       </div>
 
       <header 
-        className={`sticky top-0 z-40 transition-all duration-300 ease-out ${
+        className={`sticky top-0 z-50 transition-all duration-300 ease-out ${
           scrolled ? 'pb-1' : 'pb-2'
         }`}
       >
@@ -252,7 +252,7 @@ export default function AppNavigation({ children }: AppNavigationProps) {
           }`}
         >
           <div 
-            className={`flex items-center justify-between rounded-2xl border px-2 sm:px-4 backdrop-blur-md transition-all duration-300 ease-out overflow-hidden ${
+            className={`flex items-center justify-between rounded-2xl border px-2 sm:px-4 backdrop-blur-md transition-all duration-300 ease-out ${
               scrolled 
                 ? 'py-2 border-white/80 bg-white/95 shadow-2xl shadow-gray-200/50 dark:border-gray-700/80 dark:bg-gray-900/95 dark:shadow-black/30 scale-[0.98] sm:scale-[0.99]' 
                 : 'py-3 border-white/60 bg-white/90 shadow-xl dark:border-gray-800/60 dark:bg-gray-900/90'
