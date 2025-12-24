@@ -25,10 +25,10 @@ body {
   transition: background 0.3s ease, color 0.3s ease;
 }
 
-/* Futura-like font family (Montserrat as Futura alternative) */
+/* Oxygen font family */
 @layer base {
   * {
-    font-family: 'Montserrat', 'Futura', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+    font-family: 'Oxygen', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
   }
 }
 
