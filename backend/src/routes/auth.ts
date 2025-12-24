@@ -112,8 +112,8 @@ router.post('/register', async (req: Request, res: Response) => {
       await MessageModel.create({
         sender_id: user.id,
         recipient_id: user.id,
-        subject: '🎉 Welcome to Corporate Sim!',
-        body: `Hello ${user.player_name || user.username}!\n\nWelcome to Corporate Sim! We're thrilled to have you join our community of aspiring business moguls.\n\nHere are some tips to get started:\n\n• Visit your Profile to customize your avatar and bio\n• Check out the Stock Market to start investing in corporations\n• Create your own Corporation and become a CEO\n• Explore different States & Markets to expand your business empire\n• Use the Portfolio page to track your investments\n\nGood luck on your journey to corporate success!\n\n— The Corporate Sim Team`,
+        subject: '🎉 Welcome to Corporate Warfare!',
+        body: `Hello ${user.player_name || user.username}!\n\nWelcome to Corporate Warfare! We're thrilled to have you join our community of aspiring business moguls.\n\nHere are some tips to get started:\n\n• Visit your Profile to customize your avatar and bio\n• Check out the Stock Market to start investing in corporations\n• Create your own Corporation and become a CEO\n• Explore different States & Markets to expand your business empire\n• Use the Portfolio page to track your investments\n\nGood luck on your journey to corporate success!\n\n— The Corporate Warfare Team`,
       });
     } catch (msgError) {
       // Don't fail registration if welcome message fails

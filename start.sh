@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Corporate Sim - Unified Startup Script
+# Corporate Warfare - Unified Startup Script
 # This script starts both backend and frontend services
 
 set -e
@@ -11,7 +11,7 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
-echo -e "${GREEN}Starting Corporate Sim Application...${NC}"
+echo -e "${GREEN}Starting Corporate Warfare Application...${NC}"
 
 # Check if we're in production mode
 MODE=${1:-dev}
@@ -56,6 +56,7 @@ else
     echo -e "${GREEN}Starting development servers...${NC}"
     npm run dev
 fi
+
 
 
 

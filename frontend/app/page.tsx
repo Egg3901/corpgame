@@ -86,7 +86,7 @@ export default function Home() {
                   Build your <span className="text-corporate-blue">Legacy</span> in the Boardroom.
                 </h1>
                 <p className="text-xl text-gray-600 leading-relaxed mb-10 max-w-xl">
-                  A high-fidelity corporate simulation where players manage extraction, 
+                  A high-fidelity corporate warfare simulation where players manage extraction, 
                   supply chains, and stock governance in a persistent 24/7 global economy.
                 </p>
                 <div className="flex flex-wrap gap-4">
@@ -159,7 +159,7 @@ export default function Home() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-20">
               <h2 className="text-4xl font-black text-gray-900 mb-6 uppercase tracking-tight">
-                The Corporate Engine
+                The Engine of Warfare
               </h2>
               <p className="text-lg text-gray-600 max-w-2xl mx-auto">
                 Found your company with <span className="text-corporate-blue font-bold">$500,000</span> initial capital 

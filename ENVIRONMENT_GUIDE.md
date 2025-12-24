@@ -1,6 +1,6 @@
 # Environment Configuration Guide
 
-Corporate Sim uses `.env` files to keep secrets per service. This guide documents every variable, defaults, and how to configure them for local development, staging, and production (AWS EC2 + RDS).
+Corporate Warfare uses `.env` files to keep secrets per service. This guide documents every variable, defaults, and how to configure them for local development, staging, and production (AWS EC2 + RDS).
 
 ---
 

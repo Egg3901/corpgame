@@ -233,7 +233,7 @@ export default function AppNavigation({ children }: AppNavigationProps) {
               </button>
               <div className="leading-tight min-w-0">
                 <p className="text-[11px] uppercase tracking-[0.2em] text-gray-500 dark:text-gray-400 hidden sm:block">Navigation</p>
-                <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">Corporate Sim</p>
+                <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">Corporate Warfare</p>
               </div>
             </div>
             <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-shrink">
@@ -536,3 +536,4 @@ export default function AppNavigation({ children }: AppNavigationProps) {
     </div>
   );
 }
+

@@ -1,8 +1,8 @@
-# Corporate Sim Game - System Architecture
+# Corporate Warfare Game - System Architecture
 
 ## Overview
 
-Corporate Sim is a multiplayer corporate simulation game built as a full-stack web application. Players engage in hourly turn-based gameplay, building production, retail, and service units while choosing integration strategies, labor policies, and sector focuses.
+Corporate Warfare is a multiplayer corporate simulation game built as a full-stack web application. Players engage in hourly turn-based gameplay, building production, retail, and service units while choosing integration strategies, labor policies, and sector focuses.
 
 ## System Architecture Diagram
 

@@ -1,4 +1,4 @@
-# Corporate Sim Game
+# Corporate Warfare Game
 
 A multiplayer corporate simulation game where players build production, retail, and service units, choose integration strategies, and compete in an hourly turn-based environment.
 

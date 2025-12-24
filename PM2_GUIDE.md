@@ -1,6 +1,6 @@
-# PM2 Management Guide for Corporate Sim
+# PM2 Management Guide for Corporate Warfare
 
-This guide explains how to use PM2 to manage and restart your Corporate Sim application.
+This guide explains how to use PM2 to manage and restart your Corporate Warfare application.
 
 ## Prerequisites
 
@@ -230,6 +230,7 @@ pm2 start ecosystem.config.js
 ```bash
 pm2 flush
 ```
+
 
 
 

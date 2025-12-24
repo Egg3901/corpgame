@@ -3,7 +3,7 @@ import './globals.css'
 import { ThemeProvider } from '@/components/ThemeProvider'
 
 export const metadata: Metadata = {
-  title: 'Corporate Sim - Multiplayer Business Strategy Game',
+  title: 'Corporate Warfare - Multiplayer Business Strategy Game',
   description: 'Build your corporate empire in this hourly turn-based multiplayer simulation game',
 }
 

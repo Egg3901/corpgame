@@ -1,6 +1,6 @@
-# Corporate Sim Deployment Guide
+# Corporate Warfare Deployment Guide
 
-This guide explains how to move the Corporate Sim stack from local development into a production-grade environment with AWS as the reference platform.
+This guide explains how to move the Corporate Warfare stack from local development into a production-grade environment with AWS as the reference platform.
 
 ---
 
