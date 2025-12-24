@@ -177,9 +177,9 @@ export default function AuthForm({ mode }: AuthFormProps) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleSubmit} className="space-y-5">
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm">
           {error}
         </div>
       )}
@@ -197,7 +197,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
               required
               value={(formData as RegisterData).username || ''}
               onChange={handleChange}
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-corporate-blue focus:border-corporate-blue text-gray-900 bg-white"
+              className="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-corporate-blue focus:border-corporate-blue text-gray-900 bg-white transition-all"
             />
             <p className="mt-1 text-xs text-gray-500">Used for logging into your account</p>
           </div>
@@ -213,7 +213,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
               required
               value={(formData as RegisterData).email}
               onChange={handleChange}
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-corporate-blue focus:border-corporate-blue text-gray-900 bg-white"
+              className="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-corporate-blue focus:border-corporate-blue text-gray-900 bg-white transition-all"
             />
           </div>
 
@@ -228,7 +228,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
               required
               value={(formData as RegisterData).player_name || ''}
               onChange={handleChange}
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-corporate-blue focus:border-corporate-blue text-gray-900 bg-white"
+              className="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-corporate-blue focus:border-corporate-blue text-gray-900 bg-white transition-all"
             />
             <p className="mt-1 text-xs text-gray-500">This name will be displayed to other players in-game</p>
           </div>
@@ -243,7 +243,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
               required
               value={(formData as RegisterData).gender || ''}
               onChange={handleChange}
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-corporate-blue focus:border-corporate-blue text-gray-900 bg-white"
+              className="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-corporate-blue focus:border-corporate-blue text-gray-900 bg-white transition-all"
             >
               <option value="">Select gender</option>
               <option value="m">Male</option>
@@ -265,7 +265,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
               max={80}
               value={(formData as RegisterData).age || ''}
               onChange={handleChange}
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-corporate-blue focus:border-corporate-blue text-gray-900 bg-white"
+              className="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-corporate-blue focus:border-corporate-blue text-gray-900 bg-white transition-all"
             />
             <p className="mt-1 text-xs text-gray-500">Must be between 18 and 80</p>
           </div>
@@ -280,7 +280,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
               required
               value={(formData as RegisterData).starting_state || ''}
               onChange={handleChange}
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-corporate-blue focus:border-corporate-blue text-gray-900 bg-white"
+              className="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-corporate-blue focus:border-corporate-blue text-gray-900 bg-white transition-all"
             >
               <option value="">Select a state</option>
               {US_STATES.map((state) => (
@@ -302,7 +302,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
               required
               value={(formData as RegisterData).registration_secret || ''}
               onChange={handleChange}
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-corporate-blue focus:border-corporate-blue text-gray-900 bg-white"
+              className="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-corporate-blue focus:border-corporate-blue text-gray-900 bg-white transition-all"
             />
             <p className="mt-1 text-xs text-gray-500">Enter the registration secret provided to you.</p>
           </div>
@@ -317,7 +317,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
               type="text"
               value={(formData as RegisterData).admin_secret || ''}
               onChange={handleChange}
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-corporate-blue focus:border-corporate-blue text-gray-900 bg-white"
+              className="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-corporate-blue focus:border-corporate-blue text-gray-900 bg-white transition-all"
             />
             <p className="mt-1 text-xs text-gray-500">Provide the admin secret if you should have admin access.</p>
           </div>
@@ -334,7 +334,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
             required
             value={(formData as LoginData).username || ''}
             onChange={handleChange}
-            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-corporate-blue focus:border-corporate-blue text-gray-900 bg-white"
+            className="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-corporate-blue focus:border-corporate-blue text-gray-900 bg-white transition-all"
           />
         </div>
       )}
@@ -351,7 +351,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
           minLength={6}
           value={formData.password}
           onChange={handleChange}
-          className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-corporate-blue focus:border-corporate-blue text-gray-900 bg-white"
+          className="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-corporate-blue focus:border-corporate-blue text-gray-900 bg-white transition-all"
         />
         {mode === 'register' && (
           <p className="mt-1 text-sm text-gray-500">Must be at least 6 characters</p>
@@ -361,7 +361,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
       <button
         type="submit"
         disabled={loading}
-        className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-corporate-blue hover:bg-corporate-blue-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-corporate-blue disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-lg text-base font-bold text-white bg-corporate-blue hover:bg-corporate-blue-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-corporate-blue disabled:opacity-50 disabled:cursor-not-allowed transition-all"
       >
         {loading ? 'Processing...' : mode === 'login' ? 'Sign In' : 'Create Account'}
       </button>

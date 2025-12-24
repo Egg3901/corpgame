@@ -12,7 +12,6 @@ import {
   Globe, 
   Layers, 
   PieChart, 
-  ShieldCheck, 
   Sparkles, 
   Store, 
   TrendingUp, 
@@ -159,11 +158,11 @@ export default function Home() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-20">
               <h2 className="text-4xl font-black text-gray-900 mb-6 uppercase tracking-tight">
-                The Engine of Warfare
+                Core Mechanics
               </h2>
               <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-                Found your company with <span className="text-corporate-blue font-bold">$500,000</span> initial capital 
-                and navigate a complex web of production and politics.
+                Start with <span className="text-corporate-blue font-bold">$500,000</span> initial capital 
+                and build your corporation through strategic production, market expansion, and shareholder governance.
               </p>
             </div>
 
@@ -188,7 +187,7 @@ export default function Home() {
                 <div className="w-14 h-14 bg-orange-100 rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
                   <Factory className="w-7 h-7 text-orange-600" />
                 </div>
-                <h3 className="text-xl font-black text-gray-900 mb-4 uppercase tracking-tight">Resource Wars</h3>
+                <h3 className="text-xl font-black text-gray-900 mb-4 uppercase tracking-tight">Resource Markets</h3>
                 <p className="text-gray-600 leading-relaxed mb-6">
                   Manage supply chains across 19 sectors. Secure <span className="font-bold text-gray-900">Rare Earth</span> for Tech, 
                   <span className="font-bold text-gray-900">Steel</span> for Manufacturing, or <span className="font-bold text-gray-900">Oil</span> for Energy. 
@@ -310,10 +309,6 @@ export default function Home() {
               >
                 Existing User
               </Link>
-            </div>
-            <div className="mt-12 text-gray-400 text-sm font-bold uppercase tracking-widest flex items-center justify-center gap-2">
-              <ShieldCheck className="w-4 h-4" />
-              Secure Professional Grade Simulation
             </div>
           </div>
         </section>
