@@ -1,9 +1,11 @@
 import pool from '../db/connection';
 
+export type UnitType = 'retail' | 'production' | 'service' | 'extraction';
+
 export interface BusinessUnit {
   id: number;
   market_entry_id: number;
-  unit_type: 'retail' | 'production' | 'service';
+  unit_type: UnitType;
   count: number;
   created_at: Date;
   updated_at: Date;
@@ -11,7 +13,7 @@ export interface BusinessUnit {
 
 export interface BusinessUnitInput {
   market_entry_id: number;
-  unit_type: 'retail' | 'production' | 'service';
+  unit_type: UnitType;
   count?: number;
 }
 
@@ -44,7 +46,7 @@ export class BusinessUnitModel {
 
   static async findByMarketEntryAndType(
     marketEntryId: number,
-    unitType: 'retail' | 'production' | 'service'
+    unitType: UnitType
   ): Promise<BusinessUnit | null> {
     const result = await pool.query(
       'SELECT * FROM business_units WHERE market_entry_id = $1 AND unit_type = $2',
@@ -56,7 +58,7 @@ export class BusinessUnitModel {
   // Increment unit count or create if doesn't exist
   static async incrementUnit(
     marketEntryId: number,
-    unitType: 'retail' | 'production' | 'service',
+    unitType: UnitType,
     incrementBy: number = 1
   ): Promise<BusinessUnit> {
     // Use upsert to either create or increment
@@ -77,7 +79,7 @@ export class BusinessUnitModel {
   // Set unit count directly
   static async setUnitCount(
     marketEntryId: number,
-    unitType: 'retail' | 'production' | 'service',
+    unitType: UnitType,
     count: number
   ): Promise<BusinessUnit> {
     const result = await pool.query(
