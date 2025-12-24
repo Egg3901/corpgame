@@ -15,6 +15,7 @@ import {
   getStateLabel,
   getStateRegion,
   UNIT_TYPES,
+  UnitType,
   MARKET_ENTRY_COST,
   MARKET_ENTRY_ACTIONS,
   BUILD_UNIT_COST,
@@ -23,6 +24,7 @@ import {
   getStateResourceBreakdown,
   RESOURCES,
   SECTOR_RESOURCES,
+  SECTOR_EXTRACTION,
   PRODUCTS,
   SECTOR_PRODUCTS,
   SECTOR_PRODUCT_DEMANDS,
@@ -34,6 +36,11 @@ import {
   Product,
   Sector,
   Resource,
+  CorpFocus,
+  CORP_FOCUS_TYPES,
+  canBuildUnit,
+  sectorCanExtract,
+  getSectorExtractableResources,
 } from '../constants/sectors';
 import pool from '../db/connection';
 import { calculateBalanceSheet, updateStockPrice } from '../utils/valuation';
@@ -624,7 +631,7 @@ router.post('/entries/:entryId/build', authenticateToken, async (req: AuthReques
     }
 
     if (!unit_type || !UNIT_TYPES.includes(unit_type)) {
-      return res.status(400).json({ error: 'Invalid unit type. Must be retail, production, or service' });
+      return res.status(400).json({ error: 'Invalid unit type. Must be retail, production, service, or extraction' });
     }
 
     // Get market entry
@@ -641,6 +648,19 @@ router.post('/entries/:entryId/build', authenticateToken, async (req: AuthReques
 
     if (corporation.ceo_id !== userId) {
       return res.status(403).json({ error: 'Only the CEO can build units' });
+    }
+
+    // Check if corporation's focus and sector allow this unit type
+    const corpFocus = corporation.focus || 'diversified';
+    const corpSector = corporation.type || '';
+    const buildCheck = canBuildUnit(corpSector, corpFocus as CorpFocus, unit_type as UnitType);
+    
+    if (!buildCheck.allowed) {
+      return res.status(400).json({ 
+        error: buildCheck.reason || `Cannot build ${unit_type} units`,
+        focus: corpFocus,
+        sector: corpSector,
+      });
     }
 
     // Check capital

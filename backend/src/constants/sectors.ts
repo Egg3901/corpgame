@@ -15,9 +15,54 @@ export const SECTORS = [
   'Hospitality',
   'Construction',
   'Pharmaceuticals',
+  'Mining',
 ] as const;
 
 export type Sector = typeof SECTORS[number];
+
+// ============================================================================
+// CORPORATION FOCUS
+// Determines what unit types a corporation can build
+// ============================================================================
+
+export const CORP_FOCUS_TYPES = [
+  'extraction',    // Can only build extraction units
+  'production',    // Can build production + extraction (if sector allows)
+  'retail',        // Can only build retail units
+  'service',       // Can only build service units
+  'diversified',   // Can build all unit types
+] as const;
+
+export type CorpFocus = typeof CORP_FOCUS_TYPES[number];
+
+// Validate if a string is a valid corporation focus
+export function isValidCorpFocus(value: string): value is CorpFocus {
+  return CORP_FOCUS_TYPES.includes(value as CorpFocus);
+}
+
+// Get display label for corporation focus
+export function getCorpFocusLabel(focus: CorpFocus): string {
+  const labels: Record<CorpFocus, string> = {
+    'extraction': 'Extraction',
+    'production': 'Production',
+    'retail': 'Retail',
+    'service': 'Service',
+    'diversified': 'Diversified',
+  };
+  return labels[focus];
+}
+
+// Get description for corporation focus
+export function getCorpFocusDescription(focus: CorpFocus): string {
+  const descriptions: Record<CorpFocus, string> = {
+    'extraction': 'Specializes in resource extraction. Can only build extraction units.',
+    'production': 'Focuses on manufacturing. Can build production and extraction units (if sector allows).',
+    'retail': 'Consumer-facing operations. Can only build retail units.',
+    'service': 'Service-based business. Can only build service units.',
+    'diversified': 'Full operational flexibility. Can build all unit types.',
+  };
+  return descriptions[focus];
+}
 
 // Validate if a string is a valid sector
 export function isValidSector(value: string): value is Sector {
@@ -58,7 +103,53 @@ export const SECTOR_RESOURCES: Record<Sector, Resource | null> = {
   'Hospitality': null,
   'Construction': 'Lumber',
   'Pharmaceuticals': 'Chemical Compounds',
+  'Mining': null,  // Mining extracts resources, doesn't consume them for production
 };
+
+// ============================================================================
+// EXTRACTION PERMISSIONS
+// Which sectors can build extraction units and what resources they can extract
+// ============================================================================
+
+// Mapping of sectors to resources they can extract (null = cannot extract)
+export const SECTOR_EXTRACTION: Record<Sector, Resource[] | null> = {
+  'Technology': null,           // Cannot extract
+  'Finance': null,              // Cannot extract
+  'Healthcare': null,           // Cannot extract
+  'Manufacturing': ['Steel'],   // Can extract iron ore -> steel
+  'Energy': ['Oil'],            // Oil extraction
+  'Retail': null,               // Cannot extract
+  'Real Estate': null,          // Cannot extract
+  'Transportation': null,       // Cannot extract
+  'Media': null,                // Cannot extract
+  'Telecommunications': null,   // Cannot extract
+  'Agriculture': ['Fertile Land', 'Lumber'],  // Farming and forestry
+  'Defense': null,              // Cannot extract
+  'Hospitality': null,          // Cannot extract
+  'Construction': ['Lumber'],   // Can harvest lumber
+  'Pharmaceuticals': ['Chemical Compounds'],  // Chemical extraction/synthesis
+  'Mining': ['Steel', 'Copper', 'Rare Earth'],  // Primary extraction sector
+};
+
+// Check if a sector can build extraction units
+export function sectorCanExtract(sector: string): boolean {
+  if (!isValidSector(sector)) return false;
+  const extractable = SECTOR_EXTRACTION[sector];
+  return extractable !== null && extractable.length > 0;
+}
+
+// Get extractable resources for a sector
+export function getSectorExtractableResources(sector: string): Resource[] {
+  if (!isValidSector(sector)) return [];
+  return SECTOR_EXTRACTION[sector] || [];
+}
+
+// Check if a sector can extract a specific resource
+export function sectorCanExtractResource(sector: string, resource: Resource): boolean {
+  if (!isValidSector(sector)) return false;
+  const extractable = SECTOR_EXTRACTION[sector];
+  return extractable !== null && extractable.includes(resource);
+}
 
 // Get the resource required by a sector
 export function getSectorResource(sector: Sector): Resource | null {
@@ -566,7 +657,7 @@ export function getStateMultiplier(stateCode: string): number {
 // ============================================================================
 
 // Business unit types
-export const UNIT_TYPES = ['retail', 'production', 'service'] as const;
+export const UNIT_TYPES = ['retail', 'production', 'service', 'extraction'] as const;
 export type UnitType = typeof UNIT_TYPES[number];
 
 // Unit economics - hourly rates
@@ -574,7 +665,56 @@ export const UNIT_ECONOMICS: Record<UnitType, { baseRevenue: number; baseCost: n
   retail: { baseRevenue: 500, baseCost: 300 },
   production: { baseRevenue: 800, baseCost: 600 },
   service: { baseRevenue: 400, baseCost: 200 },
+  extraction: { baseRevenue: 1000, baseCost: 700 },  // High revenue, high cost
 };
+
+// ============================================================================
+// UNIT TYPE PERMISSIONS BY FOCUS
+// What unit types each corporation focus can build
+// ============================================================================
+
+export const FOCUS_ALLOWED_UNITS: Record<CorpFocus, UnitType[]> = {
+  'extraction': ['extraction'],
+  'production': ['production', 'extraction'],  // Production focus can also extract (if sector allows)
+  'retail': ['retail'],
+  'service': ['service'],
+  'diversified': ['retail', 'production', 'service', 'extraction'],
+};
+
+// Check if a corporation with given focus can build a unit type
+export function focusCanBuildUnit(focus: CorpFocus, unitType: UnitType): boolean {
+  return FOCUS_ALLOWED_UNITS[focus].includes(unitType);
+}
+
+// Check if a corporation can build a specific unit type (considering focus AND sector)
+export function canBuildUnit(
+  sector: string,
+  focus: CorpFocus,
+  unitType: UnitType
+): { allowed: boolean; reason?: string } {
+  // First check if focus allows this unit type
+  if (!focusCanBuildUnit(focus, unitType)) {
+    return {
+      allowed: false,
+      reason: `${getCorpFocusLabel(focus)} corporations cannot build ${unitType} units`,
+    };
+  }
+
+  // For extraction, also check if sector allows it
+  if (unitType === 'extraction') {
+    if (!isValidSector(sector)) {
+      return { allowed: false, reason: 'Invalid sector' };
+    }
+    if (!sectorCanExtract(sector)) {
+      return {
+        allowed: false,
+        reason: `${sector} sector cannot build extraction units`,
+      };
+    }
+  }
+
+  return { allowed: true };
+}
 
 // Display period multiplier (96 hours = 4 days)
 export const DISPLAY_PERIOD_HOURS = 96;
@@ -862,6 +1002,7 @@ export const SECTOR_PRODUCTS: Record<Sector, Product | null> = {
   'Hospitality': null,                // Service sector
   'Construction': 'Construction Capacity',
   'Pharmaceuticals': 'Pharmaceutical Products',
+  'Mining': null,                     // Extraction sector (extracts resources, doesn't produce products)
 };
 
 // What each sector's production units demand (products they need to operate)
@@ -882,6 +1023,7 @@ export const SECTOR_PRODUCT_DEMANDS: Record<Sector, Product[] | null> = {
   'Hospitality': ['Food Products'],                // Restaurants, hotels
   'Construction': null,                            // Produces, doesn't consume products
   'Pharmaceuticals': null,                         // Produces, doesn't consume products
+  'Mining': null,                                  // Extraction sector, doesn't consume products
 };
 
 // Get what product a sector produces

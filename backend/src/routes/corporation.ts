@@ -8,6 +8,7 @@ import { ShareholderModel } from '../models/Shareholder';
 import { UserModel } from '../models/User';
 import { TransactionModel } from '../models/Transaction';
 import { normalizeImageUrl } from '../utils/imageUrl';
+import { SECTORS, isValidSector, CORP_FOCUS_TYPES, isValidCorpFocus, CorpFocus } from '../constants/sectors';
 
 const router = express.Router();
 
@@ -143,10 +144,27 @@ router.get('/:id', async (req: Request, res: Response) => {
 router.post('/', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.userId!;
-    const { name, type } = req.body;
+    const { name, type, focus } = req.body;
 
     if (!name || typeof name !== 'string' || name.trim().length === 0) {
       return res.status(400).json({ error: 'Corporation name is required' });
+    }
+
+    // Validate sector if provided
+    if (type && !isValidSector(type.trim())) {
+      return res.status(400).json({ 
+        error: `Invalid sector: "${type}". Must be one of: ${SECTORS.join(', ')}`,
+        valid_sectors: SECTORS,
+      });
+    }
+
+    // Validate focus if provided
+    const corpFocus: CorpFocus = focus || 'diversified';
+    if (!isValidCorpFocus(corpFocus)) {
+      return res.status(400).json({ 
+        error: `Invalid focus: "${focus}". Must be one of: ${CORP_FOCUS_TYPES.join(', ')}`,
+        valid_focus_types: CORP_FOCUS_TYPES,
+      });
     }
 
     // Check if user already has a corporation
@@ -166,6 +184,7 @@ router.post('/', authenticateToken, async (req: AuthRequest, res: Response) => {
       ceo_id: userId,
       name: name.trim(),
       type: type?.trim() || null,
+      focus: corpFocus,
       shares: 500000,
       public_shares: 100000,
       share_price: 1.00,
@@ -189,8 +208,12 @@ router.post('/', authenticateToken, async (req: AuthRequest, res: Response) => {
     });
 
     res.status(201).json(corporation);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Create corporation error:', error);
+    // Handle validation errors from the model
+    if (error.message?.includes('Invalid sector') || error.message?.includes('Invalid focus')) {
+      return res.status(400).json({ error: error.message });
+    }
     res.status(500).json({ error: 'Failed to create corporation' });
   }
 });
@@ -329,7 +352,26 @@ router.patch('/:id', authenticateToken, async (req: AuthRequest, res: Response) 
       }
     }
     
-    if (req.body.type !== undefined) updates.type = req.body.type;
+    if (req.body.type !== undefined) {
+      // Validate sector
+      if (req.body.type !== null && !isValidSector(req.body.type)) {
+        return res.status(400).json({ 
+          error: `Invalid sector: "${req.body.type}". Must be one of: ${SECTORS.join(', ')}`,
+          valid_sectors: SECTORS,
+        });
+      }
+      updates.type = req.body.type;
+    }
+    if (req.body.focus !== undefined) {
+      // Validate focus
+      if (!isValidCorpFocus(req.body.focus)) {
+        return res.status(400).json({ 
+          error: `Invalid focus: "${req.body.focus}". Must be one of: ${CORP_FOCUS_TYPES.join(', ')}`,
+          valid_focus_types: CORP_FOCUS_TYPES,
+        });
+      }
+      updates.focus = req.body.focus;
+    }
     if (req.body.share_price !== undefined) {
       const price = parseFloat(req.body.share_price);
       if (isNaN(price) || price < 1.00) {
@@ -373,3 +415,4 @@ router.delete('/:id', authenticateToken, async (req: AuthRequest, res: Response)
 });
 
 export default router;
+

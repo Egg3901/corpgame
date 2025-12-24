@@ -147,6 +147,8 @@ export interface ProfileResponse {
   created_at: string;
 }
 
+export type CorpFocus = 'extraction' | 'production' | 'retail' | 'service' | 'diversified';
+
 export interface CorporationResponse {
   id: number;
   ceo_id: number;
@@ -164,6 +166,7 @@ export interface CorporationResponse {
   dividend_percentage?: number;
   special_dividend_last_paid_at?: string | null;
   special_dividend_last_amount?: number | null;
+  focus?: CorpFocus;
   created_at: string;
   ceo?: {
     id: number;
@@ -294,7 +297,7 @@ export const corporationAPI = {
     const response = await api.get(`/api/corporation/${id}`);
     return response.data;
   },
-  create: async (data: { name: string; type?: string }): Promise<CorporationResponse> => {
+  create: async (data: { name: string; type?: string; focus?: CorpFocus }): Promise<CorporationResponse> => {
     const response = await api.post('/api/corporation', data);
     return response.data;
   },
@@ -880,6 +883,7 @@ export interface UnitCounts {
   retail: number;
   production: number;
   service: number;
+  extraction: number;
 }
 
 export interface MarketWithDetails {
@@ -1143,7 +1147,7 @@ export const marketsAPI = {
   },
   buildUnit: async (
     entryId: number,
-    unitType: 'retail' | 'production' | 'service'
+    unitType: 'retail' | 'production' | 'service' | 'extraction'
   ): Promise<BuildUnitResponse> => {
     const response = await api.post(`/api/markets/entries/${entryId}/build`, {
       unit_type: unitType,

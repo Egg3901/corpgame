@@ -4,13 +4,43 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import AppNavigation from '@/components/AppNavigation';
-import { corporationAPI, authAPI } from '@/lib/api';
+import { corporationAPI, authAPI, CorpFocus } from '@/lib/api';
 import { Building2, Upload, X, AlertCircle } from 'lucide-react';
+
+// Valid sectors matching backend
+const SECTORS = [
+  'Technology',
+  'Finance',
+  'Healthcare',
+  'Manufacturing',
+  'Energy',
+  'Retail',
+  'Real Estate',
+  'Transportation',
+  'Media',
+  'Telecommunications',
+  'Agriculture',
+  'Defense',
+  'Hospitality',
+  'Construction',
+  'Pharmaceuticals',
+  'Mining',
+] as const;
+
+// Corporation focus types
+const FOCUS_OPTIONS: { value: CorpFocus; label: string; description: string }[] = [
+  { value: 'diversified', label: 'Diversified', description: 'Can build all unit types (retail, production, service, extraction)' },
+  { value: 'extraction', label: 'Extraction', description: 'Specializes in resource extraction only' },
+  { value: 'production', label: 'Production', description: 'Can build production and extraction units' },
+  { value: 'retail', label: 'Retail', description: 'Specializes in retail operations only' },
+  { value: 'service', label: 'Service', description: 'Specializes in service operations only' },
+];
 
 export default function CreateCorporationPage() {
   const router = useRouter();
   const [name, setName] = useState('');
   const [type, setType] = useState('');
+  const [focus, setFocus] = useState<CorpFocus>('diversified');
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -70,6 +100,7 @@ export default function CreateCorporationPage() {
       const corporation = await corporationAPI.create({
         name: name.trim(),
         type: type.trim() || undefined,
+        focus,
       });
 
       // Upload logo if provided
@@ -183,30 +214,42 @@ export default function CreateCorporationPage() {
 
             <div>
               <label htmlFor="type" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Corporation Type / Industry
+                Sector / Industry *
               </label>
               <select
                 id="type"
                 value={type}
                 onChange={(e) => setType(e.target.value)}
+                required
                 className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-corporate-blue focus:border-transparent"
               >
-                <option value="">Select a type...</option>
-                <option value="retail">Retail</option>
-                <option value="manufacturing">Manufacturing</option>
-                <option value="technology">Technology</option>
-                <option value="transportation">Transportation</option>
-                <option value="banking">Banking</option>
-                <option value="insurance">Insurance</option>
-                <option value="utilities">Utilities</option>
-                <option value="construction">Construction</option>
-                <option value="automobiles">Automobiles</option>
-                <option value="defense">Defense</option>
-                <option value="energy">Energy</option>
-                <option value="oil and gas">Oil and Gas</option>
-                <option value="nuclear/renewable energy">Nuclear/Renewable Energy</option>
-                <option value="mining">Mining</option>
+                <option value="">Select a sector...</option>
+                {SECTORS.map((sector) => (
+                  <option key={sector} value={sector}>{sector}</option>
+                ))}
               </select>
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                Your sector determines what resources you can extract and products you can produce.
+              </p>
+            </div>
+
+            <div>
+              <label htmlFor="focus" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Corporation Focus *
+              </label>
+              <select
+                id="focus"
+                value={focus}
+                onChange={(e) => setFocus(e.target.value as CorpFocus)}
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-corporate-blue focus:border-transparent"
+              >
+                {FOCUS_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                {FOCUS_OPTIONS.find(o => o.value === focus)?.description}
+              </p>
             </div>
 
             <div>
@@ -267,7 +310,7 @@ export default function CreateCorporationPage() {
               </button>
               <button
                 type="submit"
-                disabled={loading || !name.trim()}
+                disabled={loading || !name.trim() || !type}
                 className="flex-1 px-4 py-2 bg-corporate-blue text-white rounded-lg font-semibold hover:bg-corporate-blue-dark disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
               >
                 {loading ? (
@@ -290,3 +333,4 @@ export default function CreateCorporationPage() {
     </AppNavigation>
   );
 }
+

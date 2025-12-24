@@ -1,26 +1,28 @@
 import pool from '../db/connection';
+import { isValidSector, isValidCorpFocus, CorpFocus, Sector } from '../constants/sectors';
 
 export interface Corporation {
   id: number;
   ceo_id: number;
   name: string;
-  logo?: string | null;
+  logo: string | null;
   shares: number;
   public_shares: number;
   share_price: number;
   capital: number;
-  type?: string | null;
-  hq_state?: string | null;
+  type: string | null;
+  hq_state: string | null;
   board_size: number;
-  elected_ceo_id?: number | null;
-  ceo_salary: number; // Per 96 hours, default 100000
-  dividend_percentage: number; // Percentage of total profit (0-100), default 0.00
-  special_dividend_last_paid_at?: Date | null;
-  special_dividend_last_amount?: number | null;
+  elected_ceo_id: number | null;
+  ceo_salary: number;
+  dividend_percentage: number;
+  special_dividend_last_paid_at: Date | null;
+  special_dividend_last_amount: number | null;
+  focus: CorpFocus;
   created_at: Date;
 }
 
-export interface CorporationInput {
+export interface CreateCorporationData {
   ceo_id: number;
   name: string;
   logo?: string | null;
@@ -29,6 +31,17 @@ export interface CorporationInput {
   share_price?: number;
   capital?: number;
   type?: string | null;
+  focus?: CorpFocus;
+}
+
+export interface UpdateCorporationData {
+  name?: string;
+  logo?: string | null;
+  type?: string | null;
+  share_price?: number;
+  capital?: number;
+  public_shares?: number;
+  shares?: number;
   hq_state?: string | null;
   board_size?: number;
   elected_ceo_id?: number | null;
@@ -36,10 +49,11 @@ export interface CorporationInput {
   dividend_percentage?: number;
   special_dividend_last_paid_at?: Date | null;
   special_dividend_last_amount?: number | null;
+  focus?: CorpFocus;
 }
 
 export class CorporationModel {
-  private static mapRow(row: any): Corporation {
+  static mapRow(row: any): Corporation | null {
     if (!row) return row;
     return {
       ...row,
@@ -51,7 +65,7 @@ export class CorporationModel {
     };
   }
 
-  static async create(corpData: CorporationInput): Promise<Corporation> {
+  static async create(corpData: CreateCorporationData): Promise<Corporation> {
     const {
       ceo_id,
       name,
@@ -61,16 +75,26 @@ export class CorporationModel {
       share_price = 1.00,
       capital = 500000.00,
       type = null,
+      focus = 'diversified',
     } = corpData;
 
-    const result = await pool.query(
-      `INSERT INTO corporations (ceo_id, name, logo, shares, public_shares, share_price, capital, type)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-       RETURNING *`,
-      [ceo_id, name.trim(), logo, shares, public_shares, share_price, capital, type]
-    );
+    // Validate sector if provided
+    if (type !== null && !isValidSector(type)) {
+      throw new Error(`Invalid sector: ${type}. Must be one of the predefined sectors.`);
+    }
 
-    return this.mapRow(result.rows[0]);
+    // Validate focus
+    if (!isValidCorpFocus(focus)) {
+      throw new Error(`Invalid focus: ${focus}. Must be one of: extraction, production, retail, service, diversified.`);
+    }
+
+    const result = await pool.query(
+      `INSERT INTO corporations (ceo_id, name, logo, shares, public_shares, share_price, capital, type, focus)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+       RETURNING *`,
+      [ceo_id, name.trim(), logo, shares, public_shares, share_price, capital, type, focus]
+    );
+    return this.mapRow(result.rows[0])!;
   }
 
   static async findById(id: number): Promise<Corporation | null> {
@@ -80,7 +104,7 @@ export class CorporationModel {
 
   static async findAll(): Promise<Corporation[]> {
     const result = await pool.query('SELECT * FROM corporations ORDER BY created_at DESC');
-    return result.rows.map(row => this.mapRow(row));
+    return result.rows.map(row => this.mapRow(row)!);
   }
 
   static async findByCeoId(ceoId: number): Promise<Corporation[]> {
@@ -88,11 +112,26 @@ export class CorporationModel {
       'SELECT * FROM corporations WHERE ceo_id = $1 ORDER BY created_at DESC',
       [ceoId]
     );
-    return result.rows.map(row => this.mapRow(row));
+    return result.rows.map(row => this.mapRow(row)!);
   }
 
-  static async update(id: number, updates: Partial<CorporationInput>): Promise<Corporation | null> {
-    const allowedFields = ['name', 'logo', 'type', 'share_price', 'capital', 'public_shares', 'hq_state', 'board_size', 'elected_ceo_id', 'ceo_salary', 'dividend_percentage', 'special_dividend_last_paid_at', 'special_dividend_last_amount'];
+  static async update(id: number, updates: UpdateCorporationData): Promise<Corporation | null> {
+    // Validate sector if being updated
+    if (updates.type !== undefined && updates.type !== null && !isValidSector(updates.type)) {
+      throw new Error(`Invalid sector: ${updates.type}. Must be one of the predefined sectors.`);
+    }
+
+    // Validate focus if being updated
+    if (updates.focus !== undefined && !isValidCorpFocus(updates.focus)) {
+      throw new Error(`Invalid focus: ${updates.focus}. Must be one of: extraction, production, retail, service, diversified.`);
+    }
+
+    const allowedFields = [
+      'name', 'logo', 'type', 'share_price', 'capital', 'public_shares', 'shares',
+      'hq_state', 'board_size', 'elected_ceo_id', 'ceo_salary', 'dividend_percentage',
+      'special_dividend_last_paid_at', 'special_dividend_last_amount', 'focus'
+    ];
+    
     const fields: string[] = [];
     const values: any[] = [];
     let paramIndex = 1;
@@ -114,7 +153,6 @@ export class CorporationModel {
       `UPDATE corporations SET ${fields.join(', ')} WHERE id = $${paramIndex} RETURNING *`,
       values
     );
-
     return this.mapRow(result.rows[0]) || null;
   }
 
@@ -140,4 +178,3 @@ export class CorporationModel {
     return this.mapRow(result.rows[0]) || null;
   }
 }
-
