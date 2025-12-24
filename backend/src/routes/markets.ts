@@ -283,8 +283,8 @@ router.get('/resource/:name', async (req: Request, res: Response) => {
       resource: resourceName,
       price: commodityPrice,
       info: resourceInfo,
-      total_supply: actualSupply,  // Use calculated actualSupply (extraction output)
-      total_demand: totalDemand,   // Use calculated actualDemand (production consumption)
+      total_supply: actualSupply,
+      total_demand: totalDemand,
       demanding_sectors: demandingSectors,
       demanders: demandersQuery.rows.map(row => ({
         corporation_id: row.corporation_id,
@@ -322,7 +322,7 @@ router.get('/product/:name', async (req: Request, res: Response) => {
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
     const offset = (page - 1) * limit;
-    const tab = req.query.tab as string || 'suppliers'; // 'suppliers' or 'demanders'
+    const tab = req.query.tab as string || 'suppliers';
     
     // Get sectors that produce this product
     const producingSectors: Sector[] = [];
@@ -416,7 +416,7 @@ router.get('/product/:name', async (req: Request, res: Response) => {
       
     } else {
       // Get demanders
-      const suppliersQuery = await pool.query(`
+      const productDemandersQuery = await pool.query(`
         SELECT 
           c.id as corporation_id,
           c.name as corporation_name,
@@ -436,7 +436,7 @@ router.get('/product/:name', async (req: Request, res: Response) => {
         LIMIT $2 OFFSET $3
       `, [demandingSectors, limit, offset]);
       
-      listData = demandersQuery.rows.map(row => ({
+      listData = productDemandersQuery.rows.map(row => ({
         corporation_id: row.corporation_id,
         corporation_name: row.corporation_name,
         corporation_logo: row.corporation_logo,
@@ -607,7 +607,7 @@ router.get('/states/:code', authenticateToken, async (req: AuthRequest, res: Res
         name: stateMeta.name,
         region: stateMeta.region,
         multiplier: parseFloat(stateMeta.population_multiplier),
-        capacity: stateCapacity,  // Max units per sector in this state
+        capacity: stateCapacity,
       },
       markets: marketsWithDetails,
       sectors: SECTORS,
@@ -749,12 +749,8 @@ router.post('/entries/:entryId/build', authenticateToken, async (req: AuthReques
       return res.status(403).json({ error: 'Only the CEO can build units' });
     }
 
-    // Check if corporation's focus and the MARKET ENTRY'S sector allow this unit type
-    // Note: We use the market entry's sector_type (the sector you're operating in),
-    // not the corporation's main sector. This allows corps to build extraction in
-    // sectors that support it (e.g. Mining, Energy, Agriculture) regardless of their main sector.
     const corpFocus = corporation.focus || 'diversified';
-    const entrySector = marketEntry.sector_type; // Use the market entry's sector, not corp's
+    const entrySector = marketEntry.sector_type;
     const buildCheck = canBuildUnit(entrySector, corpFocus as CorpFocus, unit_type as UnitType);
     
     if (!buildCheck.allowed) {
@@ -765,7 +761,7 @@ router.post('/entries/:entryId/build', authenticateToken, async (req: AuthReques
       });
     }
 
-    // Check state capacity - units are limited by state multiplier
+    // Check state capacity
     const currentUnitCounts = await BusinessUnitModel.getUnitCounts(entryId);
     const currentTotalUnits = currentUnitCounts.retail + currentUnitCounts.production + 
                               currentUnitCounts.service + currentUnitCounts.extraction;
@@ -805,7 +801,7 @@ router.post('/entries/:entryId/build', authenticateToken, async (req: AuthReques
     });
     await UserModel.updateActions(userId, -BUILD_UNIT_ACTIONS);
 
-    // Build unit (increment count)
+    // Build unit
     const unit = await BusinessUnitModel.incrementUnit(entryId, unit_type, 1);
 
     // Get updated unit counts
@@ -822,10 +818,9 @@ router.post('/entries/:entryId/build', authenticateToken, async (req: AuthReques
       reference_type: 'business_unit',
     });
 
-    // Update stock price since asset value changed
+    // Update stock price
     const newStockPrice = await updateStockPrice(marketEntry.corporation_id);
 
-    // Get updated capacity info
     const newTotalUnits = unitCounts.retail + unitCounts.production + 
                           unitCounts.service + unitCounts.extraction;
     const stateCapacity = getStateSectorCapacity(marketEntry.state_code);
@@ -859,29 +854,24 @@ router.get('/corporation/:corpId/finances', async (req: Request, res: Response) 
       return res.status(400).json({ error: 'Invalid corporation ID' });
     }
 
-    // Check corporation exists
     const corporation = await CorporationModel.findById(corpId);
     if (!corporation) {
       return res.status(404).json({ error: 'Corporation not found' });
     }
 
-    // Calculate finances and balance sheet
     const [finances, balanceSheet] = await Promise.all([
       MarketEntryModel.calculateCorporationFinances(corpId),
       calculateBalanceSheet(corpId),
     ]);
 
-    // Calculate dividend fields
     const dividendPercentage = typeof corporation.dividend_percentage === 'string' ? parseFloat(corporation.dividend_percentage) : (corporation.dividend_percentage || 0);
     const totalShares = corporation.shares || 1;
-    const totalProfit96h = finances.display_profit; // 96-hour profit projection
+    const totalProfit96h = finances.display_profit;
     
-    // Calculate dividend per share (96hr): (total_profit * dividend_percentage / 100) / total_shares
     const dividendPerShare96h = totalShares > 0 && dividendPercentage > 0 
       ? (totalProfit96h * dividendPercentage / 100) / totalShares 
       : 0;
 
-    // Special dividend info
     const specialDividendLastPaidAt = corporation.special_dividend_last_paid_at;
     const specialDividendLastAmount = typeof corporation.special_dividend_last_amount === 'string' 
       ? parseFloat(corporation.special_dividend_last_amount) 
@@ -890,7 +880,6 @@ router.get('/corporation/:corpId/finances', async (req: Request, res: Response) 
       ? specialDividendLastAmount / totalShares
       : null;
 
-    // Add dividend fields to finances
     const financesWithDividends = {
       ...finances,
       dividend_per_share_96h: dividendPerShare96h,
@@ -899,13 +888,10 @@ router.get('/corporation/:corpId/finances', async (req: Request, res: Response) 
       special_dividend_per_share_last: specialDividendPerShareLast,
     };
 
-    // Get market entries with details - use a single query with JOIN instead of N+1 queries
     const entries = await MarketEntryModel.findByCorporationIdWithUnits(corpId);
     
-    // Get all state codes we need
     const stateCodes = [...new Set(entries.map(e => e.state_code))];
     
-    // Single query to get all state metadata
     let stateMetadataMap: Record<string, { name: string; multiplier: number }> = {};
     if (stateCodes.length > 0) {
       const stateMetaResult = await pool.query(
@@ -952,7 +938,6 @@ router.get('/corporation/:corpId/entries', async (req: Request, res: Response) =
 
     const entries = await MarketEntryModel.findByCorporationIdWithUnits(corpId);
 
-    // Get all state codes we need - single query instead of N+1
     const stateCodes = [...new Set(entries.map(e => e.state_code))];
     
     let stateMetadataMap: Record<string, { name: string; region: string; multiplier: number }> = {};
@@ -987,7 +972,7 @@ router.get('/corporation/:corpId/entries', async (req: Request, res: Response) =
   }
 });
 
-// DELETE /api/markets/entries/:entryId/abandon - Abandon a sector (delete market entry and all business units)
+// DELETE /api/markets/entries/:entryId/abandon - Abandon a sector
 router.delete('/entries/:entryId/abandon', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
     const entryId = parseInt(req.params.entryId, 10);
@@ -997,13 +982,11 @@ router.delete('/entries/:entryId/abandon', authenticateToken, async (req: AuthRe
       return res.status(400).json({ error: 'Invalid entry ID' });
     }
 
-    // Get market entry
     const marketEntry = await MarketEntryModel.findById(entryId);
     if (!marketEntry) {
       return res.status(404).json({ error: 'Market entry not found' });
     }
 
-    // Check if user is CEO of the corporation
     const corporation = await CorporationModel.findById(marketEntry.corporation_id);
     if (!corporation) {
       return res.status(404).json({ error: 'Corporation not found' });
@@ -1013,17 +996,14 @@ router.delete('/entries/:entryId/abandon', authenticateToken, async (req: AuthRe
       return res.status(403).json({ error: 'Only the CEO can abandon sectors' });
     }
 
-    // Get unit counts before deletion for transaction description
     const unitCounts = await BusinessUnitModel.getUnitCounts(entryId);
     const totalUnits = unitCounts.retail + unitCounts.production + unitCounts.service + unitCounts.extraction;
 
-    // Delete market entry (this will cascade delete all business units due to ON DELETE CASCADE)
     await MarketEntryModel.delete(entryId);
 
-    // Record transaction
     await TransactionModel.create({
       transaction_type: 'sector_abandon',
-      amount: 0, // No cost/refund for abandoning
+      amount: 0,
       from_user_id: userId,
       corporation_id: marketEntry.corporation_id,
       description: `Abandoned ${marketEntry.sector_type} sector in ${getStateLabel(marketEntry.state_code) || marketEntry.state_code} (${totalUnits} units removed)`,
@@ -1031,7 +1011,6 @@ router.delete('/entries/:entryId/abandon', authenticateToken, async (req: AuthRe
       reference_type: 'market_entry',
     });
 
-    // Update stock price since asset value changed
     const newStockPrice = await updateStockPrice(marketEntry.corporation_id);
 
     res.json({
@@ -1048,4 +1027,3 @@ router.delete('/entries/:entryId/abandon', authenticateToken, async (req: AuthRe
 });
 
 export default router;
-
