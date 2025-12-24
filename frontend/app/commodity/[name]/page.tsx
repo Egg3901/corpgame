@@ -203,7 +203,7 @@ export default function CommodityDetailPage() {
                   Top Demanders
                 </h2>
                 
-                {data.suppliers.length === 0 ? (
+                {data.demanders.length === 0 ? (
                   <div className="text-center py-12">
                     <Factory className="h-12 w-12 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
                     <p className="text-gray-500 dark:text-gray-400">No corporations currently demanding this resource</p>
@@ -221,17 +221,17 @@ export default function CommodityDetailPage() {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100 dark:divide-gray-700/50">
-                          {data.suppliers.map((supplier, idx) => (
-                            <tr key={`${supplier.corporation_id}-${supplier.state_code}-${idx}`} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                          {data.demanders.map((demander, idx) => (
+                            <tr key={`${demander.corporation_id}-${demander.state_code}-${idx}`} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
                               <td className="py-3 px-4">
                                 <Link
-                                  href={`/corporation/${supplier.corporation_id}`}
+                                  href={`/corporation/${demander.corporation_id}`}
                                   className="flex items-center gap-3 hover:text-corporate-blue dark:hover:text-corporate-blue-light transition-colors"
                                 >
-                                  {supplier.corporation_logo ? (
+                                  {demander.corporation_logo ? (
                                     <img
-                                      src={supplier.corporation_logo}
-                                      alt={supplier.corporation_name}
+                                      src={demander.corporation_logo}
+                                      alt={demander.corporation_name}
                                       className="w-8 h-8 rounded-lg object-cover"
                                       onError={(e) => { e.currentTarget.src = '/defaultpfp.jpg'; }}
                                     />
@@ -240,21 +240,21 @@ export default function CommodityDetailPage() {
                                       <Building2 className="w-4 h-4 text-gray-400" />
                                     </div>
                                   )}
-                                  <span className="font-medium text-gray-900 dark:text-white">{supplier.corporation_name}</span>
+                                  <span className="font-medium text-gray-900 dark:text-white">{demander.corporation_name}</span>
                                 </Link>
                               </td>
-                              <td className="py-3 px-4 text-sm text-gray-600 dark:text-gray-400">{supplier.sector_type}</td>
+                              <td className="py-3 px-4 text-sm text-gray-600 dark:text-gray-400">{demander.sector_type}</td>
                               <td className="py-3 px-4">
                                 <Link
-                                  href={`/states/${supplier.state_code}`}
+                                  href={`/states/${demander.state_code}`}
                                   className="inline-flex items-center gap-1 text-sm text-gray-600 dark:text-gray-400 hover:text-corporate-blue dark:hover:text-corporate-blue-light transition-colors"
                                 >
                                   <MapPin className="w-3 h-3" />
-                                  {supplier.state_name}
+                                  {demander.state_name}
                                 </Link>
                               </td>
                               <td className="py-3 px-4 text-right font-mono font-semibold text-gray-900 dark:text-white">
-                                {supplier.production_units}
+                                {demander.production_units}
                               </td>
                             </tr>
                           ))}
