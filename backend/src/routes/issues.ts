@@ -147,16 +147,14 @@ router.post('/report', authenticateToken, async (req: AuthRequest, res: Response
 
     // Get user information for the issue body
     const user = await UserModel.findById(userId);
-    const username = user?.username || 'Unknown User';
-    const userEmail = user?.email || 'N/A';
+    const displayName = user?.player_name || user?.username || 'Unknown User';
 
     // Format issue body with user information
     const issueBody = `## Description
 ${description}
 
 ## Reported By
-- **User**: ${username}
-- **Email**: ${userEmail}
+- **Display Name**: ${displayName}
 - **User ID**: ${userId}
 
 ## Details
@@ -179,7 +177,7 @@ ${description}
     // Log the issue (you could also store it in a database)
     console.log('Issue reported:', {
       userId,
-      username,
+      displayName,
       title: title.trim(),
       category,
       priority,
@@ -202,3 +200,4 @@ ${description}
 });
 
 export default router;
+

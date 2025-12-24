@@ -196,13 +196,46 @@ router.post('/login', async (req: Request, res: Response) => {
     }
 
     // Find user by email first, fallback to username
-    let user = email ? await UserModel.findByEmail(identifier) : null;
-    if (!user) {
-      user = await UserModel.findByUsername(identifier);
+    let user: any = null;
+    try {
+      if (email) {
+        user = await UserModel.findByEmail(identifier);
+      }
+      if (!user) {
+        user = await UserModel.findByUsername(identifier);
+      }
+    } catch (dbError: any) {
+      console.error('Database error during user lookup:', dbError);
+      console.error('Database error details:', {
+        message: dbError?.message,
+        code: dbError?.code,
+        detail: dbError?.detail,
+      });
+      return res.status(500).json({ 
+        error: 'Database error during login',
+        details: process.env.NODE_ENV !== 'production' ? dbError?.message : undefined
+      });
     }
 
     if (!user) {
       return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    // Ensure user has required fields
+    if (!user || !user.id) {
+      console.error('Invalid user object returned from database');
+      return res.status(500).json({ error: 'Database error: Invalid user data' });
+    }
+
+    if (!user.password_hash) {
+      console.error('User found but password_hash is missing:', { 
+        userId: user.id, 
+        email: user.email, 
+        username: user.username,
+        hasPasswordHash: !!user.password_hash,
+        userKeys: Object.keys(user || {})
+      });
+      return res.status(500).json({ error: 'User data is corrupted. Please contact support.' });
     }
 
     if (user.is_banned) {
@@ -239,9 +272,29 @@ router.post('/login', async (req: Request, res: Response) => {
         is_banned: user.is_banned,
       },
     });
-  } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+  } catch (error: any) {
+    // Safely extract error information
+    const errorMessage = error?.message || 'Unknown error';
+    const errorCode = error?.code;
+    const errorDetail = error?.detail;
+    const errorConstraint = error?.constraint;
+    
+    console.error('Login error:', errorMessage);
+    if (error?.stack) {
+      console.error('Login error stack:', error.stack);
+    }
+    console.error('Login error details:', {
+      message: errorMessage,
+      code: errorCode,
+      detail: errorDetail,
+      constraint: errorConstraint,
+    });
+    
+    // Return a safe error response
+    res.status(500).json({ 
+      error: 'Internal server error',
+      details: process.env.NODE_ENV !== 'production' ? errorMessage : undefined
+    });
   }
 });
 
