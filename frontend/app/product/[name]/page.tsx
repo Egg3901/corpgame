@@ -125,7 +125,9 @@ export default function ProductDetailPage() {
   }
 
   // Calculate price info
-  const priceChange = data.price.priceChange;
+  const priceChange = data.price.referenceValue > 0 
+    ? ((data.price.currentPrice - data.price.referenceValue) / data.price.referenceValue) * 100
+    : 0;
   const isPositive = priceChange >= 0;
   const listData = activeTab === 'suppliers' ? data.suppliers || [] : data.demanders || [];
 
