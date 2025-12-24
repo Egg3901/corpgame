@@ -165,7 +165,7 @@ export default function ProductDetailPage() {
               </div>
               <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
                 <p className="text-sm text-white/70">Reference Value</p>
-                <p className="text-2xl font-bold font-mono">{formatCurrency(data.price.basePrice)}</p>
+                <p className="text-2xl font-bold font-mono">{formatCurrency(data.price.referenceValue)}</p>
               </div>
               <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
                 <p className="text-sm text-white/70">Change</p>
@@ -177,8 +177,8 @@ export default function ProductDetailPage() {
               <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
                 <p className="text-sm text-white/70">Scarcity</p>
                 <p className="text-2xl font-bold">
-                  {data.price.scarcity >= 1.5 ? 'High' : data.price.scarcity >= 1.0 ? 'Normal' : 'Low'}
-                  <span className="text-sm font-mono ml-2 text-white/70">({data.price.scarcity.toFixed(2)}x)</span>
+                  {data.price.scarcityFactor >= 1.5 ? 'High' : data.price.scarcityFactor >= 1.0 ? 'Normal' : 'Low'}
+                  <span className="text-sm font-mono ml-2 text-white/70">({data.price.scarcityFactor.toFixed(2)}x)</span>
                 </p>
               </div>
             </div>
@@ -426,7 +426,7 @@ export default function ProductDetailPage() {
                   </p>
                   <div className="mt-4 p-3 rounded-lg bg-gray-100 dark:bg-gray-800">
                     <p className="font-mono text-xs text-gray-700 dark:text-gray-300">
-                      {formatCurrency(data.price.basePrice)} × {data.price.scarcity.toFixed(2)} = {formatCurrency(data.price.currentPrice)}
+                      {formatCurrency(data.price.referenceValue)} × {data.price.scarcityFactor.toFixed(2)} = {formatCurrency(data.price.currentPrice)}
                     </p>
                   </div>
                 </div>
