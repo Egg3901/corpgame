@@ -5,16 +5,40 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import AppNavigation from '@/components/AppNavigation';
 import TickerTape from '@/components/TickerTape';
-import { corporationAPI, CorporationResponse } from '@/lib/api';
-import { Building2, Plus, TrendingUp, TrendingDown, Clock, FileText, ChevronRight, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { corporationAPI, CorporationResponse, marketsAPI, CommodityPrice } from '@/lib/api';
+import { Building2, Plus, TrendingUp, TrendingDown, Clock, FileText, ChevronRight, ArrowUpRight, ArrowDownRight, Package, Droplets, Cpu, Zap, Wheat, Trees, FlaskConical, MapPin } from 'lucide-react';
+
+// Resource icon mapping
+const RESOURCE_ICONS: Record<string, React.ReactNode> = {
+  'Oil': <Droplets className="w-5 h-5" />,
+  'Steel': <Package className="w-5 h-5" />,
+  'Rare Earth': <Cpu className="w-5 h-5" />,
+  'Copper': <Zap className="w-5 h-5" />,
+  'Fertile Land': <Wheat className="w-5 h-5" />,
+  'Lumber': <Trees className="w-5 h-5" />,
+  'Chemical Compounds': <FlaskConical className="w-5 h-5" />,
+};
+
+// Resource color mapping
+const RESOURCE_COLORS: Record<string, { bg: string; text: string; border: string }> = {
+  'Oil': { bg: 'bg-slate-900', text: 'text-slate-100', border: 'border-slate-700' },
+  'Steel': { bg: 'bg-zinc-600', text: 'text-zinc-100', border: 'border-zinc-500' },
+  'Rare Earth': { bg: 'bg-violet-600', text: 'text-violet-100', border: 'border-violet-500' },
+  'Copper': { bg: 'bg-orange-600', text: 'text-orange-100', border: 'border-orange-500' },
+  'Fertile Land': { bg: 'bg-lime-600', text: 'text-lime-100', border: 'border-lime-500' },
+  'Lumber': { bg: 'bg-amber-700', text: 'text-amber-100', border: 'border-amber-600' },
+  'Chemical Compounds': { bg: 'bg-cyan-600', text: 'text-cyan-100', border: 'border-cyan-500' },
+};
 
 export default function StockMarketPage() {
   const router = useRouter();
   const [corporations, setCorporations] = useState<CorporationResponse[]>([]);
+  const [commodities, setCommodities] = useState<CommodityPrice[]>([]);
   const [loading, setLoading] = useState(true);
+  const [commoditiesLoading, setCommoditiesLoading] = useState(false);
   const [error, setError] = useState('');
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [activeTab, setActiveTab] = useState<'stocks' | 'bonds'>('stocks');
+  const [activeTab, setActiveTab] = useState<'stocks' | 'products' | 'bonds'>('stocks');
 
   useEffect(() => {
     const fetchCorporations = async () => {
@@ -31,6 +55,24 @@ export default function StockMarketPage() {
 
     fetchCorporations();
   }, []);
+
+  // Fetch commodities when Products tab is selected
+  useEffect(() => {
+    if (activeTab === 'products' && commodities.length === 0) {
+      const fetchCommodities = async () => {
+        setCommoditiesLoading(true);
+        try {
+          const data = await marketsAPI.getCommodities();
+          setCommodities(data.commodities);
+        } catch (err) {
+          console.error('Failed to fetch commodities:', err);
+        } finally {
+          setCommoditiesLoading(false);
+        }
+      };
+      fetchCommodities();
+    }
+  }, [activeTab, commodities.length]);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -172,6 +214,17 @@ export default function StockMarketPage() {
           >
             <TrendingUp className="w-4 h-4" />
             Stocks
+          </button>
+          <button
+            onClick={() => setActiveTab('products')}
+            className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
+              activeTab === 'products'
+                ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+            }`}
+          >
+            <Package className="w-4 h-4" />
+            Commodities
           </button>
           <button
             onClick={() => setActiveTab('bonds')}
@@ -390,6 +443,142 @@ export default function StockMarketPage() {
           )
         )}
 
+        {/* Commodities Market */}
+        {activeTab === 'products' && (
+          commoditiesLoading ? (
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-8 sm:p-12 text-center">
+              <div className="text-lg text-gray-600 dark:text-gray-200">Loading commodities...</div>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {/* Info Banner */}
+              <div className="rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 p-4">
+                <div className="flex items-start gap-3">
+                  <Package className="h-5 w-5 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="text-sm font-medium text-amber-800 dark:text-amber-200">Commodity Prices</p>
+                    <p className="text-sm text-amber-700 dark:text-amber-300">
+                      Prices are calculated based on supply scarcity. Lower supply = higher prices.
+                      Production units in sectors require these resources to operate at full efficiency.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Commodities Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {commodities.map((commodity) => {
+                  const colors = RESOURCE_COLORS[commodity.resource] || { bg: 'bg-gray-600', text: 'text-gray-100', border: 'border-gray-500' };
+                  const isPositive = commodity.priceChange >= 0;
+                  
+                  return (
+                    <div
+                      key={commodity.resource}
+                      className="relative bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden hover:border-corporate-blue/50 dark:hover:border-corporate-blue/50 transition-all group"
+                    >
+                      {/* Header with icon and name */}
+                      <div className={`${colors.bg} ${colors.text} px-4 py-3 flex items-center justify-between`}>
+                        <div className="flex items-center gap-2">
+                          {RESOURCE_ICONS[commodity.resource] || <Package className="w-5 h-5" />}
+                          <span className="font-semibold">{commodity.resource}</span>
+                        </div>
+                        <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                          isPositive 
+                            ? 'bg-emerald-500/20 text-emerald-200' 
+                            : 'bg-red-500/20 text-red-200'
+                        }`}>
+                          {isPositive ? '+' : ''}{commodity.priceChange.toFixed(1)}%
+                        </span>
+                      </div>
+
+                      {/* Price info */}
+                      <div className="p-4 space-y-3">
+                        <div className="flex items-end justify-between">
+                          <div>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mb-0.5">Current Price</p>
+                            <p className="text-2xl font-bold font-mono text-gray-900 dark:text-white">
+                              {formatCurrency(commodity.currentPrice)}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mb-0.5">Base Price</p>
+                            <p className="text-sm font-mono text-gray-600 dark:text-gray-400">
+                              {formatCurrency(commodity.basePrice)}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Supply info */}
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-gray-500 dark:text-gray-400">Total Supply</span>
+                          <span className="font-mono text-gray-700 dark:text-gray-300">
+                            {formatCompactNumber(commodity.totalSupply)} units
+                          </span>
+                        </div>
+
+                        {/* Scarcity indicator */}
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-gray-500 dark:text-gray-400">Scarcity</span>
+                          <span className={`font-medium ${
+                            commodity.scarcityFactor >= 1.5 
+                              ? 'text-red-600 dark:text-red-400'
+                              : commodity.scarcityFactor >= 1.0
+                              ? 'text-amber-600 dark:text-amber-400'
+                              : 'text-emerald-600 dark:text-emerald-400'
+                          }`}>
+                            {commodity.scarcityFactor >= 1.5 ? 'High' : commodity.scarcityFactor >= 1.0 ? 'Normal' : 'Low'}
+                            <span className="text-xs ml-1 font-mono">({commodity.scarcityFactor.toFixed(2)}x)</span>
+                          </span>
+                        </div>
+
+                        {/* Demanding sectors */}
+                        {commodity.demandingSectors.length > 0 && (
+                          <div className="pt-2 border-t border-gray-100 dark:border-gray-700">
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mb-1.5">Used by:</p>
+                            <div className="flex flex-wrap gap-1">
+                              {commodity.demandingSectors.map((sector) => (
+                                <span
+                                  key={sector}
+                                  className="text-xs px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300"
+                                >
+                                  {sector}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Top producers */}
+                        <div className="pt-2 border-t border-gray-100 dark:border-gray-700">
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mb-2 flex items-center gap-1">
+                            <MapPin className="w-3 h-3" />
+                            Top Producers
+                          </p>
+                          <div className="space-y-1.5">
+                            {commodity.topProducers.slice(0, 3).map((producer, idx) => (
+                              <div key={producer.stateCode} className="flex items-center justify-between text-xs">
+                                <Link
+                                  href={`/states/${producer.stateCode}`}
+                                  className="text-gray-700 dark:text-gray-300 hover:text-corporate-blue dark:hover:text-corporate-blue-light transition-colors"
+                                >
+                                  {idx + 1}. {producer.stateName}
+                                </Link>
+                                <span className="font-mono text-gray-500 dark:text-gray-400">
+                                  {producer.percentage.toFixed(1)}%
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )
+        )}
+
         {/* Bond Market Placeholder */}
         {activeTab === 'bonds' && (
           <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-8 sm:p-12 text-center">
@@ -404,4 +593,5 @@ export default function StockMarketPage() {
     </AppNavigation>
   );
 }
+
 

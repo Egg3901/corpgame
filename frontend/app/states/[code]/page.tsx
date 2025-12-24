@@ -16,7 +16,47 @@ import {
   Briefcase,
   Plus,
   ChevronDown,
+  Droplets,
+  Package,
+  Cpu,
+  Zap,
+  Wheat,
+  Trees,
+  FlaskConical,
+  Gem,
 } from 'lucide-react';
+
+// Resource icon mapping
+const RESOURCE_ICONS: Record<string, React.ReactNode> = {
+  'Oil': <Droplets className="w-4 h-4" />,
+  'Steel': <Package className="w-4 h-4" />,
+  'Rare Earth': <Cpu className="w-4 h-4" />,
+  'Copper': <Zap className="w-4 h-4" />,
+  'Fertile Land': <Wheat className="w-4 h-4" />,
+  'Lumber': <Trees className="w-4 h-4" />,
+  'Chemical Compounds': <FlaskConical className="w-4 h-4" />,
+};
+
+// Resource color mapping for pie chart segments
+const RESOURCE_COLORS: Record<string, string> = {
+  'Oil': '#1e293b',           // slate-800
+  'Steel': '#52525b',         // zinc-600
+  'Rare Earth': '#7c3aed',    // violet-600
+  'Copper': '#ea580c',        // orange-600
+  'Fertile Land': '#65a30d',  // lime-600
+  'Lumber': '#b45309',        // amber-700
+  'Chemical Compounds': '#0891b2', // cyan-600
+};
+
+const RESOURCE_BG_COLORS: Record<string, string> = {
+  'Oil': 'bg-slate-800',
+  'Steel': 'bg-zinc-600',
+  'Rare Earth': 'bg-violet-600',
+  'Copper': 'bg-orange-600',
+  'Fertile Land': 'bg-lime-600',
+  'Lumber': 'bg-amber-700',
+  'Chemical Compounds': 'bg-cyan-600',
+};
 
 // Unit economics constants (must match backend)
 const UNIT_ECONOMICS = {
@@ -28,6 +68,92 @@ const UNIT_ECONOMICS = {
 const MARKET_ENTRY_COST = 50000;
 const BUILD_UNIT_COST = 10000;
 const DISPLAY_PERIOD_HOURS = 96;
+
+// SVG Pie Chart Component
+function ResourcePieChart({ resources }: { resources: Array<{ resource: string; percentage: number }> }) {
+  if (resources.length === 0) return null;
+
+  let cumulativePercentage = 0;
+  const segments = resources.map((r, idx) => {
+    const startPercentage = cumulativePercentage;
+    cumulativePercentage += r.percentage;
+    return {
+      ...r,
+      startPercentage,
+      endPercentage: cumulativePercentage,
+      color: RESOURCE_COLORS[r.resource] || '#6b7280',
+    };
+  });
+
+  // SVG pie chart using conic gradient approach with path arcs
+  const size = 180;
+  const center = size / 2;
+  const radius = 70;
+  const innerRadius = 40;
+
+  const polarToCartesian = (cx: number, cy: number, r: number, angle: number) => {
+    const rad = (angle - 90) * Math.PI / 180;
+    return {
+      x: cx + r * Math.cos(rad),
+      y: cy + r * Math.sin(rad),
+    };
+  };
+
+  const describeArc = (cx: number, cy: number, outerR: number, innerR: number, startAngle: number, endAngle: number) => {
+    const startOuter = polarToCartesian(cx, cy, outerR, startAngle);
+    const endOuter = polarToCartesian(cx, cy, outerR, endAngle);
+    const startInner = polarToCartesian(cx, cy, innerR, endAngle);
+    const endInner = polarToCartesian(cx, cy, innerR, startAngle);
+    
+    const largeArcFlag = endAngle - startAngle <= 180 ? 0 : 1;
+
+    return [
+      'M', startOuter.x, startOuter.y,
+      'A', outerR, outerR, 0, largeArcFlag, 1, endOuter.x, endOuter.y,
+      'L', startInner.x, startInner.y,
+      'A', innerR, innerR, 0, largeArcFlag, 0, endInner.x, endInner.y,
+      'Z'
+    ].join(' ');
+  };
+
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="drop-shadow-lg">
+      {/* Background circle */}
+      <circle cx={center} cy={center} r={radius} fill="#f3f4f6" className="dark:fill-gray-700" />
+      
+      {/* Pie segments */}
+      {segments.map((segment, idx) => {
+        const startAngle = (segment.startPercentage / 100) * 360;
+        const endAngle = (segment.endPercentage / 100) * 360;
+        
+        // Handle case where segment is nearly 100%
+        const adjustedEndAngle = Math.min(endAngle, startAngle + 359.9);
+        
+        if (segment.percentage < 0.5) return null; // Skip tiny segments
+        
+        return (
+          <path
+            key={segment.resource}
+            d={describeArc(center, center, radius, innerRadius, startAngle, adjustedEndAngle)}
+            fill={segment.color}
+            className="transition-all duration-300 hover:opacity-80"
+            style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.1))' }}
+          />
+        );
+      })}
+      
+      {/* Center circle for donut effect */}
+      <circle cx={center} cy={center} r={innerRadius} fill="white" className="dark:fill-gray-800" />
+      
+      {/* Center icon */}
+      <g transform={`translate(${center - 12}, ${center - 12})`}>
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-400 dark:text-gray-500">
+          <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+        </svg>
+      </g>
+    </svg>
+  );
+}
 
 export default function StateDetailPage() {
   const params = useParams();
@@ -423,6 +549,99 @@ export default function StateDetailPage() {
 
           {/* Sidebar */}
           <div className="space-y-6">
+            {/* Natural Resources */}
+            {stateData.resources && stateData.resources.resources.length > 0 && (
+              <div className="relative rounded-2xl border border-gray-200/50 dark:border-gray-700/50 bg-gradient-to-br from-white via-white to-gray-50/50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800/50 shadow-xl overflow-hidden backdrop-blur-sm">
+                <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 via-transparent to-amber-500/5 dark:from-amber-500/10 dark:via-transparent dark:to-amber-500/10 pointer-events-none" />
+                <div className="relative p-6">
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                    <Gem className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                    Natural Resources
+                  </h3>
+                  
+                  {/* Pie Chart */}
+                  <div className="flex justify-center mb-4">
+                    <ResourcePieChart 
+                      resources={stateData.resources.resources.map(r => ({
+                        resource: r.resource,
+                        percentage: r.percentage,
+                      }))} 
+                    />
+                  </div>
+
+                  {/* Total Value */}
+                  <div className="text-center mb-4 pb-4 border-b border-gray-200 dark:border-gray-700">
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Total Resource Value</p>
+                    <p className="text-xl font-bold text-amber-600 dark:text-amber-400">
+                      {formatCurrency(stateData.resources.totalResourceValue)}
+                    </p>
+                  </div>
+
+                  {/* Resource List */}
+                  <div className="space-y-3">
+                    {stateData.resources.resources.map((resource) => (
+                      <div
+                        key={resource.resource}
+                        className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+                      >
+                        {/* Color indicator */}
+                        <div 
+                          className={`w-3 h-3 rounded-full flex-shrink-0 ${RESOURCE_BG_COLORS[resource.resource] || 'bg-gray-500'}`}
+                        />
+                        
+                        {/* Icon */}
+                        <div className="text-gray-500 dark:text-gray-400 flex-shrink-0">
+                          {RESOURCE_ICONS[resource.resource] || <Package className="w-4 h-4" />}
+                        </div>
+                        
+                        {/* Info */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                              {resource.resource}
+                            </span>
+                            <span className="text-sm font-mono text-gray-600 dark:text-gray-400">
+                              {resource.percentage.toFixed(1)}%
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                            <span>{resource.amount.toLocaleString()} units</span>
+                            <span className="text-amber-600 dark:text-amber-400">
+                              {formatCurrency(resource.currentPrice)}/unit
+                            </span>
+                          </div>
+                          <div className="text-xs text-gray-400 dark:text-gray-500">
+                            {resource.stateShareOfUS.toFixed(1)}% of US supply
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Link to commodities */}
+                  <Link
+                    href="/stock-market"
+                    className="mt-4 block text-center text-sm text-corporate-blue hover:text-corporate-blue-dark dark:text-corporate-blue-light dark:hover:text-corporate-blue transition-colors"
+                  >
+                    View All Commodities →
+                  </Link>
+                </div>
+              </div>
+            )}
+
+            {/* No Resources */}
+            {(!stateData.resources || stateData.resources.resources.length === 0) && (
+              <div className="relative rounded-2xl border border-gray-200/50 dark:border-gray-700/50 bg-gradient-to-br from-white via-white to-gray-50/50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800/50 shadow-xl overflow-hidden backdrop-blur-sm">
+                <div className="relative p-6 text-center">
+                  <Gem className="h-10 w-10 text-gray-300 dark:text-gray-600 mx-auto mb-3" />
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">No Natural Resources</h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    This state has limited natural resource production. Focus on service and retail sectors.
+                  </p>
+                </div>
+              </div>
+            )}
+
             {/* Unit Economics */}
             <div className="relative rounded-2xl border border-gray-200/50 dark:border-gray-700/50 bg-gradient-to-br from-white via-white to-gray-50/50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800/50 shadow-xl overflow-hidden backdrop-blur-sm">
               <div className="absolute inset-0 bg-gradient-to-br from-corporate-blue/5 via-transparent to-corporate-blue-light/5 dark:from-corporate-blue/10 dark:via-transparent dark:to-corporate-blue-dark/10 pointer-events-none" />
@@ -531,3 +750,4 @@ export default function StateDetailPage() {
     </AppNavigation>
   );
 }
+

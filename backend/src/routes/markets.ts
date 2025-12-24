@@ -19,11 +19,30 @@ import {
   MARKET_ENTRY_ACTIONS,
   BUILD_UNIT_COST,
   BUILD_UNIT_ACTIONS,
+  getAllCommodityPrices,
+  getStateResourceBreakdown,
+  RESOURCES,
+  SECTOR_RESOURCES,
 } from '../constants/sectors';
 import pool from '../db/connection';
 import { calculateBalanceSheet, updateStockPrice } from '../utils/valuation';
 
 const router = express.Router();
+
+// GET /api/markets/commodities - Get all commodity prices
+router.get('/commodities', async (req: Request, res: Response) => {
+  try {
+    const commodities = getAllCommodityPrices();
+    res.json({
+      commodities,
+      resources: RESOURCES,
+      sector_resources: SECTOR_RESOURCES,
+    });
+  } catch (error) {
+    console.error('Get commodities error:', error);
+    res.status(500).json({ error: 'Failed to fetch commodity prices' });
+  }
+});
 
 // GET /api/markets/states - List all states with region grouping
 router.get('/states', async (req: Request, res: Response) => {
@@ -127,6 +146,9 @@ router.get('/states/:code', authenticateToken, async (req: AuthRequest, res: Res
       );
     }
 
+    // Get resource breakdown for this state
+    const resourceBreakdown = getStateResourceBreakdown(stateCode);
+
     res.json({
       state: {
         code: stateMeta.state_code,
@@ -136,6 +158,8 @@ router.get('/states/:code', authenticateToken, async (req: AuthRequest, res: Res
       },
       markets: marketsWithDetails,
       sectors: SECTORS,
+      sector_resources: SECTOR_RESOURCES,
+      resources: resourceBreakdown,
       user_corporation: userCorp ? {
         id: userCorp.id,
         name: userCorp.name,
@@ -444,3 +468,4 @@ router.get('/corporation/:corpId/entries', async (req: Request, res: Response) =
 });
 
 export default router;
+

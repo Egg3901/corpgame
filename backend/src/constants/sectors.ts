@@ -658,3 +658,171 @@ export function getResourceInfo(resource: Resource): {
   };
 }
 
+// ============================================================================
+// COMMODITY PRICING
+// Price is calculated based on scarcity (inverse of availability)
+// ============================================================================
+
+// Base prices for each resource (in dollars per unit)
+export const RESOURCE_BASE_PRICES: Record<Resource, number> = {
+  'Oil': 75,                    // Per barrel equivalent
+  'Steel': 850,                 // Per ton equivalent
+  'Rare Earth': 125000,         // Per ton (very expensive)
+  'Copper': 8500,               // Per ton
+  'Fertile Land': 3500,         // Per acre equivalent
+  'Lumber': 450,                // Per thousand board feet
+  'Chemical Compounds': 2200,   // Per ton
+};
+
+// Reference pool sizes for "normal" pricing (prices adjust based on deviation from these)
+const REFERENCE_POOL_SIZES: Record<Resource, number> = {
+  'Oil': 12000,
+  'Steel': 10000,
+  'Rare Earth': 4000,
+  'Copper': 20000,
+  'Fertile Land': 60000,
+  'Lumber': 40000,
+  'Chemical Compounds': 25000,
+};
+
+export interface CommodityPrice {
+  resource: Resource;
+  basePrice: number;
+  currentPrice: number;
+  priceChange: number;          // Percentage change from base
+  totalSupply: number;
+  scarcityFactor: number;       // < 1 = abundant, > 1 = scarce
+  topProducers: Array<{
+    stateCode: string;
+    stateName: string;
+    amount: number;
+    percentage: number;
+  }>;
+  demandingSectors: Sector[];
+}
+
+/**
+ * Calculate commodity price based on scarcity
+ * Price = BasePrice * ScarcityFactor
+ * ScarcityFactor = ReferencePoolSize / ActualPoolSize
+ * 
+ * When supply is low, price goes up (scarcity > 1)
+ * When supply is high, price goes down (scarcity < 1)
+ */
+export function calculateCommodityPrice(resource: Resource): CommodityPrice {
+  const basePrice = RESOURCE_BASE_PRICES[resource];
+  const totalSupply = getTotalResourcePool(resource);
+  const referencePool = REFERENCE_POOL_SIZES[resource];
+  
+  // Calculate scarcity factor (clamped between 0.5 and 3.0)
+  const rawScarcity = totalSupply > 0 ? referencePool / totalSupply : 3.0;
+  const scarcityFactor = Math.min(3.0, Math.max(0.5, rawScarcity));
+  
+  // Calculate current price
+  const currentPrice = Math.round(basePrice * scarcityFactor * 100) / 100;
+  
+  // Calculate price change percentage from base
+  const priceChange = ((currentPrice - basePrice) / basePrice) * 100;
+  
+  // Get top producing states
+  const topStates = getStatesWithResource(resource).slice(0, 5);
+  const topProducers = topStates.map(s => ({
+    stateCode: s.stateCode,
+    stateName: getStateLabel(s.stateCode) || s.stateCode,
+    amount: s.amount,
+    percentage: totalSupply > 0 ? (s.amount / totalSupply) * 100 : 0,
+  }));
+  
+  // Get sectors that demand this resource
+  const demandingSectors: Sector[] = [];
+  for (const [sector, requiredResource] of Object.entries(SECTOR_RESOURCES)) {
+    if (requiredResource === resource) {
+      demandingSectors.push(sector as Sector);
+    }
+  }
+  
+  return {
+    resource,
+    basePrice,
+    currentPrice,
+    priceChange,
+    totalSupply,
+    scarcityFactor,
+    topProducers,
+    demandingSectors,
+  };
+}
+
+/**
+ * Get all commodity prices
+ */
+export function getAllCommodityPrices(): CommodityPrice[] {
+  return RESOURCES.map(resource => calculateCommodityPrice(resource));
+}
+
+/**
+ * Get resource breakdown for a specific state
+ */
+export function getStateResourceBreakdown(stateCode: string): {
+  stateCode: string;
+  stateName: string;
+  resources: Array<{
+    resource: Resource;
+    amount: number;
+    percentage: number;
+    stateShareOfUS: number;
+    currentPrice: number;
+    totalValue: number;
+  }>;
+  totalResourceValue: number;
+} {
+  const stateResources = getStateResources(stateCode);
+  const stateName = getStateLabel(stateCode) || stateCode;
+  
+  const resources: Array<{
+    resource: Resource;
+    amount: number;
+    percentage: number;
+    stateShareOfUS: number;
+    currentPrice: number;
+    totalValue: number;
+  }> = [];
+  
+  let totalStateResources = 0;
+  for (const amount of Object.values(stateResources)) {
+    if (amount) totalStateResources += amount;
+  }
+  
+  let totalResourceValue = 0;
+  
+  for (const resource of RESOURCES) {
+    const amount = stateResources[resource] || 0;
+    if (amount > 0) {
+      const usTotal = getTotalResourcePool(resource);
+      const commodityPrice = calculateCommodityPrice(resource);
+      const totalValue = amount * commodityPrice.currentPrice;
+      
+      resources.push({
+        resource,
+        amount,
+        percentage: totalStateResources > 0 ? (amount / totalStateResources) * 100 : 0,
+        stateShareOfUS: usTotal > 0 ? (amount / usTotal) * 100 : 0,
+        currentPrice: commodityPrice.currentPrice,
+        totalValue,
+      });
+      
+      totalResourceValue += totalValue;
+    }
+  }
+  
+  // Sort by percentage (largest first)
+  resources.sort((a, b) => b.percentage - a.percentage);
+  
+  return {
+    stateCode,
+    stateName,
+    resources,
+    totalResourceValue,
+  };
+}
+

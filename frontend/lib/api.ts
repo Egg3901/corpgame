@@ -896,10 +896,28 @@ export interface MarketWithDetails {
   units: UnitCounts;
 }
 
+export interface StateResourceInfo {
+  resource: string;
+  amount: number;
+  percentage: number;
+  stateShareOfUS: number;
+  currentPrice: number;
+  totalValue: number;
+}
+
+export interface StateResourceBreakdown {
+  stateCode: string;
+  stateName: string;
+  resources: StateResourceInfo[];
+  totalResourceValue: number;
+}
+
 export interface StateDetailResponse {
   state: StateInfo;
   markets: MarketWithDetails[];
   sectors: string[];
+  sector_resources: Record<string, string | null>;
+  resources: StateResourceBreakdown;
   user_corporation: {
     id: number;
     name: string;
@@ -984,7 +1002,36 @@ export interface BuildUnitResponse {
   new_capital: number;
 }
 
+// Commodity pricing types
+export interface CommodityTopProducer {
+  stateCode: string;
+  stateName: string;
+  amount: number;
+  percentage: number;
+}
+
+export interface CommodityPrice {
+  resource: string;
+  basePrice: number;
+  currentPrice: number;
+  priceChange: number;
+  totalSupply: number;
+  scarcityFactor: number;
+  topProducers: CommodityTopProducer[];
+  demandingSectors: string[];
+}
+
+export interface CommoditiesResponse {
+  commodities: CommodityPrice[];
+  resources: string[];
+  sector_resources: Record<string, string | null>;
+}
+
 export const marketsAPI = {
+  getCommodities: async (): Promise<CommoditiesResponse> => {
+    const response = await api.get('/api/markets/commodities');
+    return response.data;
+  },
   getStates: async (): Promise<StatesListResponse> => {
     const response = await api.get('/api/markets/states');
     return response.data;
