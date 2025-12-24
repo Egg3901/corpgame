@@ -26,6 +26,7 @@ import {
   Gem,
   Pickaxe,
   HelpCircle,
+  Trash2,
 } from 'lucide-react';
 
 // Resource icon mapping
@@ -197,6 +198,7 @@ export default function StateDetailPage() {
   const [entering, setEntering] = useState(false);
   const [building, setBuilding] = useState<string | null>(null);
   const [userActions, setUserActions] = useState<number>(0);
+  const [abandoning, setAbandoning] = useState<number | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -263,6 +265,34 @@ export default function StateDetailPage() {
       alert(err.response?.data?.error || 'Failed to build unit');
     } finally {
       setBuilding(null);
+    }
+  };
+
+  const handleAbandonSector = async (entryId: number, sectorType: string) => {
+    if (!stateData?.user_corporation) return;
+    
+    const totalUnits = stateData.user_market_entries?.find(e => e.id === entryId)?.units 
+      ? (stateData.user_market_entries.find(e => e.id === entryId)!.units.retail + 
+         stateData.user_market_entries.find(e => e.id === entryId)!.units.production + 
+         stateData.user_market_entries.find(e => e.id === entryId)!.units.service + 
+         (stateData.user_market_entries.find(e => e.id === entryId)!.units.extraction || 0))
+      : 0;
+
+    if (!confirm(`Are you sure you want to abandon the ${sectorType} sector in ${state.name}? This will delete all ${totalUnits} business units in this sector. This action cannot be undone.`)) {
+      return;
+    }
+
+    setAbandoning(entryId);
+    try {
+      const result = await marketsAPI.abandonSector(entryId);
+      // Refresh data
+      const newData = await marketsAPI.getState(stateCode);
+      setStateData(newData);
+      alert(`Successfully abandoned ${sectorType} sector. ${result.units_removed} units removed.`);
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Failed to abandon sector');
+    } finally {
+      setAbandoning(null);
     }
   };
 
@@ -464,10 +494,26 @@ export default function StateDetailPage() {
                         className="rounded-xl border border-white/60 bg-white/70 dark:border-gray-800/70 dark:bg-gray-800/60 p-4 shadow-sm"
                       >
                         <div className="flex items-center justify-between mb-4">
-                          <h3 className="font-semibold text-gray-900 dark:text-white">{entry.sector_type}</h3>
-                          <span className="text-xs text-gray-500 dark:text-gray-400">
-                            Entered {new Date(entry.created_at).toLocaleDateString()}
-                          </span>
+                          <div>
+                            <h3 className="font-semibold text-gray-900 dark:text-white">{entry.sector_type}</h3>
+                            <span className="text-xs text-gray-500 dark:text-gray-400">
+                              Entered {new Date(entry.created_at).toLocaleDateString()}
+                            </span>
+                          </div>
+                          <button
+                            onClick={() => handleAbandonSector(entry.id, entry.sector_type)}
+                            disabled={abandoning === entry.id}
+                            className="px-3 py-1.5 text-xs bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1"
+                          >
+                            {abandoning === entry.id ? (
+                              'Abandoning...'
+                            ) : (
+                              <>
+                                <Trash2 className="w-3 h-3" />
+                                Abandon
+                              </>
+                            )}
+                          </button>
                         </div>
 
                         {/* Unit Types - Always 4 columns, frost extraction if not supported */}

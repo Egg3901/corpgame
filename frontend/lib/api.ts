@@ -1199,6 +1199,10 @@ export const marketsAPI = {
     const response = await api.get(`/api/markets/corporation/${corpId}/entries`);
     return response.data;
   },
+  abandonSector: async (entryId: number): Promise<{ success: boolean; message: string; units_removed: number; new_stock_price: number }> => {
+    const response = await api.delete(`/api/markets/entries/${entryId}/abandon`);
+    return response.data;
+  },
 };
 
 /**

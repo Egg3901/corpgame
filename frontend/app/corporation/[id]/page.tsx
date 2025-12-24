@@ -198,6 +198,7 @@ export default function CorporationDetailPage() {
   const [trading, setTrading] = useState(false);
   const [userOwnedShares, setUserOwnedShares] = useState(0);
   const [activeTab, setActiveTab] = useState<'overview' | 'sectors' | 'finance' | 'board'>('overview');
+  const [abandoning, setAbandoning] = useState<number | null>(null);
   const [corpFinances, setCorpFinances] = useState<CorporationFinances | null>(null);
   const [balanceSheet, setBalanceSheet] = useState<BalanceSheet | null>(null);
   const [marketEntries, setMarketEntries] = useState<MarketEntryWithUnits[]>([]);
@@ -527,6 +528,35 @@ export default function CorporationDetailPage() {
       alert(err.response?.data?.error || 'Failed to issue shares');
     } finally {
       setTrading(false);
+    }
+  };
+
+  const handleAbandonSector = async (entryId: number, sectorType: string, stateName: string, totalUnits: number) => {
+    if (!corporation) return;
+    
+    if (!confirm(`Are you sure you want to abandon the ${sectorType} sector in ${stateName}? This will delete all ${totalUnits} business units in this sector. This action cannot be undone.`)) {
+      return;
+    }
+
+    setAbandoning(entryId);
+    try {
+      const result = await marketsAPI.abandonSector(entryId);
+      // Refresh data
+      const [corpData, financesData] = await Promise.all([
+        corporationAPI.getById(corpId),
+        marketsAPI.getCorporationFinances(corpId).catch(() => null),
+      ]);
+      setCorporation(corpData);
+      if (financesData) {
+        setCorpFinances(financesData.finances);
+        setBalanceSheet(financesData.balance_sheet);
+        setMarketEntries(financesData.market_entries || []);
+      }
+      alert(`Successfully abandoned ${sectorType} sector in ${stateName}. ${result.units_removed} units removed.`);
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Failed to abandon sector');
+    } finally {
+      setAbandoning(null);
     }
   };
 
@@ -1250,6 +1280,22 @@ export default function CorporationDetailPage() {
                                           </p>
                                         </div>
                                         <div className="flex items-center gap-3">
+                                          {corporation && viewerUserId === corporation.ceo_id && (
+                                            <button
+                                              onClick={() => handleAbandonSector(entry.id, entry.sector_type, stateName, totalUnits)}
+                                              disabled={abandoning === entry.id}
+                                              className="px-3 py-1.5 text-xs bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1"
+                                            >
+                                              {abandoning === entry.id ? (
+                                                'Abandoning...'
+                                              ) : (
+                                                <>
+                                                  <Trash2 className="w-3 h-3" />
+                                                  Abandon
+                                                </>
+                                              )}
+                                            </button>
+                                          )}
                                           <div className="text-right group relative">
                                             <p className="text-sm font-bold text-emerald-600 dark:text-emerald-400 font-mono">
                                               {formatCurrency(entryRevenue)}
