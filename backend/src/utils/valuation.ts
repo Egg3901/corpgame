@@ -7,6 +7,16 @@ import {
   STOCK_VALUATION,
 } from '../constants/sectors';
 
+// Stock price calculation weights
+const STOCK_PRICE_WEIGHTS = {
+  BOOK_VALUE: 0.40,      // 40% weight on book value (assets)
+  EARNINGS: 0.35,        // 35% weight on earnings (P/E valuation)
+  CASH: 0.05,            // 5% weight on cash per share
+  TRADE_HISTORY: 0.20,   // 20% weight on recent trade prices
+};
+
+const EARNINGS_PE_RATIO = 15;  // P/E ratio for earnings-based valuation
+
 export interface BalanceSheet {
   // Assets
   cash: number;
@@ -38,8 +48,14 @@ export interface BalanceSheet {
 
 export interface StockValuation {
   // Components
-  fundamentalValue: number;    // Book value per share
+  bookValue: number;           // Book value per share (assets - liabilities)
+  earningsValue: number;       // Earnings-based value (annual profit / shares * P/E)
+  dividendYield: number;       // Annual dividend yield percentage
+  cashPerShare: number;        // Cash (capital) per share
   tradeWeightedPrice: number;  // Weighted average of recent trades
+  
+  // Combined fundamental value
+  fundamentalValue: number;    // Weighted combination of book value, earnings, and cash
   
   // Final price
   calculatedPrice: number;
@@ -47,6 +63,8 @@ export interface StockValuation {
   // Metadata
   recentTradeCount: number;
   hasTradeHistory: boolean;
+  annualProfit: number;
+  annualDividendPerShare: number;
 }
 
 /**
@@ -203,20 +221,67 @@ export async function calculateTradeWeightedPrice(corporationId: number): Promis
 
 /**
  * Calculate the fair stock price based on fundamentals and trade activity
+ * Incorporates: book value, earnings (P/E), dividend yield, cash position, trade history
  */
 export async function calculateStockPrice(corporationId: number): Promise<StockValuation> {
   const balanceSheet = await calculateBalanceSheet(corporationId);
   const tradeData = await calculateTradeWeightedPrice(corporationId);
+  const finances = await MarketEntryModel.calculateCorporationFinances(corporationId);
+  const corporation = await CorporationModel.findById(corporationId);
   
-  const fundamentalValue = balanceSheet.bookValuePerShare;
+  if (!corporation) {
+    throw new Error('Corporation not found');
+  }
+
+  const totalShares = corporation.shares || 1;
   
+  // Book value per share (assets - liabilities)
+  const bookValue = balanceSheet.bookValuePerShare;
+  
+  // Cash per share
+  const cashPerShare = totalShares > 0 ? balanceSheet.cash / totalShares : 0;
+  
+  // Annual earnings calculation
+  const annualProfit = finances.hourly_profit * STOCK_VALUATION.HOURS_PER_YEAR;
+  const earningsPerShare = totalShares > 0 ? annualProfit / totalShares : 0;
+  const earningsValue = earningsPerShare * EARNINGS_PE_RATIO;  // P/E valuation
+  
+  // Dividend calculations
+  const dividendPercentage = typeof corporation.dividend_percentage === 'string' 
+    ? parseFloat(corporation.dividend_percentage) 
+    : (corporation.dividend_percentage || 0);
+  const annualDividendPerShare = totalShares > 0 && dividendPercentage > 0
+    ? (annualProfit * dividendPercentage / 100) / totalShares
+    : 0;
+  const dividendYield = earningsPerShare > 0 
+    ? (annualDividendPerShare / earningsPerShare) * 100 
+    : 0;
+  
+  // Trade-weighted price (use book value as fallback if no trades)
+  const tradePrice = tradeData.hasHistory && tradeData.weightedPrice > 0
+    ? tradeData.weightedPrice
+    : bookValue;
+  
+  // Calculate weighted fundamental value
+  // If earnings are negative, don't add earnings value (but still consider book value and cash)
+  const earningsComponent = earningsValue > 0 ? earningsValue : 0;
+  
+  let fundamentalValue = 0;
+  if (totalShares > 0) {
+    fundamentalValue = 
+      (bookValue * STOCK_PRICE_WEIGHTS.BOOK_VALUE) +
+      (earningsComponent * STOCK_PRICE_WEIGHTS.EARNINGS) +
+      (cashPerShare * STOCK_PRICE_WEIGHTS.CASH);
+  } else {
+    fundamentalValue = bookValue;
+  }
+  
+  // Final price: blend fundamental value with trade history
   let calculatedPrice: number;
-  
   if (tradeData.hasHistory && tradeData.weightedPrice > 0) {
-    // Blend fundamental value with trade-weighted price
     calculatedPrice = 
-      (fundamentalValue * STOCK_VALUATION.FUNDAMENTAL_WEIGHT) +
-      (tradeData.weightedPrice * STOCK_VALUATION.TRADE_WEIGHT);
+      (fundamentalValue * (1 - STOCK_PRICE_WEIGHTS.TRADE_HISTORY)) +
+      (tradePrice * STOCK_PRICE_WEIGHTS.TRADE_HISTORY);
   } else {
     // No trade history - use pure fundamental value
     calculatedPrice = fundamentalValue;
@@ -229,11 +294,17 @@ export async function calculateStockPrice(corporationId: number): Promise<StockV
   calculatedPrice = Math.round(calculatedPrice * 100) / 100;
   
   return {
-    fundamentalValue,
+    bookValue,
+    earningsValue: earningsComponent,
+    dividendYield,
+    cashPerShare,
     tradeWeightedPrice: tradeData.weightedPrice,
+    fundamentalValue,
     calculatedPrice,
     recentTradeCount: tradeData.tradeCount,
     hasTradeHistory: tradeData.hasHistory,
+    annualProfit,
+    annualDividendPerShare,
   };
 }
 

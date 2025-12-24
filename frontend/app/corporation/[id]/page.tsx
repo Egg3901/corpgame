@@ -202,15 +202,29 @@ export default function CorporationDetailPage() {
   const [marketEntries, setMarketEntries] = useState<MarketEntryWithUnits[]>([]);
   const [commodityPrices, setCommodityPrices] = useState<Record<string, CommodityPrice>>({});
   const [productPrices, setProductPrices] = useState<Record<string, ProductMarketData>>({});
+  const [stockValuation, setStockValuation] = useState<{
+    book_value: number;
+    earnings_value: number;
+    dividend_yield: number;
+    cash_per_share: number;
+    trade_weighted_price: number;
+    fundamental_value: number;
+    calculated_price: number;
+    recent_trade_count: number;
+    has_trade_history: boolean;
+    annual_profit: number;
+    annual_dividend_per_share: number;
+  } | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [corpData, userData, financesData, commoditiesData] = await Promise.all([
+        const [corpData, userData, financesData, commoditiesData, valuationData] = await Promise.all([
           corporationAPI.getById(corpId),
           authAPI.getMe().catch(() => null),
           marketsAPI.getCorporationFinances(corpId).catch(() => null),
           marketsAPI.getCommodities().catch(() => null),
+          sharesAPI.getValuation(corpId).catch(() => null),
         ]);
         setCorporation(corpData);
         if (userData) {
@@ -238,6 +252,13 @@ export default function CorporationDetailPage() {
             productMap[product.product] = product;
           });
           setProductPrices(productMap);
+        }
+        if (valuationData) {
+          setStockValuation(valuationData.valuation);
+          // Update balance sheet if more complete data from valuation
+          if (valuationData.balance_sheet) {
+            setBalanceSheet(valuationData.balance_sheet);
+          }
         }
       } catch (err: any) {
         console.error('Failed to fetch corporation:', err);
@@ -1609,6 +1630,17 @@ export default function CorporationDetailPage() {
                                   </span>
                                 </div>
                               )}
+                              {balanceSheet.extractionAssetValue > 0 && (
+                                <div className="flex justify-between items-center text-xs">
+                                  <span className="text-gray-500 dark:text-gray-500 flex items-center gap-1">
+                                    <Pickaxe className="w-3 h-3" />
+                                    Extraction ({balanceSheet.totalExtractionUnits} units)
+                                  </span>
+                                  <span className="text-gray-600 dark:text-gray-400 font-mono">
+                                    {formatCurrency(balanceSheet.extractionAssetValue)}
+                                  </span>
+                                </div>
+                              )}
                             </div>
                           )}
                         </div>
@@ -1665,35 +1697,116 @@ export default function CorporationDetailPage() {
 
                   {/* Stock Valuation Info */}
                   <div className="mt-6 p-4 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700">
-                    <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Stock Price Valuation</h4>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                    <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Stock Price Valuation</h4>
+                    
+                    {/* Main Price Display */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mb-4">
                       <div>
-                        <span className="text-gray-500 dark:text-gray-500 block">Current Price</span>
-                        <span className="font-mono font-semibold text-gray-900 dark:text-white">
+                        <span className="text-gray-500 dark:text-gray-400 block text-xs mb-1">Current Price</span>
+                        <span className="font-mono font-semibold text-lg text-gray-900 dark:text-white">
                           {formatCurrency(corporation.share_price || 0)}
                         </span>
                       </div>
                       <div>
-                        <span className="text-gray-500 dark:text-gray-500 block">Book Value/Share</span>
+                        <span className="text-gray-500 dark:text-gray-400 block text-xs mb-1">Book Value/Share</span>
                         <span className="font-mono font-semibold text-gray-900 dark:text-white">
-                          {formatCurrency(balanceSheet?.bookValuePerShare || 0)}
+                          {formatCurrency(stockValuation?.book_value || balanceSheet?.bookValuePerShare || 0)}
                         </span>
                       </div>
                       <div>
-                        <span className="text-gray-500 dark:text-gray-500 block">Total Shares</span>
+                        <span className="text-gray-500 dark:text-gray-400 block text-xs mb-1">Total Shares</span>
                         <span className="font-mono font-semibold text-gray-900 dark:text-white">
                           {effectiveTotalShares?.toLocaleString() || 0}
                         </span>
                       </div>
                       <div>
-                        <span className="text-gray-500 dark:text-gray-500 block">Markets Active</span>
+                        <span className="text-gray-500 dark:text-gray-400 block text-xs mb-1">Markets Active</span>
                         <span className="font-mono font-semibold text-gray-900 dark:text-white">
                           {balanceSheet?.marketsCount || 0}
                         </span>
                       </div>
                     </div>
-                    <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">
-                      Stock price = 80% Book Value + 20% Trade-Weighted Average (min $0.01)
+
+                    {/* Detailed Valuation Breakdown */}
+                    {stockValuation && (
+                      <div className="border-t border-gray-200 dark:border-gray-700 pt-3 mt-3">
+                        <h5 className="text-xs font-semibold text-gray-600 dark:text-gray-400 mb-2 uppercase tracking-wide">Valuation Components</h5>
+                        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-xs">
+                          <div className="group relative">
+                            <span className="text-gray-500 dark:text-gray-400 block mb-1">Earnings Value</span>
+                            <span className="font-mono font-medium text-emerald-600 dark:text-emerald-400">
+                              {formatCurrency(stockValuation.earnings_value)}
+                            </span>
+                            <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block z-[9999] pointer-events-none">
+                              <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 shadow-xl whitespace-nowrap">
+                                <p className="font-medium">Earnings-Based Valuation</p>
+                                <p className="text-gray-300">Annual Profit: {formatCurrency(stockValuation.annual_profit)}</p>
+                                <p className="text-gray-300">EPS × P/E (15x) = {formatCurrency(stockValuation.annual_profit / (effectiveTotalShares || 1))} × 15</p>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="group relative">
+                            <span className="text-gray-500 dark:text-gray-400 block mb-1">Cash/Share</span>
+                            <span className="font-mono font-medium text-blue-600 dark:text-blue-400">
+                              {formatCurrency(stockValuation.cash_per_share)}
+                            </span>
+                            <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block z-[9999] pointer-events-none">
+                              <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 shadow-xl whitespace-nowrap">
+                                <p className="font-medium">Cash Position</p>
+                                <p className="text-gray-300">Total Capital: {formatCurrency(balanceSheet?.cash || 0)}</p>
+                                <p className="text-gray-300">Per Share: {formatCurrency(stockValuation.cash_per_share)}</p>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="group relative">
+                            <span className="text-gray-500 dark:text-gray-400 block mb-1">Dividend Yield</span>
+                            <span className="font-mono font-medium text-purple-600 dark:text-purple-400">
+                              {stockValuation.dividend_yield.toFixed(2)}%
+                            </span>
+                            <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block z-[9999] pointer-events-none">
+                              <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 shadow-xl whitespace-nowrap">
+                                <p className="font-medium">Dividend Information</p>
+                                <p className="text-gray-300">Annual Div/Share: {formatCurrency(stockValuation.annual_dividend_per_share)}</p>
+                                <p className="text-gray-300">Yield: {stockValuation.dividend_yield.toFixed(2)}%</p>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="group relative">
+                            <span className="text-gray-500 dark:text-gray-400 block mb-1">Trade Price</span>
+                            <span className="font-mono font-medium text-amber-600 dark:text-amber-400">
+                              {stockValuation.has_trade_history ? formatCurrency(stockValuation.trade_weighted_price) : '—'}
+                            </span>
+                            <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block z-[9999] pointer-events-none">
+                              <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 shadow-xl whitespace-nowrap">
+                                <p className="font-medium">Trade History</p>
+                                <p className="text-gray-300">{stockValuation.recent_trade_count} recent trades</p>
+                                <p className="text-gray-300">Weighted avg: {formatCurrency(stockValuation.trade_weighted_price)}</p>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="group relative">
+                            <span className="text-gray-500 dark:text-gray-400 block mb-1">Fundamental Value</span>
+                            <span className="font-mono font-medium text-gray-900 dark:text-white">
+                              {formatCurrency(stockValuation.fundamental_value)}
+                            </span>
+                            <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block z-[9999] pointer-events-none">
+                              <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 shadow-xl whitespace-nowrap">
+                                <p className="font-medium">Fundamental Value</p>
+                                <p className="text-gray-300">40% Book: {formatCurrency(stockValuation.book_value * 0.40)}</p>
+                                <p className="text-gray-300">35% Earnings: {formatCurrency(stockValuation.earnings_value * 0.35)}</p>
+                                <p className="text-gray-300">5% Cash: {formatCurrency(stockValuation.cash_per_share * 0.05)}</p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+                      <strong>Price Formula:</strong> {stockValuation ? 
+                        '40% Book Value + 35% Earnings Value + 5% Cash + 20% Trade History' :
+                        '40% Book Value + 35% Earnings (P/E) + 5% Cash + 20% Trade-Weighted Average'}
+                      {' '}(min $0.01)
                     </p>
                   </div>
                 </div>

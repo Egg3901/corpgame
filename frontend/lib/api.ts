@@ -382,6 +382,27 @@ export const sharesAPI = {
     );
     return response.data;
   },
+  getValuation: async (corporationId: number): Promise<{
+    corporation_id: number;
+    current_price: number;
+    valuation: {
+      book_value: number;
+      earnings_value: number;
+      dividend_yield: number;
+      cash_per_share: number;
+      trade_weighted_price: number;
+      fundamental_value: number;
+      calculated_price: number;
+      recent_trade_count: number;
+      has_trade_history: boolean;
+      annual_profit: number;
+      annual_dividend_per_share: number;
+    };
+    balance_sheet: BalanceSheet;
+  }> => {
+    const response = await api.get(`/api/shares/${corporationId}/valuation`);
+    return response.data;
+  },
 };
 
 export interface IssueReportData {
@@ -976,12 +997,14 @@ export interface BalanceSheet {
   retailAssetValue: number;
   productionAssetValue: number;
   serviceAssetValue: number;
+  extractionAssetValue: number;
   totalLiabilities: number;
   shareholdersEquity: number;
   bookValuePerShare: number;
   totalRetailUnits: number;
   totalProductionUnits: number;
   totalServiceUnits: number;
+  totalExtractionUnits: number;
   marketsCount: number;
 }
 

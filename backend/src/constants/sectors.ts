@@ -1023,7 +1023,7 @@ export const STOCK_VALUATION = {
 // Calculate asset value per unit based on annual profit capitalization
 // For non-dynamic sectors, uses flat economics
 // For dynamic sectors, pass the sector to get commodity-based valuation
-export function getUnitAssetValue(unitType: UnitType, stateMultiplier: number, sector?: string): number {
+export function getUnitAssetValue(unitType: UnitType, sector?: string): number {
   // If sector provided, use dynamic economics
   if (sector && isValidSector(sector)) {
     const dynamicEcon = getDynamicUnitEconomics(unitType, sector);
@@ -1055,10 +1055,10 @@ export function getMarketEntryAssetValue(
   serviceValue: number;
   extractionValue: number;
 } {
-  const retailAsset = getUnitAssetValue('retail', 1, sector);
-  const productionAsset = getUnitAssetValue('production', 1, sector);
-  const serviceAsset = getUnitAssetValue('service', 1, sector);
-  const extractionAsset = getUnitAssetValue('extraction', 1, sector);
+  const retailAsset = getUnitAssetValue('retail', sector);
+  const productionAsset = getUnitAssetValue('production', sector);
+  const serviceAsset = getUnitAssetValue('service', sector);
+  const extractionAsset = getUnitAssetValue('extraction', sector);
 
   const retailValue = retailAsset * retailCount;
   const productionValue = productionAsset * productionCount;

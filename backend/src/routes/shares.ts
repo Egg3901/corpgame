@@ -369,13 +369,17 @@ router.get('/:id/valuation', async (req: Request, res: Response) => {
       corporation_id: corporationId,
       current_price: corporation.share_price,
       valuation: {
-        fundamental_value: valuation.fundamentalValue,
+        book_value: valuation.bookValue,
+        earnings_value: valuation.earningsValue,
+        dividend_yield: valuation.dividendYield,
+        cash_per_share: valuation.cashPerShare,
         trade_weighted_price: valuation.tradeWeightedPrice,
+        fundamental_value: valuation.fundamentalValue,
         calculated_price: valuation.calculatedPrice,
         recent_trade_count: valuation.recentTradeCount,
         has_trade_history: valuation.hasTradeHistory,
-        fundamental_weight: STOCK_VALUATION.FUNDAMENTAL_WEIGHT,
-        trade_weight: STOCK_VALUATION.TRADE_WEIGHT,
+        annual_profit: valuation.annualProfit,
+        annual_dividend_per_share: valuation.annualDividendPerShare,
       },
       balance_sheet: balanceSheet,
     });
@@ -410,3 +414,4 @@ router.get('/:id/history', async (req: Request, res: Response) => {
 });
 
 export default router;
+
