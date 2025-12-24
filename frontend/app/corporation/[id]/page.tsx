@@ -549,7 +549,7 @@ export default function CorporationDetailPage() {
       setCorporation(corpData);
       if (financesData) {
         setCorpFinances(financesData.finances);
-        setBalanceSheet(financesData.balance_sheet);
+        setBalanceSheet(financesData.balance_sheet || null);
         setMarketEntries(financesData.market_entries || []);
       }
       alert(`Successfully abandoned ${sectorType} sector in ${stateName}. ${result.units_removed} units removed.`);
