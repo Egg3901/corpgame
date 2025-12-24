@@ -32,3 +32,4 @@ CREATE INDEX IF NOT EXISTS idx_share_price_history_recorded_at ON share_price_hi
 
 -- Create a composite index for efficient queries
 CREATE INDEX IF NOT EXISTS idx_share_price_history_corp_time ON share_price_history(corporation_id, recorded_at DESC);
+

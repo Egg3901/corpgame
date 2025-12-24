@@ -38,3 +38,4 @@ export function normalizeImageUrl(url: string | null | undefined): string | null
   // If it doesn't start with /, assume it's a relative path and prepend /
   return '/' + trimmed;
 }
+

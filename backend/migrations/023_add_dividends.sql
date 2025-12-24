@@ -10,3 +10,4 @@ CREATE INDEX IF NOT EXISTS idx_corporations_special_dividend_last_paid ON corpor
 COMMENT ON COLUMN corporations.dividend_percentage IS 'Percentage of total profit paid as dividends (0-100)';
 COMMENT ON COLUMN corporations.special_dividend_last_paid_at IS 'Timestamp of last special dividend payment';
 COMMENT ON COLUMN corporations.special_dividend_last_amount IS 'Total amount of last special dividend paid';
+

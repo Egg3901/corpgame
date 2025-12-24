@@ -27,3 +27,4 @@ CREATE INDEX idx_transactions_user_any ON transactions(from_user_id, to_user_id)
 
 COMMENT ON TABLE transactions IS 'Tracks all money movements in the system';
 COMMENT ON COLUMN transactions.transaction_type IS 'Type: corp_revenue, ceo_salary, user_transfer, share_purchase, share_sale, share_issue, market_entry, unit_build, corp_founding';
+

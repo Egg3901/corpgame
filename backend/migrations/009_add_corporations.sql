@@ -14,3 +14,4 @@ CREATE TABLE IF NOT EXISTS corporations (
 -- Create indexes for faster lookups
 CREATE INDEX IF NOT EXISTS idx_corporations_ceo_id ON corporations(ceo_id);
 CREATE INDEX IF NOT EXISTS idx_corporations_name ON corporations(name);
+

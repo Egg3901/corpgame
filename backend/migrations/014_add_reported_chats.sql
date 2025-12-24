@@ -20,3 +20,4 @@ CREATE INDEX IF NOT EXISTS idx_reported_chats_created_at ON reported_chats(creat
 -- Composite index for admin queries (unreviewed reports)
 CREATE INDEX IF NOT EXISTS idx_reported_chats_reviewed_created ON reported_chats(reviewed, created_at DESC);
 
+

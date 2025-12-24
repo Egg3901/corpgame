@@ -9,3 +9,4 @@ CREATE INDEX IF NOT EXISTS idx_users_last_seen_at ON users(last_seen_at);
 UPDATE users 
 SET last_seen_at = last_login_at 
 WHERE last_seen_at IS NULL AND last_login_at IS NOT NULL;
+

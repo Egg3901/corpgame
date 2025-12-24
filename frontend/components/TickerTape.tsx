@@ -119,3 +119,4 @@ export default function TickerTape({ corporations }: TickerTapeProps) {
     </div>
   );
 }
+

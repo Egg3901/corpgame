@@ -904,5 +904,65 @@ router.get('/corporation/:corpId/entries', async (req: Request, res: Response) =
   }
 });
 
+// DELETE /api/markets/entries/:entryId/abandon - Abandon a sector (delete market entry and all business units)
+router.delete('/entries/:entryId/abandon', authenticateToken, async (req: AuthRequest, res: Response) => {
+  try {
+    const entryId = parseInt(req.params.entryId, 10);
+    const userId = req.userId!;
+
+    if (isNaN(entryId)) {
+      return res.status(400).json({ error: 'Invalid entry ID' });
+    }
+
+    // Get market entry
+    const marketEntry = await MarketEntryModel.findById(entryId);
+    if (!marketEntry) {
+      return res.status(404).json({ error: 'Market entry not found' });
+    }
+
+    // Check if user is CEO of the corporation
+    const corporation = await CorporationModel.findById(marketEntry.corporation_id);
+    if (!corporation) {
+      return res.status(404).json({ error: 'Corporation not found' });
+    }
+
+    if (corporation.ceo_id !== userId) {
+      return res.status(403).json({ error: 'Only the CEO can abandon sectors' });
+    }
+
+    // Get unit counts before deletion for transaction description
+    const unitCounts = await BusinessUnitModel.getUnitCounts(entryId);
+    const totalUnits = unitCounts.retail + unitCounts.production + unitCounts.service + unitCounts.extraction;
+
+    // Delete market entry (this will cascade delete all business units due to ON DELETE CASCADE)
+    await MarketEntryModel.delete(entryId);
+
+    // Record transaction
+    await TransactionModel.create({
+      transaction_type: 'sector_abandon',
+      amount: 0, // No cost/refund for abandoning
+      from_user_id: userId,
+      corporation_id: marketEntry.corporation_id,
+      description: `Abandoned ${marketEntry.sector_type} sector in ${getStateLabel(marketEntry.state_code) || marketEntry.state_code} (${totalUnits} units removed)`,
+      reference_id: entryId,
+      reference_type: 'market_entry',
+    });
+
+    // Update stock price since asset value changed
+    const newStockPrice = await updateStockPrice(marketEntry.corporation_id);
+
+    res.json({
+      success: true,
+      message: `Abandoned ${marketEntry.sector_type} sector in ${getStateLabel(marketEntry.state_code) || marketEntry.state_code}`,
+      market_entry_id: entryId,
+      units_removed: totalUnits,
+      new_stock_price: newStockPrice,
+    });
+  } catch (error) {
+    console.error('Abandon sector error:', error);
+    res.status(500).json({ error: 'Failed to abandon sector' });
+  }
+});
+
 export default router;
 

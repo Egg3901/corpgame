@@ -368,3 +368,4 @@ export default function StockPriceChart({ corporationId, currentPrice }: StockPr
     </div>
   );
 }
+

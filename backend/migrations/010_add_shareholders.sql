@@ -14,3 +14,4 @@ CREATE TABLE IF NOT EXISTS shareholders (
 -- Create indexes for faster lookups
 CREATE INDEX IF NOT EXISTS idx_shareholders_corporation_id ON shareholders(corporation_id);
 CREATE INDEX IF NOT EXISTS idx_shareholders_user_id ON shareholders(user_id);
+
