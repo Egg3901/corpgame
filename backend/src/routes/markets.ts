@@ -27,9 +27,13 @@ import {
   SECTOR_PRODUCTS,
   SECTOR_PRODUCT_DEMANDS,
   calculateProductPrice,
+  calculateCommodityPrice,
   getAllProductsInfo,
+  getProductInfo,
+  getResourceInfo,
   Product,
   Sector,
+  Resource,
 } from '../constants/sectors';
 import pool from '../db/connection';
 import { calculateBalanceSheet, updateStockPrice } from '../utils/valuation';
@@ -102,6 +106,288 @@ router.get('/commodities', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Get commodities error:', error);
     res.status(500).json({ error: 'Failed to fetch commodity prices' });
+  }
+});
+
+// GET /api/markets/resource/:name - Get detailed resource/commodity info
+router.get('/resource/:name', async (req: Request, res: Response) => {
+  try {
+    const resourceName = decodeURIComponent(req.params.name) as Resource;
+    
+    // Validate resource exists
+    if (!RESOURCES.includes(resourceName)) {
+      return res.status(404).json({ error: 'Resource not found' });
+    }
+    
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+    const offset = (page - 1) * limit;
+    
+    // Get commodity price info
+    const commodityPrice = calculateCommodityPrice(resourceName);
+    const resourceInfo = getResourceInfo(resourceName);
+    
+    // Get sectors that demand this resource
+    const demandingSectors: Sector[] = [];
+    for (const [sector, resource] of Object.entries(SECTOR_RESOURCES)) {
+      if (resource === resourceName) {
+        demandingSectors.push(sector as Sector);
+      }
+    }
+    
+    // Get top suppliers (corporations with most production units in sectors that use this resource)
+    const suppliersQuery = await pool.query(`
+      SELECT 
+        c.id as corporation_id,
+        c.name as corporation_name,
+        c.logo as corporation_logo,
+        me.sector_type,
+        me.state_code,
+        sm.name as state_name,
+        COALESCE(SUM(bu.count), 0)::int as production_units,
+        sr.amount as state_resource_amount
+      FROM corporations c
+      JOIN market_entries me ON c.id = me.corporation_id
+      LEFT JOIN business_units bu ON me.id = bu.market_entry_id AND bu.unit_type = 'production'
+      LEFT JOIN state_metadata sm ON me.state_code = sm.state_code
+      LEFT JOIN (
+        SELECT state_code, $1 as resource_name, 
+               COALESCE((state_resources->$1)::int, 0) as amount
+        FROM state_metadata
+        WHERE state_resources ? $1
+      ) sr ON me.state_code = sr.state_code
+      WHERE me.sector_type = ANY($2::text[])
+      GROUP BY c.id, c.name, c.logo, me.sector_type, me.state_code, sm.name, sr.amount
+      HAVING COALESCE(SUM(bu.count), 0) > 0
+      ORDER BY production_units DESC
+      LIMIT $3 OFFSET $4
+    `, [resourceName, demandingSectors, limit, offset]);
+    
+    // Get total count for pagination
+    const countQuery = await pool.query(`
+      SELECT COUNT(DISTINCT (c.id, me.sector_type, me.state_code))::int as total
+      FROM corporations c
+      JOIN market_entries me ON c.id = me.corporation_id
+      LEFT JOIN business_units bu ON me.id = bu.market_entry_id AND bu.unit_type = 'production'
+      WHERE me.sector_type = ANY($1::text[])
+      GROUP BY c.id, me.sector_type, me.state_code
+      HAVING COALESCE(SUM(bu.count), 0) > 0
+    `, [demandingSectors]);
+    
+    const totalSuppliers = countQuery.rows.length;
+    
+    // Calculate total demand across all demanding corps
+    const totalDemandQuery = await pool.query(`
+      SELECT COALESCE(SUM(bu.count), 0)::int as total_demand
+      FROM market_entries me
+      JOIN business_units bu ON me.id = bu.market_entry_id AND bu.unit_type = 'production'
+      WHERE me.sector_type = ANY($1::text[])
+    `, [demandingSectors]);
+    
+    const totalDemand = totalDemandQuery.rows[0]?.total_demand || 0;
+    
+    res.json({
+      resource: resourceName,
+      price: commodityPrice,
+      info: resourceInfo,
+      total_supply: commodityPrice.totalSupply,
+      total_demand: totalDemand,
+      demanding_sectors: demandingSectors,
+      suppliers: suppliersQuery.rows.map(row => ({
+        corporation_id: row.corporation_id,
+        corporation_name: row.corporation_name,
+        corporation_logo: row.corporation_logo,
+        sector_type: row.sector_type,
+        state_code: row.state_code,
+        state_name: row.state_name,
+        production_units: row.production_units,
+        resource_demand: row.production_units, // 1:1 ratio
+      })),
+      pagination: {
+        page,
+        limit,
+        total: totalSuppliers,
+        total_pages: Math.ceil(totalSuppliers / limit),
+      },
+    });
+  } catch (error) {
+    console.error('Get resource detail error:', error);
+    res.status(500).json({ error: 'Failed to fetch resource details' });
+  }
+});
+
+// GET /api/markets/product/:name - Get detailed product info
+router.get('/product/:name', async (req: Request, res: Response) => {
+  try {
+    const productName = decodeURIComponent(req.params.name) as Product;
+    
+    // Validate product exists
+    if (!PRODUCTS.includes(productName)) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
+    
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+    const offset = (page - 1) * limit;
+    const tab = req.query.tab as string || 'suppliers'; // 'suppliers' or 'demanders'
+    
+    // Get sectors that produce this product
+    const producingSectors: Sector[] = [];
+    for (const [sector, product] of Object.entries(SECTOR_PRODUCTS)) {
+      if (product === productName) {
+        producingSectors.push(sector as Sector);
+      }
+    }
+    
+    // Get sectors that demand this product
+    const demandingSectors: Sector[] = [];
+    for (const [sector, products] of Object.entries(SECTOR_PRODUCT_DEMANDS)) {
+      if (products && products.includes(productName)) {
+        demandingSectors.push(sector as Sector);
+      }
+    }
+    
+    // Calculate total supply (production units in producing sectors)
+    const supplyQuery = await pool.query(`
+      SELECT COALESCE(SUM(bu.count), 0)::int as total_supply
+      FROM market_entries me
+      JOIN business_units bu ON me.id = bu.market_entry_id AND bu.unit_type = 'production'
+      WHERE me.sector_type = ANY($1::text[])
+    `, [producingSectors]);
+    
+    const totalSupply = supplyQuery.rows[0]?.total_supply || 0;
+    
+    // Calculate total demand (production units in demanding sectors)
+    const demandQuery = await pool.query(`
+      SELECT COALESCE(SUM(bu.count), 0)::int as total_demand
+      FROM market_entries me
+      JOIN business_units bu ON me.id = bu.market_entry_id AND bu.unit_type = 'production'
+      WHERE me.sector_type = ANY($1::text[])
+    `, [demandingSectors]);
+    
+    const totalDemand = demandQuery.rows[0]?.total_demand || 0;
+    
+    // Calculate product price
+    const productPrice = calculateProductPrice(productName, totalSupply, totalDemand);
+    const productInfo = getProductInfo(productName);
+    
+    // Get top suppliers or demanders based on tab
+    let listData: any[] = [];
+    let totalCount = 0;
+    
+    if (tab === 'suppliers') {
+      const suppliersQuery = await pool.query(`
+        SELECT 
+          c.id as corporation_id,
+          c.name as corporation_name,
+          c.logo as corporation_logo,
+          me.sector_type,
+          me.state_code,
+          sm.name as state_name,
+          COALESCE(SUM(bu.count), 0)::int as production_units
+        FROM corporations c
+        JOIN market_entries me ON c.id = me.corporation_id
+        LEFT JOIN business_units bu ON me.id = bu.market_entry_id AND bu.unit_type = 'production'
+        LEFT JOIN state_metadata sm ON me.state_code = sm.state_code
+        WHERE me.sector_type = ANY($1::text[])
+        GROUP BY c.id, c.name, c.logo, me.sector_type, me.state_code, sm.name
+        HAVING COALESCE(SUM(bu.count), 0) > 0
+        ORDER BY production_units DESC
+        LIMIT $2 OFFSET $3
+      `, [producingSectors, limit, offset]);
+      
+      listData = suppliersQuery.rows.map(row => ({
+        corporation_id: row.corporation_id,
+        corporation_name: row.corporation_name,
+        corporation_logo: row.corporation_logo,
+        sector_type: row.sector_type,
+        state_code: row.state_code,
+        state_name: row.state_name,
+        units: row.production_units,
+        type: 'supplier',
+      }));
+      
+      // Count total suppliers
+      const countQuery = await pool.query(`
+        SELECT COUNT(*)::int as total FROM (
+          SELECT c.id, me.sector_type, me.state_code
+          FROM corporations c
+          JOIN market_entries me ON c.id = me.corporation_id
+          LEFT JOIN business_units bu ON me.id = bu.market_entry_id AND bu.unit_type = 'production'
+          WHERE me.sector_type = ANY($1::text[])
+          GROUP BY c.id, me.sector_type, me.state_code
+          HAVING COALESCE(SUM(bu.count), 0) > 0
+        ) sub
+      `, [producingSectors]);
+      totalCount = countQuery.rows[0]?.total || 0;
+      
+    } else {
+      // Get demanders
+      const demandersQuery = await pool.query(`
+        SELECT 
+          c.id as corporation_id,
+          c.name as corporation_name,
+          c.logo as corporation_logo,
+          me.sector_type,
+          me.state_code,
+          sm.name as state_name,
+          COALESCE(SUM(bu.count), 0)::int as production_units
+        FROM corporations c
+        JOIN market_entries me ON c.id = me.corporation_id
+        LEFT JOIN business_units bu ON me.id = bu.market_entry_id AND bu.unit_type = 'production'
+        LEFT JOIN state_metadata sm ON me.state_code = sm.state_code
+        WHERE me.sector_type = ANY($1::text[])
+        GROUP BY c.id, c.name, c.logo, me.sector_type, me.state_code, sm.name
+        HAVING COALESCE(SUM(bu.count), 0) > 0
+        ORDER BY production_units DESC
+        LIMIT $2 OFFSET $3
+      `, [demandingSectors, limit, offset]);
+      
+      listData = demandersQuery.rows.map(row => ({
+        corporation_id: row.corporation_id,
+        corporation_name: row.corporation_name,
+        corporation_logo: row.corporation_logo,
+        sector_type: row.sector_type,
+        state_code: row.state_code,
+        state_name: row.state_name,
+        units: row.production_units,
+        type: 'demander',
+      }));
+      
+      // Count total demanders
+      const countQuery = await pool.query(`
+        SELECT COUNT(*)::int as total FROM (
+          SELECT c.id, me.sector_type, me.state_code
+          FROM corporations c
+          JOIN market_entries me ON c.id = me.corporation_id
+          LEFT JOIN business_units bu ON me.id = bu.market_entry_id AND bu.unit_type = 'production'
+          WHERE me.sector_type = ANY($1::text[])
+          GROUP BY c.id, me.sector_type, me.state_code
+          HAVING COALESCE(SUM(bu.count), 0) > 0
+        ) sub
+      `, [demandingSectors]);
+      totalCount = countQuery.rows[0]?.total || 0;
+    }
+    
+    res.json({
+      product: productName,
+      price: productPrice,
+      info: productInfo,
+      total_supply: totalSupply,
+      total_demand: totalDemand,
+      producing_sectors: producingSectors,
+      demanding_sectors: demandingSectors,
+      [tab]: listData,
+      pagination: {
+        page,
+        limit,
+        total: totalCount,
+        total_pages: Math.ceil(totalCount / limit),
+      },
+    });
+  } catch (error) {
+    console.error('Get product detail error:', error);
+    res.status(500).json({ error: 'Failed to fetch product details' });
   }
 });
 

@@ -544,9 +544,10 @@ export default function StockMarketPage() {
                     const isPositive = commodity.priceChange >= 0;
                     
                     return (
-                      <div
+                      <Link
                         key={commodity.resource}
-                        className="relative bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden hover:border-corporate-blue/50 dark:hover:border-corporate-blue/50 transition-all group"
+                        href={`/commodity/${encodeURIComponent(commodity.resource)}`}
+                        className="relative bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden hover:border-corporate-blue/50 dark:hover:border-corporate-blue/50 transition-all group hover:shadow-lg cursor-pointer"
                       >
                         {/* Header with icon and name */}
                         <div className={`${colors.bg} ${colors.text} px-4 py-3 flex items-center justify-between`}>
@@ -629,12 +630,9 @@ export default function StockMarketPage() {
                             <div className="space-y-1.5">
                               {commodity.topProducers.slice(0, 3).map((producer, idx) => (
                                 <div key={producer.stateCode} className="flex items-center justify-between text-xs">
-                                  <Link
-                                    href={`/states/${producer.stateCode}`}
-                                    className="text-gray-700 dark:text-gray-300 hover:text-corporate-blue dark:hover:text-corporate-blue-light transition-colors"
-                                  >
+                                  <span className="text-gray-700 dark:text-gray-300">
                                     {idx + 1}. {producer.stateName}
-                                  </Link>
+                                  </span>
                                   <span className="font-mono text-gray-500 dark:text-gray-400">
                                     {producer.percentage.toFixed(1)}%
                                   </span>
@@ -642,8 +640,14 @@ export default function StockMarketPage() {
                               ))}
                             </div>
                           </div>
+
+                          {/* View details hint */}
+                          <div className="pt-2 flex items-center justify-center text-xs text-corporate-blue dark:text-corporate-blue-light font-medium opacity-0 group-hover:opacity-100 transition-opacity">
+                            <ChevronRight className="w-3 h-3 mr-1" />
+                            View Details
+                          </div>
                         </div>
-                      </div>
+                      </Link>
                     );
                   })}
                 </div>
@@ -660,9 +664,10 @@ export default function StockMarketPage() {
                     const isPositive = priceChange >= 0;
                     
                     return (
-                      <div
+                      <Link
                         key={product.product}
-                        className="relative bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden hover:border-corporate-blue/50 dark:hover:border-corporate-blue/50 transition-all group"
+                        href={`/product/${encodeURIComponent(product.product)}`}
+                        className="relative bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden hover:border-corporate-blue/50 dark:hover:border-corporate-blue/50 transition-all group hover:shadow-lg cursor-pointer"
                       >
                         {/* Header with icon and name */}
                         <div className={`${colors.bg} ${colors.text} px-4 py-3 flex items-center justify-between`}>
@@ -760,8 +765,14 @@ export default function StockMarketPage() {
                               </div>
                             </div>
                           )}
+
+                          {/* View details hint */}
+                          <div className="pt-2 flex items-center justify-center text-xs text-corporate-blue dark:text-corporate-blue-light font-medium opacity-0 group-hover:opacity-100 transition-opacity">
+                            <ChevronRight className="w-3 h-3 mr-1" />
+                            View Details
+                          </div>
                         </div>
-                      </div>
+                      </Link>
                     );
                   })}
                 </div>

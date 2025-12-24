@@ -1045,9 +1045,81 @@ export interface CommoditiesResponse {
   product_demand: Record<string, number>;
 }
 
+// Resource detail types
+export interface ResourceSupplierDemander {
+  corporation_id: number;
+  corporation_name: string;
+  corporation_logo: string | null;
+  sector_type: string;
+  state_code: string;
+  state_name: string;
+  production_units: number;
+  resource_demand?: number;
+  units?: number;
+  type?: 'supplier' | 'demander';
+}
+
+export interface PaginationInfo {
+  page: number;
+  limit: number;
+  total: number;
+  total_pages: number;
+}
+
+export interface ResourceDetailResponse {
+  resource: string;
+  price: CommodityPrice;
+  info: {
+    name: string;
+    totalPool: number;
+    topStates: Array<{
+      stateCode: string;
+      stateName: string;
+      amount: number;
+      percentage: number;
+    }>;
+  };
+  total_supply: number;
+  total_demand: number;
+  demanding_sectors: string[];
+  suppliers: ResourceSupplierDemander[];
+  pagination: PaginationInfo;
+}
+
+export interface ProductDetailResponse {
+  product: string;
+  price: ProductMarketData;
+  info: {
+    name: string;
+    referenceValue: number;
+    producingSectors: string[];
+    demandingSectors: string[];
+    inputResource: string | null;
+  };
+  total_supply: number;
+  total_demand: number;
+  producing_sectors: string[];
+  demanding_sectors: string[];
+  suppliers?: ResourceSupplierDemander[];
+  demanders?: ResourceSupplierDemander[];
+  pagination: PaginationInfo;
+}
+
 export const marketsAPI = {
   getCommodities: async (): Promise<CommoditiesResponse> => {
     const response = await api.get('/api/markets/commodities');
+    return response.data;
+  },
+  getResourceDetail: async (resourceName: string, page: number = 1, limit: number = 10): Promise<ResourceDetailResponse> => {
+    const response = await api.get(`/api/markets/resource/${encodeURIComponent(resourceName)}`, {
+      params: { page, limit },
+    });
+    return response.data;
+  },
+  getProductDetail: async (productName: string, page: number = 1, limit: number = 10, tab: 'suppliers' | 'demanders' = 'suppliers'): Promise<ProductDetailResponse> => {
+    const response = await api.get(`/api/markets/product/${encodeURIComponent(productName)}`, {
+      params: { page, limit, tab },
+    });
     return response.data;
   },
   getStates: async (): Promise<StatesListResponse> => {
