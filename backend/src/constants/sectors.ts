@@ -653,6 +653,34 @@ export function getStateMultiplier(stateCode: string): number {
 }
 
 // ============================================================================
+// STATE CAPACITY SYSTEM
+// State multiplier now affects unit CAPACITY, not revenue
+// ============================================================================
+
+// Base number of units allowed per sector per state
+export const BASE_SECTOR_CAPACITY = 15;
+
+// Get the maximum number of units allowed for a sector in a state
+export function getStateSectorCapacity(stateCode: string): number {
+  const multiplier = getStateMultiplier(stateCode);
+  return Math.floor(BASE_SECTOR_CAPACITY * multiplier);
+}
+
+// Check if more units can be built in a state/sector
+export function canBuildMoreUnits(
+  stateCode: string,
+  currentUnitCount: number
+): { allowed: boolean; capacity: number; remaining: number } {
+  const capacity = getStateSectorCapacity(stateCode);
+  const remaining = capacity - currentUnitCount;
+  return {
+    allowed: remaining > 0,
+    capacity,
+    remaining: Math.max(0, remaining),
+  };
+}
+
+// ============================================================================
 // BUSINESS UNIT ECONOMICS
 // ============================================================================
 
@@ -660,13 +688,31 @@ export function getStateMultiplier(stateCode: string): number {
 export const UNIT_TYPES = ['retail', 'production', 'service', 'extraction'] as const;
 export type UnitType = typeof UNIT_TYPES[number];
 
-// Unit economics - hourly rates
+// Base unit economics - hourly rates (used for sectors WITHOUT resource/product dynamics)
+// For production sectors with inputs/outputs, use getDynamicUnitEconomics() instead
 export const UNIT_ECONOMICS: Record<UnitType, { baseRevenue: number; baseCost: number }> = {
   retail: { baseRevenue: 500, baseCost: 300 },
-  production: { baseRevenue: 800, baseCost: 600 },
+  production: { baseRevenue: 800, baseCost: 600 },  // Overridden for resource-dependent sectors
   service: { baseRevenue: 400, baseCost: 200 },
-  extraction: { baseRevenue: 1000, baseCost: 700 },  // High revenue, high cost
+  extraction: { baseRevenue: 1000, baseCost: 700 },  // Revenue tied to commodity prices
 };
+
+// Labor cost component (doesn't vary with commodity prices)
+export const UNIT_LABOR_COSTS: Record<UnitType, number> = {
+  retail: 250,
+  production: 400,
+  service: 150,
+  extraction: 500,
+};
+
+// Resource consumption rate per production unit per hour
+export const PRODUCTION_RESOURCE_CONSUMPTION = 0.5;  // Units of resource consumed per hour
+
+// Product output rate per production unit per hour  
+export const PRODUCTION_OUTPUT_RATE = 1.0;  // Units of product produced per hour
+
+// Extraction output rate per extraction unit per hour
+export const EXTRACTION_OUTPUT_RATE = 2.0;  // Units of resource extracted per hour
 
 // ============================================================================
 // UNIT TYPE PERMISSIONS BY FOCUS
@@ -728,6 +774,195 @@ export const BUILD_UNIT_COST = 10000;
 export const BUILD_UNIT_ACTIONS = 1;
 
 // ============================================================================
+// DYNAMIC UNIT ECONOMICS
+// Calculates real costs/revenue based on commodity and product prices
+// ============================================================================
+
+export interface DynamicUnitEconomics {
+  hourlyRevenue: number;
+  hourlyCost: number;
+  hourlyProfit: number;
+  laborCost: number;
+  resourceCost: number;          // Cost of input resources (for production)
+  resourceConsumed: Resource | null;
+  resourceConsumedAmount: number;
+  productRevenue: number;        // Revenue from output products
+  productProduced: Product | null;
+  productProducedAmount: number;
+  isDynamic: boolean;            // True if this uses commodity-based pricing
+}
+
+/**
+ * Get dynamic economics for a unit type in a specific sector
+ * - Retail/Service: Use flat economics (no commodity dependency)
+ * - Production: Cost = labor + (resource input * commodity price), Revenue = product output * product price
+ * - Extraction: Revenue = extraction output * commodity price, Cost = labor only
+ */
+export function getDynamicUnitEconomics(
+  unitType: UnitType,
+  sector: string
+): DynamicUnitEconomics {
+  const laborCost = UNIT_LABOR_COSTS[unitType];
+  
+  // Default non-dynamic economics
+  const baseEcon = UNIT_ECONOMICS[unitType];
+  const defaultResult: DynamicUnitEconomics = {
+    hourlyRevenue: baseEcon.baseRevenue,
+    hourlyCost: baseEcon.baseCost,
+    hourlyProfit: baseEcon.baseRevenue - baseEcon.baseCost,
+    laborCost,
+    resourceCost: 0,
+    resourceConsumed: null,
+    resourceConsumedAmount: 0,
+    productRevenue: 0,
+    productProduced: null,
+    productProducedAmount: 0,
+    isDynamic: false,
+  };
+
+  if (!isValidSector(sector)) {
+    return defaultResult;
+  }
+
+  const sectorTyped = sector as Sector;
+  const requiredResource = SECTOR_RESOURCES[sectorTyped];
+  const producedProduct = SECTOR_PRODUCTS[sectorTyped];
+
+  // Retail and Service use flat economics
+  if (unitType === 'retail' || unitType === 'service') {
+    return defaultResult;
+  }
+
+  // Extraction units: revenue from extracted commodity
+  if (unitType === 'extraction') {
+    const extractableResources = SECTOR_EXTRACTION[sectorTyped];
+    if (!extractableResources || extractableResources.length === 0) {
+      return defaultResult;
+    }
+
+    // Use first extractable resource for pricing
+    const extractedResource = extractableResources[0] as Resource;
+    const commodityPrice = calculateCommodityPrice(extractedResource);
+    const extractionAmount = EXTRACTION_OUTPUT_RATE;
+    const extractionRevenue = extractionAmount * commodityPrice.currentPrice;
+
+    return {
+      hourlyRevenue: extractionRevenue,
+      hourlyCost: laborCost,
+      hourlyProfit: extractionRevenue - laborCost,
+      laborCost,
+      resourceCost: 0,
+      resourceConsumed: null,
+      resourceConsumedAmount: 0,
+      productRevenue: extractionRevenue,
+      productProduced: null,  // Produces a resource, not a product
+      productProducedAmount: extractionAmount,
+      isDynamic: true,
+    };
+  }
+
+  // Production units: dynamic costs and revenue
+  if (unitType === 'production') {
+    let resourceCost = 0;
+    let resourceConsumedAmount = 0;
+    let resourceConsumed: Resource | null = null;
+    
+    // Calculate input cost from required resource
+    if (requiredResource) {
+      const commodityPrice = calculateCommodityPrice(requiredResource);
+      resourceConsumedAmount = PRODUCTION_RESOURCE_CONSUMPTION;
+      resourceCost = resourceConsumedAmount * commodityPrice.currentPrice;
+      resourceConsumed = requiredResource;
+    }
+
+    let productRevenue = 0;
+    let productProducedAmount = 0;
+    let productProduced: Product | null = null;
+
+    // Calculate output revenue from produced product
+    if (producedProduct) {
+      const productPrice = getBaseProductPrice(producedProduct);
+      productProducedAmount = PRODUCTION_OUTPUT_RATE;
+      productRevenue = productProducedAmount * productPrice;
+      productProduced = producedProduct;
+    } else {
+      // No product output - use base revenue
+      productRevenue = baseEcon.baseRevenue;
+    }
+
+    const totalCost = laborCost + resourceCost;
+    const hourlyProfit = productRevenue - totalCost;
+
+    return {
+      hourlyRevenue: productRevenue,
+      hourlyCost: totalCost,
+      hourlyProfit,
+      laborCost,
+      resourceCost,
+      resourceConsumed,
+      resourceConsumedAmount,
+      productRevenue,
+      productProduced,
+      productProducedAmount,
+      isDynamic: requiredResource !== null || producedProduct !== null,
+    };
+  }
+
+  return defaultResult;
+}
+
+/**
+ * Calculate total economics for a market entry with multiple units
+ */
+export function calculateMarketEntryEconomics(
+  sector: string,
+  stateCode: string,
+  retailCount: number,
+  productionCount: number,
+  serviceCount: number,
+  extractionCount: number
+): {
+  hourlyRevenue: number;
+  hourlyCost: number;
+  hourlyProfit: number;
+  breakdown: {
+    retail: DynamicUnitEconomics;
+    production: DynamicUnitEconomics;
+    service: DynamicUnitEconomics;
+    extraction: DynamicUnitEconomics;
+  };
+} {
+  const retailEcon = getDynamicUnitEconomics('retail', sector);
+  const productionEcon = getDynamicUnitEconomics('production', sector);
+  const serviceEcon = getDynamicUnitEconomics('service', sector);
+  const extractionEcon = getDynamicUnitEconomics('extraction', sector);
+
+  const hourlyRevenue = 
+    retailEcon.hourlyRevenue * retailCount +
+    productionEcon.hourlyRevenue * productionCount +
+    serviceEcon.hourlyRevenue * serviceCount +
+    extractionEcon.hourlyRevenue * extractionCount;
+
+  const hourlyCost =
+    retailEcon.hourlyCost * retailCount +
+    productionEcon.hourlyCost * productionCount +
+    serviceEcon.hourlyCost * serviceCount +
+    extractionEcon.hourlyCost * extractionCount;
+
+  return {
+    hourlyRevenue,
+    hourlyCost,
+    hourlyProfit: hourlyRevenue - hourlyCost,
+    breakdown: {
+      retail: retailEcon,
+      production: productionEcon,
+      service: serviceEcon,
+      extraction: extractionEcon,
+    },
+  };
+}
+
+// ============================================================================
 // STOCK VALUATION
 // ============================================================================
 
@@ -750,12 +985,57 @@ export const STOCK_VALUATION = {
 };
 
 // Calculate asset value per unit based on annual profit capitalization
-export function getUnitAssetValue(unitType: UnitType, stateMultiplier: number): number {
+// For non-dynamic sectors, uses flat economics
+// For dynamic sectors, pass the sector to get commodity-based valuation
+export function getUnitAssetValue(unitType: UnitType, stateMultiplier: number, sector?: string): number {
+  // If sector provided, use dynamic economics
+  if (sector && isValidSector(sector)) {
+    const dynamicEcon = getDynamicUnitEconomics(unitType, sector);
+    const hourlyProfit = dynamicEcon.hourlyProfit;
+    const annualProfit = hourlyProfit * STOCK_VALUATION.HOURS_PER_YEAR;
+    // Value = Annual Profit * P/E Ratio (minimum floor of 0 to avoid negative asset values)
+    return Math.max(0, annualProfit * STOCK_VALUATION.UNIT_PE_RATIO);
+  }
+  
+  // Fallback to flat economics (no state multiplier on revenue anymore)
   const economics = UNIT_ECONOMICS[unitType];
-  const hourlyProfit = (economics.baseRevenue * stateMultiplier) - economics.baseCost;
+  const hourlyProfit = economics.baseRevenue - economics.baseCost;
   const annualProfit = hourlyProfit * STOCK_VALUATION.HOURS_PER_YEAR;
-  // Value = Annual Profit * P/E Ratio
-  return annualProfit * STOCK_VALUATION.UNIT_PE_RATIO;
+  return Math.max(0, annualProfit * STOCK_VALUATION.UNIT_PE_RATIO);
+}
+
+// Get dynamic asset value for a market entry
+export function getMarketEntryAssetValue(
+  sector: string,
+  stateCode: string,
+  retailCount: number,
+  productionCount: number,
+  serviceCount: number,
+  extractionCount: number
+): {
+  totalValue: number;
+  retailValue: number;
+  productionValue: number;
+  serviceValue: number;
+  extractionValue: number;
+} {
+  const retailAsset = getUnitAssetValue('retail', 1, sector);
+  const productionAsset = getUnitAssetValue('production', 1, sector);
+  const serviceAsset = getUnitAssetValue('service', 1, sector);
+  const extractionAsset = getUnitAssetValue('extraction', 1, sector);
+
+  const retailValue = retailAsset * retailCount;
+  const productionValue = productionAsset * productionCount;
+  const serviceValue = serviceAsset * serviceCount;
+  const extractionValue = extractionAsset * extractionCount;
+
+  return {
+    totalValue: retailValue + productionValue + serviceValue + extractionValue,
+    retailValue,
+    productionValue,
+    serviceValue,
+    extractionValue,
+  };
 }
 
 // ============================================================================
@@ -1092,6 +1372,14 @@ const PRODUCT_REFERENCE_VALUES: Record<Product, number> = {
   'Defense Equipment': 15000,
   'Logistics Capacity': 1000,
 };
+
+/**
+ * Get base product price (reference value) without supply/demand calculation
+ * Used for static economics calculations
+ */
+export function getBaseProductPrice(product: Product): number {
+  return PRODUCT_REFERENCE_VALUES[product];
+}
 
 export interface ProductMarketData {
   product: Product;

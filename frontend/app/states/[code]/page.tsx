@@ -97,6 +97,7 @@ const sectorCanExtract = (sector: string): boolean => {
 const MARKET_ENTRY_COST = 50000;
 const BUILD_UNIT_COST = 10000;
 const DISPLAY_PERIOD_HOURS = 96;
+const BASE_SECTOR_CAPACITY = 15;  // Base units per sector, multiplied by state multiplier
 
 // SVG Pie Chart Component
 function ResourcePieChart({ resources }: { resources: Array<{ resource: string; percentage: number }> }) {
@@ -281,8 +282,14 @@ export default function StateDetailPage() {
     return 'text-gray-600 dark:text-gray-400';
   };
 
-  const calculateUnitRevenue = (unitType: 'retail' | 'production' | 'service' | 'extraction', multiplier: number) => {
-    const hourly = UNIT_ECONOMICS[unitType].baseRevenue * multiplier;
+  // Calculate state capacity (units allowed per sector)
+  const getStateCapacity = (multiplier: number) => {
+    return Math.floor(BASE_SECTOR_CAPACITY * multiplier);
+  };
+
+  // Unit revenue is now flat (no state multiplier)
+  const calculateUnitRevenue = (unitType: 'retail' | 'production' | 'service' | 'extraction') => {
+    const hourly = UNIT_ECONOMICS[unitType].baseRevenue;
     return hourly * DISPLAY_PERIOD_HOURS;
   };
 
@@ -291,8 +298,13 @@ export default function StateDetailPage() {
     return hourly * DISPLAY_PERIOD_HOURS;
   };
 
-  const calculateUnitProfit = (unitType: 'retail' | 'production' | 'service' | 'extraction', multiplier: number) => {
-    return calculateUnitRevenue(unitType, multiplier) - calculateUnitCost(unitType);
+  const calculateUnitProfit = (unitType: 'retail' | 'production' | 'service' | 'extraction') => {
+    return calculateUnitRevenue(unitType) - calculateUnitCost(unitType);
+  };
+
+  // Get total units for a market entry
+  const getTotalUnits = (units: { retail: number; production: number; service: number; extraction: number }) => {
+    return units.retail + units.production + units.service + units.extraction;
   };
 
   // Get sectors user is already in
@@ -354,12 +366,12 @@ export default function StateDetailPage() {
                       {state.region}
                     </span>
                     <span className={`text-lg font-bold ${getMultiplierColor(state.multiplier)} group relative cursor-help`}>
-                      {state.multiplier.toFixed(1)}x multiplier
+                      {getStateCapacity(state.multiplier)} unit capacity
                       <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-10 pointer-events-none">
                         <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 whitespace-nowrap shadow-lg">
-                          <p className="font-medium">State Revenue Multiplier</p>
-                          <p>All unit base revenues are multiplied by {state.multiplier.toFixed(1)}</p>
-                          <p className="text-gray-400 mt-1">Higher = more populous/valuable market</p>
+                          <p className="font-medium">State Unit Capacity</p>
+                          <p>{BASE_SECTOR_CAPACITY} base × {state.multiplier.toFixed(1)}x = {getStateCapacity(state.multiplier)} units/sector</p>
+                          <p className="text-gray-400 mt-1">Higher = larger market with more room for units</p>
                         </div>
                       </div>
                     </span>
@@ -468,11 +480,11 @@ export default function StateDetailPage() {
                             </div>
                             <p className="text-2xl font-bold text-gray-900 dark:text-white">{entry.units.retail}</p>
                             <p className="text-xs text-emerald-600 dark:text-emerald-400">
-                              +{formatCurrency(calculateUnitProfit('retail', state.multiplier) * entry.units.retail)}/96hr
+                              +{formatCurrency(calculateUnitProfit('retail') * entry.units.retail)}/96hr
                             </p>
                             <button
                               onClick={() => handleBuildUnit(entry.id, 'retail')}
-                              disabled={building === `${entry.id}-retail` || user_corporation.capital < BUILD_UNIT_COST || userActions < 1}
+                              disabled={building === `${entry.id}-retail` || user_corporation.capital < BUILD_UNIT_COST || userActions < 1 || getTotalUnits(entry.units) >= getStateCapacity(state.multiplier)}
                               className="mt-2 w-full px-2 py-1 text-xs bg-pink-500 text-white rounded hover:bg-pink-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                             >
                               {building === `${entry.id}-retail` ? '...' : `+1 (${formatCurrency(BUILD_UNIT_COST)})`}
@@ -480,9 +492,9 @@ export default function StateDetailPage() {
                             <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-10 pointer-events-none">
                               <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 whitespace-nowrap shadow-lg">
                                 <p className="font-medium">Retail Unit Economics</p>
-                                <p>Revenue: ${UNIT_ECONOMICS.retail.baseRevenue}/hr × {state.multiplier.toFixed(1)}x</p>
+                                <p>Revenue: ${UNIT_ECONOMICS.retail.baseRevenue}/hr</p>
                                 <p>Cost: ${UNIT_ECONOMICS.retail.baseCost}/hr</p>
-                                <p className="text-emerald-400">Profit: ${(UNIT_ECONOMICS.retail.baseRevenue * state.multiplier - UNIT_ECONOMICS.retail.baseCost).toFixed(0)}/hr</p>
+                                <p className="text-emerald-400">Profit: ${(UNIT_ECONOMICS.retail.baseRevenue - UNIT_ECONOMICS.retail.baseCost)}/hr</p>
                               </div>
                             </div>
                           </div>
@@ -495,11 +507,11 @@ export default function StateDetailPage() {
                             </div>
                             <p className="text-2xl font-bold text-gray-900 dark:text-white">{entry.units.production}</p>
                             <p className="text-xs text-emerald-600 dark:text-emerald-400">
-                              +{formatCurrency(calculateUnitProfit('production', state.multiplier) * entry.units.production)}/96hr
+                              +{formatCurrency(calculateUnitProfit('production') * entry.units.production)}/96hr
                             </p>
                             <button
                               onClick={() => handleBuildUnit(entry.id, 'production')}
-                              disabled={building === `${entry.id}-production` || user_corporation.capital < BUILD_UNIT_COST || userActions < 1}
+                              disabled={building === `${entry.id}-production` || user_corporation.capital < BUILD_UNIT_COST || userActions < 1 || getTotalUnits(entry.units) >= getStateCapacity(state.multiplier)}
                               className="mt-2 w-full px-2 py-1 text-xs bg-orange-500 text-white rounded hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                             >
                               {building === `${entry.id}-production` ? '...' : `+1 (${formatCurrency(BUILD_UNIT_COST)})`}
@@ -507,9 +519,9 @@ export default function StateDetailPage() {
                             <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-10 pointer-events-none">
                               <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 whitespace-nowrap shadow-lg">
                                 <p className="font-medium">Production Unit Economics</p>
-                                <p>Revenue: ${UNIT_ECONOMICS.production.baseRevenue}/hr × {state.multiplier.toFixed(1)}x</p>
-                                <p>Cost: ${UNIT_ECONOMICS.production.baseCost}/hr</p>
-                                <p className="text-emerald-400">Profit: ${(UNIT_ECONOMICS.production.baseRevenue * state.multiplier - UNIT_ECONOMICS.production.baseCost).toFixed(0)}/hr</p>
+                                <p>Revenue: varies by sector output</p>
+                                <p>Cost: labor + commodity inputs</p>
+                                <p className="text-gray-400">Dynamic pricing based on market</p>
                               </div>
                             </div>
                           </div>
@@ -522,11 +534,11 @@ export default function StateDetailPage() {
                             </div>
                             <p className="text-2xl font-bold text-gray-900 dark:text-white">{entry.units.service}</p>
                             <p className="text-xs text-emerald-600 dark:text-emerald-400">
-                              +{formatCurrency(calculateUnitProfit('service', state.multiplier) * entry.units.service)}/96hr
+                              +{formatCurrency(calculateUnitProfit('service') * entry.units.service)}/96hr
                             </p>
                             <button
                               onClick={() => handleBuildUnit(entry.id, 'service')}
-                              disabled={building === `${entry.id}-service` || user_corporation.capital < BUILD_UNIT_COST || userActions < 1}
+                              disabled={building === `${entry.id}-service` || user_corporation.capital < BUILD_UNIT_COST || userActions < 1 || getTotalUnits(entry.units) >= getStateCapacity(state.multiplier)}
                               className="mt-2 w-full px-2 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                             >
                               {building === `${entry.id}-service` ? '...' : `+1 (${formatCurrency(BUILD_UNIT_COST)})`}
@@ -534,9 +546,9 @@ export default function StateDetailPage() {
                             <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-10 pointer-events-none">
                               <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 whitespace-nowrap shadow-lg">
                                 <p className="font-medium">Service Unit Economics</p>
-                                <p>Revenue: ${UNIT_ECONOMICS.service.baseRevenue}/hr × {state.multiplier.toFixed(1)}x</p>
+                                <p>Revenue: ${UNIT_ECONOMICS.service.baseRevenue}/hr</p>
                                 <p>Cost: ${UNIT_ECONOMICS.service.baseCost}/hr</p>
-                                <p className="text-emerald-400">Profit: ${(UNIT_ECONOMICS.service.baseRevenue * state.multiplier - UNIT_ECONOMICS.service.baseCost).toFixed(0)}/hr</p>
+                                <p className="text-emerald-400">Profit: ${(UNIT_ECONOMICS.service.baseRevenue - UNIT_ECONOMICS.service.baseCost)}/hr</p>
                               </div>
                             </div>
                           </div>
@@ -555,11 +567,11 @@ export default function StateDetailPage() {
                               <>
                                 <p className="text-2xl font-bold text-gray-900 dark:text-white">{entry.units.extraction || 0}</p>
                                 <p className="text-xs text-emerald-600 dark:text-emerald-400">
-                                  +{formatCurrency(calculateUnitProfit('extraction', state.multiplier) * (entry.units.extraction || 0))}/96hr
+                                  +{formatCurrency(calculateUnitProfit('extraction') * (entry.units.extraction || 0))}/96hr
                                 </p>
                                 <button
                                   onClick={() => handleBuildUnit(entry.id, 'extraction')}
-                                  disabled={building === `${entry.id}-extraction` || user_corporation.capital < BUILD_UNIT_COST || userActions < 1}
+                                  disabled={building === `${entry.id}-extraction` || user_corporation.capital < BUILD_UNIT_COST || userActions < 1 || getTotalUnits(entry.units) >= getStateCapacity(state.multiplier)}
                                   className="mt-2 w-full px-2 py-1 text-xs bg-amber-500 text-white rounded hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                                 >
                                   {building === `${entry.id}-extraction` ? '...' : `+1 (${formatCurrency(BUILD_UNIT_COST)})`}
@@ -833,29 +845,14 @@ export default function StateDetailPage() {
                       <span className="font-medium text-gray-700 dark:text-gray-300">Retail</span>
                     </div>
                     <div className="text-sm space-y-1">
-                      <p className="text-gray-600 dark:text-gray-400 group relative inline-block w-full cursor-help">
-                        Revenue: <span className="text-emerald-600 dark:text-emerald-400">{formatCurrency(calculateUnitRevenue('retail', state.multiplier))}</span>
-                        <span className="absolute bottom-full left-0 mb-1 hidden group-hover:block z-10 pointer-events-none">
-                          <span className="bg-gray-900 text-white text-xs rounded px-2 py-1 whitespace-nowrap shadow-lg">
-                            ${UNIT_ECONOMICS.retail.baseRevenue}/hr × {state.multiplier.toFixed(1)} × 96hr
-                          </span>
-                        </span>
+                      <p className="text-gray-600 dark:text-gray-400">
+                        Revenue: <span className="text-emerald-600 dark:text-emerald-400">{formatCurrency(calculateUnitRevenue('retail'))}</span>
                       </p>
-                      <p className="text-gray-600 dark:text-gray-400 group relative inline-block w-full cursor-help">
+                      <p className="text-gray-600 dark:text-gray-400">
                         Cost: <span className="text-red-600 dark:text-red-400">{formatCurrency(calculateUnitCost('retail'))}</span>
-                        <span className="absolute bottom-full left-0 mb-1 hidden group-hover:block z-10 pointer-events-none">
-                          <span className="bg-gray-900 text-white text-xs rounded px-2 py-1 whitespace-nowrap shadow-lg">
-                            ${UNIT_ECONOMICS.retail.baseCost}/hr × 96hr (fixed, no multiplier)
-                          </span>
-                        </span>
                       </p>
-                      <p className="font-semibold text-gray-900 dark:text-white group relative inline-block w-full cursor-help">
-                        Profit: <span className="text-emerald-600 dark:text-emerald-400">{formatCurrency(calculateUnitProfit('retail', state.multiplier))}</span>
-                        <span className="absolute bottom-full left-0 mb-1 hidden group-hover:block z-10 pointer-events-none">
-                          <span className="bg-gray-900 text-white text-xs rounded px-2 py-1 whitespace-nowrap shadow-lg">
-                            {formatCurrency(calculateUnitRevenue('retail', state.multiplier))} - {formatCurrency(calculateUnitCost('retail'))}
-                          </span>
-                        </span>
+                      <p className="font-semibold text-gray-900 dark:text-white">
+                        Profit: <span className="text-emerald-600 dark:text-emerald-400">{formatCurrency(calculateUnitProfit('retail'))}</span>
                       </p>
                     </div>
                   </div>
@@ -867,29 +864,14 @@ export default function StateDetailPage() {
                       <span className="font-medium text-gray-700 dark:text-gray-300">Production</span>
                     </div>
                     <div className="text-sm space-y-1">
-                      <p className="text-gray-600 dark:text-gray-400 group relative inline-block w-full cursor-help">
-                        Revenue: <span className="text-emerald-600 dark:text-emerald-400">{formatCurrency(calculateUnitRevenue('production', state.multiplier))}</span>
-                        <span className="absolute bottom-full left-0 mb-1 hidden group-hover:block z-10 pointer-events-none">
-                          <span className="bg-gray-900 text-white text-xs rounded px-2 py-1 whitespace-nowrap shadow-lg">
-                            ${UNIT_ECONOMICS.production.baseRevenue}/hr × {state.multiplier.toFixed(1)} × 96hr
-                          </span>
-                        </span>
+                      <p className="text-gray-600 dark:text-gray-400">
+                        Revenue: <span className="text-amber-600 dark:text-amber-400">Dynamic</span>
                       </p>
-                      <p className="text-gray-600 dark:text-gray-400 group relative inline-block w-full cursor-help">
-                        Cost: <span className="text-red-600 dark:text-red-400">{formatCurrency(calculateUnitCost('production'))}</span>
-                        <span className="absolute bottom-full left-0 mb-1 hidden group-hover:block z-10 pointer-events-none">
-                          <span className="bg-gray-900 text-white text-xs rounded px-2 py-1 whitespace-nowrap shadow-lg">
-                            ${UNIT_ECONOMICS.production.baseCost}/hr × 96hr (fixed, no multiplier)
-                          </span>
-                        </span>
+                      <p className="text-gray-600 dark:text-gray-400">
+                        Cost: <span className="text-amber-600 dark:text-amber-400">Dynamic</span>
                       </p>
-                      <p className="font-semibold text-gray-900 dark:text-white group relative inline-block w-full cursor-help">
-                        Profit: <span className="text-emerald-600 dark:text-emerald-400">{formatCurrency(calculateUnitProfit('production', state.multiplier))}</span>
-                        <span className="absolute bottom-full left-0 mb-1 hidden group-hover:block z-10 pointer-events-none">
-                          <span className="bg-gray-900 text-white text-xs rounded px-2 py-1 whitespace-nowrap shadow-lg">
-                            {formatCurrency(calculateUnitRevenue('production', state.multiplier))} - {formatCurrency(calculateUnitCost('production'))}
-                          </span>
-                        </span>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        Based on commodity inputs & product outputs
                       </p>
                     </div>
                   </div>
@@ -901,29 +883,14 @@ export default function StateDetailPage() {
                       <span className="font-medium text-gray-700 dark:text-gray-300">Service</span>
                     </div>
                     <div className="text-sm space-y-1">
-                      <p className="text-gray-600 dark:text-gray-400 group relative inline-block w-full cursor-help">
-                        Revenue: <span className="text-emerald-600 dark:text-emerald-400">{formatCurrency(calculateUnitRevenue('service', state.multiplier))}</span>
-                        <span className="absolute bottom-full left-0 mb-1 hidden group-hover:block z-10 pointer-events-none">
-                          <span className="bg-gray-900 text-white text-xs rounded px-2 py-1 whitespace-nowrap shadow-lg">
-                            ${UNIT_ECONOMICS.service.baseRevenue}/hr × {state.multiplier.toFixed(1)} × 96hr
-                          </span>
-                        </span>
+                      <p className="text-gray-600 dark:text-gray-400">
+                        Revenue: <span className="text-emerald-600 dark:text-emerald-400">{formatCurrency(calculateUnitRevenue('service'))}</span>
                       </p>
-                      <p className="text-gray-600 dark:text-gray-400 group relative inline-block w-full cursor-help">
+                      <p className="text-gray-600 dark:text-gray-400">
                         Cost: <span className="text-red-600 dark:text-red-400">{formatCurrency(calculateUnitCost('service'))}</span>
-                        <span className="absolute bottom-full left-0 mb-1 hidden group-hover:block z-10 pointer-events-none">
-                          <span className="bg-gray-900 text-white text-xs rounded px-2 py-1 whitespace-nowrap shadow-lg">
-                            ${UNIT_ECONOMICS.service.baseCost}/hr × 96hr (fixed, no multiplier)
-                          </span>
-                        </span>
                       </p>
-                      <p className="font-semibold text-gray-900 dark:text-white group relative inline-block w-full cursor-help">
-                        Profit: <span className="text-emerald-600 dark:text-emerald-400">{formatCurrency(calculateUnitProfit('service', state.multiplier))}</span>
-                        <span className="absolute bottom-full left-0 mb-1 hidden group-hover:block z-10 pointer-events-none">
-                          <span className="bg-gray-900 text-white text-xs rounded px-2 py-1 whitespace-nowrap shadow-lg">
-                            {formatCurrency(calculateUnitRevenue('service', state.multiplier))} - {formatCurrency(calculateUnitCost('service'))}
-                          </span>
-                        </span>
+                      <p className="font-semibold text-gray-900 dark:text-white">
+                        Profit: <span className="text-emerald-600 dark:text-emerald-400">{formatCurrency(calculateUnitProfit('service'))}</span>
                       </p>
                     </div>
                   </div>
@@ -935,29 +902,14 @@ export default function StateDetailPage() {
                       <span className="font-medium text-gray-700 dark:text-gray-300">Extraction</span>
                     </div>
                     <div className="text-sm space-y-1">
-                      <p className="text-gray-600 dark:text-gray-400 group relative inline-block w-full cursor-help">
-                        Revenue: <span className="text-emerald-600 dark:text-emerald-400">{formatCurrency(calculateUnitRevenue('extraction', state.multiplier))}</span>
-                        <span className="absolute bottom-full left-0 mb-1 hidden group-hover:block z-10 pointer-events-none">
-                          <span className="bg-gray-900 text-white text-xs rounded px-2 py-1 whitespace-nowrap shadow-lg">
-                            ${UNIT_ECONOMICS.extraction.baseRevenue}/hr × {state.multiplier.toFixed(1)} × 96hr
-                          </span>
-                        </span>
+                      <p className="text-gray-600 dark:text-gray-400">
+                        Revenue: <span className="text-amber-600 dark:text-amber-400">Dynamic</span>
                       </p>
-                      <p className="text-gray-600 dark:text-gray-400 group relative inline-block w-full cursor-help">
+                      <p className="text-gray-600 dark:text-gray-400">
                         Cost: <span className="text-red-600 dark:text-red-400">{formatCurrency(calculateUnitCost('extraction'))}</span>
-                        <span className="absolute bottom-full left-0 mb-1 hidden group-hover:block z-10 pointer-events-none">
-                          <span className="bg-gray-900 text-white text-xs rounded px-2 py-1 whitespace-nowrap shadow-lg">
-                            ${UNIT_ECONOMICS.extraction.baseCost}/hr × 96hr (fixed, no multiplier)
-                          </span>
-                        </span>
                       </p>
-                      <p className="font-semibold text-gray-900 dark:text-white group relative inline-block w-full cursor-help">
-                        Profit: <span className="text-emerald-600 dark:text-emerald-400">{formatCurrency(calculateUnitProfit('extraction', state.multiplier))}</span>
-                        <span className="absolute bottom-full left-0 mb-1 hidden group-hover:block z-10 pointer-events-none">
-                          <span className="bg-gray-900 text-white text-xs rounded px-2 py-1 whitespace-nowrap shadow-lg">
-                            {formatCurrency(calculateUnitRevenue('extraction', state.multiplier))} - {formatCurrency(calculateUnitCost('extraction'))}
-                          </span>
-                        </span>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        Revenue based on commodity prices
                       </p>
                     </div>
                     <p className="text-xs text-amber-600 dark:text-amber-400 mt-2">

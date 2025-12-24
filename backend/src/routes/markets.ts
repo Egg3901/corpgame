@@ -41,6 +41,9 @@ import {
   canBuildUnit,
   sectorCanExtract,
   getSectorExtractableResources,
+  canBuildMoreUnits,
+  getStateSectorCapacity,
+  getDynamicUnitEconomics,
 } from '../constants/sectors';
 import pool from '../db/connection';
 import { calculateBalanceSheet, updateStockPrice } from '../utils/valuation';
@@ -512,12 +515,16 @@ router.get('/states/:code', authenticateToken, async (req: AuthRequest, res: Res
     // Get resource breakdown for this state
     const resourceBreakdown = getStateResourceBreakdown(stateCode);
 
+    // Get capacity for this state
+    const stateCapacity = getStateSectorCapacity(stateCode);
+
     res.json({
       state: {
         code: stateMeta.state_code,
         name: stateMeta.name,
         region: stateMeta.region,
         multiplier: parseFloat(stateMeta.population_multiplier),
+        capacity: stateCapacity,  // Max units per sector in this state
       },
       markets: marketsWithDetails,
       sectors: SECTORS,
@@ -675,6 +682,21 @@ router.post('/entries/:entryId/build', authenticateToken, async (req: AuthReques
       });
     }
 
+    // Check state capacity - units are limited by state multiplier
+    const currentUnitCounts = await BusinessUnitModel.getUnitCounts(entryId);
+    const currentTotalUnits = currentUnitCounts.retail + currentUnitCounts.production + 
+                              currentUnitCounts.service + currentUnitCounts.extraction;
+    const capacityCheck = canBuildMoreUnits(marketEntry.state_code, currentTotalUnits);
+    
+    if (!capacityCheck.allowed) {
+      return res.status(400).json({
+        error: `State capacity reached. ${marketEntry.state_code} allows ${capacityCheck.capacity} units per sector.`,
+        capacity: capacityCheck.capacity,
+        current: currentTotalUnits,
+        remaining: 0,
+      });
+    }
+
     // Check capital
     if (corporation.capital < BUILD_UNIT_COST) {
       return res.status(400).json({
@@ -720,6 +742,11 @@ router.post('/entries/:entryId/build', authenticateToken, async (req: AuthReques
     // Update stock price since asset value changed
     const newStockPrice = await updateStockPrice(marketEntry.corporation_id);
 
+    // Get updated capacity info
+    const newTotalUnits = unitCounts.retail + unitCounts.production + 
+                          unitCounts.service + unitCounts.extraction;
+    const stateCapacity = getStateSectorCapacity(marketEntry.state_code);
+
     res.json({
       success: true,
       unit,
@@ -728,6 +755,11 @@ router.post('/entries/:entryId/build', authenticateToken, async (req: AuthReques
       actions_deducted: BUILD_UNIT_ACTIONS,
       new_capital: corporation.capital - BUILD_UNIT_COST,
       new_stock_price: newStockPrice,
+      capacity: {
+        current: newTotalUnits,
+        max: stateCapacity,
+        remaining: stateCapacity - newTotalUnits,
+      },
     });
   } catch (error) {
     console.error('Build unit error:', error);

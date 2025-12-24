@@ -1,5 +1,9 @@
 import pool from '../db/connection';
-import { getStateMultiplier, UNIT_ECONOMICS, DISPLAY_PERIOD_HOURS } from '../constants/sectors';
+import { 
+  DISPLAY_PERIOD_HOURS, 
+  getDynamicUnitEconomics,
+  calculateMarketEntryEconomics,
+} from '../constants/sectors';
 
 export interface MarketEntry {
   id: number;
@@ -128,6 +132,7 @@ export class MarketEntryModel {
   }
 
   // Calculate corporation finances from all market entries
+  // Uses dynamic economics based on sector, commodity prices, and product prices
   static async calculateCorporationFinances(corporationId: number): Promise<CorporationFinances> {
     // Get all market entries with their units
     const entries = await this.findByCorporationIdWithUnits(corporationId);
@@ -140,19 +145,18 @@ export class MarketEntryModel {
     let totalExtraction = 0;
 
     for (const entry of entries) {
-      const multiplier = getStateMultiplier(entry.state_code);
+      // Use dynamic economics that considers sector, commodity prices, etc.
+      const economics = calculateMarketEntryEconomics(
+        entry.sector_type,
+        entry.state_code,
+        entry.retail_count,
+        entry.production_count,
+        entry.service_count,
+        entry.extraction_count
+      );
 
-      // Calculate revenue (affected by multiplier)
-      hourlyRevenue += entry.retail_count * UNIT_ECONOMICS.retail.baseRevenue * multiplier;
-      hourlyRevenue += entry.production_count * UNIT_ECONOMICS.production.baseRevenue * multiplier;
-      hourlyRevenue += entry.service_count * UNIT_ECONOMICS.service.baseRevenue * multiplier;
-      hourlyRevenue += entry.extraction_count * UNIT_ECONOMICS.extraction.baseRevenue * multiplier;
-
-      // Calculate costs (not affected by multiplier)
-      hourlyCosts += entry.retail_count * UNIT_ECONOMICS.retail.baseCost;
-      hourlyCosts += entry.production_count * UNIT_ECONOMICS.production.baseCost;
-      hourlyCosts += entry.service_count * UNIT_ECONOMICS.service.baseCost;
-      hourlyCosts += entry.extraction_count * UNIT_ECONOMICS.extraction.baseCost;
+      hourlyRevenue += economics.hourlyRevenue;
+      hourlyCosts += economics.hourlyCost;
 
       // Sum up units
       totalRetail += entry.retail_count;
@@ -180,31 +184,30 @@ export class MarketEntryModel {
   }
 
   // Get all corporations with their hourly financials (for cron job)
+  // Now uses dynamic economics per-corporation for accurate commodity-based pricing
   static async getAllCorporationsFinancials(): Promise<{ corporation_id: number; hourly_profit: number }[]> {
-    const result = await pool.query(
-      `SELECT 
-        me.corporation_id,
-        SUM(
-          COALESCE(bu.count, 0) * 
-          CASE bu.unit_type 
-            WHEN 'retail' THEN (${UNIT_ECONOMICS.retail.baseRevenue} * sm.population_multiplier - ${UNIT_ECONOMICS.retail.baseCost})
-            WHEN 'production' THEN (${UNIT_ECONOMICS.production.baseRevenue} * sm.population_multiplier - ${UNIT_ECONOMICS.production.baseCost})
-            WHEN 'service' THEN (${UNIT_ECONOMICS.service.baseRevenue} * sm.population_multiplier - ${UNIT_ECONOMICS.service.baseCost})
-            WHEN 'extraction' THEN (${UNIT_ECONOMICS.extraction.baseRevenue} * sm.population_multiplier - ${UNIT_ECONOMICS.extraction.baseCost})
-            ELSE 0
-          END
-        )::numeric as hourly_profit
-      FROM market_entries me
-      LEFT JOIN business_units bu ON me.id = bu.market_entry_id
-      LEFT JOIN state_metadata sm ON me.state_code = sm.state_code
-      GROUP BY me.corporation_id
-      HAVING SUM(COALESCE(bu.count, 0)) > 0`
+    // Get all corporation IDs that have market entries
+    const corpResult = await pool.query(
+      `SELECT DISTINCT corporation_id FROM market_entries`
     );
 
-    return result.rows.map(row => ({
-      corporation_id: row.corporation_id,
-      hourly_profit: parseFloat(row.hourly_profit) || 0,
-    }));
+    const results: { corporation_id: number; hourly_profit: number }[] = [];
+
+    for (const row of corpResult.rows) {
+      const finances = await this.calculateCorporationFinances(row.corporation_id);
+      if (finances.hourly_profit !== 0 || 
+          finances.total_retail_units > 0 || 
+          finances.total_production_units > 0 || 
+          finances.total_service_units > 0 ||
+          finances.total_extraction_units > 0) {
+        results.push({
+          corporation_id: row.corporation_id,
+          hourly_profit: finances.hourly_profit,
+        });
+      }
+    }
+
+    return results;
   }
 }
 

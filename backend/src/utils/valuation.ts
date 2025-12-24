@@ -2,9 +2,8 @@ import { MarketEntryModel, MarketEntryWithUnits } from '../models/MarketEntry';
 import { ShareTransactionModel } from '../models/ShareTransaction';
 import { CorporationModel } from '../models/Corporation';
 import {
-  getStateMultiplier,
   getUnitAssetValue,
-  UNIT_ECONOMICS,
+  getMarketEntryAssetValue,
   STOCK_VALUATION,
 } from '../constants/sectors';
 
@@ -18,6 +17,7 @@ export interface BalanceSheet {
   retailAssetValue: number;
   productionAssetValue: number;
   serviceAssetValue: number;
+  extractionAssetValue: number;
   
   // Liabilities (simplified for now)
   totalLiabilities: number;
@@ -32,6 +32,7 @@ export interface BalanceSheet {
   totalRetailUnits: number;
   totalProductionUnits: number;
   totalServiceUnits: number;
+  totalExtractionUnits: number;
   marketsCount: number;
 }
 
@@ -50,15 +51,18 @@ export interface StockValuation {
 
 /**
  * Calculate the total asset value of all business units for a corporation
+ * Uses dynamic pricing based on sector, commodity prices, and product prices
  */
 export async function calculateBusinessUnitAssets(corporationId: number): Promise<{
   totalValue: number;
   retailValue: number;
   productionValue: number;
   serviceValue: number;
+  extractionValue: number;
   retailUnits: number;
   productionUnits: number;
   serviceUnits: number;
+  extractionUnits: number;
   marketsCount: number;
 }> {
   const entries = await MarketEntryModel.findByCorporationIdWithUnits(corporationId);
@@ -67,43 +71,52 @@ export async function calculateBusinessUnitAssets(corporationId: number): Promis
   let retailValue = 0;
   let productionValue = 0;
   let serviceValue = 0;
+  let extractionValue = 0;
   let retailUnits = 0;
   let productionUnits = 0;
   let serviceUnits = 0;
+  let extractionUnits = 0;
   
   for (const entry of entries) {
-    const multiplier = getStateMultiplier(entry.state_code);
+    // Use dynamic asset value calculation that considers sector and commodity prices
+    const assetValues = getMarketEntryAssetValue(
+      entry.sector_type,
+      entry.state_code,
+      entry.retail_count,
+      entry.production_count,
+      entry.service_count,
+      entry.extraction_count
+    );
     
-    // Calculate value for each unit type
-    const retailUnitValue = getUnitAssetValue('retail', multiplier);
-    const productionUnitValue = getUnitAssetValue('production', multiplier);
-    const serviceUnitValue = getUnitAssetValue('service', multiplier);
-    
-    retailValue += entry.retail_count * retailUnitValue;
-    productionValue += entry.production_count * productionUnitValue;
-    serviceValue += entry.service_count * serviceUnitValue;
+    retailValue += assetValues.retailValue;
+    productionValue += assetValues.productionValue;
+    serviceValue += assetValues.serviceValue;
+    extractionValue += assetValues.extractionValue;
+    totalValue += assetValues.totalValue;
     
     retailUnits += entry.retail_count;
     productionUnits += entry.production_count;
     serviceUnits += entry.service_count;
+    extractionUnits += entry.extraction_count;
   }
-  
-  totalValue = retailValue + productionValue + serviceValue;
   
   return {
     totalValue,
     retailValue,
     productionValue,
     serviceValue,
+    extractionValue,
     retailUnits,
     productionUnits,
     serviceUnits,
+    extractionUnits,
     marketsCount: entries.length,
   };
 }
 
 /**
  * Calculate the full balance sheet for a corporation
+ * Uses dynamic asset valuation based on sector and commodity prices
  */
 export async function calculateBalanceSheet(corporationId: number): Promise<BalanceSheet> {
   const corporation = await CorporationModel.findById(corporationId);
@@ -129,12 +142,14 @@ export async function calculateBalanceSheet(corporationId: number): Promise<Bala
     retailAssetValue: unitAssets.retailValue,
     productionAssetValue: unitAssets.productionValue,
     serviceAssetValue: unitAssets.serviceValue,
+    extractionAssetValue: unitAssets.extractionValue,
     totalLiabilities,
     shareholdersEquity,
     bookValuePerShare,
     totalRetailUnits: unitAssets.retailUnits,
     totalProductionUnits: unitAssets.productionUnits,
     totalServiceUnits: unitAssets.serviceUnits,
+    totalExtractionUnits: unitAssets.extractionUnits,
     marketsCount: unitAssets.marketsCount,
   };
 }
@@ -252,3 +267,4 @@ export async function updateStockPrice(corporationId: number, applyVariation: bo
   
   return finalPrice;
 }
+
