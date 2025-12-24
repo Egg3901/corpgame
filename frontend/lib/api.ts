@@ -1126,7 +1126,25 @@ export interface ResourceDetailResponse {
   total_supply: number;
   total_demand: number;
   demanding_sectors: string[];
+  top_producing_states: Array<{
+    stateCode: string;
+    stateName: string;
+    extractionUnits: number;
+    productionLevel: number;
+    rank: number;
+  }>;
   demanders: ResourceSupplierDemander[];
+  producers: Array<{
+    corporation_id: number;
+    corporation_name: string;
+    corporation_logo: string | null;
+    sector_type: string;
+    state_code: string;
+    state_name: string;
+    extraction_units: number;
+    production_level: number;
+  }>;
+  filter: 'producers' | 'demanders';
   pagination: PaginationInfo;
 }
 
@@ -1154,9 +1172,9 @@ export const marketsAPI = {
     const response = await api.get('/api/markets/commodities');
     return response.data;
   },
-  getResourceDetail: async (resourceName: string, page: number = 1, limit: number = 10): Promise<ResourceDetailResponse> => {
+  getResourceDetail: async (resourceName: string, page: number = 1, limit: number = 10, filter: 'producers' | 'demanders' = 'demanders'): Promise<ResourceDetailResponse> => {
     const response = await api.get(`/api/markets/resource/${encodeURIComponent(resourceName)}`, {
-      params: { page, limit },
+      params: { page, limit, filter },
     });
     return response.data;
   },

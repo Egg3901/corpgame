@@ -182,9 +182,16 @@ router.get('/resource/:name', async (req: Request, res: Response) => {
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
     const offset = (page - 1) * limit;
+    const filter = (req.query.filter as string) || 'demanders'; // 'producers' or 'demanders'
     
     // Calculate actual commodity supply/demand
     const { EXTRACTION_OUTPUT_RATE, PRODUCTION_RESOURCE_CONSUMPTION } = await import('../constants/sectors');
+    
+    // Get sectors that extract this resource
+    const extractingSectors = Object.keys(SECTOR_EXTRACTION).filter(s => {
+      const extractable = SECTOR_EXTRACTION[s as Sector];
+      return extractable && extractable.includes(resourceName);
+    });
     
     // Get extraction units for sectors that extract this resource
     const extractionQuery = await pool.query(`
@@ -195,15 +202,37 @@ router.get('/resource/:name', async (req: Request, res: Response) => {
       LEFT JOIN business_units bu ON me.id = bu.market_entry_id AND bu.unit_type = 'extraction'
       WHERE me.sector_type = ANY($1::text[])
       GROUP BY me.sector_type
-    `, [Object.keys(SECTOR_EXTRACTION).filter(s => {
-      const extractable = SECTOR_EXTRACTION[s as Sector];
-      return extractable && extractable.includes(resourceName);
-    })]);
+    `, [extractingSectors]);
     
     let actualSupply = 0;
     for (const row of extractionQuery.rows) {
       actualSupply += row.extraction_units * EXTRACTION_OUTPUT_RATE;
     }
+    
+    // Get top producing states by actual extraction units
+    const topProducingStatesQuery = await pool.query(`
+      SELECT 
+        me.state_code,
+        sm.name as state_name,
+        COALESCE(SUM(bu.count), 0)::int as extraction_units,
+        COALESCE(SUM(bu.count), 0)::int * $1::numeric as production_level
+      FROM market_entries me
+      LEFT JOIN business_units bu ON me.id = bu.market_entry_id AND bu.unit_type = 'extraction'
+      LEFT JOIN state_metadata sm ON me.state_code = sm.state_code
+      WHERE me.sector_type = ANY($2::text[])
+      GROUP BY me.state_code, sm.name
+      HAVING COALESCE(SUM(bu.count), 0) > 0
+      ORDER BY extraction_units DESC
+      LIMIT 5
+    `, [EXTRACTION_OUTPUT_RATE, extractingSectors]);
+    
+    const topProducingStates = topProducingStatesQuery.rows.map((row, idx) => ({
+      stateCode: row.state_code,
+      stateName: row.state_name || row.state_code,
+      extractionUnits: row.extraction_units,
+      productionLevel: parseFloat(row.production_level),
+      rank: idx + 1,
+    }));
     
     // Get production units for sectors that demand this resource
     const demandingSectors: Sector[] = [];
@@ -227,39 +256,74 @@ router.get('/resource/:name', async (req: Request, res: Response) => {
     const commodityPrice = calculateCommodityPrice(resourceName, actualSupply, actualDemand);
     const resourceInfo = getResourceInfo(resourceName);
     
-    // Get top demanders (corporations with most production units in sectors that demand this resource)
-    const demandersQuery = await pool.query(`
-      SELECT 
-        c.id as corporation_id,
-        c.name as corporation_name,
-        c.logo as corporation_logo,
-        me.sector_type,
-        me.state_code,
-        sm.name as state_name,
-        COALESCE(SUM(bu.count), 0)::int as production_units
-      FROM corporations c
-      JOIN market_entries me ON c.id = me.corporation_id
-      LEFT JOIN business_units bu ON me.id = bu.market_entry_id AND bu.unit_type = 'production'
-      LEFT JOIN state_metadata sm ON me.state_code = sm.state_code
-      WHERE me.sector_type = ANY($1::text[])
-      GROUP BY c.id, c.name, c.logo, me.sector_type, me.state_code, sm.name
-      HAVING COALESCE(SUM(bu.count), 0) > 0
-      ORDER BY production_units DESC
-      LIMIT $2 OFFSET $3
-    `, [demandingSectors, limit, offset]);
+    // Get top producers (corporations extracting this resource) or top demanders based on filter
+    let listQuery, countQuery, totalCount;
     
-    // Get total count for pagination
-    const countQuery = await pool.query(`
-      SELECT COUNT(DISTINCT (c.id, me.sector_type, me.state_code))::int as total
-      FROM corporations c
-      JOIN market_entries me ON c.id = me.corporation_id
-      LEFT JOIN business_units bu ON me.id = bu.market_entry_id AND bu.unit_type = 'production'
-      WHERE me.sector_type = ANY($1::text[])
-      GROUP BY c.id, me.sector_type, me.state_code
-      HAVING COALESCE(SUM(bu.count), 0) > 0
-    `, [demandingSectors]);
+    if (filter === 'producers') {
+      // Get top producers (corporations with most extraction units)
+      listQuery = await pool.query(`
+        SELECT 
+          c.id as corporation_id,
+          c.name as corporation_name,
+          c.logo as corporation_logo,
+          me.sector_type,
+          me.state_code,
+          sm.name as state_name,
+          COALESCE(SUM(bu.count), 0)::int as extraction_units
+        FROM corporations c
+        JOIN market_entries me ON c.id = me.corporation_id
+        LEFT JOIN business_units bu ON me.id = bu.market_entry_id AND bu.unit_type = 'extraction'
+        LEFT JOIN state_metadata sm ON me.state_code = sm.state_code
+        WHERE me.sector_type = ANY($1::text[])
+        GROUP BY c.id, c.name, c.logo, me.sector_type, me.state_code, sm.name
+        HAVING COALESCE(SUM(bu.count), 0) > 0
+        ORDER BY extraction_units DESC
+        LIMIT $2 OFFSET $3
+      `, [extractingSectors, limit, offset]);
+      
+      countQuery = await pool.query(`
+        SELECT COUNT(DISTINCT (c.id, me.sector_type, me.state_code))::int as total
+        FROM corporations c
+        JOIN market_entries me ON c.id = me.corporation_id
+        LEFT JOIN business_units bu ON me.id = bu.market_entry_id AND bu.unit_type = 'extraction'
+        WHERE me.sector_type = ANY($1::text[])
+        GROUP BY c.id, me.sector_type, me.state_code
+        HAVING COALESCE(SUM(bu.count), 0) > 0
+      `, [extractingSectors]);
+    } else {
+      // Get top demanders (corporations with most production units in sectors that demand this resource)
+      listQuery = await pool.query(`
+        SELECT 
+          c.id as corporation_id,
+          c.name as corporation_name,
+          c.logo as corporation_logo,
+          me.sector_type,
+          me.state_code,
+          sm.name as state_name,
+          COALESCE(SUM(bu.count), 0)::int as production_units
+        FROM corporations c
+        JOIN market_entries me ON c.id = me.corporation_id
+        LEFT JOIN business_units bu ON me.id = bu.market_entry_id AND bu.unit_type = 'production'
+        LEFT JOIN state_metadata sm ON me.state_code = sm.state_code
+        WHERE me.sector_type = ANY($1::text[])
+        GROUP BY c.id, c.name, c.logo, me.sector_type, me.state_code, sm.name
+        HAVING COALESCE(SUM(bu.count), 0) > 0
+        ORDER BY production_units DESC
+        LIMIT $2 OFFSET $3
+      `, [demandingSectors, limit, offset]);
+      
+      countQuery = await pool.query(`
+        SELECT COUNT(DISTINCT (c.id, me.sector_type, me.state_code))::int as total
+        FROM corporations c
+        JOIN market_entries me ON c.id = me.corporation_id
+        LEFT JOIN business_units bu ON me.id = bu.market_entry_id AND bu.unit_type = 'production'
+        WHERE me.sector_type = ANY($1::text[])
+        GROUP BY c.id, me.sector_type, me.state_code
+        HAVING COALESCE(SUM(bu.count), 0) > 0
+      `, [demandingSectors]);
+    }
     
-    const totalDemanders = countQuery.rows.length;
+    totalCount = countQuery.rows.length;
     
     // Calculate total demand across all demanding corps (with consumption rate)
     const totalDemandQuery = await pool.query(`
@@ -279,7 +343,8 @@ router.get('/resource/:name', async (req: Request, res: Response) => {
       total_supply: actualSupply,
       total_demand: totalDemand,
       demanding_sectors: demandingSectors,
-      demanders: demandersQuery.rows.map(row => ({
+      top_producing_states: topProducingStates,
+      demanders: filter === 'demanders' ? listQuery.rows.map(row => ({
         corporation_id: row.corporation_id,
         corporation_name: row.corporation_name,
         corporation_logo: row.corporation_logo,
@@ -288,12 +353,23 @@ router.get('/resource/:name', async (req: Request, res: Response) => {
         state_name: row.state_name,
         production_units: row.production_units,
         resource_demand: row.production_units * PRODUCTION_RESOURCE_CONSUMPTION,
-      })),
+      })) : [],
+      producers: filter === 'producers' ? listQuery.rows.map(row => ({
+        corporation_id: row.corporation_id,
+        corporation_name: row.corporation_name,
+        corporation_logo: row.corporation_logo,
+        sector_type: row.sector_type,
+        state_code: row.state_code,
+        state_name: row.state_name,
+        extraction_units: row.extraction_units,
+        production_level: row.extraction_units * EXTRACTION_OUTPUT_RATE,
+      })) : [],
+      filter,
       pagination: {
         page,
         limit,
-        total: totalDemanders,
-        total_pages: Math.ceil(totalDemanders / limit),
+        total: totalCount,
+        total_pages: Math.ceil(totalCount / limit),
       },
     });
   } catch (error) {

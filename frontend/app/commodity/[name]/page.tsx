@@ -53,12 +53,13 @@ export default function CommodityDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [page, setPage] = useState(1);
+  const [filter, setFilter] = useState<'producers' | 'demanders'>('demanders');
 
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const result = await marketsAPI.getResourceDetail(resourceName, page, 10);
+        const result = await marketsAPI.getResourceDetail(resourceName, page, 10, filter);
         setData(result);
       } catch (err: any) {
         console.error('Failed to fetch resource:', err);
@@ -69,7 +70,7 @@ export default function CommodityDetailPage() {
     };
 
     fetchData();
-  }, [resourceName, page]);
+  }, [resourceName, page, filter]);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -195,18 +196,33 @@ export default function CommodityDetailPage() {
               </div>
             </div>
 
-            {/* Top Demanders Table */}
+            {/* Top Producers/Demanders Table */}
             <div className="relative rounded-2xl border border-gray-200/50 dark:border-gray-700/50 bg-gradient-to-br from-white via-white to-gray-50/50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800/50 shadow-xl overflow-hidden backdrop-blur-sm">
               <div className="relative p-6">
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                  <Factory className="w-5 h-5 text-corporate-blue" />
-                  Top Demanders
-                </h2>
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                    <Factory className="w-5 h-5 text-corporate-blue" />
+                    {filter === 'producers' ? 'Top Producers' : 'Top Demanders'}
+                  </h2>
+                  <select
+                    value={filter}
+                    onChange={(e) => {
+                      setFilter(e.target.value as 'producers' | 'demanders');
+                      setPage(1);
+                    }}
+                    className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm font-medium text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-corporate-blue"
+                  >
+                    <option value="demanders">Top Demanders</option>
+                    <option value="producers">Top Producers</option>
+                  </select>
+                </div>
                 
-                {data.demanders.length === 0 ? (
+                {(filter === 'demanders' ? data.demanders : data.producers).length === 0 ? (
                   <div className="text-center py-12">
                     <Factory className="h-12 w-12 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
-                    <p className="text-gray-500 dark:text-gray-400">No corporations currently demanding this resource</p>
+                    <p className="text-gray-500 dark:text-gray-400">
+                      No corporations currently {filter === 'demanders' ? 'demanding' : 'producing'} this resource
+                    </p>
                   </div>
                 ) : (
                   <>
@@ -217,21 +233,26 @@ export default function CommodityDetailPage() {
                             <th className="text-left py-3 px-4 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Corporation</th>
                             <th className="text-left py-3 px-4 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Sector</th>
                             <th className="text-left py-3 px-4 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Location</th>
-                            <th className="text-right py-3 px-4 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Units</th>
+                            <th className="text-right py-3 px-4 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                              {filter === 'producers' ? 'Extraction Units' : 'Production Units'}
+                            </th>
+                            {filter === 'producers' && (
+                              <th className="text-right py-3 px-4 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Production Level</th>
+                            )}
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100 dark:divide-gray-700/50">
-                          {data.demanders.map((demander, idx) => (
-                            <tr key={`${demander.corporation_id}-${demander.state_code}-${idx}`} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                          {(filter === 'demanders' ? data.demanders : data.producers).map((item, idx) => (
+                            <tr key={`${item.corporation_id}-${item.state_code}-${idx}`} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
                               <td className="py-3 px-4">
                                 <Link
-                                  href={`/corporation/${demander.corporation_id}`}
+                                  href={`/corporation/${item.corporation_id}`}
                                   className="flex items-center gap-3 hover:text-corporate-blue dark:hover:text-corporate-blue-light transition-colors"
                                 >
-                                  {demander.corporation_logo ? (
+                                  {item.corporation_logo ? (
                                     <img
-                                      src={demander.corporation_logo}
-                                      alt={demander.corporation_name}
+                                      src={item.corporation_logo}
+                                      alt={item.corporation_name}
                                       className="w-8 h-8 rounded-lg object-cover"
                                       onError={(e) => { e.currentTarget.src = '/defaultpfp.jpg'; }}
                                     />
@@ -240,22 +261,27 @@ export default function CommodityDetailPage() {
                                       <Building2 className="w-4 h-4 text-gray-400" />
                                     </div>
                                   )}
-                                  <span className="font-medium text-gray-900 dark:text-white">{demander.corporation_name}</span>
+                                  <span className="font-medium text-gray-900 dark:text-white">{item.corporation_name}</span>
                                 </Link>
                               </td>
-                              <td className="py-3 px-4 text-sm text-gray-600 dark:text-gray-400">{demander.sector_type}</td>
+                              <td className="py-3 px-4 text-sm text-gray-600 dark:text-gray-400">{item.sector_type}</td>
                               <td className="py-3 px-4">
                                 <Link
-                                  href={`/states/${demander.state_code}`}
+                                  href={`/states/${item.state_code}`}
                                   className="inline-flex items-center gap-1 text-sm text-gray-600 dark:text-gray-400 hover:text-corporate-blue dark:hover:text-corporate-blue-light transition-colors"
                                 >
                                   <MapPin className="w-3 h-3" />
-                                  {demander.state_name}
+                                  {item.state_name}
                                 </Link>
                               </td>
                               <td className="py-3 px-4 text-right font-mono font-semibold text-gray-900 dark:text-white">
-                                {demander.production_units}
+                                {filter === 'producers' ? (item as any).extraction_units : (item as any).production_units}
                               </td>
+                              {filter === 'producers' && (
+                                <td className="py-3 px-4 text-right font-mono text-sm text-gray-600 dark:text-gray-400">
+                                  {formatNumber((item as any).production_level)}
+                                </td>
+                              )}
                             </tr>
                           ))}
                         </tbody>
@@ -296,12 +322,51 @@ export default function CommodityDetailPage() {
 
           {/* Sidebar */}
           <div className="space-y-6">
-            {/* Top Producing States */}
+            {/* Top Producing States (by actual production) */}
             <div className="relative rounded-2xl border border-gray-200/50 dark:border-gray-700/50 bg-gradient-to-br from-white via-white to-gray-50/50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800/50 shadow-xl overflow-hidden backdrop-blur-sm">
               <div className="relative p-6">
                 <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
                   <MapPin className="h-5 w-5 text-corporate-blue" />
                   Top Producing States
+                </h3>
+                <div className="space-y-3">
+                  {data.top_producing_states.length === 0 ? (
+                    <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">No production yet</p>
+                  ) : (
+                    data.top_producing_states.map((state) => (
+                      <Link
+                        key={state.stateCode}
+                        href={`/states/${state.stateCode}`}
+                        className="flex items-center justify-between p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-corporate-blue/30 dark:hover:border-corporate-blue/30 transition-colors"
+                      >
+                        <div className="flex items-center gap-3">
+                          <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+                            state.rank === 1 ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300' :
+                            state.rank === 2 ? 'bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300' :
+                            state.rank === 3 ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/50 dark:text-orange-300' :
+                            'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
+                          }`}>
+                            {state.rank}
+                          </span>
+                          <span className="font-medium text-gray-900 dark:text-white">{state.stateName}</span>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-mono font-semibold text-gray-900 dark:text-white">{formatNumber(state.productionLevel)}</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">{state.extractionUnits} units</p>
+                        </div>
+                      </Link>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Resource-Rich States */}
+            <div className="relative rounded-2xl border border-gray-200/50 dark:border-gray-700/50 bg-gradient-to-br from-white via-white to-gray-50/50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800/50 shadow-xl overflow-hidden backdrop-blur-sm">
+              <div className="relative p-6">
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                  <MapPin className="h-5 w-5 text-corporate-blue" />
+                  Resource-Rich States
                 </h3>
                 <div className="space-y-3">
                   {data.info.topStates.map((state, idx) => (
