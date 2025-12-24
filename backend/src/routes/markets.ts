@@ -227,8 +227,8 @@ router.get('/resource/:name', async (req: Request, res: Response) => {
     const commodityPrice = calculateCommodityPrice(resourceName, actualSupply, actualDemand);
     const resourceInfo = getResourceInfo(resourceName);
     
-    // Get top suppliers (corporations with most extraction units in sectors that produce this resource)
-    const suppliersQuery = await pool.query(`
+    // Get top demanders (corporations with most production units in sectors that demand this resource)
+    const demandersQuery = await pool.query(`
       SELECT 
         c.id as corporation_id,
         c.name as corporation_name,
@@ -266,7 +266,7 @@ router.get('/resource/:name', async (req: Request, res: Response) => {
       HAVING COALESCE(SUM(bu.count), 0) > 0
     `, [demandingSectors]);
     
-    const totalSuppliers = countQuery.rows.length;
+    const totalDemanders = countQuery.rows.length;
     
     // Calculate total demand across all demanding corps (with consumption rate)
     const totalDemandQuery = await pool.query(`
@@ -286,7 +286,7 @@ router.get('/resource/:name', async (req: Request, res: Response) => {
       total_supply: actualSupply,  // Use calculated actualSupply (extraction output)
       total_demand: totalDemand,   // Use calculated actualDemand (production consumption)
       demanding_sectors: demandingSectors,
-      suppliers: suppliersQuery.rows.map(row => ({
+      demanders: demandersQuery.rows.map(row => ({
         corporation_id: row.corporation_id,
         corporation_name: row.corporation_name,
         corporation_logo: row.corporation_logo,
@@ -299,8 +299,8 @@ router.get('/resource/:name', async (req: Request, res: Response) => {
       pagination: {
         page,
         limit,
-        total: totalSuppliers,
-        total_pages: Math.ceil(totalSuppliers / limit),
+        total: totalDemanders,
+        total_pages: Math.ceil(totalDemanders / limit),
       },
     });
   } catch (error) {
@@ -369,7 +369,7 @@ router.get('/product/:name', async (req: Request, res: Response) => {
     let totalCount = 0;
     
     if (tab === 'suppliers') {
-      const suppliersQuery = await pool.query(`
+      const demandersQuery = await pool.query(`
         SELECT 
           c.id as corporation_id,
           c.name as corporation_name,
