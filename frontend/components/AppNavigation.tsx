@@ -21,6 +21,7 @@ import {
 import { authAPI, profileAPI, ProfileResponse, corporationAPI, messagesAPI } from '@/lib/api';
 import { useTheme } from './ThemeProvider';
 import ServerTimeFooter from './ServerTimeFooter';
+import { formatCash } from '@/lib/utils';
 
 interface AppNavigationProps {
   children: React.ReactNode;
@@ -277,11 +278,11 @@ export default function AppNavigation({ children }: AppNavigationProps) {
                   {/* Cash Display */}
                   <div className="inline-flex items-center gap-1 sm:gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-2 sm:px-3 py-2 text-emerald-700 shadow-sm dark:border-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300 flex-shrink-0">
                     <DollarSign className="w-4 h-4" />
-                    <span className="text-sm font-semibold">${userCash.toLocaleString()}</span>
+                    <span className="text-sm font-semibold">{formatCash(userCash)}</span>
                     {corpCash !== null && (
                       <>
                         <span className="text-xs text-emerald-600 dark:text-emerald-400 hidden sm:inline">/</span>
-                        <span className="text-xs text-emerald-600 dark:text-emerald-400 hidden sm:inline">${corpCash.toLocaleString()}</span>
+                        <span className="text-xs text-emerald-600 dark:text-emerald-400 hidden sm:inline">{formatCash(corpCash)}</span>
                       </>
                     )}
                   </div>
@@ -307,21 +308,21 @@ export default function AppNavigation({ children }: AppNavigationProps) {
                     onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
                     className="group relative inline-flex items-center gap-2 sm:gap-3 rounded-2xl border border-white/70 bg-gradient-to-r from-white/90 to-white/60 px-2 sm:px-3 py-2 text-left shadow-md transition hover:-translate-y-0.5 hover:shadow-lg dark:border-gray-800 dark:from-gray-800/90 dark:to-gray-900/80"
                   >
-                    {/* Notification badge - always visible */}
-                    {unreadCount > 0 && (
-                      <div className="absolute -top-1 -right-1 z-50 flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-red-500 text-white text-xs font-bold shadow-lg animate-pulse border-2 border-white dark:border-gray-900">
-                        {unreadCount > 9 ? '9+' : unreadCount}
-                      </div>
-                    )}
-                    <div className="relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl border border-white/60 bg-corporate-blue/10 dark:border-gray-700 dark:bg-gray-800 flex-shrink-0">
+                    <div className="relative flex h-10 w-10 items-center justify-center overflow-visible rounded-xl border border-white/60 bg-corporate-blue/10 dark:border-gray-700 dark:bg-gray-800 flex-shrink-0">
                       <img
                         src={viewerProfile?.profile_image_url || "/defaultpfp.jpg"}
                         alt="Your profile avatar"
-                        className="h-full w-full object-cover"
+                        className="h-full w-full object-cover rounded-xl"
                         onError={(e) => {
                           e.currentTarget.src = "/defaultpfp.jpg";
                         }}
                       />
+                      {/* Notification badge - always visible on profile picture */}
+                      {unreadCount > 0 && (
+                        <div className="absolute -top-1 -right-1 z-[100] flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-red-500 text-white text-xs font-bold shadow-lg animate-pulse border-2 border-white dark:border-gray-900">
+                          {unreadCount > 9 ? '9+' : unreadCount}
+                        </div>
+                      )}
                     </div>
                     <div className="leading-tight hidden sm:block min-w-0">
                       <p className="text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400">Profile</p>
@@ -334,7 +335,7 @@ export default function AppNavigation({ children }: AppNavigationProps) {
                   </button>
 
                   {profileDropdownOpen && (
-                    <div className="absolute right-0 mt-2 w-56 rounded-xl border border-gray-200/50 bg-white/95 shadow-2xl backdrop-blur dark:border-gray-700/50 dark:bg-gray-900/95 z-[9999] overflow-hidden">
+                    <div className="absolute right-0 mt-2 w-56 rounded-xl border border-gray-200/50 bg-white/95 shadow-2xl backdrop-blur dark:border-gray-700/50 dark:bg-gray-900/95 z-[9998] overflow-hidden">
                       <div className="py-1">
                         <button
                           onClick={handleViewMessages}
