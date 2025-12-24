@@ -1020,27 +1020,79 @@ export default function CorporationDetailPage() {
                           const stateName = entries[0]?.state_name || US_STATES[stateCode] || stateCode;
                           const stateMultiplier = entries[0]?.state_multiplier || 1;
                           
-                          // Calculate state totals
+                          // Calculate state totals using dynamic economics (matching backend)
+                          let stateRevenue = 0;
+                          let stateCost = 0;
+                          
+                          entries.forEach(entry => {
+                            // Retail units
+                            if (entry.retail_count > 0) {
+                              stateRevenue += UNIT_ECONOMICS.retail.baseRevenue * entry.retail_count * DISPLAY_PERIOD_HOURS;
+                              stateCost += UNIT_ECONOMICS.retail.baseCost * entry.retail_count * DISPLAY_PERIOD_HOURS;
+                            }
+                            
+                            // Production units - use dynamic pricing
+                            if (entry.production_count > 0) {
+                              const requiredResource = SECTOR_RESOURCES[entry.sector_type];
+                              const producedProduct = SECTOR_PRODUCTS[entry.sector_type];
+                              
+                              let unitRev = 0;
+                              let unitCost = PRODUCTION_LABOR_COST * DISPLAY_PERIOD_HOURS;
+                              
+                              // Resource cost
+                              if (requiredResource && commodityPrices[requiredResource]) {
+                                unitCost += PRODUCTION_RESOURCE_CONSUMPTION * commodityPrices[requiredResource].currentPrice * DISPLAY_PERIOD_HOURS;
+                              }
+                              
+                              // Product revenue
+                              if (producedProduct) {
+                                const basePrice = PRODUCT_BASE_PRICES[producedProduct] || 0;
+                                unitRev = basePrice * PRODUCTION_OUTPUT_RATE * DISPLAY_PERIOD_HOURS;
+                              } else {
+                                unitRev = UNIT_ECONOMICS.production.baseRevenue * DISPLAY_PERIOD_HOURS;
+                                unitCost = UNIT_ECONOMICS.production.baseCost * DISPLAY_PERIOD_HOURS;
+                              }
+                              
+                              stateRevenue += unitRev * entry.production_count;
+                              stateCost += unitCost * entry.production_count;
+                            }
+                            
+                            // Service units
+                            if (entry.service_count > 0) {
+                              stateRevenue += UNIT_ECONOMICS.service.baseRevenue * entry.service_count * DISPLAY_PERIOD_HOURS;
+                              stateCost += UNIT_ECONOMICS.service.baseCost * entry.service_count * DISPLAY_PERIOD_HOURS;
+                            }
+                            
+                            // Extraction units - use dynamic pricing
+                            if (entry.extraction_count && entry.extraction_count > 0) {
+                              const extractableResources = SECTORS_CAN_EXTRACT[entry.sector_type];
+                              let unitRev = 0;
+                              
+                              if (extractableResources && extractableResources.length > 0) {
+                                const resource = extractableResources[0];
+                                if (commodityPrices[resource]) {
+                                  unitRev = commodityPrices[resource].currentPrice * EXTRACTION_OUTPUT_RATE * DISPLAY_PERIOD_HOURS;
+                                }
+                              }
+                              
+                              if (unitRev === 0) {
+                                unitRev = UNIT_ECONOMICS.extraction.baseRevenue * DISPLAY_PERIOD_HOURS;
+                              }
+                              
+                              const unitCost = UNIT_ECONOMICS.extraction.baseCost * DISPLAY_PERIOD_HOURS;
+                              
+                              stateRevenue += unitRev * entry.extraction_count;
+                              stateCost += unitCost * entry.extraction_count;
+                            }
+                          });
+                          
+                          const stateProfit = stateRevenue - stateCost;
+                          
+                          // For display in tooltip
                           const stateRetail = entries.reduce((s, e) => s + e.retail_count, 0);
                           const stateProduction = entries.reduce((s, e) => s + e.production_count, 0);
                           const stateService = entries.reduce((s, e) => s + e.service_count, 0);
                           const stateExtraction = entries.reduce((s, e) => s + (e.extraction_count || 0), 0);
-                          
-                          const stateRevenue = (
-                            stateRetail * UNIT_ECONOMICS.retail.baseRevenue * stateMultiplier +
-                            stateProduction * UNIT_ECONOMICS.production.baseRevenue * stateMultiplier +
-                            stateService * UNIT_ECONOMICS.service.baseRevenue * stateMultiplier +
-                            stateExtraction * UNIT_ECONOMICS.extraction.baseRevenue * stateMultiplier
-                          ) * DISPLAY_PERIOD_HOURS;
-                          
-                          const stateCost = (
-                            stateRetail * UNIT_ECONOMICS.retail.baseCost +
-                            stateProduction * UNIT_ECONOMICS.production.baseCost +
-                            stateService * UNIT_ECONOMICS.service.baseCost +
-                            stateExtraction * UNIT_ECONOMICS.extraction.baseCost
-                          ) * DISPLAY_PERIOD_HOURS;
-                          
-                          const stateProfit = stateRevenue - stateCost;
 
                           return (
                             <div key={stateCode} className="rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
@@ -1058,7 +1110,7 @@ export default function CorporationDetailPage() {
                                       {stateMultiplier.toFixed(1)}x
                                       <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-10 pointer-events-none">
                                         <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 whitespace-nowrap shadow-lg">
-                                          State revenue multiplier applied to all unit base revenues
+                                          State capacity multiplier - affects max units per sector (not revenue)
                                         </div>
                                       </div>
                                     </span>
@@ -1070,12 +1122,24 @@ export default function CorporationDetailPage() {
                                         {formatCurrency(stateRevenue)}
                                       </p>
                                       <div className="absolute bottom-full right-0 mb-2 hidden group-hover:block z-10 pointer-events-none">
-                                        <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 whitespace-nowrap shadow-lg text-left">
+                                        <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 shadow-lg text-left max-w-xs">
                                           <p className="font-medium mb-1">96-hour Revenue Breakdown</p>
-                                          <p>Retail: {stateRetail} × ${UNIT_ECONOMICS.retail.baseRevenue} × {stateMultiplier.toFixed(1)} × 96</p>
-                                          <p>Prod: {stateProduction} × ${UNIT_ECONOMICS.production.baseRevenue} × {stateMultiplier.toFixed(1)} × 96</p>
-                                          <p>Service: {stateService} × ${UNIT_ECONOMICS.service.baseRevenue} × {stateMultiplier.toFixed(1)} × 96</p>
-                                          <p>Extract: {stateExtraction} × ${UNIT_ECONOMICS.extraction.baseRevenue} × {stateMultiplier.toFixed(1)} × 96</p>
+                                          <p className="text-gray-400 text-xs mb-1">(No state multiplier on revenue - multipliers affect capacity only)</p>
+                                          <div className="space-y-1">
+                                            {stateRetail > 0 && (
+                                              <p>Retail: {stateRetail} × ${UNIT_ECONOMICS.retail.baseRevenue}/hr × 96hr</p>
+                                            )}
+                                            {stateProduction > 0 && (
+                                              <p>Production: {stateProduction} units (dynamic pricing)</p>
+                                            )}
+                                            {stateService > 0 && (
+                                              <p>Service: {stateService} × ${UNIT_ECONOMICS.service.baseRevenue}/hr × 96hr</p>
+                                            )}
+                                            {stateExtraction > 0 && (
+                                              <p>Extraction: {stateExtraction} units (dynamic pricing)</p>
+                                            )}
+                                          </div>
+                                          <p className="border-t border-gray-700 mt-1 pt-1 font-semibold">Total: {formatCurrency(stateRevenue)}</p>
                                         </div>
                                       </div>
                                     </div>
@@ -1104,18 +1168,68 @@ export default function CorporationDetailPage() {
                                   const canExtract = sectorCanExtract(entry.sector_type);
                                   const extractableResources = SECTORS_CAN_EXTRACT[entry.sector_type];
                                   const totalUnits = entry.retail_count + entry.production_count + entry.service_count + (entry.extraction_count || 0);
-                                  const entryRevenue = (
-                                    entry.retail_count * UNIT_ECONOMICS.retail.baseRevenue * stateMultiplier +
-                                    entry.production_count * UNIT_ECONOMICS.production.baseRevenue * stateMultiplier +
-                                    entry.service_count * UNIT_ECONOMICS.service.baseRevenue * stateMultiplier +
-                                    (entry.extraction_count || 0) * UNIT_ECONOMICS.extraction.baseRevenue * stateMultiplier
-                                  ) * DISPLAY_PERIOD_HOURS;
-                                  const entryCost = (
-                                    entry.retail_count * UNIT_ECONOMICS.retail.baseCost +
-                                    entry.production_count * UNIT_ECONOMICS.production.baseCost +
-                                    entry.service_count * UNIT_ECONOMICS.service.baseCost +
-                                    (entry.extraction_count || 0) * UNIT_ECONOMICS.extraction.baseCost
-                                  ) * DISPLAY_PERIOD_HOURS;
+                                  
+                                  // Calculate entry revenue and cost using dynamic economics (matching backend)
+                                  let entryRevenue = 0;
+                                  let entryCost = 0;
+                                  
+                                  // Retail units
+                                  if (entry.retail_count > 0) {
+                                    entryRevenue += UNIT_ECONOMICS.retail.baseRevenue * entry.retail_count * DISPLAY_PERIOD_HOURS;
+                                    entryCost += UNIT_ECONOMICS.retail.baseCost * entry.retail_count * DISPLAY_PERIOD_HOURS;
+                                  }
+                                  
+                                  // Production units - use dynamic pricing
+                                  if (entry.production_count > 0) {
+                                    let unitRev = 0;
+                                    let unitCost = PRODUCTION_LABOR_COST * DISPLAY_PERIOD_HOURS;
+                                    
+                                    // Resource cost
+                                    if (requiredResource && commodityPrices[requiredResource]) {
+                                      unitCost += PRODUCTION_RESOURCE_CONSUMPTION * commodityPrices[requiredResource].currentPrice * DISPLAY_PERIOD_HOURS;
+                                    }
+                                    
+                                    // Product revenue
+                                    const producedProduct = SECTOR_PRODUCTS[entry.sector_type];
+                                    if (producedProduct) {
+                                      const basePrice = PRODUCT_BASE_PRICES[producedProduct] || 0;
+                                      unitRev = basePrice * PRODUCTION_OUTPUT_RATE * DISPLAY_PERIOD_HOURS;
+                                    } else {
+                                      unitRev = UNIT_ECONOMICS.production.baseRevenue * DISPLAY_PERIOD_HOURS;
+                                      unitCost = UNIT_ECONOMICS.production.baseCost * DISPLAY_PERIOD_HOURS;
+                                    }
+                                    
+                                    entryRevenue += unitRev * entry.production_count;
+                                    entryCost += unitCost * entry.production_count;
+                                  }
+                                  
+                                  // Service units
+                                  if (entry.service_count > 0) {
+                                    entryRevenue += UNIT_ECONOMICS.service.baseRevenue * entry.service_count * DISPLAY_PERIOD_HOURS;
+                                    entryCost += UNIT_ECONOMICS.service.baseCost * entry.service_count * DISPLAY_PERIOD_HOURS;
+                                  }
+                                  
+                                  // Extraction units - use dynamic pricing
+                                  if (entry.extraction_count && entry.extraction_count > 0) {
+                                    let unitRev = 0;
+                                    
+                                    if (extractableResources && extractableResources.length > 0) {
+                                      const resource = extractableResources[0];
+                                      if (commodityPrices[resource]) {
+                                        unitRev = commodityPrices[resource].currentPrice * EXTRACTION_OUTPUT_RATE * DISPLAY_PERIOD_HOURS;
+                                      }
+                                    }
+                                    
+                                    if (unitRev === 0) {
+                                      unitRev = UNIT_ECONOMICS.extraction.baseRevenue * DISPLAY_PERIOD_HOURS;
+                                    }
+                                    
+                                    const unitCost = UNIT_ECONOMICS.extraction.baseCost * DISPLAY_PERIOD_HOURS;
+                                    
+                                    entryRevenue += unitRev * entry.extraction_count;
+                                    entryCost += unitCost * entry.extraction_count;
+                                  }
+                                  
                                   const entryProfit = entryRevenue - entryCost;
 
                                   return (
@@ -1142,12 +1256,24 @@ export default function CorporationDetailPage() {
                                             </p>
                                             <p className="text-xs text-gray-500 dark:text-gray-400">revenue/96h</p>
                                             <div className="absolute bottom-full right-0 mb-2 hidden group-hover:block z-10 pointer-events-none">
-                                              <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 whitespace-nowrap shadow-lg text-left">
-                                                <p className="font-medium mb-1">{entry.sector_type} Revenue</p>
-                                                <p>R: {entry.retail_count} × ${UNIT_ECONOMICS.retail.baseRevenue} × {stateMultiplier.toFixed(1)}</p>
-                                                <p>P: {entry.production_count} × ${UNIT_ECONOMICS.production.baseRevenue} × {stateMultiplier.toFixed(1)}</p>
-                                                <p>S: {entry.service_count} × ${UNIT_ECONOMICS.service.baseRevenue} × {stateMultiplier.toFixed(1)}</p>
-                                                <p>E: {entry.extraction_count || 0} × ${UNIT_ECONOMICS.extraction.baseRevenue} × {stateMultiplier.toFixed(1)}</p>
+                                              <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 shadow-lg text-left max-w-xs">
+                                                <p className="font-medium mb-1">{entry.sector_type} Revenue (96hr)</p>
+                                                <p className="text-gray-400 text-xs mb-1">(Dynamic pricing, no state multiplier)</p>
+                                                <div className="space-y-1">
+                                                  {entry.retail_count > 0 && (
+                                                    <p>Retail: {entry.retail_count} × ${UNIT_ECONOMICS.retail.baseRevenue}/hr × 96hr</p>
+                                                  )}
+                                                  {entry.production_count > 0 && (
+                                                    <p>Production: {entry.production_count} units (product pricing)</p>
+                                                  )}
+                                                  {entry.service_count > 0 && (
+                                                    <p>Service: {entry.service_count} × ${UNIT_ECONOMICS.service.baseRevenue}/hr × 96hr</p>
+                                                  )}
+                                                  {(entry.extraction_count || 0) > 0 && (
+                                                    <p>Extraction: {entry.extraction_count} units (commodity pricing)</p>
+                                                  )}
+                                                </div>
+                                                <p className="border-t border-gray-700 mt-1 pt-1 font-semibold">Total: {formatCurrency(entryRevenue)}</p>
                                               </div>
                                             </div>
                                           </div>
