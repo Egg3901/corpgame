@@ -1397,22 +1397,17 @@ export function calculateCommodityPrice(
 
   const basePrice = RESOURCE_BASE_PRICES[resource];
   
-  // Calculate supply/demand ratio
+  // Calculate supply/demand ratio without floors
   let scarcityFactor = 1.0;
   if (actualSupply > 0 && actualDemand > 0) {
-    // ScarcityFactor = Demand / Supply
-    // High demand or low supply = higher price
     scarcityFactor = actualDemand / actualSupply;
   } else if (actualSupply === 0 && actualDemand > 0) {
-    // No supply but there's demand = maximum scarcity
     scarcityFactor = 3.0;
   } else if (actualSupply > 0 && actualDemand === 0) {
-    // Supply but no demand = minimum price
-    scarcityFactor = 0.5;
+    scarcityFactor = 0.0;
   }
-  
-  // Clamp scarcity factor between 0.5 and 3.0
-  scarcityFactor = Math.min(3.0, Math.max(0.5, scarcityFactor));
+  // Cap only at maximum scarcity
+  scarcityFactor = Math.min(3.0, scarcityFactor);
   
   // Calculate current price
   const currentPrice = Math.round(basePrice * scarcityFactor * 100) / 100;
@@ -1836,23 +1831,18 @@ export function calculateProductPrice(
   const producingSectors = getSectorsProducingProduct(product);
   const demandingSectors = getSectorsDemandingProduct(product);
   
-  // Calculate scarcity factor
-  // If supply is 0, max scarcity. If demand is 0, min scarcity.
+  // Calculate scarcity factor without floors (cap only at max)
   let scarcityFactor: number;
   if (totalSupply === 0) {
-    scarcityFactor = totalDemand > 0 ? 3.0 : 1.0; // Max scarcity if demand exists
+    scarcityFactor = totalDemand > 0 ? 3.0 : 1.0;
   } else if (totalDemand === 0) {
-    scarcityFactor = 0.1; // Very low if no demand
+    scarcityFactor = 0.0;
   } else {
-    // Scarcity = demand / supply, clamped between 0.1 and 3.0
-    scarcityFactor = Math.min(3.0, Math.max(0.1, totalDemand / totalSupply));
+    scarcityFactor = Math.min(3.0, totalDemand / totalSupply);
   }
   
-  // Calculate price: referenceValue * scarcityFactor
+  // Calculate price: referenceValue * scarcityFactor (no floor)
   let currentPrice = Math.round(referenceValue * scarcityFactor * 100) / 100;
-  
-  // Apply minimum floor
-  currentPrice = Math.max(PRODUCT_MIN_PRICE, currentPrice);
   
   return {
     product,

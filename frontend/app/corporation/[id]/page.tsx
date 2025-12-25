@@ -2139,8 +2139,8 @@ export default function CorporationDetailPage() {
                       </div>
                       <div className="flex justify-between items-center pt-3 border-t-2 border-gray-300 dark:border-gray-600">
                         <span className="text-lg font-bold text-gray-900 dark:text-white">Net Income (96hr)</span>
-                        <span className={`text-lg font-bold font-mono ${(corpFinances?.display_profit || 0) >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
-                          {formatCurrency(corpFinances?.display_profit || 0)}
+                        <span className={`text-lg font-bold font-mono ${(statements.netIncome || 0) >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+                          {formatCurrency(statements.netIncome)}
                         </span>
                       </div>
                     </div>

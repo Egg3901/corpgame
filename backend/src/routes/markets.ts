@@ -640,7 +640,7 @@ router.get('/product/:name', async (req: Request, res: Response) => {
       }
     }
     
-    // Calculate total supply (production units in producing sectors)
+    // Calculate total supply (production units × output rate in producing sectors)
     const supplyQuery = await pool.query(`
       SELECT COALESCE(SUM(bu.count), 0)::int as total_supply
       FROM market_entries me
@@ -648,17 +648,86 @@ router.get('/product/:name', async (req: Request, res: Response) => {
       WHERE me.sector_type = ANY($1::text[])
     `, [producingSectors]);
     
-    const totalSupply = supplyQuery.rows[0]?.total_supply || 0;
+    const { PRODUCTION_OUTPUT_RATE } = await import('../constants/sectors');
+    const totalSupply = (supplyQuery.rows[0]?.total_supply || 0) * PRODUCTION_OUTPUT_RATE;
     
-    // Calculate total demand (production units in demanding sectors)
-    const demandQuery = await pool.query(`
-      SELECT COALESCE(SUM(bu.count), 0)::int as total_demand
-      FROM market_entries me
-      JOIN business_units bu ON me.id = bu.market_entry_id AND bu.unit_type = 'production'
-      WHERE me.sector_type = ANY($1::text[])
-    `, [demandingSectors]);
-    
-    const totalDemand = demandQuery.rows[0]?.total_demand || 0;
+    // Calculate total demand using same logic as commodities endpoint
+    const productionUnitsBySector: Record<string, number> = {};
+    if (demandingSectors.length > 0) {
+      const demandProdQuery = await pool.query(`
+        SELECT me.sector_type, COALESCE(SUM(bu.count), 0)::int as production_units
+        FROM market_entries me
+        LEFT JOIN business_units bu ON me.id = bu.market_entry_id AND bu.unit_type = 'production'
+        WHERE me.sector_type = ANY($1::text[])
+        GROUP BY me.sector_type
+      `, [demandingSectors]);
+      for (const row of demandProdQuery.rows) {
+        productionUnitsBySector[row.sector_type] = row.production_units || 0;
+      }
+    }
+    const retailUnitsBySector: Record<string, number> = {};
+    if (demandingSectors.length > 0) {
+      const demandRetailQuery = await pool.query(`
+        SELECT me.sector_type, COALESCE(SUM(bu.count), 0)::int as retail_units
+        FROM market_entries me
+        LEFT JOIN business_units bu ON me.id = bu.market_entry_id AND bu.unit_type = 'retail'
+        WHERE me.sector_type = ANY($1::text[])
+        GROUP BY me.sector_type
+      `, [demandingSectors]);
+      for (const row of demandRetailQuery.rows) {
+        retailUnitsBySector[row.sector_type] = row.retail_units || 0;
+      }
+    }
+    const serviceUnitsBySector: Record<string, number> = {};
+    if (demandingSectors.length > 0) {
+      const demandServiceQuery = await pool.query(`
+        SELECT me.sector_type, COALESCE(SUM(bu.count), 0)::int as service_units
+        FROM market_entries me
+        LEFT JOIN business_units bu ON me.id = bu.market_entry_id AND bu.unit_type = 'service'
+        WHERE me.sector_type = ANY($1::text[])
+        GROUP BY me.sector_type
+      `, [demandingSectors]);
+      for (const row of demandServiceQuery.rows) {
+        serviceUnitsBySector[row.sector_type] = row.service_units || 0;
+      }
+    }
+    const extractionUnitsBySector: Record<string, number> = {};
+    if (demandingSectors.length > 0) {
+      const demandExtractionQuery = await pool.query(`
+        SELECT me.sector_type, COALESCE(SUM(bu.count), 0)::int as extraction_units
+        FROM market_entries me
+        LEFT JOIN business_units bu ON me.id = bu.market_entry_id AND bu.unit_type = 'extraction'
+        WHERE me.sector_type = ANY($1::text[])
+        GROUP BY me.sector_type
+      `, [demandingSectors]);
+      for (const row of demandExtractionQuery.rows) {
+        extractionUnitsBySector[row.sector_type] = row.extraction_units || 0;
+      }
+    }
+    const {
+      PRODUCTION_PRODUCT_CONSUMPTION,
+      RETAIL_PRODUCT_CONSUMPTION,
+      SERVICE_PRODUCT_CONSUMPTION,
+      SERVICE_ELECTRICITY_CONSUMPTION,
+      PRODUCTION_ELECTRICITY_CONSUMPTION,
+      EXTRACTION_ELECTRICITY_CONSUMPTION,
+    } = await import('../constants/sectors');
+
+    let totalDemand = 0;
+    for (const sector of demandingSectors) {
+      const prodUnits = productionUnitsBySector[sector] || 0;
+      const retUnits = retailUnitsBySector[sector] || 0;
+      const svcUnits = serviceUnitsBySector[sector] || 0;
+      if (productName === 'Electricity') {
+        totalDemand += prodUnits * PRODUCTION_ELECTRICITY_CONSUMPTION;
+        totalDemand += svcUnits * SERVICE_ELECTRICITY_CONSUMPTION;
+        totalDemand += (extractionUnitsBySector[sector] || 0) * EXTRACTION_ELECTRICITY_CONSUMPTION;
+      } else {
+        totalDemand += prodUnits * PRODUCTION_PRODUCT_CONSUMPTION;
+        totalDemand += retUnits * RETAIL_PRODUCT_CONSUMPTION;
+        totalDemand += svcUnits * SERVICE_PRODUCT_CONSUMPTION;
+      }
+    }
     
     // Calculate product price
     const productPrice = calculateProductPrice(productName, totalSupply, totalDemand);
