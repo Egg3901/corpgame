@@ -380,37 +380,93 @@ export class BoardVoteModel {
 export class BoardModel {
   // Get board members for a corporation (top N shareholders)
   static async getBoardMembers(corporationId: number): Promise<BoardMember[]> {
-    // Get corporation to find board size and elected CEO
+    // Get corporation to find elected CEO
     const corp = await CorporationModel.findById(corporationId);
     if (!corp) return [];
 
-    const boardSize = corp.board_size || 3;
+    const members: BoardMember[] = [];
 
-    // Get top shareholders
-    const result = await pool.query(
-      `SELECT s.user_id, s.shares, u.username, u.player_name, u.profile_id, u.profile_slug, u.profile_image_url
-       FROM shareholders s
-       JOIN users u ON s.user_id = u.id
-       WHERE s.corporation_id = $1
-       ORDER BY s.shares DESC
-       LIMIT $2`,
-      [corporationId, boardSize]
+    // Get CEO (if elected)
+    if (corp.elected_ceo_id) {
+      const ceoResult = await pool.query(
+        `SELECT s.shares, u.id as user_id, u.username, u.player_name, u.profile_id, u.profile_slug, u.profile_image_url
+         FROM users u
+         LEFT JOIN shareholders s ON s.user_id = u.id AND s.corporation_id = $1
+         WHERE u.id = $2`,
+        [corporationId, corp.elected_ceo_id]
+      );
+
+      if (ceoResult.rows.length > 0) {
+        const ceo = ceoResult.rows[0];
+        members.push({
+          user_id: ceo.user_id,
+          shares: ceo.shares || 0,
+          username: ceo.username,
+          player_name: ceo.player_name,
+          profile_id: ceo.profile_id,
+          profile_slug: ceo.profile_slug,
+          profile_image_url: ceo.profile_image_url,
+          is_ceo: true,
+          is_acting_ceo: false,
+        });
+      }
+    } else {
+      // If no elected CEO, find largest shareholder as acting CEO
+      const actingCeoResult = await pool.query(
+        `SELECT s.user_id, s.shares, u.username, u.player_name, u.profile_id, u.profile_slug, u.profile_image_url
+         FROM shareholders s
+         JOIN users u ON s.user_id = u.id
+         WHERE s.corporation_id = $1
+         ORDER BY s.shares DESC
+         LIMIT 1`,
+        [corporationId]
+      );
+
+      if (actingCeoResult.rows.length > 0) {
+        const actingCeo = actingCeoResult.rows[0];
+        members.push({
+          user_id: actingCeo.user_id,
+          shares: actingCeo.shares,
+          username: actingCeo.username,
+          player_name: actingCeo.player_name,
+          profile_id: actingCeo.profile_id,
+          profile_slug: actingCeo.profile_slug,
+          profile_image_url: actingCeo.profile_image_url,
+          is_ceo: false,
+          is_acting_ceo: true,
+        });
+      }
+    }
+
+    // Get appointed board members (excluding CEO if they're already in the list)
+    const appointedResult = await pool.query(
+      `SELECT ba.user_id, COALESCE(s.shares, 0) as shares, u.username, u.player_name, u.profile_id, u.profile_slug, u.profile_image_url
+       FROM board_appointments ba
+       JOIN users u ON ba.user_id = u.id
+       LEFT JOIN shareholders s ON s.user_id = ba.user_id AND s.corporation_id = ba.corporation_id
+       WHERE ba.corporation_id = $1
+       ORDER BY ba.appointed_at ASC`,
+      [corporationId]
     );
 
-    // Find the largest shareholder (acting CEO)
-    const largestShareholder = result.rows[0]?.user_id;
+    // Add appointed members (skip if they're already CEO)
+    for (const row of appointedResult.rows) {
+      if (!members.some(m => m.user_id === row.user_id)) {
+        members.push({
+          user_id: row.user_id,
+          shares: row.shares,
+          username: row.username,
+          player_name: row.player_name,
+          profile_id: row.profile_id,
+          profile_slug: row.profile_slug,
+          profile_image_url: row.profile_image_url,
+          is_ceo: false,
+          is_acting_ceo: false,
+        });
+      }
+    }
 
-    return result.rows.map(row => ({
-      user_id: row.user_id,
-      shares: row.shares,
-      username: row.username,
-      player_name: row.player_name,
-      profile_id: row.profile_id,
-      profile_slug: row.profile_slug,
-      profile_image_url: row.profile_image_url,
-      is_ceo: corp.elected_ceo_id === row.user_id,
-      is_acting_ceo: !corp.elected_ceo_id && row.user_id === largestShareholder,
-    }));
+    return members;
   }
 
   // Check if a user is on the board

@@ -619,12 +619,12 @@ router.post('/corporation/:corpId/reset-board', async (req: AuthRequest, res: Re
     // Begin transaction
     await client.query('BEGIN');
 
-    // Board size should be at least 1 (CEO only)
-    const newBoardSize = 1;
-    await CorporationModel.update(corpId, { board_size: newBoardSize });
-
-    // The CEO (if exists) will remain on the board automatically as they're the top shareholder
-    // or elected CEO. All others are removed by virtue of board_size = 1
+    // Delete all board appointments (this removes all appointed members)
+    // CEO will remain as they're always on the board
+    await client.query(
+      'DELETE FROM board_appointments WHERE corporation_id = $1',
+      [corpId]
+    );
 
     await client.query('COMMIT');
 
@@ -643,7 +643,7 @@ router.post('/corporation/:corpId/reset-board', async (req: AuthRequest, res: Re
         sender_id: 1, // System user ID
         recipient_id: member.user_id,
         subject: `Board Reset: ${corporation.name}`,
-        body: `The board of directors for ${corporation.name} has been reset by ${adminName}. All board members except the CEO have been removed. The board size has been set to 1.`,
+        body: `The board of directors for ${corporation.name} has been reset by ${adminName}. All appointed board members have been removed. Only the CEO remains on the board.`,
       });
     }
 

@@ -192,7 +192,7 @@ export default function BoardTab({ corporationId, corporationName, viewerUserId,
   };
 
   const handleAdminResetBoard = async () => {
-    if (!confirm('Are you sure you want to reset the board? This will remove all board members except the CEO and set the board size to 1. This action cannot be undone.')) {
+    if (!confirm('Are you sure you want to reset the board? This will remove all appointed board members. Only the CEO will remain. This action cannot be undone.')) {
       return;
     }
 
@@ -386,7 +386,7 @@ export default function BoardTab({ corporationId, corporationName, viewerUserId,
                   {resettingBoard ? 'Resetting Board...' : 'Reset Board Members'}
                 </button>
                 <p className="text-xs text-red-600 dark:text-red-400 mt-2">
-                  This will remove all board members except the CEO and set board size to 1
+                  This will remove all appointed board members. Only the CEO will remain.
                 </p>
               </div>
             </div>

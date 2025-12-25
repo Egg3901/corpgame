@@ -272,7 +272,7 @@ router.post('/:corpId/proposals', authenticateToken, async (req: AuthRequest, re
     // Create the proposal
     const proposal = await BoardProposalModel.create(corpId, userId, proposal_type, validatedData);
 
-    // Send notifications to board members
+    // Send notifications to board members (system message)
     const boardMembers = await BoardModel.getBoardMembers(corpId);
     const proposer = await UserModel.findById(userId);
     const proposerName = proposer?.player_name || proposer?.username || 'A board member';
@@ -280,14 +280,12 @@ router.post('/:corpId/proposals', authenticateToken, async (req: AuthRequest, re
     const proposalDescription = getProposalDescription(proposal_type, validatedData);
 
     for (const member of boardMembers) {
-      if (member.user_id !== userId) {
-        await MessageModel.create({
-          sender_id: userId,
-          recipient_id: member.user_id,
-          subject: `New Board Proposal: ${corporation.name}`,
-          body: `${proposerName} has proposed: ${proposalDescription}\n\nThis vote will expire in 12 hours. Please visit the corporation board page to cast your vote.`,
-        });
-      }
+      await MessageModel.create({
+        sender_id: 1, // System user ID
+        recipient_id: member.user_id,
+        subject: `New Board Proposal: ${corporation.name}`,
+        body: `${proposerName} has proposed: ${proposalDescription}\n\nThis vote will expire in 12 hours. Please visit the corporation board page to cast your vote.`,
+      });
     }
 
     res.status(201).json(proposal);
@@ -377,20 +375,18 @@ router.post('/:corpId/ceo/resign', authenticateToken, async (req: AuthRequest, r
     // Clear the elected CEO
     await CorporationModel.clearElectedCeo(corpId);
 
-    // Notify board members
+    // Notify board members (system message)
     const boardMembers = await BoardModel.getBoardMembers(corpId);
     const ceo = await UserModel.findById(userId);
     const ceoName = ceo?.player_name || ceo?.username || 'The CEO';
 
     for (const member of boardMembers) {
-      if (member.user_id !== userId) {
-        await MessageModel.create({
-          sender_id: userId,
-          recipient_id: member.user_id,
-          subject: `CEO Resignation: ${corporation.name}`,
-          body: `${ceoName} has resigned as CEO of ${corporation.name}. The largest shareholder will serve as Acting CEO until a new CEO is elected by the board.`,
-        });
-      }
+      await MessageModel.create({
+        sender_id: 1, // System user ID
+        recipient_id: member.user_id,
+        subject: `CEO Resignation: ${corporation.name}`,
+        body: `${ceoName} has resigned as CEO of ${corporation.name}. The largest shareholder will serve as Acting CEO until a new CEO is elected by the board.`,
+      });
     }
 
     res.json({ success: true, message: 'Successfully resigned as CEO' });
@@ -416,21 +412,17 @@ async function resolveProposal(proposalId: number): Promise<void> {
     await applyProposalChanges(proposal);
   }
 
-  // Notify board members of outcome (use proposer as sender, skip self-messages)
+  // Notify board members of outcome (system message)
   const boardMembers = await BoardModel.getBoardMembers(proposal.corporation_id);
   const corporation = await CorporationModel.findById(proposal.corporation_id);
   const proposalDescription = getProposalDescription(proposal.proposal_type, proposal.proposal_data);
-  const senderId = proposal.proposer_id;
 
   for (const member of boardMembers) {
-    // Skip sending to the proposer (they already know, and self-messaging is not allowed)
-    if (member.user_id === senderId) continue;
-
     try {
       await MessageModel.create({
-        sender_id: senderId,
+        sender_id: 1, // System user ID
         recipient_id: member.user_id,
-        subject: `Vote Result: ${corporation?.name || 'Corporation'}`,
+        subject: `Board Vote Result: ${corporation?.name || 'Corporation'}`,
         body: `The proposal "${proposalDescription}" has ${passed ? 'PASSED' : 'FAILED'}.\n\nVotes: ${voteCounts.aye} Aye, ${voteCounts.nay} Nay`,
       });
     } catch (msgErr) {
@@ -462,12 +454,13 @@ async function applyProposalChanges(proposal: any): Promise<void> {
       break;
 
     case 'appoint_member':
-      // Appoint member doesn't directly change DB - it just increases board_size
-      // which allows more shareholders to be on the board
-      const corp = await CorporationModel.findById(corpId);
-      if (corp && corp.board_size < 7) {
-        await CorporationModel.update(corpId, { board_size: corp.board_size + 1 });
-      }
+      // Create board appointment
+      await pool.query(
+        `INSERT INTO board_appointments (corporation_id, user_id, appointed_by_proposal_id)
+         VALUES ($1, $2, $3)
+         ON CONFLICT (corporation_id, user_id) DO NOTHING`,
+        [corpId, data.appointee_id, proposal.id]
+      );
       break;
 
     case 'ceo_salary_change':

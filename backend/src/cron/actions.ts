@@ -124,21 +124,17 @@ async function resolveExpiredProposal(proposal: any): Promise<void> {
     await applyProposalChanges(proposal);
   }
 
-  // Notify board members of outcome (use proposer as sender, skip self-messages)
+  // Notify board members of outcome (system message)
   const boardMembers = await BoardModel.getBoardMembers(proposal.corporation_id);
   const corporation = await CorporationModel.findById(proposal.corporation_id);
   const proposalDescription = getProposalDescription(proposal.proposal_type, proposal.proposal_data);
-  const senderId = proposal.proposer_id;
 
   for (const member of boardMembers) {
-    // Skip sending to the proposer (they already know, and self-messaging is not allowed)
-    if (member.user_id === senderId) continue;
-
     try {
       await MessageModel.create({
-        sender_id: senderId,
+        sender_id: 1, // System user ID
         recipient_id: member.user_id,
-        subject: `Vote Result: ${corporation?.name || 'Corporation'}`,
+        subject: `Board Vote Result: ${corporation?.name || 'Corporation'}`,
         body: `The proposal "${proposalDescription}" has ${passed ? 'PASSED' : 'FAILED'}.\n\nVotes: ${voteCounts.aye} Aye, ${voteCounts.nay} Nay`,
       });
     } catch (msgErr) {
@@ -172,11 +168,13 @@ async function applyProposalChanges(proposal: any): Promise<void> {
       break;
 
     case 'appoint_member':
-      // Appoint member increases board_size by 1
-      const corp = await CorporationModel.findById(corpId);
-      if (corp && corp.board_size < 7) {
-        await CorporationModel.update(corpId, { board_size: corp.board_size + 1 });
-      }
+      // Create board appointment
+      await pool.query(
+        `INSERT INTO board_appointments (corporation_id, user_id, appointed_by_proposal_id)
+         VALUES ($1, $2, $3)
+         ON CONFLICT (corporation_id, user_id) DO NOTHING`,
+        [corpId, data.appointee_id, proposal.id]
+      );
       break;
 
     case 'ceo_salary_change':
