@@ -1392,7 +1392,8 @@ export default function CorporationDetailPage() {
                                       UNIT_ECONOMICS={UNIT_ECONOMICS}
                                       SECTORS_CAN_EXTRACT={SECTORS_CAN_EXTRACT}
                                       commodityPrices={commodityPrices}
-                                      EXTRACTION_OUTPUT_RATE={EXTRACTION_OUTPUT_RATE}
+                                      productPrices={productPrices}
+                                      EXTRACTION_OUTPUT_RATE={2.0}
                                     />
                                   );
                                 })}

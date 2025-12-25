@@ -43,6 +43,7 @@ interface SectorCardProps {
   };
   SECTORS_CAN_EXTRACT: Record<string, string[] | null>;
   commodityPrices?: Record<string, { currentPrice: number }>;
+  productPrices?: Record<string, { currentPrice: number }>;
   EXTRACTION_OUTPUT_RATE?: number;
 }
 
@@ -72,8 +73,25 @@ export default function SectorCard({
   UNIT_ECONOMICS,
   SECTORS_CAN_EXTRACT,
   commodityPrices,
+  productPrices,
   EXTRACTION_OUTPUT_RATE = 2.0,
 }: SectorCardProps) {
+  const PRODUCT_BASE_PRICES: Record<string, number> = {
+    'Technology Products': 5000,
+    'Manufactured Goods': 1500,
+    'Electricity': 200,
+    'Food Products': 500,
+    'Construction Capacity': 2500,
+    'Pharmaceutical Products': 8000,
+    'Defense Equipment': 15000,
+    'Logistics Capacity': 1000,
+  };
+
+  const PRODUCTION_LABOR_COST = 400;
+  const PRODUCTION_RESOURCE_CONSUMPTION = 0.5;
+  const PRODUCTION_ELECTRICITY_CONSUMPTION = 0.5;
+  const PRODUCTION_OUTPUT_RATE = 1.0;
+
   const totalUnits = units.retail + units.production + units.service + units.extraction;
 
   // Calculate extraction revenue if commodity prices available
@@ -90,6 +108,28 @@ export default function SectorCard({
 
   const extractionRevenue = getExtractionRevenue();
   const extractionProfit = extractionRevenue - UNIT_ECONOMICS.extraction.baseCost;
+  const retailProfit = UNIT_ECONOMICS.retail.baseRevenue - UNIT_ECONOMICS.retail.baseCost;
+  const serviceProfit = UNIT_ECONOMICS.service.baseRevenue - UNIT_ECONOMICS.service.baseCost;
+
+  const productionIsDynamic = Boolean(productPrices && producedProduct);
+  const productionProductPrice = producedProduct
+    ? (productionIsDynamic ? (productPrices?.[producedProduct]?.currentPrice ?? PRODUCT_BASE_PRICES[producedProduct] ?? 0) : 0)
+    : 0;
+  const productionElectricityPrice = productionIsDynamic
+    ? (productPrices?.Electricity?.currentPrice ?? PRODUCT_BASE_PRICES.Electricity ?? 0)
+    : 0;
+  const productionResourcePrice =
+    productionIsDynamic && requiredResource ? (commodityPrices?.[requiredResource]?.currentPrice ?? 0) : 0;
+
+  const productionRevenue = productionIsDynamic
+    ? productionProductPrice * PRODUCTION_OUTPUT_RATE
+    : UNIT_ECONOMICS.production.baseRevenue;
+  const productionCost = productionIsDynamic
+    ? PRODUCTION_LABOR_COST +
+      PRODUCTION_ELECTRICITY_CONSUMPTION * productionElectricityPrice +
+      (requiredResource ? PRODUCTION_RESOURCE_CONSUMPTION * productionResourcePrice : 0)
+    : UNIT_ECONOMICS.production.baseCost;
+  const productionProfit = productionRevenue - productionCost;
 
   return (
     <div className="rounded-xl border border-white/60 bg-white/70 dark:border-gray-800/70 dark:bg-gray-800/60 p-4 shadow-sm">
@@ -198,9 +238,9 @@ export default function SectorCard({
           <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-50 pointer-events-none">
             <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 whitespace-nowrap shadow-xl border border-gray-700">
               <p className="font-medium">Retail Unit Economics</p>
-              <p>Revenue: ${UNIT_ECONOMICS.retail.baseRevenue}/hr</p>
-              <p>Cost: ${UNIT_ECONOMICS.retail.baseCost}/hr</p>
-              <p className="text-emerald-400">Profit: ${(UNIT_ECONOMICS.retail.baseRevenue - UNIT_ECONOMICS.retail.baseCost)}/hr</p>
+              <p>Revenue: {formatCurrency(UNIT_ECONOMICS.retail.baseRevenue)}/hr</p>
+              <p>Cost: {formatCurrency(UNIT_ECONOMICS.retail.baseCost)}/hr</p>
+              <p className="text-emerald-400">Profit: {formatCurrency(retailProfit)}/hr</p>
               <p className="text-gray-400 text-[10px] mt-1">Revenue is flat (no state multiplier)</p>
             </div>
           </div>
@@ -228,12 +268,37 @@ export default function SectorCard({
           <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-50 pointer-events-none">
             <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 whitespace-nowrap shadow-xl border border-gray-700">
               <p className="font-medium">Production Unit Economics</p>
-              <p>Revenue: varies by output prices</p>
-              <p>Cost: labor + input commodities</p>
-              <p className="text-emerald-400">Profit: varies</p>
-              {requiredResource && <p className="text-amber-400 mt-1">Requires: {requiredResource}</p>}
-              {producedProduct && <p className="text-emerald-400 mt-1">Produces: {producedProduct}</p>}
-              <p className="text-gray-400 text-[10px] mt-1">Revenue based on market prices (no state multiplier)</p>
+              {productionIsDynamic && producedProduct ? (
+                <>
+                  <p>
+                    Revenue: {PRODUCTION_OUTPUT_RATE} × {formatCurrency(productionProductPrice)}/unit
+                  </p>
+                  <p className="text-gray-400">= {formatCurrency(productionRevenue)}/hr</p>
+                  <p>Cost: {formatCurrency(productionCost)}/hr</p>
+                  <p className="text-emerald-400">Profit: {formatCurrency(productionProfit)}/hr</p>
+                  <p className="text-emerald-400 mt-1">Produces: {producedProduct}</p>
+                  {requiredResource && (
+                    <p className="text-amber-400 mt-1">
+                      Inputs: {PRODUCTION_RESOURCE_CONSUMPTION} × {requiredResource} @ {formatCurrency(productionResourcePrice)}/unit
+                    </p>
+                  )}
+                  <p className="text-amber-400">
+                    Electricity: {PRODUCTION_ELECTRICITY_CONSUMPTION} × {formatCurrency(productionElectricityPrice)}/unit
+                  </p>
+                  <p className="text-gray-400 text-[10px] mt-1">Revenue based on product prices (no state multiplier)</p>
+                </>
+              ) : (
+                <>
+                  <p>Revenue: {formatCurrency(UNIT_ECONOMICS.production.baseRevenue)}/hr</p>
+                  <p>Cost: {formatCurrency(UNIT_ECONOMICS.production.baseCost)}/hr</p>
+                  <p className="text-emerald-400">
+                    Profit: {formatCurrency(UNIT_ECONOMICS.production.baseRevenue - UNIT_ECONOMICS.production.baseCost)}/hr
+                  </p>
+                  {producedProduct && <p className="text-emerald-400 mt-1">Produces: {producedProduct}</p>}
+                  {requiredResource && <p className="text-amber-400 mt-1">Requires: {requiredResource}</p>}
+                  <p className="text-gray-400 text-[10px] mt-1">Revenue is flat (no state multiplier)</p>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -260,9 +325,9 @@ export default function SectorCard({
           <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-50 pointer-events-none">
             <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 whitespace-nowrap shadow-xl border border-gray-700">
               <p className="font-medium">Service Unit Economics</p>
-              <p>Revenue: ${UNIT_ECONOMICS.service.baseRevenue}/hr</p>
-              <p>Cost: ${UNIT_ECONOMICS.service.baseCost}/hr</p>
-              <p className="text-emerald-400">Profit: ${(UNIT_ECONOMICS.service.baseRevenue - UNIT_ECONOMICS.service.baseCost)}/hr</p>
+              <p>Revenue: {formatCurrency(UNIT_ECONOMICS.service.baseRevenue)}/hr</p>
+              <p>Cost: {formatCurrency(UNIT_ECONOMICS.service.baseCost)}/hr</p>
+              <p className="text-emerald-400">Profit: {formatCurrency(serviceProfit)}/hr</p>
               <p className="text-gray-400 text-[10px] mt-1">Revenue is flat (no state multiplier)</p>
             </div>
           </div>
