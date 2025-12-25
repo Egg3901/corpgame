@@ -4,7 +4,8 @@
       "Bash(npx tsc:*)",
       "Bash(grep:*)",
       "Bash(node check_demands.js:*)",
-      "Bash(node tests/defense-demand-test.js:*)"
+      "Bash(node tests/defense-demand-test.js:*)",
+      "Bash(mkdir:*)"
     ]
   }
 }

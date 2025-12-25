@@ -131,42 +131,24 @@ router.get('/commodities', async (req: Request, res: Response) => {
     };
     // Calculate commodity prices with actual supply/demand
     const { summary: commoditySummary, supply: commoditySupply, demand: commodityDemand } = await marketDataService.getCommoditySummary();
-
-    // Fetch historical prices to calculate actual hourly price change
-    const commodities = await Promise.all(commoditySummary.map(async (c: any) => {
-      const priceOneHourAgo = await CommodityPriceHistoryModel.getPriceFromHoursAgo(c.resource, 1);
-      const priceChange = priceOneHourAgo
-        ? ((c.price.currentPrice - priceOneHourAgo) / priceOneHourAgo) * 100
-        : 0; // If no history, show 0% change
-
-      return {
-        resource: c.resource,
-        basePrice: c.price.basePrice,
-        currentPrice: c.price.currentPrice,
-        priceChange,
-        totalSupply: c.price.totalSupply,
-        scarcityFactor: c.price.scarcityFactor,
-        topProducers: [],
-        demandingSectors: [],
-      };
+    const commodities = commoditySummary.map((c: any) => ({
+      resource: c.resource,
+      basePrice: c.price.basePrice,
+      currentPrice: c.price.currentPrice,
+      priceChange: c.price.priceChange,
+      totalSupply: c.price.totalSupply,
+      scarcityFactor: c.price.scarcityFactor,
+      topProducers: [],
+      demandingSectors: [],
     }));
     
     // Calculate supply for each product (sum of production units in producing sectors * output rate)
     const { summary: productSummary, supply: productSupply, demand: productDemand } = await marketDataService.getProductSummary();
-
-    // Fetch historical prices to calculate actual hourly price change for products
-    const products = await Promise.all(productSummary.map(async (p: any) => {
-      const priceOneHourAgo = await ProductPriceHistoryModel.getPriceFromHoursAgo(p.product, 1);
-      const currentPrice = p.price.currentPrice;
-      const priceChange = priceOneHourAgo
-        ? ((currentPrice - priceOneHourAgo) / priceOneHourAgo) * 100
-        : 0; // If no history, show 0% change
-
-      return {
-        ...p.price,
-        priceChange,
-      };
-    }));
+    
+    
+    
+    // Calculate prices for all products
+    const products = productSummary.map((p: any) => p.price);
     
     res.json({
       commodities,
@@ -1382,75 +1364,6 @@ router.delete('/entries/:entryId/abandon', authenticateToken, async (req: AuthRe
   } catch (error) {
     console.error('Abandon sector error:', error);
     res.status(500).json({ error: 'Failed to abandon sector' });
-  }
-});
-
-// DELETE /api/markets/entries/:entryId/abandon-unit/:unitType - Abandon a single unit
-router.delete('/entries/:entryId/abandon-unit/:unitType', authenticateToken, async (req: AuthRequest, res: Response) => {
-  try {
-    const entryId = parseInt(req.params.entryId, 10);
-    const unitType = req.params.unitType as 'retail' | 'production' | 'service' | 'extraction';
-    const userId = req.userId!;
-
-    if (isNaN(entryId)) {
-      return res.status(400).json({ error: 'Invalid entry ID' });
-    }
-
-    if (!['retail', 'production', 'service', 'extraction'].includes(unitType)) {
-      return res.status(400).json({ error: 'Invalid unit type' });
-    }
-
-    const marketEntry = await MarketEntryModel.findById(entryId);
-    if (!marketEntry) {
-      return res.status(404).json({ error: 'Market entry not found' });
-    }
-
-    const corporation = await CorporationModel.findById(marketEntry.corporation_id);
-    if (!corporation) {
-      return res.status(404).json({ error: 'Corporation not found' });
-    }
-
-    if (corporation.ceo_id !== userId) {
-      return res.status(403).json({ error: 'Only the CEO can abandon units' });
-    }
-
-    // Check if there are any units of this type to abandon
-    const unitCounts = await BusinessUnitModel.getUnitCounts(entryId);
-    if (unitCounts[unitType] <= 0) {
-      return res.status(400).json({ error: `No ${unitType} units to abandon` });
-    }
-
-    // Remove one unit of the specified type
-    await BusinessUnitModel.removeUnit(entryId, unitType);
-
-    // Check if all units are gone, if so delete the market entry
-    const updatedUnitCounts = await BusinessUnitModel.getUnitCounts(entryId);
-    const totalUnits = updatedUnitCounts.retail + updatedUnitCounts.production + updatedUnitCounts.service + updatedUnitCounts.extraction;
-
-    if (totalUnits === 0) {
-      await MarketEntryModel.delete(entryId);
-    }
-
-    await TransactionModel.create({
-      transaction_type: 'unit_abandon',
-      amount: 0,
-      from_user_id: userId,
-      corporation_id: marketEntry.corporation_id,
-      description: `Abandoned 1 ${unitType} unit in ${marketEntry.sector_type} sector in ${getStateLabel(marketEntry.state_code) || marketEntry.state_code}`,
-      reference_id: entryId,
-      reference_type: 'market_entry',
-    });
-
-    const newStockPrice = await updateStockPrice(marketEntry.corporation_id);
-
-    res.json({
-      success: true,
-      message: `Abandoned 1 ${unitType} unit`,
-      new_stock_price: newStockPrice,
-    });
-  } catch (error) {
-    console.error('Abandon unit error:', error);
-    res.status(500).json({ error: 'Failed to abandon unit' });
   }
 });
 

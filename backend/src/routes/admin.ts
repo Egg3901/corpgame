@@ -11,7 +11,7 @@ import { normalizeImageUrl } from '../utils/imageUrl';
 import { triggerActionsIncrement, triggerMarketRevenue, triggerCeoSalaries } from '../cron/actions';
 import { updateStockPrice } from '../utils/valuation';
 import { resetGameTime } from '../utils/gameTime';
-import { BoardModel, BoardVoteModel } from '../models/BoardProposal';
+import { BoardModel, BoardVoteModel, BoardProposalModel } from '../models/BoardProposal';
 import pool from '../db/connection';
 
 const router = express.Router();
@@ -818,7 +818,7 @@ router.post('/corporation/:corpId/force-end-vote/:proposalId', async (req: AuthR
     }
 
     // Verify proposal exists and is active
-    const proposal = await BoardModel.findById(proposalId);
+    const proposal = await BoardProposalModel.findById(proposalId);
     if (!proposal) {
       return res.status(404).json({ error: 'Proposal not found' });
     }

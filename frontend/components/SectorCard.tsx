@@ -32,9 +32,9 @@ interface SectorCardProps {
   revenue?: number;
   profit?: number;
   showActions?: boolean;
-  onAbandon?: (unitType: 'retail' | 'production' | 'service' | 'extraction') => void;
+  onAbandon?: () => void;
   onBuildUnit?: (unitType: 'retail' | 'production' | 'service' | 'extraction') => void;
-  abandoning?: string | null;
+  abandoning?: boolean;
   building?: string | null;
   canBuild?: boolean;
   buildCost?: number;
@@ -72,7 +72,7 @@ export default function SectorCard({
   showActions = false,
   onAbandon,
   onBuildUnit,
-  abandoning = null,
+  abandoning = false,
   building = null,
   canBuild = true,
   buildCost = 10000,
@@ -98,6 +98,7 @@ export default function SectorCard({
 
   const PRODUCTION_LABOR_COST = 400;
   const PRODUCTION_RESOURCE_CONSUMPTION = 0.5;
+  const PRODUCTION_ELECTRICITY_CONSUMPTION = 0.5;
   const PRODUCTION_PRODUCT_CONSUMPTION = 0.5;
   const PRODUCTION_OUTPUT_RATE = 1.0;
 
@@ -109,11 +110,6 @@ export default function SectorCard({
   const isDefense = sectorType === 'Defense';
   const isManufacturing = sectorType === 'Manufacturing';
   const isRetailSector = sectorType === 'Retail';
-  const isEnergy = sectorType === 'Energy';
-
-  // Energy sector production units produce electricity, they don't consume it
-  // (they only consume oil as their resource input)
-  const PRODUCTION_ELECTRICITY_CONSUMPTION = isEnergy && producedProduct === 'Electricity' ? 0 : 0.5;
 
   const showRetail = !isManufacturing;
   const showProduction = !!producedProduct;
@@ -429,6 +425,22 @@ export default function SectorCard({
             </Link>
           </div>
         </div>
+        {showActions && onAbandon && (
+          <button
+            onClick={onAbandon}
+            disabled={abandoning}
+            className="px-3 py-1.5 text-xs bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1 flex-shrink-0"
+          >
+            {abandoning ? (
+              'Abandoning...'
+            ) : (
+              <>
+                <Trash2 className="w-3 h-3" />
+                Abandon
+              </>
+            )}
+          </button>
+        )}
         {revenue !== undefined && profit !== undefined && (
           <div className="flex items-center gap-4 flex-shrink-0">
             <div className="text-right group relative">
@@ -456,7 +468,7 @@ export default function SectorCard({
       }`}>
         {/* Retail */}
         {showRetail && (
-          <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3 group relative overflow-visible">
+          <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3 group relative">
             <div className="flex items-center gap-2 mb-2">
               <Store className="h-4 w-4 text-pink-500" />
               <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Retail</span>
@@ -472,15 +484,6 @@ export default function SectorCard({
                 className="mt-2 w-full px-2 py-1 text-xs bg-pink-500 text-white rounded hover:bg-pink-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 {building === 'retail' ? '...' : `+1 (${formatCurrency(buildCost)})`}
-              </button>
-            )}
-            {showActions && onAbandon && units.retail > 0 && (
-              <button
-                onClick={() => onAbandon('retail')}
-                disabled={abandoning === 'retail'}
-                className="mt-2 w-full px-2 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-1"
-              >
-                {abandoning === 'retail' ? '...' : <><Trash2 className="w-3 h-3" />-1</>}
               </button>
             )}
             <TooltipPanel>
@@ -503,7 +506,7 @@ export default function SectorCard({
 
         {/* Production */}
         {showProduction && (
-          <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3 group relative overflow-visible">
+          <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3 group relative">
             <div className="flex items-center gap-2 mb-2">
               <Factory className="h-4 w-4 text-orange-500" />
               <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Production</span>
@@ -519,15 +522,6 @@ export default function SectorCard({
                 className="mt-2 w-full px-2 py-1 text-xs bg-orange-500 text-white rounded hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 {building === 'production' ? '...' : `+1 (${formatCurrency(buildCost)})`}
-              </button>
-            )}
-            {showActions && onAbandon && units.production > 0 && (
-              <button
-                onClick={() => onAbandon('production')}
-                disabled={abandoning === 'production'}
-                className="mt-2 w-full px-2 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-1"
-              >
-                {abandoning === 'production' ? '...' : <><Trash2 className="w-3 h-3" />-1</>}
               </button>
             )}
             <TooltipPanel>
@@ -555,7 +549,7 @@ export default function SectorCard({
 
         {/* Service */}
         {showService && (
-          <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3 group relative overflow-visible">
+          <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3 group relative">
             <div className="flex items-center gap-2 mb-2">
               <Briefcase className="h-4 w-4 text-blue-500" />
               <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Service</span>
@@ -571,15 +565,6 @@ export default function SectorCard({
                 className="mt-2 w-full px-2 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 {building === 'service' ? '...' : `+1 (${formatCurrency(buildCost)})`}
-              </button>
-            )}
-            {showActions && onAbandon && units.service > 0 && (
-              <button
-                onClick={() => onAbandon('service')}
-                disabled={abandoning === 'service'}
-                className="mt-2 w-full px-2 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-1"
-              >
-                {abandoning === 'service' ? '...' : <><Trash2 className="w-3 h-3" />-1</>}
               </button>
             )}
             <TooltipPanel>
@@ -602,7 +587,7 @@ export default function SectorCard({
 
         {/* Extraction */}
         {showExtraction && (
-          <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3 group relative overflow-visible">
+          <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3 group relative">
             <div className="flex items-center gap-2 mb-2">
               <Pickaxe className="h-4 w-4 text-amber-500" />
               <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Extraction</span>
@@ -618,15 +603,6 @@ export default function SectorCard({
                 className="mt-2 w-full px-2 py-1 text-xs bg-amber-500 text-white rounded hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 {building === 'extraction' ? '...' : `+1 (${formatCurrency(buildCost)})`}
-              </button>
-            )}
-            {showActions && onAbandon && (units.extraction || 0) > 0 && (
-              <button
-                onClick={() => onAbandon('extraction')}
-                disabled={abandoning === 'extraction'}
-                className="mt-2 w-full px-2 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-1"
-              >
-                {abandoning === 'extraction' ? '...' : <><Trash2 className="w-3 h-3" />-1</>}
               </button>
             )}
             <TooltipPanel>

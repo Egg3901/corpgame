@@ -628,11 +628,13 @@ export function getStateLabel(code: string): string | undefined {
 
 // US Regions mapping
 export const US_REGIONS: Record<string, string[]> = {
-  'West': ['CA', 'WA', 'OR', 'NV', 'AZ', 'UT', 'CO', 'NM', 'HI', 'AK', 'ID', 'MT', 'WY'],
-  'Southwest': ['TX', 'OK'],
-  'Midwest': ['IL', 'OH', 'MI', 'IN', 'WI', 'MN', 'MO', 'IA', 'KS', 'NE', 'SD', 'ND'],
-  'Southeast': ['FL', 'GA', 'NC', 'VA', 'TN', 'SC', 'AL', 'KY', 'LA', 'MS', 'AR', 'WV'],
-  'Northeast': ['NY', 'PA', 'NJ', 'MA', 'MD', 'CT', 'NH', 'ME', 'RI', 'VT', 'DE'],
+  'West Coast': ['CA', 'OR', 'WA', 'NV', 'AZ'],
+  'Mountain': ['CO', 'UT', 'WY', 'MT', 'ID', 'NM'],
+  'Southwest': ['TX', 'OK', 'AR', 'LA'],
+  'Midwest': ['IL', 'IN', 'OH', 'MI', 'WI', 'MN', 'IA', 'MO', 'ND', 'SD', 'NE', 'KS'],
+  'Northeast': ['NY', 'PA', 'NJ', 'MA', 'CT', 'RI', 'VT', 'NH', 'ME', 'DE', 'MD'],
+  'Southeast': ['FL', 'GA', 'SC', 'NC', 'VA', 'WV', 'KY', 'TN', 'AL', 'MS'],
+  'Alaska & Hawaii': ['AK', 'HI'],
 };
 
 // Get region for a state code
@@ -697,6 +699,43 @@ export function canBuildMoreUnits(
     allowed: remaining > 0,
     capacity,
     remaining: Math.max(0, remaining),
+  };
+}
+
+// Capacity tier types
+export type CapacityTier = 'High' | 'Medium' | 'Low';
+
+// Get capacity tier for a state based on multiplier
+export function getStateCapacityTier(stateCode: string): CapacityTier {
+  const multiplier = getStateMultiplier(stateCode);
+  if (multiplier >= 4.0) return 'High';
+  if (multiplier >= 2.0) return 'Medium';
+  return 'Low';
+}
+
+// Get capacity info for a state (used by API endpoints)
+export function getStateCapacityInfo(stateCode: string, currentUnitCount: number = 0): {
+  capacity: number;
+  used: number;
+  remaining: number;
+  tier: CapacityTier;
+  multiplier: number;
+  isAtCapacity: boolean;
+  isOverCapacity: boolean;
+} {
+  const capacity = getStateSectorCapacity(stateCode);
+  const multiplier = getStateMultiplier(stateCode);
+  const tier = getStateCapacityTier(stateCode);
+  const remaining = Math.max(0, capacity - currentUnitCount);
+
+  return {
+    capacity,
+    used: currentUnitCount,
+    remaining,
+    tier,
+    multiplier,
+    isAtCapacity: currentUnitCount >= capacity,
+    isOverCapacity: currentUnitCount > capacity,
   };
 }
 

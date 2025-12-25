@@ -1,5 +1,5 @@
 import { BaseSector, UnitCounts } from './BaseSector';
-import { SECTOR_PRODUCT_DEMANDS, SECTOR_EXTRACTION, SECTOR_RETAIL_DEMANDS, SECTOR_SERVICE_DEMANDS } from '../../constants/sectors';
+import { SECTOR_PRODUCT_DEMANDS, SECTOR_EXTRACTION } from '../../constants/sectors';
 
 export class ProductionSector extends BaseSector {
   computeCommoditySupply(resource: string, counts: UnitCounts): number {
@@ -25,46 +25,18 @@ export class ProductionSector extends BaseSector {
     const prodCons = this.getNumber('PRODUCTION_PRODUCT_CONSUMPTION', 0.5);
     const elecCons = this.getNumber('PRODUCTION_ELECTRICITY_CONSUMPTION', 0.5);
     const extractionElecCons = this.getNumber('EXTRACTION_ELECTRICITY_CONSUMPTION', 0.25);
-    let retailCons = this.getNumber('RETAIL_PRODUCT_CONSUMPTION', 2.0);
-    const serviceElec = this.getNumber('SERVICE_ELECTRICITY_CONSUMPTION', 0.25);
-    let serviceProd = this.getNumber('SERVICE_PRODUCT_CONSUMPTION', 1.5);
-
-    // Defense sector rule: 1.0 consumption per unit
-    if (this.sectorName === 'Defense') {
-      retailCons = 1.0;
-      serviceProd = 1.0;
-    }
-
-    // Manufacturing service rule: 0.5 consumption
-    if (this.sectorName === 'Manufacturing') {
-      serviceProd = 0.5;
-    }
 
     let totalDemand = 0;
 
     if (product === 'Electricity') {
       totalDemand += counts.production * elecCons;
       totalDemand += counts.extraction * extractionElecCons;
-      totalDemand += counts.service * serviceElec;
       return totalDemand;
     }
 
-    // Production unit demands
     const demandedProducts = (SECTOR_PRODUCT_DEMANDS as any)[this.sectorName] as string[] | null;
     if (demandedProducts && demandedProducts.includes(product)) {
       totalDemand += counts.production * prodCons;
-    }
-
-    // Retail unit demands
-    const retailDemands = (SECTOR_RETAIL_DEMANDS as any)[this.sectorName] as string[] | null;
-    if (retailDemands && retailDemands.includes(product)) {
-      totalDemand += counts.retail * retailCons;
-    }
-
-    // Service unit demands
-    const serviceDemands = (SECTOR_SERVICE_DEMANDS as any)[this.sectorName] as string[] | null;
-    if (serviceDemands && serviceDemands.includes(product)) {
-      totalDemand += counts.service * serviceProd;
     }
 
     return totalDemand;

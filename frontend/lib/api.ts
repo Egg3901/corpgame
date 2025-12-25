@@ -967,6 +967,9 @@ export interface StateInfo {
   region: string;
   multiplier: number;
   growth_factor?: number;
+  capacity?: number;
+  capacity_tier?: string;
+  extractable_resources?: string[];
 }
 
 export interface StatesListResponse {

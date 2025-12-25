@@ -33,21 +33,35 @@
 ---
 
 ## [FID-20251225-006] State Page Rework with Capacity Management
-**Status:** PLANNED **Priority:** H **Complexity:** 4
-**Created:** 2025-12-25
-**Estimated:** 3h
+**Status:** COMPLETED **Priority:** H **Complexity:** 4
+**Created:** 2025-12-25 **Started:** 2025-12-25 **Completed:** 2025-12-25
+**Estimated:** 3h **Actual:** 3h
 
 **Description:** Rework states listing page with better regional organization, capacity sorting (high/medium/low), resource availability sorting, backend capacity enforcement, and clear capacity display on sector cards.
 
 **Progress:**
-- [ ] Phase 1: Backend - New region mapping & capacity
-- [ ] Phase 2: Backend - Resource availability
-- [ ] Phase 3: Frontend - State page UI
-- [ ] Phase 4: Frontend - Sector card capacity display
-- [ ] Phase 5: Testing & verification
+- [x] Phase 1: Backend - New region mapping & capacity
+- [x] Phase 2: Backend - Resource availability
+- [x] Phase 3: Frontend - State page UI
+- [x] Phase 4: Frontend - Sector card capacity display
+- [x] Phase 5: Testing & verification
 
 **Files Modified:**
-- (pending)
+- backend/src/constants/sectors.ts (updated US_REGIONS, added capacity utilities)
+- backend/src/routes/markets.ts (added capacity enforcement, updated states endpoints)
+- frontend/lib/api.ts (updated StateInfo interface)
+- frontend/app/states/page.tsx (major rework - new sorting, capacity/resource badges)
+- frontend/components/SectorCard.tsx (added capacity display)
+
+**Implementation Details:**
+- New US_REGIONS with 7 logical geographic regions (West Coast, Mountain, Southwest, Midwest, Northeast, Southeast, Alaska & Hawaii)
+- Capacity tier functions: getStateCapacityTier(), getStateCapacityInfo()
+- Capacity enforcement on build endpoint with tier display
+- States endpoint returns capacity, capacity_tier, extractable_resources for each state
+- States page with sort dropdown (Region/Capacity/Resources)
+- State cards display capacity tier badges and resource badges (up to 3 + overflow)
+- SectorCard shows "X / Y units" with warning when at capacity
+- TypeScript verification passed with 0 errors
 
 **Blockers:** None
 
