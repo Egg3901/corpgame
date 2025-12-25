@@ -12,7 +12,8 @@ export type TransactionType =
   | 'corp_founding'
   | 'dividend'
   | 'special_dividend'
-  | 'sector_abandon';
+  | 'sector_abandon'
+  | 'corporate_action';
 
 export interface Transaction {
   id: number;
