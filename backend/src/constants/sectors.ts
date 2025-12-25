@@ -740,6 +740,15 @@ export const RETAIL_PRODUCT_CONSUMPTION = 2.0;  // Units of product consumed per
 // Product consumption rate per service unit per hour
 export const SERVICE_PRODUCT_CONSUMPTION = 1.5;  // Units of product consumed per hour
 
+export const SERVICE_ELECTRICITY_CONSUMPTION = 0.5;
+export const PRODUCTION_ELECTRICITY_CONSUMPTION = 0.5;
+export const EXTRACTION_ELECTRICITY_CONSUMPTION = 0.25;
+
+export const RETAIL_WHOLESALE_DISCOUNT = 0.995;
+export const SERVICE_WHOLESALE_DISCOUNT = 0.995;
+export const RETAIL_MIN_GROSS_MARGIN_PCT = 0.0005;
+export const SERVICE_MIN_GROSS_MARGIN_PCT = 0.0005;
+
 // ============================================================================
 // UNIT TYPE PERMISSIONS BY FOCUS
 // What unit types each corporation focus can build
@@ -850,6 +859,11 @@ export interface DynamicUnitEconomics {
 // Cache for dynamic unit economics (key = "unitType:sector")
 const _dynamicEconomicsCache: Map<string, DynamicUnitEconomics> = new Map();
 
+export interface MarketPriceOverrides {
+  commodityPrices?: Partial<Record<Resource, number>>;
+  productPrices?: Partial<Record<Product, number>>;
+}
+
 /**
  * Get dynamic economics for a unit type in a specific sector (cached)
  * - Retail/Service: Dynamic costs based on product demands
@@ -858,12 +872,16 @@ const _dynamicEconomicsCache: Map<string, DynamicUnitEconomics> = new Map();
  */
 export function getDynamicUnitEconomics(
   unitType: UnitType,
-  sector: string
+  sector: string,
+  marketPrices?: MarketPriceOverrides
 ): DynamicUnitEconomics {
+  const canUseCache = !marketPrices?.commodityPrices && !marketPrices?.productPrices;
   const cacheKey = `${unitType}:${sector}`;
-  const cached = _dynamicEconomicsCache.get(cacheKey);
-  if (cached) {
-    return cached;
+  if (canUseCache) {
+    const cached = _dynamicEconomicsCache.get(cacheKey);
+    if (cached) {
+      return cached;
+    }
   }
   const laborCost = UNIT_LABOR_COSTS[unitType];
   
@@ -887,13 +905,23 @@ export function getDynamicUnitEconomics(
   };
 
   if (!isValidSector(sector)) {
-    _dynamicEconomicsCache.set(cacheKey, defaultResult);
+    if (canUseCache) {
+      _dynamicEconomicsCache.set(cacheKey, defaultResult);
+    }
     return defaultResult;
   }
 
   const sectorTyped = sector as Sector;
   const requiredResource = SECTOR_RESOURCES[sectorTyped];
   const producedProduct = SECTOR_PRODUCTS[sectorTyped];
+
+  const getCommodityUnitPrice = (resource: Resource): number => {
+    return marketPrices?.commodityPrices?.[resource] ?? calculateCommodityPrice(resource).currentPrice;
+  };
+
+  const getProductUnitPrice = (product: Product): number => {
+    return marketPrices?.productPrices?.[product] ?? getBaseProductPrice(product);
+  };
 
   // Retail units: dynamic costs based on product demands
   if (unitType === 'retail') {
@@ -902,23 +930,28 @@ export function getDynamicUnitEconomics(
     // If sector cannot build retail units, return default with zero profitability
     if (!retailDemands || retailDemands.length === 0) {
       const errorResult = { ...defaultResult, hourlyCost: 999999, hourlyProfit: -999999 };
-      _dynamicEconomicsCache.set(cacheKey, errorResult);
+      if (canUseCache) {
+        _dynamicEconomicsCache.set(cacheKey, errorResult);
+      }
       return errorResult;
     }
 
-    // Calculate product costs
+    // Calculate product costs and revenue
     let totalProductCost = 0;
+    let revenueRaw = 0;
     const productConsumedAmounts: Record<Product, number> = {} as Record<Product, number>;
     
     for (const product of retailDemands) {
-      const productPrice = getBaseProductPrice(product);
+      const productPrice = getProductUnitPrice(product);
       const consumedAmount = RETAIL_PRODUCT_CONSUMPTION;
-      totalProductCost += productPrice * consumedAmount;
+      totalProductCost += productPrice * consumedAmount * RETAIL_WHOLESALE_DISCOUNT;
+      revenueRaw += productPrice * consumedAmount;
       productConsumedAmounts[product] = consumedAmount;
     }
 
     const totalCost = laborCost + totalProductCost;
-    const revenue = baseEcon.baseRevenue;
+    const minRevenue = totalCost * (1 + RETAIL_MIN_GROSS_MARGIN_PCT);
+    const revenue = Math.max(revenueRaw, minRevenue);
     const hourlyProfit = revenue - totalCost;
 
     const result: DynamicUnitEconomics = {
@@ -937,7 +970,9 @@ export function getDynamicUnitEconomics(
       productConsumedAmounts,
       isDynamic: true,
     };
-    _dynamicEconomicsCache.set(cacheKey, result);
+    if (canUseCache) {
+      _dynamicEconomicsCache.set(cacheKey, result);
+    }
     return result;
   }
 
@@ -948,23 +983,29 @@ export function getDynamicUnitEconomics(
     // If sector cannot build service units, return default with zero profitability
     if (!serviceDemands || serviceDemands.length === 0) {
       const errorResult = { ...defaultResult, hourlyCost: 999999, hourlyProfit: -999999 };
-      _dynamicEconomicsCache.set(cacheKey, errorResult);
+      if (canUseCache) {
+        _dynamicEconomicsCache.set(cacheKey, errorResult);
+      }
       return errorResult;
     }
 
-    // Calculate product costs
+    // Calculate product costs and revenue
     let totalProductCost = 0;
+    let revenueRaw = 0;
     const productConsumedAmounts: Record<Product, number> = {} as Record<Product, number>;
     
     for (const product of serviceDemands) {
-      const productPrice = getBaseProductPrice(product);
-      const consumedAmount = SERVICE_PRODUCT_CONSUMPTION;
-      totalProductCost += productPrice * consumedAmount;
+      const productPrice = getProductUnitPrice(product);
+      const consumedAmount = product === 'Electricity' ? SERVICE_ELECTRICITY_CONSUMPTION : SERVICE_PRODUCT_CONSUMPTION;
+      const discount = product === 'Electricity' ? 1 : SERVICE_WHOLESALE_DISCOUNT;
+      totalProductCost += productPrice * consumedAmount * discount;
+      revenueRaw += productPrice * consumedAmount;
       productConsumedAmounts[product] = consumedAmount;
     }
 
+    const minRevenue = totalProductCost * (1 + SERVICE_MIN_GROSS_MARGIN_PCT);
+    const revenue = Math.max(revenueRaw, minRevenue);
     const totalCost = laborCost + totalProductCost;
-    const revenue = baseEcon.baseRevenue;
     const hourlyProfit = revenue - totalCost;
 
     const result: DynamicUnitEconomics = {
@@ -983,7 +1024,9 @@ export function getDynamicUnitEconomics(
       productConsumedAmounts,
       isDynamic: true,
     };
-    _dynamicEconomicsCache.set(cacheKey, result);
+    if (canUseCache) {
+      _dynamicEconomicsCache.set(cacheKey, result);
+    }
     return result;
   }
 
@@ -991,20 +1034,33 @@ export function getDynamicUnitEconomics(
   if (unitType === 'extraction') {
     const extractableResources = SECTOR_EXTRACTION[sectorTyped];
     if (!extractableResources || extractableResources.length === 0) {
-      _dynamicEconomicsCache.set(cacheKey, defaultResult);
+      if (canUseCache) {
+        _dynamicEconomicsCache.set(cacheKey, defaultResult);
+      }
       return defaultResult;
     }
 
     // Use first extractable resource for pricing
     const extractedResource = extractableResources[0] as Resource;
-    const commodityPrice = calculateCommodityPrice(extractedResource);
+    const commodityUnitPrice = getCommodityUnitPrice(extractedResource);
     const extractionAmount = EXTRACTION_OUTPUT_RATE;
-    const extractionRevenue = extractionAmount * commodityPrice.currentPrice;
+    const extractionRevenue = extractionAmount * commodityUnitPrice;
+
+    const electricityConsumedAmount = EXTRACTION_ELECTRICITY_CONSUMPTION;
+    const electricityCost = electricityConsumedAmount * getProductUnitPrice('Electricity');
+    const productConsumedAmounts: Record<Product, number> = {} as Record<Product, number>;
+    const productsConsumed: Product[] = [];
+    if (electricityConsumedAmount > 0) {
+      productsConsumed.push('Electricity');
+      productConsumedAmounts['Electricity'] = electricityConsumedAmount;
+    }
+
+    const totalCost = laborCost + electricityCost;
 
     const result: DynamicUnitEconomics = {
       hourlyRevenue: extractionRevenue,
-      hourlyCost: laborCost,
-      hourlyProfit: extractionRevenue - laborCost,
+      hourlyCost: totalCost,
+      hourlyProfit: extractionRevenue - totalCost,
       laborCost,
       resourceCost: 0,
       resourceConsumed: null,
@@ -1012,12 +1068,14 @@ export function getDynamicUnitEconomics(
       productRevenue: extractionRevenue,
       productProduced: null,  // Produces a resource, not a product
       productProducedAmount: extractionAmount,
-      productCost: 0,
-      productsConsumed: [],
-      productConsumedAmounts: {} as Record<Product, number>,
+      productCost: electricityCost,
+      productsConsumed,
+      productConsumedAmounts,
       isDynamic: true,
     };
-    _dynamicEconomicsCache.set(cacheKey, result);
+    if (canUseCache) {
+      _dynamicEconomicsCache.set(cacheKey, result);
+    }
     return result;
   }
 
@@ -1029,9 +1087,8 @@ export function getDynamicUnitEconomics(
     
     // Calculate input cost from required resource
     if (requiredResource) {
-      const commodityPrice = calculateCommodityPrice(requiredResource);
       resourceConsumedAmount = PRODUCTION_RESOURCE_CONSUMPTION;
-      resourceCost = resourceConsumedAmount * commodityPrice.currentPrice;
+      resourceCost = resourceConsumedAmount * getCommodityUnitPrice(requiredResource);
       resourceConsumed = requiredResource;
     }
 
@@ -1041,16 +1098,25 @@ export function getDynamicUnitEconomics(
 
     // Calculate output revenue from produced product
     if (producedProduct) {
-      const productPrice = getBaseProductPrice(producedProduct);
       productProducedAmount = PRODUCTION_OUTPUT_RATE;
-      productRevenue = productProducedAmount * productPrice;
+      productRevenue = productProducedAmount * getProductUnitPrice(producedProduct);
       productProduced = producedProduct;
     } else {
       // No product output - use base revenue
       productRevenue = baseEcon.baseRevenue;
     }
 
-    const totalCost = laborCost + resourceCost;
+    const electricityConsumedAmount = (sectorTyped === 'Manufacturing' || sectorTyped === 'Technology') ? PRODUCTION_ELECTRICITY_CONSUMPTION : 0;
+    const electricityCost = electricityConsumedAmount * getProductUnitPrice('Electricity');
+    const productConsumedAmounts: Record<Product, number> = {} as Record<Product, number>;
+    const productsConsumed: Product[] = [];
+    if (electricityConsumedAmount > 0) {
+      productsConsumed.push('Electricity');
+      productConsumedAmounts['Electricity'] = electricityConsumedAmount;
+    }
+
+    const productCost = electricityCost;
+    const totalCost = laborCost + resourceCost + productCost;
     const hourlyProfit = productRevenue - totalCost;
 
     const result: DynamicUnitEconomics = {
@@ -1064,16 +1130,20 @@ export function getDynamicUnitEconomics(
       productRevenue,
       productProduced,
       productProducedAmount,
-      productCost: 0,
-      productsConsumed: [],
-      productConsumedAmounts: {} as Record<Product, number>,
+      productCost,
+      productsConsumed,
+      productConsumedAmounts,
       isDynamic: requiredResource !== null || producedProduct !== null,
     };
-    _dynamicEconomicsCache.set(cacheKey, result);
+    if (canUseCache) {
+      _dynamicEconomicsCache.set(cacheKey, result);
+    }
     return result;
   }
 
-  _dynamicEconomicsCache.set(cacheKey, defaultResult);
+  if (canUseCache) {
+    _dynamicEconomicsCache.set(cacheKey, defaultResult);
+  }
   return defaultResult;
 }
 
@@ -1086,7 +1156,8 @@ export function calculateMarketEntryEconomics(
   retailCount: number,
   productionCount: number,
   serviceCount: number,
-  extractionCount: number
+  extractionCount: number,
+  marketPrices?: MarketPriceOverrides
 ): {
   hourlyRevenue: number;
   hourlyCost: number;
@@ -1098,10 +1169,10 @@ export function calculateMarketEntryEconomics(
     extraction: DynamicUnitEconomics;
   };
 } {
-  const retailEcon = getDynamicUnitEconomics('retail', sector);
-  const productionEcon = getDynamicUnitEconomics('production', sector);
-  const serviceEcon = getDynamicUnitEconomics('service', sector);
-  const extractionEcon = getDynamicUnitEconomics('extraction', sector);
+  const retailEcon = getDynamicUnitEconomics('retail', sector, marketPrices);
+  const productionEcon = getDynamicUnitEconomics('production', sector, marketPrices);
+  const serviceEcon = getDynamicUnitEconomics('service', sector, marketPrices);
+  const extractionEcon = getDynamicUnitEconomics('extraction', sector, marketPrices);
 
   const hourlyRevenue = 
     retailEcon.hourlyRevenue * retailCount +
@@ -1562,10 +1633,10 @@ export const SECTOR_PRODUCTS: Record<Sector, Product | null> = {
 // What each sector's production units demand (products they need to operate)
 // null = no product demand, array = can demand multiple products
 export const SECTOR_PRODUCT_DEMANDS: Record<Sector, Product[] | null> = {
-  'Technology': null,                              // Produces, doesn't consume products
+  'Technology': ['Electricity'],                   // Produces, doesn't consume products
   'Finance': ['Technology Products'],              // Trading systems, software
   'Healthcare': ['Pharmaceutical Products'],       // Medicine
-  'Manufacturing': null,                           // Produces, doesn't consume products
+  'Manufacturing': ['Electricity'],                // Produces, doesn't consume products
   'Energy': null,                                  // Produces, doesn't consume products
   'Retail': ['Manufactured Goods'],                // Sells manufactured goods
   'Real Estate': ['Construction Capacity'],        // Needs construction for development
@@ -1587,7 +1658,7 @@ export const SECTOR_RETAIL_DEMANDS: Record<Sector, Product[] | null> = {
   'Finance': ['Technology Products'],              // Financial products/services need tech
   'Healthcare': ['Pharmaceutical Products'],       // Pharmacies, healthcare retail
   'Manufacturing': null,                           // Cannot build retail units
-  'Energy': ['Electricity'],                       // Utility retail
+  'Energy': null,                                  // Cannot build retail units
   'Retail': ['Manufactured Goods'],                // General retail stores
   'Real Estate': ['Construction Capacity'],        // Real estate sales offices
   'Transportation': ['Logistics Capacity'],        // Shipping centers, logistics hubs
@@ -1605,20 +1676,20 @@ export const SECTOR_RETAIL_DEMANDS: Record<Sector, Product[] | null> = {
 // null = cannot build service units in this sector
 export const SECTOR_SERVICE_DEMANDS: Record<Sector, Product[] | null> = {
   'Technology': null,                              // Cannot build service units
-  'Finance': ['Technology Products'],              // Banking systems
-  'Healthcare': ['Pharmaceutical Products'],       // Hospitals, clinics
+  'Finance': ['Technology Products', 'Electricity'],              // Banking systems
+  'Healthcare': ['Pharmaceutical Products', 'Electricity'],       // Hospitals, clinics
   'Manufacturing': null,                           // Cannot build service units
   'Energy': ['Electricity'],                       // Energy services
-  'Retail': ['Manufactured Goods'],                // Retail services
-  'Real Estate': ['Construction Capacity'],        // Real estate management
-  'Transportation': ['Logistics Capacity'],        // Transportation services
-  'Media': ['Technology Products'],                // Media production/broadcasting
-  'Telecommunications': ['Technology Products'],   // Network services
-  'Agriculture': ['Food Products'],                // Agricultural services
-  'Defense': ['Technology Products', 'Defense Equipment'],  // Defense services need both tech and equipment
-  'Hospitality': ['Food Products'],                // Hospitality services
-  'Construction': ['Construction Capacity'],       // Construction services
-  'Pharmaceuticals': ['Pharmaceutical Products'],  // Pharmaceutical services
+  'Retail': ['Manufactured Goods', 'Electricity'],                // Retail services
+  'Real Estate': ['Construction Capacity', 'Electricity'],        // Real estate management
+  'Transportation': ['Logistics Capacity', 'Electricity'],        // Transportation services
+  'Media': ['Technology Products', 'Electricity'],                // Media production/broadcasting
+  'Telecommunications': ['Technology Products', 'Electricity'],   // Network services
+  'Agriculture': ['Food Products', 'Electricity'],                // Agricultural services
+  'Defense': ['Technology Products', 'Defense Equipment', 'Electricity'],  // Defense services need both tech and equipment
+  'Hospitality': ['Food Products', 'Electricity'],                // Hospitality services
+  'Construction': ['Construction Capacity', 'Electricity'],       // Construction services
+  'Pharmaceuticals': ['Pharmaceutical Products', 'Electricity'],  // Pharmaceutical services
   'Mining': null,                                  // Cannot build service units
 };
 

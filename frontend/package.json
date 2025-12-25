@@ -2,6 +2,9 @@
   "name": "corporate-sim-frontend",
   "version": "1.0.0",
   "private": true,
+  "eslintConfig": {
+    "extends": "next/core-web-vitals"
+  },
   "scripts": {
     "dev": "next dev -H 0.0.0.0",
     "build": "next build",
@@ -21,6 +24,8 @@
     "@types/react": "^18.2.45",
     "@types/react-dom": "^18.2.18",
     "autoprefixer": "^10.4.16",
+    "eslint": "8.57.1",
+    "eslint-config-next": "14.0.4",
     "postcss": "^8.4.32",
     "tailwindcss": "^3.4.0",
     "typescript": "^5.3.3"

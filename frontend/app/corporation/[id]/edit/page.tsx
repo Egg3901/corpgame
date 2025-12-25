@@ -209,7 +209,7 @@ export default function EditCorporationPage() {
             </Link>
             <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-2">Edit Corporation</h1>
             <p className="text-gray-600 dark:text-gray-400">
-              Update your corporation's name and logo.
+              Update your corporation&apos;s name and logo.
             </p>
           </div>
 
@@ -360,7 +360,7 @@ export default function EditCorporationPage() {
               {/* Disabled state explanation */}
               {isNameChanged && !canAffordNameChange && (
                 <p className="text-center text-sm text-red-600 dark:text-red-400">
-                  You don't have enough actions to change the corporation name.
+                  You don&apos;t have enough actions to change the corporation name.
                 </p>
               )}
             </div>

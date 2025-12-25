@@ -120,7 +120,7 @@ export default function PortfolioPage() {
             <Building2 className="w-16 h-16 text-gray-400 mx-auto mb-4" />
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">No Holdings Yet</h2>
             <p className="text-gray-600 dark:text-gray-400 mb-6">
-              You don't own any stocks yet. Start investing in corporations on the stock market!
+              You don&apos;t own any stocks yet. Start investing in corporations on the stock market!
             </p>
             <Link
               href="/stock-market"

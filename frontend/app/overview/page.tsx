@@ -224,7 +224,7 @@ export default function OverviewPage() {
                         Hourly Turn-Based Gameplay
                       </h3>
                       <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
-                        The game operates on an hourly turn system. Each hour, you'll have the opportunity to make strategic decisions about your corporation. Plan your moves carefully as time progresses, and adapt to market conditions and competitor actions.
+                        The game operates on an hourly turn system. Each hour, you&apos;ll have the opportunity to make strategic decisions about your corporation. Plan your moves carefully as time progresses, and adapt to market conditions and competitor actions.
                       </p>
                     </div>
                   </div>
@@ -451,4 +451,3 @@ export default function OverviewPage() {
     </AppNavigation>
   );
 }
-

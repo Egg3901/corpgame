@@ -1080,7 +1080,7 @@ export default function CorporationDetailPage() {
                       <Layers className="h-12 w-12 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
                       <p className="text-lg font-medium text-gray-900 dark:text-white mb-1">No Sector Operations</p>
                       <p className="text-gray-500 dark:text-gray-400 mb-6 text-sm">
-                        This corporation hasn't entered any markets yet.
+                        This corporation hasn&apos;t entered any markets yet.
                       </p>
                       <Link
                         href="/states"
@@ -1839,7 +1839,7 @@ export default function CorporationDetailPage() {
                           </div>
                         </div>
                         <div>
-                          <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Shareholders' Equity</h4>
+                          <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Shareholders&apos; Equity</h4>
                           <div className="space-y-2 ml-4">
                             <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700">
                               <span className="text-sm text-gray-600 dark:text-gray-400">Total Equity</span>

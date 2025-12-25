@@ -102,6 +102,34 @@ router.get('/commodities', async (req: Request, res: Response) => {
     for (const row of productionQuery.rows) {
       sectorProductionUnits[row.sector_type] = row.production_units || 0;
     }
+
+    const retailQuery = await pool.query(`
+      SELECT 
+        me.sector_type,
+        COALESCE(SUM(bu.count), 0)::int as retail_units
+      FROM market_entries me
+      LEFT JOIN business_units bu ON me.id = bu.market_entry_id AND bu.unit_type = 'retail'
+      GROUP BY me.sector_type
+    `);
+
+    const sectorRetailUnits: Record<string, number> = {};
+    for (const row of retailQuery.rows) {
+      sectorRetailUnits[row.sector_type] = row.retail_units || 0;
+    }
+
+    const serviceQuery = await pool.query(`
+      SELECT 
+        me.sector_type,
+        COALESCE(SUM(bu.count), 0)::int as service_units
+      FROM market_entries me
+      LEFT JOIN business_units bu ON me.id = bu.market_entry_id AND bu.unit_type = 'service'
+      GROUP BY me.sector_type
+    `);
+
+    const sectorServiceUnits: Record<string, number> = {};
+    for (const row of serviceQuery.rows) {
+      sectorServiceUnits[row.sector_type] = row.service_units || 0;
+    }
     
     // Calculate commodity demand (production units * consumption rate)
     const { PRODUCTION_RESOURCE_CONSUMPTION } = await import('../constants/sectors');
@@ -135,15 +163,49 @@ router.get('/commodities', async (req: Request, res: Response) => {
       productSupply[product] = supply;
     }
     
-    // Calculate demand for each product (sum of production units in demanding sectors * consumption rate)
+    const {
+      EXTRACTION_ELECTRICITY_CONSUMPTION,
+      PRODUCTION_ELECTRICITY_CONSUMPTION,
+      RETAIL_PRODUCT_CONSUMPTION,
+      SECTOR_RETAIL_DEMANDS,
+      SECTOR_SERVICE_DEMANDS,
+      SERVICE_ELECTRICITY_CONSUMPTION,
+      SERVICE_PRODUCT_CONSUMPTION,
+    } = await import('../constants/sectors');
+
+    // Calculate demand for each product
     const productDemand: Record<Product, number> = {} as Record<Product, number>;
     for (const product of PRODUCTS) {
       let demand = 0;
+
       for (const [sector, demandedProducts] of Object.entries(SECTOR_PRODUCT_DEMANDS)) {
         if (demandedProducts && demandedProducts.includes(product)) {
-          demand += (sectorProductionUnits[sector] || 0) * PRODUCTION_RESOURCE_CONSUMPTION;
+          const perUnitDemand = product === 'Electricity' ? PRODUCTION_ELECTRICITY_CONSUMPTION : PRODUCTION_RESOURCE_CONSUMPTION;
+          demand += (sectorProductionUnits[sector] || 0) * perUnitDemand;
         }
       }
+
+      for (const [sector, demandedProducts] of Object.entries(SECTOR_RETAIL_DEMANDS)) {
+        if (demandedProducts && demandedProducts.includes(product)) {
+          demand += (sectorRetailUnits[sector] || 0) * RETAIL_PRODUCT_CONSUMPTION;
+        }
+      }
+
+      for (const [sector, demandedProducts] of Object.entries(SECTOR_SERVICE_DEMANDS)) {
+        if (demandedProducts && demandedProducts.includes(product)) {
+          const perUnitDemand = product === 'Electricity' ? SERVICE_ELECTRICITY_CONSUMPTION : SERVICE_PRODUCT_CONSUMPTION;
+          demand += (sectorServiceUnits[sector] || 0) * perUnitDemand;
+        }
+      }
+
+      if (product === 'Electricity') {
+        for (const [sector, extractableResources] of Object.entries(SECTOR_EXTRACTION)) {
+          if (extractableResources && extractableResources.length > 0) {
+            demand += (sectorExtractionUnits[sector] || 0) * EXTRACTION_ELECTRICITY_CONSUMPTION;
+          }
+        }
+      }
+
       productDemand[product] = demand;
     }
     

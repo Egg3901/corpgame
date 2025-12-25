@@ -185,7 +185,7 @@ export default function CreateCorporationPage() {
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-2">Create Corporation</h1>
           <p className="text-gray-600 dark:text-gray-400">
-            Start a new corporation. You'll own 80% of the shares (400,000 shares) at $1.00 per share.
+            Start a new corporation. You&apos;ll own 80% of the shares (400,000 shares) at $1.00 per share.
           </p>
         </div>
 
