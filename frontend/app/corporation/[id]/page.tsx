@@ -605,6 +605,12 @@ export default function CorporationDetailPage() {
     }
   };
 
+  const calculateActionCost = (): number => {
+    if (!corporation) return 0;
+    const marketCap = corporation.shares * corporation.share_price;
+    return 500000 + (marketCap * 0.01);
+  };
+
   const handleActivateSupplyRush = async () => {
     if (!corporation) return;
     
@@ -647,12 +653,6 @@ export default function CorporationDetailPage() {
     } finally {
       setActivatingAction(null);
     }
-  };
-
-  const calculateActionCost = (): number => {
-    if (!corporation) return 0;
-    const marketCap = corporation.shares * corporation.share_price;
-    return 500000 + (marketCap * 0.01);
   };
 
   const getRemainingTime = (expiresAt: string): string => {
