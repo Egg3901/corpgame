@@ -296,6 +296,21 @@ Authorization: Bearer <jwt_token>
 }
 ```
 
+## Sector Economics and Hybrid Sectors
+
+The system uses three primary sector classes to handle economic calculations: `ProductionSector`, `ExtractionSector`, and `RetailServiceSector`.
+
+### Hybrid Sector Support
+Many sectors in the game have "hybrid" characteristics (e.g., the Energy sector extracts Oil and produces Electricity). To support this:
+- **`ProductionSector`**: Handles sectors that produce a Product. It has been enhanced to also calculate Commodity supply from `extraction` units and include extraction-related electricity consumption.
+- **`ExtractionSector`**: Handles sectors that primarily extract Resources. It has been enhanced to also calculate Product supply and Commodity demand from `production` units if configured.
+- **`SectorCalculator`**: Uses a prioritization logic (`production` > `extraction` > `retail_service`) to assign a class, but because the classes are now multi-functional, hybrid sectors calculate all flows correctly regardless of their primary categorization.
+
+### Commodity Pricing
+Commodity prices are calculated dynamically based on global supply (actual extraction units × output rate) and demand (production units × consumption rate).
+- **Price Floor**: All commodities have a minimum price floor (shared with `PRODUCT_MIN_PRICE`, currently 10) to prevent total market collapse when demand is zero.
+- **Scarcity Factor**: Price = `BasePrice` × `(Demand / Max(0.01, Supply))`.
+
 ## Frontend Data Flow
 
 - `lib/api.ts` provides typed calls for commodities, metadata, states, resource/product detail, histories.

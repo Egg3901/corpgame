@@ -1436,7 +1436,8 @@ export function calculateCommodityPrice(
   // No cap on scarcity factor
   
   // Calculate current price
-  const currentPrice = Math.round(basePrice * scarcityFactor * 100) / 100;
+  const rawPrice = Math.round(basePrice * scarcityFactor * 100) / 100;
+  const currentPrice = Math.max(PRODUCT_MIN_PRICE, rawPrice); // Use same floor as products
   
   // Calculate price change percentage from base
   const priceChange = ((currentPrice - basePrice) / basePrice) * 100;
@@ -1488,7 +1489,8 @@ function calculateStaticCommodityPrice(resource: Resource): CommodityPrice {
   const scarcityFactor = rawScarcity;
   
   // Calculate current price
-  const currentPrice = Math.round(basePrice * scarcityFactor * 100) / 100;
+  const rawPrice = Math.round(basePrice * scarcityFactor * 100) / 100;
+  const currentPrice = Math.max(PRODUCT_MIN_PRICE, rawPrice);
   
   // Calculate price change percentage from base
   const priceChange = ((currentPrice - basePrice) / basePrice) * 100;
