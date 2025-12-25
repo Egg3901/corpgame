@@ -605,16 +605,11 @@ export default function CorporationDetailPage() {
     }
   };
 
-  const calculateActionCost = (): number => {
-    if (!corporation) return 0;
-    const marketCap = corporation.shares * corporation.share_price;
-    return 500000 + (marketCap * 0.01);
-  };
-
   const handleActivateSupplyRush = async () => {
     if (!corporation) return;
     
-    if (!confirm(`Activate Supply Rush? This will cost $${formatCash(calculateActionCost())} and boost all production and extraction output by 10% for 4 hours.`)) {
+    const actionCost = 500000 + (corporation.shares * corporation.share_price * 0.01);
+    if (!confirm(`Activate Supply Rush? This will cost $${formatCash(actionCost)} and boost all production and extraction output by 10% for 4 hours.`)) {
       return;
     }
 
@@ -636,7 +631,8 @@ export default function CorporationDetailPage() {
   const handleActivateMarketingCampaign = async () => {
     if (!corporation) return;
     
-    if (!confirm(`Activate Marketing Campaign? This will cost $${formatCash(calculateActionCost())} and boost all production and extraction output by 10% for 4 hours.`)) {
+    const actionCost = 500000 + (corporation.shares * corporation.share_price * 0.01);
+    if (!confirm(`Activate Marketing Campaign? This will cost $${formatCash(actionCost)} and boost all production and extraction output by 10% for 4 hours.`)) {
       return;
     }
 
@@ -709,6 +705,12 @@ export default function CorporationDetailPage() {
   
   const marketCap = effectiveTotalShares * corporation.share_price;
   const publicSharesPercentage = (corporation.public_shares / effectiveTotalShares) * 100;
+
+  // Calculate action cost (corporation is guaranteed to exist here)
+  const calculateActionCost = (): number => {
+    const actionMarketCap = corporation.shares * corporation.share_price;
+    return 500000 + (actionMarketCap * 0.01);
+  };
 
   return (
     <AppNavigation>
