@@ -201,6 +201,7 @@ export default function SectorCard({
               <p>Revenue: ${UNIT_ECONOMICS.retail.baseRevenue}/hr</p>
               <p>Cost: ${UNIT_ECONOMICS.retail.baseCost}/hr</p>
               <p className="text-emerald-400">Profit: ${(UNIT_ECONOMICS.retail.baseRevenue - UNIT_ECONOMICS.retail.baseCost)}/hr</p>
+              <p className="text-gray-400 text-[10px] mt-1">Revenue is flat (no state multiplier)</p>
             </div>
           </div>
         </div>
@@ -227,11 +228,12 @@ export default function SectorCard({
           <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-50 pointer-events-none">
             <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 whitespace-nowrap shadow-xl border border-gray-700">
               <p className="font-medium">Production Unit Economics</p>
-              <p>Revenue: varies by sector output</p>
-              <p>Cost: labor + commodity inputs</p>
+              <p>Revenue: varies by output prices</p>
+              <p>Cost: labor + input commodities</p>
+              <p className="text-emerald-400">Profit: varies</p>
               {requiredResource && <p className="text-amber-400 mt-1">Requires: {requiredResource}</p>}
               {producedProduct && <p className="text-emerald-400 mt-1">Produces: {producedProduct}</p>}
-              <p className="text-gray-400 mt-1">Dynamic pricing based on market</p>
+              <p className="text-gray-400 text-[10px] mt-1">Revenue based on market prices (no state multiplier)</p>
             </div>
           </div>
         </div>
@@ -261,6 +263,7 @@ export default function SectorCard({
               <p>Revenue: ${UNIT_ECONOMICS.service.baseRevenue}/hr</p>
               <p>Cost: ${UNIT_ECONOMICS.service.baseCost}/hr</p>
               <p className="text-emerald-400">Profit: ${(UNIT_ECONOMICS.service.baseRevenue - UNIT_ECONOMICS.service.baseCost)}/hr</p>
+              <p className="text-gray-400 text-[10px] mt-1">Revenue is flat (no state multiplier)</p>
             </div>
           </div>
         </div>
