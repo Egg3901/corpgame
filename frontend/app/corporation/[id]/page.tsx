@@ -164,6 +164,7 @@ const PRODUCT_BASE_PRICES: Record<string, number> = {
 // Production unit constants (must match backend)
 const PRODUCTION_LABOR_COST = 400; // per hour
 const PRODUCTION_RESOURCE_CONSUMPTION = 0.5; // units per hour
+const PRODUCTION_ELECTRICITY_CONSUMPTION = 0.5; // units per hour
 const PRODUCTION_OUTPUT_RATE = 1.0; // product units per hour
 const EXTRACTION_OUTPUT_RATE = 2.0; // resource units per hour (must match backend)
 
@@ -368,22 +369,26 @@ export default function CorporationDetailPage() {
         const requiredResource = SECTOR_RESOURCES[sector];
         const producedProduct = SECTOR_PRODUCTS[sector];
         
-        let unitRev = 0;
-        let unitCost = PRODUCTION_LABOR_COST * DISPLAY_PERIOD_HOURS; // Base labor cost
-        
-        // Resource cost
-        if (requiredResource && commodityPrices[requiredResource]) {
-          unitCost += PRODUCTION_RESOURCE_CONSUMPTION * commodityPrices[requiredResource].currentPrice * DISPLAY_PERIOD_HOURS;
-        }
-        
-        // Product revenue
+        let unitRev = UNIT_ECONOMICS.production.baseRevenue * DISPLAY_PERIOD_HOURS;
+        let unitCost = UNIT_ECONOMICS.production.baseCost * DISPLAY_PERIOD_HOURS;
+
         if (producedProduct) {
-          const basePrice = PRODUCT_BASE_PRICES[producedProduct] || 0;
-          unitRev = basePrice * PRODUCTION_OUTPUT_RATE * DISPLAY_PERIOD_HOURS;
-        } else {
-          // Fallback to base revenue if no product
-          unitRev = UNIT_ECONOMICS.production.baseRevenue * DISPLAY_PERIOD_HOURS;
-          unitCost = UNIT_ECONOMICS.production.baseCost * DISPLAY_PERIOD_HOURS;
+          unitCost = PRODUCTION_LABOR_COST * DISPLAY_PERIOD_HOURS;
+
+          const electricityPrice =
+            productPrices['Electricity']?.currentPrice ?? PRODUCT_BASE_PRICES['Electricity'] ?? 0;
+          unitCost += PRODUCTION_ELECTRICITY_CONSUMPTION * electricityPrice * DISPLAY_PERIOD_HOURS;
+
+          if (requiredResource && commodityPrices[requiredResource]) {
+            unitCost +=
+              PRODUCTION_RESOURCE_CONSUMPTION *
+              commodityPrices[requiredResource].currentPrice *
+              DISPLAY_PERIOD_HOURS;
+          }
+
+          const productPrice =
+            productPrices[producedProduct]?.currentPrice ?? PRODUCT_BASE_PRICES[producedProduct] ?? 0;
+          unitRev = productPrice * PRODUCTION_OUTPUT_RATE * DISPLAY_PERIOD_HOURS;
         }
         
         breakdown.unitBreakdown.production.revenue += unitRev * entry.production_count;
@@ -1063,7 +1068,7 @@ export default function CorporationDetailPage() {
             )}
 
             {activeTab === 'sectors' && (
-              <div className="relative rounded-2xl border border-gray-200/50 dark:border-gray-700/50 bg-gradient-to-br from-white via-white to-gray-50/50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800/50 shadow-2xl overflow-hidden backdrop-blur-sm">
+              <div className="relative rounded-2xl border border-gray-200/50 dark:border-gray-700/50 bg-gradient-to-br from-white via-white to-gray-50/50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800/50 shadow-2xl overflow-visible backdrop-blur-sm">
                 <div className="absolute inset-0 bg-gradient-to-br from-corporate-blue/5 via-transparent to-corporate-blue-light/5 dark:from-corporate-blue/10 dark:via-transparent dark:to-corporate-blue-dark/10 pointer-events-none" />
                 <div className="absolute inset-0 ring-1 ring-inset ring-white/20 dark:ring-gray-700/30 pointer-events-none" />
                 <div className="relative p-6">
@@ -1099,7 +1104,7 @@ export default function CorporationDetailPage() {
                           <p className="text-2xl font-bold text-gray-900 dark:text-white">
                             {new Set(marketEntries.map(e => e.state_code)).size}
                           </p>
-                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-10 pointer-events-none">
+                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-50 pointer-events-none">
                             <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 whitespace-nowrap shadow-lg">
                               Number of US states with market presence
                             </div>
@@ -1110,7 +1115,7 @@ export default function CorporationDetailPage() {
                           <p className="text-2xl font-bold text-gray-900 dark:text-white">
                             {new Set(marketEntries.map(e => e.sector_type)).size}
                           </p>
-                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-10 pointer-events-none">
+                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-50 pointer-events-none">
                             <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 whitespace-nowrap shadow-lg">
                               Unique industry sectors operated in
                             </div>
@@ -1121,7 +1126,7 @@ export default function CorporationDetailPage() {
                           <p className="text-2xl font-bold text-gray-900 dark:text-white">
                             {marketEntries.reduce((sum, e) => sum + e.retail_count + e.production_count + e.service_count + (e.extraction_count || 0), 0)}
                           </p>
-                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-10 pointer-events-none">
+                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-50 pointer-events-none">
                             <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 whitespace-nowrap shadow-lg">
                               All business units: Retail + Production + Service + Extraction
                             </div>
@@ -1132,7 +1137,7 @@ export default function CorporationDetailPage() {
                           <p className="text-2xl font-bold text-orange-600 dark:text-orange-400">
                             {marketEntries.reduce((sum, e) => sum + e.production_count, 0)}
                           </p>
-                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-10 pointer-events-none">
+                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-50 pointer-events-none">
                             <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 whitespace-nowrap shadow-lg">
                               Manufacturing units: ${UNIT_ECONOMICS.production.baseRevenue}/hr revenue × multiplier
                             </div>
@@ -1143,7 +1148,7 @@ export default function CorporationDetailPage() {
                           <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">
                             {marketEntries.reduce((sum, e) => sum + (e.extraction_count || 0), 0)}
                           </p>
-                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-10 pointer-events-none">
+                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-50 pointer-events-none">
                             <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 whitespace-nowrap shadow-lg">
                               Resource extraction units: ${UNIT_ECONOMICS.extraction.baseRevenue}/hr revenue × multiplier
                             </div>
@@ -1183,21 +1188,26 @@ export default function CorporationDetailPage() {
                               const requiredResource = SECTOR_RESOURCES[entry.sector_type];
                               const producedProduct = SECTOR_PRODUCTS[entry.sector_type];
                               
-                              let unitRev = 0;
-                              let unitCost = PRODUCTION_LABOR_COST * DISPLAY_PERIOD_HOURS;
-                              
-                              // Resource cost
-                              if (requiredResource && commodityPrices[requiredResource]) {
-                                unitCost += PRODUCTION_RESOURCE_CONSUMPTION * commodityPrices[requiredResource].currentPrice * DISPLAY_PERIOD_HOURS;
-                              }
-                              
-                              // Product revenue
+                              let unitRev = UNIT_ECONOMICS.production.baseRevenue * DISPLAY_PERIOD_HOURS;
+                              let unitCost = UNIT_ECONOMICS.production.baseCost * DISPLAY_PERIOD_HOURS;
+
                               if (producedProduct) {
-                                const basePrice = PRODUCT_BASE_PRICES[producedProduct] || 0;
-                                unitRev = basePrice * PRODUCTION_OUTPUT_RATE * DISPLAY_PERIOD_HOURS;
-                              } else {
-                                unitRev = UNIT_ECONOMICS.production.baseRevenue * DISPLAY_PERIOD_HOURS;
-                                unitCost = UNIT_ECONOMICS.production.baseCost * DISPLAY_PERIOD_HOURS;
+                                unitCost = PRODUCTION_LABOR_COST * DISPLAY_PERIOD_HOURS;
+
+                                const electricityPrice =
+                                  productPrices['Electricity']?.currentPrice ?? PRODUCT_BASE_PRICES['Electricity'] ?? 0;
+                                unitCost += PRODUCTION_ELECTRICITY_CONSUMPTION * electricityPrice * DISPLAY_PERIOD_HOURS;
+
+                                if (requiredResource && commodityPrices[requiredResource]) {
+                                  unitCost +=
+                                    PRODUCTION_RESOURCE_CONSUMPTION *
+                                    commodityPrices[requiredResource].currentPrice *
+                                    DISPLAY_PERIOD_HOURS;
+                                }
+
+                                const productPrice =
+                                  productPrices[producedProduct]?.currentPrice ?? PRODUCT_BASE_PRICES[producedProduct] ?? 0;
+                                unitRev = productPrice * PRODUCTION_OUTPUT_RATE * DISPLAY_PERIOD_HOURS;
                               }
                               
                               stateRevenue += unitRev * entry.production_count;
@@ -1242,7 +1252,7 @@ export default function CorporationDetailPage() {
                           const stateExtraction = entries.reduce((s, e) => s + (e.extraction_count || 0), 0);
 
                           return (
-                            <div key={stateCode} className="rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+                            <div key={stateCode} className="rounded-xl border border-gray-200 dark:border-gray-700 overflow-visible">
                               {/* State Header */}
                               <div className="bg-gray-50 dark:bg-gray-800/50 px-4 py-3 border-b border-gray-200 dark:border-gray-700">
                                 <div className="flex items-center justify-between">
@@ -1255,7 +1265,7 @@ export default function CorporationDetailPage() {
                                     <span className="text-xs text-gray-500 dark:text-gray-400">({stateCode})</span>
                                     <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-corporate-blue/10 text-corporate-blue dark:text-corporate-blue-light group relative cursor-help">
                                       {stateMultiplier.toFixed(1)}x
-                                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-10 pointer-events-none">
+                                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-50 pointer-events-none">
                                         <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 whitespace-nowrap shadow-lg">
                                           State capacity multiplier - affects max units per sector (not revenue)
                                         </div>
@@ -1268,7 +1278,7 @@ export default function CorporationDetailPage() {
                                       <p className="text-sm font-bold text-emerald-600 dark:text-emerald-400 font-mono">
                                         {formatCurrency(stateRevenue)}
                                       </p>
-                                      <div className="absolute bottom-full right-0 mb-2 hidden group-hover:block z-10 pointer-events-none">
+                                      <div className="absolute bottom-full right-0 mb-2 hidden group-hover:block z-50 pointer-events-none">
                                         <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 shadow-lg text-left max-w-xs">
                                           <p className="font-medium mb-1">96-hour Revenue Breakdown</p>
                                           <p className="text-gray-400 text-xs mb-1">(No state multiplier on revenue - multipliers affect capacity only)</p>
@@ -1295,7 +1305,7 @@ export default function CorporationDetailPage() {
                                       <p className={`text-sm font-bold font-mono ${stateProfit >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
                                         {formatCurrency(stateProfit)}
                                       </p>
-                                      <div className="absolute bottom-full right-0 mb-2 hidden group-hover:block z-10 pointer-events-none">
+                                      <div className="absolute bottom-full right-0 mb-2 hidden group-hover:block z-50 pointer-events-none">
                                         <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 whitespace-nowrap shadow-lg text-left">
                                           <p className="font-medium mb-1">Net = Revenue - Costs</p>
                                           <p className="text-emerald-400">Revenue: {formatCurrency(stateRevenue)}</p>
@@ -1328,22 +1338,30 @@ export default function CorporationDetailPage() {
                                   
                                   // Production units - use dynamic pricing
                                   if (entry.production_count > 0) {
-                                    let unitRev = 0;
-                                    let unitCost = PRODUCTION_LABOR_COST * DISPLAY_PERIOD_HOURS;
-                                    
-                                    // Resource cost
-                                    if (requiredResource && commodityPrices[requiredResource]) {
-                                      unitCost += PRODUCTION_RESOURCE_CONSUMPTION * commodityPrices[requiredResource].currentPrice * DISPLAY_PERIOD_HOURS;
-                                    }
-                                    
-                                    // Product revenue
                                     const producedProduct = SECTOR_PRODUCTS[entry.sector_type];
+                                    let unitRev = UNIT_ECONOMICS.production.baseRevenue * DISPLAY_PERIOD_HOURS;
+                                    let unitCost = UNIT_ECONOMICS.production.baseCost * DISPLAY_PERIOD_HOURS;
+
                                     if (producedProduct) {
-                                      const basePrice = PRODUCT_BASE_PRICES[producedProduct] || 0;
-                                      unitRev = basePrice * PRODUCTION_OUTPUT_RATE * DISPLAY_PERIOD_HOURS;
-                                    } else {
-                                      unitRev = UNIT_ECONOMICS.production.baseRevenue * DISPLAY_PERIOD_HOURS;
-                                      unitCost = UNIT_ECONOMICS.production.baseCost * DISPLAY_PERIOD_HOURS;
+                                      unitCost = PRODUCTION_LABOR_COST * DISPLAY_PERIOD_HOURS;
+
+                                      const electricityPrice =
+                                        productPrices['Electricity']?.currentPrice ?? PRODUCT_BASE_PRICES['Electricity'] ?? 0;
+                                      unitCost +=
+                                        PRODUCTION_ELECTRICITY_CONSUMPTION * electricityPrice * DISPLAY_PERIOD_HOURS;
+
+                                      if (requiredResource && commodityPrices[requiredResource]) {
+                                        unitCost +=
+                                          PRODUCTION_RESOURCE_CONSUMPTION *
+                                          commodityPrices[requiredResource].currentPrice *
+                                          DISPLAY_PERIOD_HOURS;
+                                      }
+
+                                      const productPrice =
+                                        productPrices[producedProduct]?.currentPrice ??
+                                        PRODUCT_BASE_PRICES[producedProduct] ??
+                                        0;
+                                      unitRev = productPrice * PRODUCTION_OUTPUT_RATE * DISPLAY_PERIOD_HOURS;
                                     }
                                     
                                     entryRevenue += unitRev * entry.production_count;
@@ -1414,7 +1432,35 @@ export default function CorporationDetailPage() {
                                       formatCurrency={formatCurrency}
                                       calculateUnitProfit={(unitType) => {
                                         if (unitType === 'retail') return (UNIT_ECONOMICS.retail.baseRevenue - UNIT_ECONOMICS.retail.baseCost) * DISPLAY_PERIOD_HOURS;
-                                        if (unitType === 'production') return 0;
+                                        if (unitType === 'production') {
+                                          const producedProduct = SECTOR_PRODUCTS[entry.sector_type];
+                                          let unitRev = UNIT_ECONOMICS.production.baseRevenue * DISPLAY_PERIOD_HOURS;
+                                          let unitCost = UNIT_ECONOMICS.production.baseCost * DISPLAY_PERIOD_HOURS;
+
+                                          if (producedProduct) {
+                                            unitCost = PRODUCTION_LABOR_COST * DISPLAY_PERIOD_HOURS;
+
+                                            const electricityPrice =
+                                              productPrices['Electricity']?.currentPrice ?? PRODUCT_BASE_PRICES['Electricity'] ?? 0;
+                                            unitCost +=
+                                              PRODUCTION_ELECTRICITY_CONSUMPTION * electricityPrice * DISPLAY_PERIOD_HOURS;
+
+                                            if (requiredResource && commodityPrices[requiredResource]) {
+                                              unitCost +=
+                                                PRODUCTION_RESOURCE_CONSUMPTION *
+                                                commodityPrices[requiredResource].currentPrice *
+                                                DISPLAY_PERIOD_HOURS;
+                                            }
+
+                                            const productPrice =
+                                              productPrices[producedProduct]?.currentPrice ??
+                                              PRODUCT_BASE_PRICES[producedProduct] ??
+                                              0;
+                                            unitRev = productPrice * PRODUCTION_OUTPUT_RATE * DISPLAY_PERIOD_HOURS;
+                                          }
+
+                                          return unitRev - unitCost;
+                                        }
                                         if (unitType === 'service') return (UNIT_ECONOMICS.service.baseRevenue - UNIT_ECONOMICS.service.baseCost) * DISPLAY_PERIOD_HOURS;
                                         if (unitType === 'extraction') {
                                           if (extractableResources && extractableResources.length > 0 && commodityPrices[extractableResources[0]]) {
@@ -1478,7 +1524,7 @@ export default function CorporationDetailPage() {
                                 </div>
                                 <p className="text-2xl font-bold">{demand}</p>
                                 <p className="text-xs opacity-75">units required</p>
-                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-10 pointer-events-none">
+                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-50 pointer-events-none">
                                   <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 whitespace-nowrap shadow-lg">
                                     <p className="font-medium">{resource} Demand</p>
                                     <p>{demand} production units need this resource</p>
@@ -1532,7 +1578,7 @@ export default function CorporationDetailPage() {
                                 </div>
                                 <p className="text-2xl font-bold">{output}</p>
                                 <p className="text-xs opacity-75">units extracted</p>
-                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-10 pointer-events-none">
+                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-50 pointer-events-none">
                                   <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 whitespace-nowrap shadow-lg">
                                     <p className="font-medium">{resource} Extraction</p>
                                     <p>{output} extraction units producing this resource</p>
