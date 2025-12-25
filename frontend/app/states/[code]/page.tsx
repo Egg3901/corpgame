@@ -397,15 +397,15 @@ export default function StateDetailPage() {
           setUserActions(meResult.actions || 0);
         }
         if (commoditiesResult) {
-          const pricesMap: Record<string, { currentPrice: number }> = {};
+          const pricesMap: Record<string, { currentPrice: number; basePrice: number }> = {};
           commoditiesResult.commodities.forEach((price) => {
-            pricesMap[price.resource] = { currentPrice: price.currentPrice };
+            pricesMap[price.resource] = { currentPrice: price.currentPrice, basePrice: price.basePrice };
           });
           setCommodityPrices(pricesMap);
 
-          const productPricesMap: Record<string, { currentPrice: number }> = {};
+          const productPricesMap: Record<string, { currentPrice: number; referenceValue: number }> = {};
           commoditiesResult.products.forEach((price) => {
-            productPricesMap[price.product] = { currentPrice: price.currentPrice };
+            productPricesMap[price.product] = { currentPrice: price.currentPrice, referenceValue: price.referenceValue };
           });
           setProductPrices(productPricesMap);
         }

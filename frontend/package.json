@@ -10,7 +10,7 @@
     "build": "next build",
     "start": "next start -H 0.0.0.0",
     "lint": "next lint",
-    "test": "node tests/run-tests.js && node tests/finance-tests.js"
+    "test": "node tests/run-tests.js && node tests/finance-tests.js && node tests/revenue-breakdown-tests.js"
   },
   "dependencies": {
     "axios": "^1.6.2",
@@ -32,4 +32,3 @@
     "typescript": "^5.3.3"
   }
 }
-

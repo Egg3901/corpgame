@@ -16,6 +16,7 @@ type Props = {
   costItems: CostItem[];
   loading?: boolean;
   note?: string;
+  breakdown?: Array<{ label: string; value: number }>;
 };
 
 export default function FinancialTooltip({
@@ -27,6 +28,7 @@ export default function FinancialTooltip({
   costItems,
   loading,
   note,
+  breakdown,
 }: Props) {
   const formatCurrency = (v: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(v);
   const formatNumber = (v: number) => new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 }).format(v);
@@ -34,11 +36,26 @@ export default function FinancialTooltip({
   const totalCost = costHr > 0 ? costHr : costItems.reduce((s, i) => s + i.costHr, 0);
   const itemsWithPct = costItems.map((i) => ({ ...i, pct: totalCost > 0 ? (i.costHr / totalCost) * 100 : 0 }));
 
+  const breakdownTotal = (propsBreakdown?: Array<{ label: string; value: number }>) => {
+    if (!propsBreakdown || propsBreakdown.length === 0) return null;
+    return propsBreakdown.reduce((s, b) => s + b.value, 0);
+  };
+
+  const expectedTotal = breakdownTotal(breakdown);
+  const matches = expectedTotal !== null ? Math.abs((expectedTotal || 0) - revenueHr) < 0.01 : true;
+
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <p className="text-sm font-semibold">{title}</p>
-        {loading ? <span className="text-[10px] text-gray-400">Loading…</span> : null}
+        <div className="flex items-center gap-2">
+          {expectedTotal !== null && (
+            <span className={`text-[10px] ${matches ? 'text-emerald-400' : 'text-red-400'}`}>
+              {matches ? 'Validated' : 'Mismatch'}
+            </span>
+          )}
+          {loading ? <span className="text-[10px] text-gray-400">Loading…</span> : null}
+        </div>
       </div>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
         <div className="text-right">
@@ -58,6 +75,23 @@ export default function FinancialTooltip({
           <p className="font-mono">{formatNumber(outputSoldUnits)}</p>
         </div>
       </div>
+      {breakdown && breakdown.length > 0 && (
+        <div>
+          <p className="text-[11px] text-gray-300 mb-1">Revenue Breakdown</p>
+          <div className="space-y-1">
+            {breakdown.map((b) => (
+              <div key={b.label} className="flex items-center justify-between">
+                <span className="text-[11px] text-gray-300">{b.label}</span>
+                <span className="font-mono text-[11px]">{formatCurrency(b.value)}</span>
+              </div>
+            ))}
+            <div className="flex items-center justify-between border-t border-gray-700 pt-1 mt-1">
+              <span className="text-[11px] text-gray-400">Total</span>
+              <span className="font-mono text-[11px]">{formatCurrency(expectedTotal || 0)}</span>
+            </div>
+          </div>
+        </div>
+      )}
       <div>
         <p className="text-[11px] text-gray-300 mb-1">Cost Breakdown</p>
         <div className="space-y-1">
@@ -81,4 +115,3 @@ export default function FinancialTooltip({
     </div>
   );
 }
-

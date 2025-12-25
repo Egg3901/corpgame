@@ -1326,7 +1326,7 @@ export function getResourceInfo(resource: Resource): {
 export const RESOURCE_BASE_PRICES: Record<Resource, number> = {
   'Oil': 75,                    // Per barrel equivalent
   'Steel': 850,                 // Per ton equivalent
-  'Rare Earth': 125000,         // Per ton (very expensive)
+  'Rare Earth': 9000,           // Adjusted base price
   'Copper': 8500,               // Per ton
   'Fertile Land': 3500,         // Per acre equivalent
   'Lumber': 450,                // Per thousand board feet
@@ -1406,8 +1406,7 @@ export function calculateCommodityPrice(
   } else if (actualSupply > 0 && actualDemand === 0) {
     scarcityFactor = 0.0;
   }
-  // Cap only at maximum scarcity
-  scarcityFactor = Math.min(3.0, scarcityFactor);
+  // No cap on scarcity factor
   
   // Calculate current price
   const currentPrice = Math.round(basePrice * scarcityFactor * 100) / 100;
@@ -1457,9 +1456,9 @@ function calculateStaticCommodityPrice(resource: Resource): CommodityPrice {
   const totalSupply = getTotalResourcePool(resource);
   const referencePool = REFERENCE_POOL_SIZES[resource];
   
-  // Calculate scarcity factor (clamped between 0.5 and 3.0)
+  // Calculate scarcity factor without clamp
   const rawScarcity = totalSupply > 0 ? referencePool / totalSupply : 3.0;
-  const scarcityFactor = Math.min(3.0, Math.max(0.5, rawScarcity));
+  const scarcityFactor = rawScarcity;
   
   // Calculate current price
   const currentPrice = Math.round(basePrice * scarcityFactor * 100) / 100;
@@ -1838,7 +1837,7 @@ export function calculateProductPrice(
   } else if (totalDemand === 0) {
     scarcityFactor = 0.0;
   } else {
-    scarcityFactor = Math.min(3.0, totalDemand / totalSupply);
+    scarcityFactor = totalDemand / totalSupply;
   }
   
   // Calculate price: referenceValue * scarcityFactor (no floor)

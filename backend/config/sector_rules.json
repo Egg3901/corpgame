@@ -32,7 +32,12 @@
       "overrides": {
         "EXTRACTION_OUTPUT_RATE": 2.0
       }
+    },
+    "Technology": {
+      "category": "production",
+      "overrides": {
+        "PRODUCTION_RESOURCE_CONSUMPTION": 0.25
+      }
     }
   }
 }
-

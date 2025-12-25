@@ -47,8 +47,8 @@ interface SectorCardProps {
     extraction: { baseRevenue: number; baseCost: number };
   };
   SECTORS_CAN_EXTRACT: Record<string, string[] | null>;
-  commodityPrices?: Record<string, { currentPrice: number }>;
-  productPrices?: Record<string, { currentPrice: number }>;
+  commodityPrices?: Record<string, { currentPrice: number; basePrice?: number }>;
+  productPrices?: Record<string, { currentPrice: number; referenceValue?: number }>;
   EXTRACTION_OUTPUT_RATE?: number;
   unitFlows?: Record<'retail' | 'production' | 'service' | 'extraction', MarketUnitFlow>;
 }
@@ -196,12 +196,15 @@ export default function SectorCard({
       PRODUCT_BASE_PRICES[producedProduct] ??
       UNIT_ECONOMICS.production.baseRevenue
     : 0;
+  const productionProductBase = producedProduct
+    ? productPrices?.[producedProduct]?.referenceValue ?? PRODUCT_BASE_PRICES[producedProduct] ?? 0
+    : 0;
 
   let productionRevenue = UNIT_ECONOMICS.production.baseRevenue;
   let productionCost = UNIT_ECONOMICS.production.baseCost;
 
   if (producedProduct) {
-    productionRevenue = productionProductPrice * productionOutputRate;
+    productionRevenue = productionProductBase + (productionProductPrice * productionOutputRate);
     productionCost = PRODUCTION_LABOR_COST;
 
     const resourceInputs = productionFlowRaw?.inputs.resources || {};
@@ -322,7 +325,11 @@ export default function SectorCard({
   });
   const extractionSupplyCost = extractionInputItemsCalc.reduce((s, it) => s + it.costHr, 0);
   const extractionCost = UNIT_ECONOMICS.extraction.baseCost + extractionSupplyCost;
-  const extractionProfit = extractionRevenue - extractionCost;
+  const extractionBasePrice = extractableResources && extractableResources.length > 0
+    ? commodityPrices?.[extractableResources[0]]?.basePrice ?? 0
+    : 0;
+  const extractionRevenueWithBase = extractionBasePrice + extractionRevenue;
+  const extractionProfit = extractionRevenueWithBase - extractionCost;
 
   const renderProductionFlowBadges = (flow: ReturnType<typeof formatFlowTotals>) => {
     if (!flow) return null;
@@ -512,6 +519,13 @@ export default function SectorCard({
                 resources: Object.fromEntries((retailFlow?.inputs.resources || []).map(i => [i.name, i.perUnit])),
                 products: Object.fromEntries((retailFlow?.inputs.products || []).map(i => [i.name, i.perUnit]))
               }).map(it => ({ name: it.name, costHr: it.costHr }))}
+              breakdown={[
+                { label: 'Base', value: UNIT_ECONOMICS.retail.baseRevenue },
+                { label: 'Price × Output', value: (retailFlow?.inputs.products || []).reduce((s, p) => {
+                  const price = productPrices?.[p.name]?.currentPrice ?? PRODUCT_BASE_PRICES[p.name] ?? 0;
+                  return s + price * p.perUnit;
+                }, 0) },
+              ]}
               note={`Demand-based cost factor applied: ÷ Growth ${stateGrowthFactor.toFixed(2)}x (1 + 25% × sector growth avg)`}
             />
           </TooltipPanel>
@@ -550,6 +564,10 @@ export default function SectorCard({
                 }, producedProduct).map(it => ({ name: it.name, costHr: it.costHr })),
                 { name: 'Labor/Operations', costHr: PRODUCTION_LABOR_COST },
               ]}
+              breakdown={[
+                { label: 'Base', value: productionProductBase },
+                { label: 'Price × Output', value: productionProductPrice * productionOutputRate },
+              ]}
             />
           </TooltipPanel>
         </div>
@@ -584,6 +602,13 @@ export default function SectorCard({
                 resources: Object.fromEntries((serviceFlow?.inputs.resources || []).map(i => [i.name, i.perUnit])),
                 products: Object.fromEntries((serviceFlow?.inputs.products || []).map(i => [i.name, i.perUnit]))
               }).map(it => ({ name: it.name, costHr: it.costHr }))}
+              breakdown={[
+                { label: 'Base', value: UNIT_ECONOMICS.service.baseRevenue },
+                { label: 'Price × Output', value: (serviceFlow?.inputs.products || []).reduce((s, p) => {
+                  const price = productPrices?.[p.name]?.currentPrice ?? PRODUCT_BASE_PRICES[p.name] ?? 0;
+                  return s + price * p.perUnit;
+                }, 0) },
+              ]}
               note={`Demand-based cost factor applied: ÷ Growth ${stateGrowthFactor.toFixed(2)}x (1 + 25% × sector growth avg)`}
             />
           </TooltipPanel>
@@ -632,7 +657,7 @@ export default function SectorCard({
             {canExtract ? (
               <FinancialTooltip
                 title="Extraction Financials"
-                revenueHr={extractionRevenue}
+                revenueHr={extractionRevenueWithBase}
                 costHr={extractionCost}
                 profitHr={extractionProfit}
                 outputSoldUnits={Math.round((extractionFlow?.outputs.resources || []).reduce((s, r) => s + r.total, 0))}
@@ -642,6 +667,10 @@ export default function SectorCard({
                     products: Object.fromEntries((extractionFlow?.inputs.products || []).map(i => [i.name, i.perUnit]))
                   }).map(it => ({ name: it.name, costHr: it.costHr })),
                   { name: 'Operations', costHr: UNIT_ECONOMICS.extraction.baseCost },
+                ]}
+                breakdown={[
+                  { label: 'Base', value: extractionBasePrice },
+                  { label: 'Price × Output', value: getExtractionRevenue() },
                 ]}
               />
             ) : (
