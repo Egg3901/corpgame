@@ -47,9 +47,6 @@ export function startActionsCron() {
       
       // Process dividends
       await processDividends();
-      
-      // Record commodity and product prices
-      await recordMarketPrices();
     } catch (error) {
       console.error('[Cron] Error incrementing actions:', error);
     }
@@ -85,6 +82,18 @@ export function startActionsCron() {
   });
 
   console.log('[Cron] Proposal resolution cron job scheduled (runs every 5 minutes)');
+
+  // Run every 10 minutes to record market prices (stock-style history)
+  cron.schedule('*/10 * * * *', async () => {
+    console.log('[Cron] Recording market prices...');
+    try {
+      await recordMarketPrices();
+    } catch (error) {
+      console.error('[Cron] Error recording market prices:', error);
+    }
+  });
+
+  console.log('[Cron] Market price history cron job scheduled (runs every 10 minutes)');
 }
 
 /**

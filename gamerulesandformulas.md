@@ -4,14 +4,14 @@
 
 - Commodity price:
   - Base price × Scarcity factor
-  - Scarcity = Demand / Supply, clamped between 0.5 and 3.0
+  - Scarcity = Demand / Supply (unlimited, no cap)
   - Demand = Sum of production units requiring the resource × `PRODUCTION_RESOURCE_CONSUMPTION`
   - Supply = Sum of extraction units producing the resource × `EXTRACTION_OUTPUT_RATE`
   - Base prices:
-    - Oil 75, Steel 850, Rare Earth 125000, Copper 8500, Fertile Land 3500, Lumber 450, Chemical Compounds 2200
+    - Oil 75, Steel 850, Rare Earth 9000, Copper 8500, Fertile Land 3500, Lumber 450, Chemical Compounds 2200
 
 - Product price:
-  - Reference value × Scarcity factor, clamped between 0.1 and 3.0, floored by `PRODUCT_MIN_PRICE`
+  - Reference value × Scarcity factor (unlimited, no cap), floored by `PRODUCT_MIN_PRICE`
   - Scarcity = Demand / Supply
   - Reference values:
     - Technology Products 5000, Manufactured Goods 1500, Electricity 200, Food Products 500, Construction Capacity 2500, Pharmaceutical Products 8000, Defense Equipment 15000, Logistics Capacity 1000

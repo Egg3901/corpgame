@@ -1399,12 +1399,11 @@ export function calculateCommodityPrice(
   
   // Calculate supply/demand ratio without floors
   let scarcityFactor = 1.0;
-  if (actualSupply > 0 && actualDemand > 0) {
-    scarcityFactor = actualDemand / actualSupply;
-  } else if (actualSupply === 0 && actualDemand > 0) {
-    scarcityFactor = 3.0;
-  } else if (actualSupply > 0 && actualDemand === 0) {
-    scarcityFactor = 0.0;
+  if (actualSupply > 0 || actualDemand > 0) {
+    // Truly unlimited scarcity: demand / supply (with small epsilon for zero supply)
+    scarcityFactor = actualDemand / Math.max(0.01, actualSupply);
+  } else {
+    scarcityFactor = 1.0;
   }
   // No cap on scarcity factor
   
@@ -1457,7 +1456,7 @@ function calculateStaticCommodityPrice(resource: Resource): CommodityPrice {
   const referencePool = REFERENCE_POOL_SIZES[resource];
   
   // Calculate scarcity factor without clamp
-  const rawScarcity = totalSupply > 0 ? referencePool / totalSupply : 3.0;
+  const rawScarcity = totalSupply > 0 ? referencePool / totalSupply : 20.0;
   const scarcityFactor = rawScarcity;
   
   // Calculate current price
@@ -1783,7 +1782,7 @@ export function sectorServiceDemandsProducts(sector: string): boolean {
 export const PRODUCT_MIN_PRICE = 10;
 
 // Base value per unit for price calculation (used as reference)
-const PRODUCT_REFERENCE_VALUES: Record<Product, number> = {
+export const PRODUCT_REFERENCE_VALUES: Record<Product, number> = {
   'Technology Products': 5000,
   'Manufactured Goods': 1500,
   'Electricity': 200,
@@ -1830,14 +1829,12 @@ export function calculateProductPrice(
   const producingSectors = getSectorsProducingProduct(product);
   const demandingSectors = getSectorsDemandingProduct(product);
   
-  // Calculate scarcity factor without floors (cap only at max)
+  // Calculate scarcity factor without floors (truly unlimited)
   let scarcityFactor: number;
-  if (totalSupply === 0) {
-    scarcityFactor = totalDemand > 0 ? 3.0 : 1.0;
-  } else if (totalDemand === 0) {
-    scarcityFactor = 0.0;
+  if (totalSupply > 0 || totalDemand > 0) {
+    scarcityFactor = totalDemand / Math.max(0.01, totalSupply);
   } else {
-    scarcityFactor = totalDemand / totalSupply;
+    scarcityFactor = 1.0;
   }
   
   // Calculate price: referenceValue * scarcityFactor (no floor)
