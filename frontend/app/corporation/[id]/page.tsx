@@ -63,10 +63,25 @@ const SECTOR_PRODUCT_DEMANDS: Record<string, string[] | null> = {
   'Media': ['Technology Products'],
   'Telecommunications': ['Technology Products'],
   'Agriculture': null,
-  'Defense': null,
+  'Defense': ['Technology Products', 'Logistics Capacity'],
   'Hospitality': ['Food Products'],
   'Construction': null,
   'Pharmaceuticals': null,
+};
+
+// Retail/Service unit constants
+const RETAIL_PRODUCT_CONSUMPTION = 2.0;
+const SERVICE_PRODUCT_CONSUMPTION = 1.5;
+const SERVICE_ELECTRICITY_CONSUMPTION = 0.5;
+const RETAIL_WHOLESALE_DISCOUNT = 0.995;
+const SERVICE_WHOLESALE_DISCOUNT = 0.995;
+const DEFENSE_WHOLESALE_DISCOUNT = 0.8;
+const DEFENSE_REVENUE_ON_COST_MULTIPLIER = 1.0;
+const RETAIL_MIN_GROSS_MARGIN_PCT = 0.05;
+const SERVICE_MIN_GROSS_MARGIN_PCT = 0.10;
+const UNIT_LABOR_COSTS = {
+  retail: 200,
+  service: 150,
 };
 
 // Resource icon mapping
@@ -299,6 +314,54 @@ export default function CorporationDetailPage() {
     };
   };
 
+  const getRetailServiceUnitEconomics = (
+    sector: string,
+    unitType: 'retail' | 'service'
+  ) => {
+    const laborCost = UNIT_LABOR_COSTS[unitType];
+    const productDemands = SECTOR_PRODUCT_DEMANDS[sector] || [];
+    
+    let totalProductCost = 0;
+    let revenueRaw = 0;
+    
+    for (const product of productDemands) {
+      const productPrice = productPrices[product]?.currentPrice ?? PRODUCT_BASE_PRICES[product] ?? 0;
+      let consumedAmount = unitType === 'retail' ? RETAIL_PRODUCT_CONSUMPTION : (product === 'Electricity' ? SERVICE_ELECTRICITY_CONSUMPTION : SERVICE_PRODUCT_CONSUMPTION);
+      
+      // Defense sector overrides
+      if (sector === 'Defense') {
+        if (unitType === 'retail' || product !== 'Electricity') {
+          consumedAmount = 1.0;
+        }
+      }
+
+      let discount = unitType === 'retail' ? RETAIL_WHOLESALE_DISCOUNT : (product === 'Electricity' ? 1.0 : SERVICE_WHOLESALE_DISCOUNT);
+      
+      if (sector === 'Defense' && (unitType === 'retail' || product !== 'Electricity')) {
+        discount = DEFENSE_WHOLESALE_DISCOUNT;
+      }
+
+      const productCost = productPrice * consumedAmount * discount;
+      totalProductCost += productCost;
+
+      if (sector === 'Defense' && (unitType === 'retail' || product !== 'Electricity')) {
+        revenueRaw += productCost * DEFENSE_REVENUE_ON_COST_MULTIPLIER;
+      } else {
+        revenueRaw += productPrice * consumedAmount;
+      }
+    }
+
+    const minGrossMargin = unitType === 'retail' ? RETAIL_MIN_GROSS_MARGIN_PCT : SERVICE_MIN_GROSS_MARGIN_PCT;
+    const minRevenue = totalProductCost * (1 + minGrossMargin);
+    const unitRevenuePerHour = Math.max(revenueRaw, minRevenue);
+    const unitCostPerHour = laborCost + totalProductCost;
+
+    return {
+      unitRevenuePerHour,
+      unitCostPerHour,
+    };
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -446,8 +509,9 @@ export default function CorporationDetailPage() {
       
       // Retail units
       if (entry.retail_count > 0) {
-        const unitRev = UNIT_ECONOMICS.retail.baseRevenue * DISPLAY_PERIOD_HOURS;
-        const unitCost = UNIT_ECONOMICS.retail.baseCost * DISPLAY_PERIOD_HOURS;
+        const { unitRevenuePerHour, unitCostPerHour } = getRetailServiceUnitEconomics(sector, 'retail');
+        const unitRev = unitRevenuePerHour * DISPLAY_PERIOD_HOURS;
+        const unitCost = unitCostPerHour * DISPLAY_PERIOD_HOURS;
         breakdown.unitBreakdown.retail.revenue += unitRev * entry.retail_count;
         breakdown.unitBreakdown.retail.cost += unitCost * entry.retail_count;
         breakdown.unitBreakdown.retail.units += entry.retail_count;
@@ -466,8 +530,9 @@ export default function CorporationDetailPage() {
 
       // Service units
       if (entry.service_count > 0) {
-        const unitRev = UNIT_ECONOMICS.service.baseRevenue * DISPLAY_PERIOD_HOURS;
-        const unitCost = UNIT_ECONOMICS.service.baseCost * DISPLAY_PERIOD_HOURS;
+        const { unitRevenuePerHour, unitCostPerHour } = getRetailServiceUnitEconomics(sector, 'service');
+        const unitRev = unitRevenuePerHour * DISPLAY_PERIOD_HOURS;
+        const unitCost = unitCostPerHour * DISPLAY_PERIOD_HOURS;
         breakdown.unitBreakdown.service.revenue += unitRev * entry.service_count;
         breakdown.unitBreakdown.service.cost += unitCost * entry.service_count;
         breakdown.unitBreakdown.service.units += entry.service_count;
@@ -1182,8 +1247,9 @@ export default function CorporationDetailPage() {
                           entries.forEach(entry => {
                             // Retail units
                             if (entry.retail_count > 0) {
-                              stateRevenue += UNIT_ECONOMICS.retail.baseRevenue * entry.retail_count * DISPLAY_PERIOD_HOURS;
-                              stateCost += UNIT_ECONOMICS.retail.baseCost * entry.retail_count * DISPLAY_PERIOD_HOURS;
+                              const { unitRevenuePerHour, unitCostPerHour } = getRetailServiceUnitEconomics(entry.sector_type, 'retail');
+                              stateRevenue += unitRevenuePerHour * entry.retail_count * DISPLAY_PERIOD_HOURS;
+                              stateCost += unitCostPerHour * entry.retail_count * DISPLAY_PERIOD_HOURS;
                             }
                             
                             // Production units - use dynamic pricing
@@ -1198,8 +1264,9 @@ export default function CorporationDetailPage() {
                             
                             // Service units
                             if (entry.service_count > 0) {
-                              stateRevenue += UNIT_ECONOMICS.service.baseRevenue * entry.service_count * DISPLAY_PERIOD_HOURS;
-                              stateCost += UNIT_ECONOMICS.service.baseCost * entry.service_count * DISPLAY_PERIOD_HOURS;
+                              const { unitRevenuePerHour, unitCostPerHour } = getRetailServiceUnitEconomics(entry.sector_type, 'service');
+                              stateRevenue += unitRevenuePerHour * entry.service_count * DISPLAY_PERIOD_HOURS;
+                              stateCost += unitCostPerHour * entry.service_count * DISPLAY_PERIOD_HOURS;
                             }
                             
                             // Extraction units - use dynamic pricing
@@ -1315,8 +1382,9 @@ export default function CorporationDetailPage() {
                                   
                                   // Retail units
                                   if (entry.retail_count > 0) {
-                                    entryRevenue += UNIT_ECONOMICS.retail.baseRevenue * entry.retail_count * DISPLAY_PERIOD_HOURS;
-                                    entryCost += UNIT_ECONOMICS.retail.baseCost * entry.retail_count * DISPLAY_PERIOD_HOURS;
+                                    const { unitRevenuePerHour, unitCostPerHour } = getRetailServiceUnitEconomics(entry.sector_type, 'retail');
+                                    entryRevenue += unitRevenuePerHour * entry.retail_count * DISPLAY_PERIOD_HOURS;
+                                    entryCost += unitCostPerHour * entry.retail_count * DISPLAY_PERIOD_HOURS;
                                   }
                                   
                                   // Production units - use dynamic pricing
@@ -1327,8 +1395,9 @@ export default function CorporationDetailPage() {
                                   
                                   // Service units
                                   if (entry.service_count > 0) {
-                                    entryRevenue += UNIT_ECONOMICS.service.baseRevenue * entry.service_count * DISPLAY_PERIOD_HOURS;
-                                    entryCost += UNIT_ECONOMICS.service.baseCost * entry.service_count * DISPLAY_PERIOD_HOURS;
+                                    const { unitRevenuePerHour, unitCostPerHour } = getRetailServiceUnitEconomics(entry.sector_type, 'service');
+                                    entryRevenue += unitRevenuePerHour * entry.service_count * DISPLAY_PERIOD_HOURS;
+                                    entryCost += unitCostPerHour * entry.service_count * DISPLAY_PERIOD_HOURS;
                                   }
                                   
                                   // Extraction units - use dynamic pricing
@@ -1389,11 +1458,13 @@ export default function CorporationDetailPage() {
                                       buildCost={10000}
                                       formatCurrency={formatCurrency}
                                       calculateUnitProfit={(unitType) => {
-                                        if (unitType === 'retail') return (UNIT_ECONOMICS.retail.baseRevenue - UNIT_ECONOMICS.retail.baseCost) * DISPLAY_PERIOD_HOURS;
+                                        if (unitType === 'retail' || unitType === 'service') {
+                                          const { unitRevenuePerHour, unitCostPerHour } = getRetailServiceUnitEconomics(entry.sector_type, unitType);
+                                          return (unitRevenuePerHour - unitCostPerHour) * DISPLAY_PERIOD_HOURS;
+                                        }
                                         if (unitType === 'production') {
                                           return (productionEconomics.unitRevenuePerHour - productionEconomics.unitCostPerHour) * DISPLAY_PERIOD_HOURS;
                                         }
-                                        if (unitType === 'service') return (UNIT_ECONOMICS.service.baseRevenue - UNIT_ECONOMICS.service.baseCost) * DISPLAY_PERIOD_HOURS;
                                         if (unitType === 'extraction') {
                                           if (extractableResources && extractableResources.length > 0 && commodityPrices[extractableResources[0]]) {
                                             const extractionRevenue = commodityPrices[extractableResources[0]].currentPrice * EXTRACTION_OUTPUT_RATE * DISPLAY_PERIOD_HOURS;

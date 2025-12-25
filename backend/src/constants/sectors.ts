@@ -748,6 +748,8 @@ export const EXTRACTION_ELECTRICITY_CONSUMPTION = 0.25;
 
 export const RETAIL_WHOLESALE_DISCOUNT = 0.995;
 export const SERVICE_WHOLESALE_DISCOUNT = 0.995;
+export const DEFENSE_WHOLESALE_DISCOUNT = 0.8;
+export const DEFENSE_REVENUE_ON_COST_MULTIPLIER = 1.0;
 export const RETAIL_MIN_GROSS_MARGIN_PCT = 0.0005;
 export const SERVICE_MIN_GROSS_MARGIN_PCT = 0.0005;
 
@@ -945,9 +947,18 @@ export function getDynamicUnitEconomics(
     
     for (const product of retailDemands) {
       const productPrice = getProductUnitPrice(product);
-      const consumedAmount = RETAIL_PRODUCT_CONSUMPTION;
-      totalProductCost += productPrice * consumedAmount * RETAIL_WHOLESALE_DISCOUNT;
-      revenueRaw += productPrice * consumedAmount;
+      const consumedAmount = sectorTyped === 'Defense' ? 1.0 : RETAIL_PRODUCT_CONSUMPTION;
+      const discount = sectorTyped === 'Defense' ? DEFENSE_WHOLESALE_DISCOUNT : RETAIL_WHOLESALE_DISCOUNT;
+      
+      const productCost = productPrice * consumedAmount * discount;
+      totalProductCost += productCost;
+      
+      if (sectorTyped === 'Defense') {
+        revenueRaw += productCost * DEFENSE_REVENUE_ON_COST_MULTIPLIER;
+      } else {
+        revenueRaw += productPrice * consumedAmount;
+      }
+      
       productConsumedAmounts[product] = consumedAmount;
     }
 
@@ -998,10 +1009,27 @@ export function getDynamicUnitEconomics(
     
     for (const product of serviceDemands) {
       const productPrice = getProductUnitPrice(product);
-      const consumedAmount = product === 'Electricity' ? SERVICE_ELECTRICITY_CONSUMPTION : SERVICE_PRODUCT_CONSUMPTION;
-      const discount = product === 'Electricity' ? 1 : SERVICE_WHOLESALE_DISCOUNT;
-      totalProductCost += productPrice * consumedAmount * discount;
-      revenueRaw += productPrice * consumedAmount;
+      let consumedAmount = product === 'Electricity' ? SERVICE_ELECTRICITY_CONSUMPTION : SERVICE_PRODUCT_CONSUMPTION;
+      
+      // Defense sector rule: 1.0 consumption for products (excluding electricity)
+      if (sectorTyped === 'Defense' && product !== 'Electricity') {
+        consumedAmount = 1.0;
+      }
+
+      let discount = product === 'Electricity' ? 1 : SERVICE_WHOLESALE_DISCOUNT;
+      if (sectorTyped === 'Defense' && product !== 'Electricity') {
+        discount = DEFENSE_WHOLESALE_DISCOUNT;
+      }
+
+      const productCost = productPrice * consumedAmount * discount;
+      totalProductCost += productCost;
+
+      if (sectorTyped === 'Defense' && product !== 'Electricity') {
+        revenueRaw += productCost * DEFENSE_REVENUE_ON_COST_MULTIPLIER;
+      } else {
+        revenueRaw += productPrice * consumedAmount;
+      }
+      
       productConsumedAmounts[product] = consumedAmount;
     }
 

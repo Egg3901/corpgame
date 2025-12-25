@@ -53,6 +53,23 @@ type ComputeParams = {
 
 const clampNonNegative = (n: number) => (isFinite(n) && n > 0 ? n : 0);
 
+// Defense sector constants (must match backend)
+const DEFENSE_WHOLESALE_DISCOUNT = 0.8;
+const DEFENSE_REVENUE_ON_COST_MULTIPLIER = 1.0;
+const RETAIL_PRODUCT_CONSUMPTION = 2.0;
+const SERVICE_PRODUCT_CONSUMPTION = 1.5;
+const SERVICE_ELECTRICITY_CONSUMPTION = 0.5;
+const RETAIL_WHOLESALE_DISCOUNT = 0.995;
+const SERVICE_WHOLESALE_DISCOUNT = 0.9;
+const RETAIL_MIN_GROSS_MARGIN_PCT = 0.1;
+const SERVICE_MIN_GROSS_MARGIN_PCT = 0.1;
+const UNIT_LABOR_COSTS = {
+  retail: 200,
+  production: 400,
+  service: 150,
+  extraction: 250,
+};
+
 export function computeFinancialStatements(params: ComputeParams): ConsolidatedStatement {
   const errors: string[] = [];
   const periodHours = params.periodHours && params.periodHours > 0 ? Math.floor(params.periodHours) : 96;
@@ -89,12 +106,45 @@ export function computeFinancialStatements(params: ComputeParams): ConsolidatedS
     };
 
     if ((units.retail || 0) > 0) {
-      const r = unitEconomics.retail.baseRevenue * periodHours * (units.retail || 0);
-      const c = unitEconomics.retail.baseCost * periodHours * (units.retail || 0);
+      const flow = sectorFlow.retail;
+      const laborCost = UNIT_LABOR_COSTS.retail;
+      let totalProductCost = 0;
+      let revenueRaw = 0;
+
+      const productDemands = Object.keys(flow.inputs.products || {});
+      productDemands.forEach((product) => {
+        const productPrice = productPrices[product]?.currentPrice || 0;
+        let consumedAmount = RETAIL_PRODUCT_CONSUMPTION;
+        if (sector === 'Defense') {
+          consumedAmount = 1.0;
+        }
+
+        let discount = RETAIL_WHOLESALE_DISCOUNT;
+        if (sector === 'Defense') {
+          discount = DEFENSE_WHOLESALE_DISCOUNT;
+        }
+
+        const productCost = productPrice * consumedAmount * discount;
+        totalProductCost += productCost;
+
+        if (sector === 'Defense') {
+          revenueRaw += productCost * DEFENSE_REVENUE_ON_COST_MULTIPLIER;
+        } else {
+          revenueRaw += productPrice * consumedAmount;
+        }
+      });
+
+      const minRevenue = totalProductCost * (1 + RETAIL_MIN_GROSS_MARGIN_PCT);
+      const unitRevenuePerHour = Math.max(revenueRaw, minRevenue);
+      const unitCostPerHour = laborCost + totalProductCost;
+
+      const r = unitRevenuePerHour * periodHours * (units.retail || 0);
+      const c = unitCostPerHour * periodHours * (units.retail || 0);
       revenue += r;
       variableCosts += c;
       unitBreakdown.retail.revenue += r;
       unitBreakdown.retail.cost += c;
+      unitBreakdown.retail.demandedUnits = Math.round(Object.values(flow.inputs.products || {}).reduce((s, v) => s + v, 0) * (units.retail || 0) * periodHours);
     }
 
     if ((units.production || 0) > 0) {
@@ -130,12 +180,46 @@ export function computeFinancialStatements(params: ComputeParams): ConsolidatedS
     }
 
     if ((units.service || 0) > 0) {
-      const r = unitEconomics.service.baseRevenue * periodHours * (units.service || 0);
-      const c = unitEconomics.service.baseCost * periodHours * (units.service || 0);
+      const flow = sectorFlow.service;
+      const laborCost = UNIT_LABOR_COSTS.service;
+      let totalProductCost = 0;
+      let revenueRaw = 0;
+
+      const productDemands = Object.keys(flow.inputs.products || {});
+      productDemands.forEach((product) => {
+        const productPrice = productPrices[product]?.currentPrice || 0;
+        let consumedAmount = product === 'Electricity' ? SERVICE_ELECTRICITY_CONSUMPTION : SERVICE_PRODUCT_CONSUMPTION;
+        
+        if (sector === 'Defense' && product !== 'Electricity') {
+          consumedAmount = 1.0;
+        }
+
+        let discount = product === 'Electricity' ? 1.0 : SERVICE_WHOLESALE_DISCOUNT;
+        if (sector === 'Defense' && product !== 'Electricity') {
+          discount = DEFENSE_WHOLESALE_DISCOUNT;
+        }
+
+        const productCost = productPrice * consumedAmount * discount;
+        totalProductCost += productCost;
+
+        if (sector === 'Defense' && product !== 'Electricity') {
+          revenueRaw += productCost * DEFENSE_REVENUE_ON_COST_MULTIPLIER;
+        } else {
+          revenueRaw += productPrice * consumedAmount;
+        }
+      });
+
+      const minRevenue = totalProductCost * (1 + SERVICE_MIN_GROSS_MARGIN_PCT);
+      const unitRevenuePerHour = Math.max(revenueRaw, minRevenue);
+      const unitCostPerHour = laborCost + totalProductCost;
+
+      const r = unitRevenuePerHour * periodHours * (units.service || 0);
+      const c = unitCostPerHour * periodHours * (units.service || 0);
       revenue += r;
       variableCosts += c;
       unitBreakdown.service.revenue += r;
       unitBreakdown.service.cost += c;
+      unitBreakdown.service.demandedUnits = Math.round(Object.values(flow.inputs.products || {}).reduce((s, v) => s + v, 0) * (units.service || 0) * periodHours);
     }
 
     if ((units.extraction || 0) > 0) {

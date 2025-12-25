@@ -102,6 +102,11 @@ export default function SectorCard({
   const PRODUCTION_PRODUCT_CONSUMPTION = 0.5;
   const PRODUCTION_OUTPUT_RATE = 1.0;
 
+  const DEFENSE_WHOLESALE_DISCOUNT = 0.8;
+  const DEFENSE_REVENUE_MULTIPLIER = 1.0;
+
+  const isDefense = sectorType === 'Defense';
+
   // Placeholder demand factor for retail/service to ensure slight profitability
   // TODO: replace with growth-based factor: average daily change in unit counts per state
   const applyDemandFactorCost = (baseCost: number) => baseCost / Math.max(1, stateGrowthFactor);
@@ -172,6 +177,30 @@ export default function SectorCard({
     };
   };
 
+  const computeInputCosts = (
+    inputs: { resources: Record<string, number>; products: Record<string, number> },
+    producedProductContext?: string | null,
+    isDefenseSector: boolean = false
+  ) => {
+    const items: Array<{ name: string; amount: number; price: number; costHr: number }> = [];
+    Object.entries(inputs.resources || {}).forEach(([name, amount]) => {
+      const price = commodityPrices?.[name]?.currentPrice ?? 0;
+      items.push({ name, amount, price, costHr: amount * price });
+    });
+    Object.entries(inputs.products || {}).forEach(([name, amount]) => {
+      const price = productPrices?.[name]?.currentPrice ?? PRODUCT_BASE_PRICES[name] ?? 0;
+      let mult = producedProductContext === 'Electricity' && name === 'Electricity' ? 0.1 : 1;
+      
+      // Apply Defense wholesale discount for non-electricity products
+      if (isDefenseSector && name !== 'Electricity') {
+        mult *= DEFENSE_WHOLESALE_DISCOUNT;
+      }
+      
+      items.push({ name, amount, price, costHr: amount * price * mult });
+    });
+    return items;
+  };
+
   // Calculate extraction revenue if commodity prices available
   const getExtractionRevenue = () => {
     if (!extractableResources || extractableResources.length === 0 || !commodityPrices) {
@@ -185,8 +214,55 @@ export default function SectorCard({
   };
 
   const extractionRevenue = getExtractionRevenue();
-  const retailProfit = UNIT_ECONOMICS.retail.baseRevenue - UNIT_ECONOMICS.retail.baseCost;
-  const serviceProfit = UNIT_ECONOMICS.service.baseRevenue - UNIT_ECONOMICS.service.baseCost;
+
+  const retailFlow = formatFlowTotals(unitFlows?.retail, units.retail);
+  const productionFlow = formatFlowTotals(productionFlowRaw || undefined, units.production);
+  const serviceFlow = formatFlowTotals(unitFlows?.service, units.service);
+  const extractionFlow = formatFlowTotals(unitFlows?.extraction, units.extraction || 0);
+
+  // Retail dynamic economics
+  const retailInputItems = computeInputCosts({
+    resources: Object.fromEntries((retailFlow?.inputs.resources || []).map(i => [i.name, i.perUnit])),
+    products: Object.fromEntries((retailFlow?.inputs.products || []).map(i => [i.name, i.perUnit]))
+  }, null, isDefense);
+  
+  const retailCostFromFlow = retailInputItems.reduce((sum, it) => sum + it.costHr, 0);
+  const retailRevenueFromFlow = (retailFlow?.inputs.products || []).reduce((sum, p) => {
+    const price = productPrices?.[p.name]?.currentPrice ?? PRODUCT_BASE_PRICES[p.name] ?? 0;
+    const revMult = isDefense && p.name !== 'Electricity' ? DEFENSE_REVENUE_MULTIPLIER : 1.0;
+    
+    if (isDefense && p.name !== 'Electricity') {
+      // Defense revenue is 1.0x wholesale cost
+      return sum + (price * p.perUnit * revMult);
+    }
+    // Normal retail revenue is based on market price (simplified here to match parent)
+    return sum + (price * p.perUnit);
+  }, 0);
+
+  const retailRevenueHr = retailRevenueFromFlow || UNIT_ECONOMICS.retail.baseRevenue;
+  const retailCostHr = (retailCostFromFlow || UNIT_ECONOMICS.retail.baseCost) / Math.max(1, stateGrowthFactor);
+  const retailProfit = retailRevenueHr - retailCostHr;
+
+  // Service dynamic economics
+  const serviceInputItems = computeInputCosts({
+    resources: Object.fromEntries((serviceFlow?.inputs.resources || []).map(i => [i.name, i.perUnit])),
+    products: Object.fromEntries((serviceFlow?.inputs.products || []).map(i => [i.name, i.perUnit]))
+  }, null, isDefense);
+
+  const serviceCostFromFlow = serviceInputItems.reduce((sum, it) => sum + it.costHr, 0);
+  const serviceRevenueFromFlow = (serviceFlow?.inputs.products || []).reduce((sum, p) => {
+    const price = productPrices?.[p.name]?.currentPrice ?? PRODUCT_BASE_PRICES[p.name] ?? 0;
+    const revMult = isDefense && p.name !== 'Electricity' ? DEFENSE_REVENUE_MULTIPLIER : 1.0;
+
+    if (isDefense && p.name !== 'Electricity') {
+      return sum + (price * p.perUnit * revMult);
+    }
+    return sum + (price * p.perUnit);
+  }, 0);
+
+  const serviceRevenueHr = serviceRevenueFromFlow || UNIT_ECONOMICS.service.baseRevenue;
+  const serviceCostHr = (serviceCostFromFlow || UNIT_ECONOMICS.service.baseCost) / Math.max(1, stateGrowthFactor);
+  const serviceProfit = serviceRevenueHr - serviceCostHr;
 
   const productionOutputRate = producedProduct
     ? productionFlowRaw?.outputs.products?.[producedProduct] ?? PRODUCTION_OUTPUT_RATE
@@ -224,101 +300,6 @@ export default function SectorCard({
   const productionProfit = productionRevenue - productionCost;
   const productionIsDynamic = Boolean(producedProduct);
 
-  const retailFlow = formatFlowTotals(unitFlows?.retail, units.retail);
-  const productionFlow = formatFlowTotals(productionFlowRaw || undefined, units.production);
-  const serviceFlow = formatFlowTotals(unitFlows?.service, units.service);
-  const extractionFlow = formatFlowTotals(unitFlows?.extraction, units.extraction || 0);
-
-  const renderFlowBadges = (flow: ReturnType<typeof formatFlowTotals>) => {
-    if (!flow) return null;
-
-    const inputBadges = [
-      ...flow.inputs.resources.map((i) => ({ name: i.name, perUnit: i.perUnit, total: i.total, kind: 'input' as const })),
-      ...flow.inputs.products.map((i) => ({ name: i.name, perUnit: i.perUnit, total: i.total, kind: 'input' as const })),
-    ];
-    const outputBadges = [
-      ...flow.outputs.resources.map((i) => ({ name: i.name, perUnit: i.perUnit, total: i.total, kind: 'output' as const })),
-      ...flow.outputs.products.map((i) => ({ name: i.name, perUnit: i.perUnit, total: i.total, kind: 'output' as const })),
-    ];
-
-    const maxBadges = 3;
-    const inputsToShow = inputBadges.slice(0, maxBadges);
-    const outputsToShow = outputBadges.slice(0, maxBadges);
-    const inputRemainder = Math.max(0, inputBadges.length - inputsToShow.length);
-    const outputRemainder = Math.max(0, outputBadges.length - outputsToShow.length);
-
-    if (inputsToShow.length === 0 && outputsToShow.length === 0) return null;
-
-    return (
-      <div className="mt-2 flex flex-wrap gap-1">
-        {inputsToShow.map((b) => (
-          <div key={`in-${b.name}`} className="relative group">
-            <span
-              className="px-2 py-0.5 rounded-full text-[10px] bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200"
-            >
-              {b.name} {formatRate(b.perUnit)}/u/hr
-            </span>
-            <TooltipPanel>
-              <div className="text-right font-mono">
-                <p>{Math.round(b.total)}</p>
-              </div>
-            </TooltipPanel>
-          </div>
-        ))}
-        {inputRemainder > 0 && (
-          <span className="px-2 py-0.5 rounded-full text-[10px] bg-amber-50 dark:bg-amber-900/10 text-amber-700 dark:text-amber-300">
-            +{inputRemainder} in
-          </span>
-        )}
-        {outputsToShow.map((b) => (
-          <div key={`out-${b.name}`} className="relative group">
-            <span
-              className="px-2 py-0.5 rounded-full text-[10px] bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-200"
-            >
-              {b.name} {formatRate(b.perUnit)}/u/hr
-            </span>
-            <TooltipPanel>
-              <div className="text-right font-mono">
-                <p>{Math.round(b.total)}</p>
-              </div>
-            </TooltipPanel>
-          </div>
-        ))}
-        {outputRemainder > 0 && (
-          <span className="px-2 py-0.5 rounded-full text-[10px] bg-emerald-50 dark:bg-emerald-900/10 text-emerald-700 dark:text-emerald-300">
-            +{outputRemainder} out
-          </span>
-        )}
-      </div>
-    );
-  };
-
-  const formatCurrency2 = (value: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(value);
-  };
-
-  const computeInputCosts = (
-    inputs: { resources: Record<string, number>; products: Record<string, number> },
-    producedProductContext?: string | null
-  ) => {
-    const items: Array<{ name: string; amount: number; price: number; costHr: number }> = [];
-    Object.entries(inputs.resources || {}).forEach(([name, amount]) => {
-      const price = commodityPrices?.[name]?.currentPrice ?? 0;
-      items.push({ name, amount, price, costHr: amount * price });
-    });
-    Object.entries(inputs.products || {}).forEach(([name, amount]) => {
-      const price = productPrices?.[name]?.currentPrice ?? PRODUCT_BASE_PRICES[name] ?? 0;
-      const mult = producedProductContext === 'Electricity' && name === 'Electricity' ? 0.1 : 1;
-      items.push({ name, amount, price, costHr: amount * price * mult });
-    });
-    return items;
-  };
-
   const extractionInputItemsCalc = computeInputCosts({
     resources: Object.fromEntries((extractionFlow?.inputs.resources || []).map(i => [i.name, i.perUnit])),
     products: Object.fromEntries((extractionFlow?.inputs.products || []).map(i => [i.name, i.perUnit]))
@@ -331,7 +312,7 @@ export default function SectorCard({
   const extractionRevenueWithBase = extractionBasePrice + extractionRevenue;
   const extractionProfit = extractionRevenueWithBase - extractionCost;
 
-  const renderProductionFlowBadges = (flow: ReturnType<typeof formatFlowTotals>) => {
+  const renderFlowBadges = (flow: ReturnType<typeof formatFlowTotals>) => {
     if (!flow) return null;
 
     const inputs = [
@@ -343,9 +324,6 @@ export default function SectorCard({
       ...flow.outputs.products.map((i) => ({ name: i.name, perUnit: i.perUnit })),
     ];
 
-    const unitsDemanded = Math.round(flow.inputs.products.reduce((sum, p) => sum + p.total, 0));
-    const unitsProduced = Math.round(flow.outputs.products.reduce((sum, p) => sum + p.total, 0));
-
     const maxBadges = 3;
     const inputsToShow = inputs.slice(0, maxBadges);
     const outputsToShow = outputs.slice(0, maxBadges);
@@ -355,22 +333,12 @@ export default function SectorCard({
     return (
       <div className="mt-2 flex flex-wrap gap-1">
         {inputsToShow.map((b) => (
-          <div key={`in-${b.name}`} className="relative group">
-            <span
-              tabIndex={0}
-              className="px-2 py-0.5 rounded-full text-[10px] bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 focus:outline-none"
-            >
-              {b.name} {formatRate(b.perUnit)}/u/hr
-            </span>
-            <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 bottom-full mb-2 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-200 z-50">
-              <div className="rounded-md px-3 py-2 text-xs shadow-xl border border-gray-700 bg-gray-900 text-white min-w-[120px] text-right font-mono">
-                <p>{formatCurrency2(productionRevenue)}</p>
-                <p>{formatCurrency2(productionCost)}</p>
-                <p>{unitsDemanded}</p>
-                <p>{unitsProduced}</p>
-              </div>
-            </div>
-          </div>
+          <span
+            key={`in-${b.name}`}
+            className="px-2 py-0.5 rounded-full text-[10px] bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200"
+          >
+            {b.name} {formatRate(b.perUnit)}/u/hr
+          </span>
         ))}
         {inputRemainder > 0 && (
           <span className="px-2 py-0.5 rounded-full text-[10px] bg-amber-50 dark:bg-amber-900/10 text-amber-700 dark:text-amber-300">
@@ -378,22 +346,12 @@ export default function SectorCard({
           </span>
         )}
         {outputsToShow.map((b) => (
-          <div key={`out-${b.name}`} className="relative group">
-            <span
-              tabIndex={0}
-              className="px-2 py-0.5 rounded-full text-[10px] bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-200 focus:outline-none"
-            >
-              {b.name} {formatRate(b.perUnit)}/u/hr
-            </span>
-            <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 bottom-full mb-2 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-200 z-50">
-              <div className="rounded-md px-3 py-2 text-xs shadow-xl border border-gray-700 bg-gray-900 text-white min-w-[120px] text-right font-mono">
-                <p>{formatCurrency2(productionRevenue)}</p>
-                <p>{formatCurrency2(productionCost)}</p>
-                <p>{unitsDemanded}</p>
-                <p>{unitsProduced}</p>
-              </div>
-            </div>
-          </div>
+          <span
+            key={`out-${b.name}`}
+            className="px-2 py-0.5 rounded-full text-[10px] bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-200"
+          >
+            {b.name} {formatRate(b.perUnit)}/u/hr
+          </span>
         ))}
         {outputRemainder > 0 && (
           <span className="px-2 py-0.5 rounded-full text-[10px] bg-emerald-50 dark:bg-emerald-900/10 text-emerald-700 dark:text-emerald-300">
@@ -511,22 +469,16 @@ export default function SectorCard({
           <TooltipPanel>
             <FinancialTooltip
               title="Retail Financials"
-              revenueHr={UNIT_ECONOMICS.retail.baseRevenue}
-              costHr={applyDemandFactorCost(UNIT_ECONOMICS.retail.baseCost)}
-              profitHr={UNIT_ECONOMICS.retail.baseRevenue - applyDemandFactorCost(UNIT_ECONOMICS.retail.baseCost)}
+              revenueHr={retailRevenueHr}
+              costHr={retailCostHr}
+              profitHr={retailProfit}
               outputSoldUnits={Math.round((retailFlow?.inputs.products || []).reduce((s, p) => s + p.total, 0))}
-              costItems={computeInputCosts({
-                resources: Object.fromEntries((retailFlow?.inputs.resources || []).map(i => [i.name, i.perUnit])),
-                products: Object.fromEntries((retailFlow?.inputs.products || []).map(i => [i.name, i.perUnit]))
-              }).map(it => ({ name: it.name, costHr: it.costHr }))}
+              costItems={retailInputItems.map(it => ({ name: it.name, costHr: it.costHr }))}
               breakdown={[
-                { label: 'Base', value: UNIT_ECONOMICS.retail.baseRevenue },
-                { label: 'Price × Output', value: (retailFlow?.inputs.products || []).reduce((s, p) => {
-                  const price = productPrices?.[p.name]?.currentPrice ?? PRODUCT_BASE_PRICES[p.name] ?? 0;
-                  return s + price * p.perUnit;
-                }, 0) },
+                { label: 'Base', value: isDefense ? 0 : UNIT_ECONOMICS.retail.baseRevenue },
+                { label: isDefense ? 'Cost-Plus Revenue' : 'Price × Output', value: retailRevenueFromFlow },
               ]}
-              note={`Demand-based cost factor applied: ÷ Growth ${stateGrowthFactor.toFixed(2)}x (1 + 25% × sector growth avg)`}
+              note={isDefense ? 'Defense sector: 1.0 consumption, 0.8x wholesale price, 1.0x cost revenue' : `Demand-based cost factor applied: ÷ Growth ${stateGrowthFactor.toFixed(2)}x (1 + 25% × sector growth avg)`}
             />
           </TooltipPanel>
         </div>
@@ -594,22 +546,16 @@ export default function SectorCard({
           <TooltipPanel>
             <FinancialTooltip
               title="Service Financials"
-              revenueHr={UNIT_ECONOMICS.service.baseRevenue}
-              costHr={applyDemandFactorCost(UNIT_ECONOMICS.service.baseCost)}
-              profitHr={UNIT_ECONOMICS.service.baseRevenue - applyDemandFactorCost(UNIT_ECONOMICS.service.baseCost)}
+              revenueHr={serviceRevenueHr}
+              costHr={serviceCostHr}
+              profitHr={serviceProfit}
               outputSoldUnits={Math.round((serviceFlow?.inputs.products || []).reduce((s, p) => s + p.total, 0))}
-              costItems={computeInputCosts({
-                resources: Object.fromEntries((serviceFlow?.inputs.resources || []).map(i => [i.name, i.perUnit])),
-                products: Object.fromEntries((serviceFlow?.inputs.products || []).map(i => [i.name, i.perUnit]))
-              }).map(it => ({ name: it.name, costHr: it.costHr }))}
+              costItems={serviceInputItems.map(it => ({ name: it.name, costHr: it.costHr }))}
               breakdown={[
-                { label: 'Base', value: UNIT_ECONOMICS.service.baseRevenue },
-                { label: 'Price × Output', value: (serviceFlow?.inputs.products || []).reduce((s, p) => {
-                  const price = productPrices?.[p.name]?.currentPrice ?? PRODUCT_BASE_PRICES[p.name] ?? 0;
-                  return s + price * p.perUnit;
-                }, 0) },
+                { label: 'Base', value: isDefense ? 0 : UNIT_ECONOMICS.service.baseRevenue },
+                { label: isDefense ? 'Cost-Plus Revenue' : 'Price × Output', value: serviceRevenueFromFlow },
               ]}
-              note={`Demand-based cost factor applied: ÷ Growth ${stateGrowthFactor.toFixed(2)}x (1 + 25% × sector growth avg)`}
+              note={isDefense ? 'Defense sector: 1.0 consumption, 0.8x wholesale price, 1.0x cost revenue' : `Demand-based cost factor applied: ÷ Growth ${stateGrowthFactor.toFixed(2)}x (1 + 25% × sector growth avg)`}
             />
           </TooltipPanel>
         </div>
@@ -676,7 +622,7 @@ export default function SectorCard({
             ) : (
               <div className="text-right font-mono">
                 <p>0</p>
-                <p>{formatCurrency2(0)}</p>
+                <p>{formatCurrency(0)}</p>
                 <p>0</p>
                 <p>0</p>
               </div>
@@ -696,7 +642,7 @@ export default function SectorCard({
           {units.production > 0 && productionFlow && (
             <div>
               <p className="text-xs text-gray-500 dark:text-gray-400">Production flows</p>
-              {renderProductionFlowBadges(productionFlow)}
+              {renderFlowBadges(productionFlow)}
             </div>
           )}
           {units.service > 0 && serviceFlow && (

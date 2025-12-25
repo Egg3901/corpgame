@@ -148,6 +148,23 @@ const PRODUCTION_PRODUCT_CONSUMPTION = 0.5;
 const PRODUCTION_OUTPUT_RATE = 1.0;
 const EXTRACTION_OUTPUT_RATE = 2.0;
 
+// Defense sector constants (must match backend)
+const DEFENSE_WHOLESALE_DISCOUNT = 0.8;
+const DEFENSE_REVENUE_ON_COST_MULTIPLIER = 1.0;
+const RETAIL_PRODUCT_CONSUMPTION = 2.0;
+const SERVICE_PRODUCT_CONSUMPTION = 1.5;
+const SERVICE_ELECTRICITY_CONSUMPTION = 0.5;
+const RETAIL_WHOLESALE_DISCOUNT = 0.995;
+const SERVICE_WHOLESALE_DISCOUNT = 0.9;
+const RETAIL_MIN_GROSS_MARGIN_PCT = 0.1;
+const SERVICE_MIN_GROSS_MARGIN_PCT = 0.1;
+const UNIT_LABOR_COSTS = {
+  retail: 200,
+  production: 400,
+  service: 150,
+  extraction: 250,
+};
+
 // Sectors that can build extraction units and what they can extract (must match backend SECTOR_EXTRACTION)
 const SECTORS_CAN_EXTRACT: Record<string, string[] | null> = {
   'Technology': null,
@@ -355,26 +372,52 @@ export default function StateDetailPage() {
     };
   };
 
-  const calculateSectorUnitProfit = (
+  const getRetailServiceUnitEconomics = (
     sector: string,
-    unitType: 'retail' | 'production' | 'service' | 'extraction'
+    unitType: 'retail' | 'service'
   ) => {
-    if (unitType === 'production') {
-      const economics = getProductionUnitEconomics(sector);
-      return (economics.unitRevenuePerHour - economics.unitCostPerHour) * DISPLAY_PERIOD_HOURS;
-    }
-    if (unitType === 'extraction') {
-      const extractable = SECTORS_CAN_EXTRACT[sector];
-      if (extractable && extractable.length > 0 && commodityPrices[extractable[0]]) {
-        const revenue =
-          commodityPrices[extractable[0]].currentPrice * EXTRACTION_OUTPUT_RATE * DISPLAY_PERIOD_HOURS;
-        const cost = UNIT_ECONOMICS.extraction.baseCost * DISPLAY_PERIOD_HOURS;
-        return revenue - cost;
+    const laborCost = UNIT_LABOR_COSTS[unitType];
+    const productDemands = SECTOR_PRODUCT_DEMANDS[sector] || [];
+    
+    let totalProductCost = 0;
+    let revenueRaw = 0;
+    
+    for (const product of productDemands) {
+      const productPrice = productPrices[product]?.currentPrice ?? PRODUCT_BASE_PRICES[product] ?? 0;
+      let consumedAmount = unitType === 'retail' ? RETAIL_PRODUCT_CONSUMPTION : (product === 'Electricity' ? SERVICE_ELECTRICITY_CONSUMPTION : SERVICE_PRODUCT_CONSUMPTION);
+      
+      // Defense sector overrides
+      if (sector === 'Defense') {
+        if (unitType === 'retail' || product !== 'Electricity') {
+          consumedAmount = 1.0;
+        }
+      }
+
+      let discount = unitType === 'retail' ? RETAIL_WHOLESALE_DISCOUNT : (product === 'Electricity' ? 1.0 : SERVICE_WHOLESALE_DISCOUNT);
+      
+      if (sector === 'Defense' && (unitType === 'retail' || product !== 'Electricity')) {
+        discount = DEFENSE_WHOLESALE_DISCOUNT;
+      }
+
+      const productCost = productPrice * consumedAmount * discount;
+      totalProductCost += productCost;
+
+      if (sector === 'Defense' && (unitType === 'retail' || product !== 'Electricity')) {
+        revenueRaw += productCost * DEFENSE_REVENUE_ON_COST_MULTIPLIER;
+      } else {
+        revenueRaw += productPrice * consumedAmount;
       }
     }
-    return (
-      UNIT_ECONOMICS[unitType].baseRevenue - UNIT_ECONOMICS[unitType].baseCost
-    ) * DISPLAY_PERIOD_HOURS;
+
+    const minGrossMargin = unitType === 'retail' ? RETAIL_MIN_GROSS_MARGIN_PCT : SERVICE_MIN_GROSS_MARGIN_PCT;
+    const minRevenue = totalProductCost * (1 + minGrossMargin);
+    const unitRevenuePerHour = Math.max(revenueRaw, minRevenue);
+    const unitCostPerHour = laborCost + totalProductCost;
+
+    return {
+      unitRevenuePerHour,
+      unitCostPerHour,
+    };
   };
 
   useEffect(() => {
@@ -523,8 +566,37 @@ export default function StateDetailPage() {
     return hourly * DISPLAY_PERIOD_HOURS;
   };
 
-  const calculateUnitProfit = (unitType: 'retail' | 'production' | 'service' | 'extraction') => {
-    return calculateUnitRevenue(unitType) - calculateUnitCost(unitType);
+  const calculateSectorUnitProfit = (
+    sector: string,
+    unitType: 'retail' | 'production' | 'service' | 'extraction'
+  ) => {
+    if (unitType === 'production') {
+      const { unitRevenuePerHour, unitCostPerHour } = getProductionUnitEconomics(sector);
+      return (unitRevenuePerHour - unitCostPerHour) * DISPLAY_PERIOD_HOURS;
+    }
+
+    if (unitType === 'retail' || unitType === 'service') {
+      const { unitRevenuePerHour, unitCostPerHour } = getRetailServiceUnitEconomics(sector, unitType);
+      return (unitRevenuePerHour - unitCostPerHour) * DISPLAY_PERIOD_HOURS;
+    }
+
+    if (unitType === 'extraction') {
+      const extractableResources = SECTORS_CAN_EXTRACT[sector];
+      let unitRev = 0;
+      if (extractableResources && extractableResources.length > 0) {
+        const resource = extractableResources[0];
+        if (commodityPrices[resource]) {
+          unitRev = commodityPrices[resource].currentPrice * EXTRACTION_OUTPUT_RATE;
+        }
+      }
+      if (unitRev === 0) {
+        unitRev = UNIT_ECONOMICS.extraction.baseRevenue;
+      }
+      const unitCost = UNIT_ECONOMICS.extraction.baseCost;
+      return (unitRev - unitCost) * DISPLAY_PERIOD_HOURS;
+    }
+
+    return 0;
   };
 
   // Get total units for a market entry
@@ -535,6 +607,44 @@ export default function StateDetailPage() {
   // Get sectors user is already in
   const userSectorsInState = stateData?.user_market_entries?.map((e) => e.sector_type) || [];
   const availableSectors = stateData?.sectors?.filter((s) => !userSectorsInState.includes(s)) || [];
+
+  const getRetailServiceUnitEconomicsForDisplay = (unitType: 'retail' | 'service') => {
+    if (!selectedSector) return { unitRevenue: 0, unitCost: 0 };
+    const { unitRevenuePerHour, unitCostPerHour } = getRetailServiceUnitEconomics(selectedSector, unitType);
+    return {
+      unitRevenue: unitRevenuePerHour * DISPLAY_PERIOD_HOURS,
+      unitCost: unitCostPerHour * DISPLAY_PERIOD_HOURS,
+    };
+  };
+
+  const getProductionUnitEconomicsForDisplay = () => {
+    if (!selectedSector) return { unitRevenue: 0, unitCost: 0 };
+    const { unitRevenuePerHour, unitCostPerHour } = getProductionUnitEconomics(selectedSector);
+    return {
+      unitRevenue: unitRevenuePerHour * DISPLAY_PERIOD_HOURS,
+      unitCost: unitCostPerHour * DISPLAY_PERIOD_HOURS,
+    };
+  };
+
+  const getExtractionUnitEconomicsForDisplay = () => {
+    if (!selectedSector) return { unitRevenue: 0, unitCost: 0 };
+    const extractableResources = SECTORS_CAN_EXTRACT[selectedSector];
+    let unitRev = 0;
+    if (extractableResources && extractableResources.length > 0) {
+      const resource = extractableResources[0];
+      if (commodityPrices[resource]) {
+        unitRev = commodityPrices[resource].currentPrice * EXTRACTION_OUTPUT_RATE;
+      }
+    }
+    if (unitRev === 0) {
+      unitRev = UNIT_ECONOMICS.extraction.baseRevenue;
+    }
+    const unitCost = UNIT_ECONOMICS.extraction.baseCost;
+    return {
+      unitRevenue: unitRev * DISPLAY_PERIOD_HOURS,
+      unitCost: unitCost * DISPLAY_PERIOD_HOURS,
+    };
+  };
 
   if (loading) {
     return (
@@ -657,10 +767,70 @@ export default function StateDetailPage() {
                         <p className="text-sm text-emerald-800 dark:text-emerald-200 font-medium mb-2">
                           Enter {state.name} {selectedSector} Market
                         </p>
-                        <div className="text-xs text-emerald-700 dark:text-emerald-300 space-y-1">
+                        <div className="text-xs text-emerald-700 dark:text-emerald-300 space-y-2">
                           <p>Cost: {formatCurrency(MARKET_ENTRY_COST)} capital + 1 action</p>
-                          <p>Your capital: {formatCurrency(user_corporation.capital)}</p>
-                          <p>Your actions: {userActions}</p>
+                          
+                          <div className="grid grid-cols-2 gap-4 pt-2 border-t border-emerald-200/50 dark:border-emerald-800/50">
+                            <div>
+                              <p className="font-semibold text-emerald-900 dark:text-emerald-100 mb-1">Retail Unit</p>
+                              {(() => {
+                                const { unitRevenue, unitCost } = getRetailServiceUnitEconomicsForDisplay('retail');
+                                return (
+                                  <>
+                                    <p>Revenue: {formatCurrency(unitRevenue)}</p>
+                                    <p>Cost: {formatCurrency(unitCost)}</p>
+                                    <p className="font-medium">Profit: {formatCurrency(unitRevenue - unitCost)}</p>
+                                  </>
+                                );
+                              })()}
+                            </div>
+                            <div>
+                              <p className="font-semibold text-emerald-900 dark:text-emerald-100 mb-1">Production Unit</p>
+                              {(() => {
+                                const { unitRevenue, unitCost } = getProductionUnitEconomicsForDisplay();
+                                return (
+                                  <>
+                                    <p>Revenue: {formatCurrency(unitRevenue)}</p>
+                                    <p>Cost: {formatCurrency(unitCost)}</p>
+                                    <p className="font-medium">Profit: {formatCurrency(unitRevenue - unitCost)}</p>
+                                  </>
+                                );
+                              })()}
+                            </div>
+                            <div>
+                              <p className="font-semibold text-emerald-900 dark:text-emerald-100 mb-1">Service Unit</p>
+                              {(() => {
+                                const { unitRevenue, unitCost } = getRetailServiceUnitEconomicsForDisplay('service');
+                                return (
+                                  <>
+                                    <p>Revenue: {formatCurrency(unitRevenue)}</p>
+                                    <p>Cost: {formatCurrency(unitCost)}</p>
+                                    <p className="font-medium">Profit: {formatCurrency(unitRevenue - unitCost)}</p>
+                                  </>
+                                );
+                              })()}
+                            </div>
+                            {sectorCanExtract(selectedSector) && (
+                              <div>
+                                <p className="font-semibold text-emerald-900 dark:text-emerald-100 mb-1">Extraction Unit</p>
+                                {(() => {
+                                  const { unitRevenue, unitCost } = getExtractionUnitEconomicsForDisplay();
+                                  return (
+                                    <>
+                                      <p>Revenue: {formatCurrency(unitRevenue)}</p>
+                                      <p>Cost: {formatCurrency(unitCost)}</p>
+                                      <p className="font-medium">Profit: {formatCurrency(unitRevenue - unitCost)}</p>
+                                    </>
+                                  );
+                                })()}
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="pt-2 border-t border-emerald-200/50 dark:border-emerald-800/50">
+                            <p>Your capital: {formatCurrency(user_corporation.capital)}</p>
+                            <p>Your actions: {userActions}</p>
+                          </div>
                         </div>
                       </div>
                     )}
@@ -968,7 +1138,7 @@ export default function StateDetailPage() {
                         Cost: <span className="text-red-600 dark:text-red-400">{formatCurrency(calculateUnitCost('retail'))}</span>
                       </p>
                       <p className="font-semibold text-gray-900 dark:text-white">
-                        Profit: <span className="text-emerald-600 dark:text-emerald-400">{formatCurrency(calculateUnitProfit('retail'))}</span>
+                        Profit: <span className="text-emerald-600 dark:text-emerald-400">{formatCurrency(calculateUnitRevenue('retail') - calculateUnitCost('retail'))}</span>
                       </p>
                     </div>
                   </div>
@@ -1006,7 +1176,7 @@ export default function StateDetailPage() {
                         Cost: <span className="text-red-600 dark:text-red-400">{formatCurrency(calculateUnitCost('service'))}</span>
                       </p>
                       <p className="font-semibold text-gray-900 dark:text-white">
-                        Profit: <span className="text-emerald-600 dark:text-emerald-400">{formatCurrency(calculateUnitProfit('service'))}</span>
+                        Profit: <span className="text-emerald-600 dark:text-emerald-400">{formatCurrency(calculateUnitRevenue('service') - calculateUnitCost('service'))}</span>
                       </p>
                     </div>
                   </div>
