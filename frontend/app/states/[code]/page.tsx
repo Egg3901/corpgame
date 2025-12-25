@@ -67,7 +67,7 @@ const UNIT_ECONOMICS = {
   retail: { baseRevenue: 500, baseCost: 300 },
   production: { baseRevenue: 800, baseCost: 600 },
   service: { baseRevenue: 400, baseCost: 200 },
-  extraction: { baseRevenue: 1000, baseCost: 700 },  // High revenue, high cost
+  extraction: { baseRevenue: 400, baseCost: 700 },
 };
 
 // Sector to Resource mapping (must match backend)

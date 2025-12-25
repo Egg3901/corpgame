@@ -185,7 +185,6 @@ export default function SectorCard({
   };
 
   const extractionRevenue = getExtractionRevenue();
-  const extractionProfit = extractionRevenue - UNIT_ECONOMICS.extraction.baseCost;
   const retailProfit = UNIT_ECONOMICS.retail.baseRevenue - UNIT_ECONOMICS.retail.baseCost;
   const serviceProfit = UNIT_ECONOMICS.service.baseRevenue - UNIT_ECONOMICS.service.baseCost;
 
@@ -316,6 +315,14 @@ export default function SectorCard({
     });
     return items;
   };
+
+  const extractionInputItemsCalc = computeInputCosts({
+    resources: Object.fromEntries((extractionFlow?.inputs.resources || []).map(i => [i.name, i.perUnit])),
+    products: Object.fromEntries((extractionFlow?.inputs.products || []).map(i => [i.name, i.perUnit]))
+  });
+  const extractionSupplyCost = extractionInputItemsCalc.reduce((s, it) => s + it.costHr, 0);
+  const extractionCost = UNIT_ECONOMICS.extraction.baseCost + extractionSupplyCost;
+  const extractionProfit = extractionRevenue - extractionCost;
 
   const renderProductionFlowBadges = (flow: ReturnType<typeof formatFlowTotals>) => {
     if (!flow) return null;
@@ -626,7 +633,7 @@ export default function SectorCard({
               <FinancialTooltip
                 title="Extraction Financials"
                 revenueHr={extractionRevenue}
-                costHr={UNIT_ECONOMICS.extraction.baseCost}
+                costHr={extractionCost}
                 profitHr={extractionProfit}
                 outputSoldUnits={Math.round((extractionFlow?.outputs.resources || []).reduce((s, r) => s + r.total, 0))}
                 costItems={[

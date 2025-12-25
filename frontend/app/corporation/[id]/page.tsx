@@ -120,7 +120,7 @@ const UNIT_ECONOMICS = {
   retail: { baseRevenue: 500, baseCost: 300 },
   production: { baseRevenue: 800, baseCost: 600 },
   service: { baseRevenue: 400, baseCost: 200 },
-  extraction: { baseRevenue: 1000, baseCost: 700 },
+  extraction: { baseRevenue: 400, baseCost: 700 },
 };
 const DISPLAY_PERIOD_HOURS = 96;
 
