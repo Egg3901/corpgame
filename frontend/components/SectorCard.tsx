@@ -488,38 +488,11 @@ export default function SectorCard({
             </button>
           )}
           <TooltipPanel>
-            <div className="space-y-2">
-              <p className="font-medium">Retail Unit Economics</p>
-              <p>Revenue: {formatCurrency(UNIT_ECONOMICS.retail.baseRevenue)}/hr</p>
-              <p>Cost: {formatCurrency(UNIT_ECONOMICS.retail.baseCost)}/hr</p>
-              <p className="text-emerald-400">Profit: {formatCurrency(retailProfit)}/hr</p>
-              {retailFlow && (retailFlow.inputs.products.length > 0 || retailFlow.inputs.resources.length > 0) && (
-                <div className="mt-2 grid md:grid-cols-2 gap-3">
-                  <div>
-                    <p className="text-gray-200 mb-1">Consumes</p>
-                    {retailFlow.inputs.resources.map((r) => (
-                      <p key={`retail-in-r-${r.name}`} className="text-amber-300">
-                        {r.name}: {formatRate(r.perUnit)}/u/hr ({formatRate(r.total)}/hr)
-                      </p>
-                    ))}
-                    {retailFlow.inputs.products.map((p) => (
-                      <p key={`retail-in-p-${p.name}`} className="text-amber-300">
-                        {p.name}: {formatRate(p.perUnit)}/u/hr ({formatRate(p.total)}/hr)
-                      </p>
-                    ))}
-                  </div>
-                  <div>
-                    <p className="text-gray-200 mb-1">Input Costs</p>
-                    {computeInputCosts({ resources: Object.fromEntries(retailFlow.inputs.resources.map(i => [i.name, i.perUnit])), products: Object.fromEntries(retailFlow.inputs.products.map(i => [i.name, i.perUnit])) }).map((it) => (
-                      <div key={`retail-cost-${it.name}`} className="flex justify-between">
-                        <span className="text-gray-300">{it.name}</span>
-                        <span className="font-mono text-red-300">{formatCurrency2(it.costHr)}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-              <p className="text-gray-400 text-[10px] mt-1">Revenue is flat (no state multiplier)</p>
+            <div className="text-right font-mono">
+              <p>{formatCurrency2(UNIT_ECONOMICS.retail.baseRevenue)}</p>
+              <p>{formatCurrency2(UNIT_ECONOMICS.retail.baseCost)}</p>
+              <p>{Math.round((retailFlow?.inputs.products || []).reduce((s, p) => s + p.total, 0))}</p>
+              <p>0</p>
             </div>
           </TooltipPanel>
         </div>
@@ -544,107 +517,11 @@ export default function SectorCard({
             </button>
           )}
           <TooltipPanel>
-            <div className="space-y-2">
-              <p className="font-medium">Production Unit Economics</p>
-              {productionIsDynamic && producedProduct ? (
-                <>
-                  <p>
-                    Revenue: {productionOutputRate} u/hr @ {formatCurrency(productionProductPrice)}/unit
-                  </p>
-                  <p className="text-gray-400">= {formatCurrency(productionRevenue)}/hr</p>
-                  <p>Cost: {formatCurrency(productionCost)}/hr</p>
-                  <p className="text-emerald-400">Profit: {formatCurrency(productionProfit)}/hr</p>
-                  <p className="text-emerald-400 mt-1">Produces: {producedProduct}</p>
-                  {producedProduct === 'Electricity' && (
-                    <p className="text-amber-300 text-[10px]">
-                      Electricity input cost uses 0.1x multiplier for generation
-                    </p>
-                  )}
-                  {productionFlow && (productionFlow.inputs.products.length > 0 || productionFlow.inputs.resources.length > 0) && (
-                    <div className="mt-2 grid md:grid-cols-2 gap-3">
-                      <div>
-                        <p className="text-gray-200 mb-1">Consumes</p>
-                        {productionFlow.inputs.resources.map((r) => (
-                          <p key={`prod-in-r-${r.name}`} className="text-amber-300">
-                            {r.name}: {formatRate(r.perUnit)}/u/hr ({formatRate(r.total)}/hr)
-                          </p>
-                        ))}
-                        {productionFlow.inputs.products.map((p) => (
-                          <p key={`prod-in-p-${p.name}`} className="text-amber-300">
-                            {p.name}: {formatRate(p.perUnit)}/u/hr ({formatRate(p.total)}/hr)
-                          </p>
-                        ))}
-                      </div>
-                      <div>
-                        <p className="text-gray-200 mb-1">Input Costs</p>
-                        {computeInputCosts({ resources: Object.fromEntries(productionFlow.inputs.resources.map(i => [i.name, i.perUnit])), products: Object.fromEntries(productionFlow.inputs.products.map(i => [i.name, i.perUnit])) }, producedProduct).map((it) => (
-                          <div key={`prod-cost-${it.name}`} className="flex justify-between">
-                            <span className="text-gray-300">{it.name}</span>
-                            <span className="font-mono text-red-300">{formatCurrency2(it.costHr)}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  {productionFlow && (productionFlow.outputs.products.length > 0 || productionFlow.outputs.resources.length > 0) && (
-                    <div className="mt-2">
-                      <p className="text-gray-200">Produces:</p>
-                      {productionFlow.outputs.resources.map((r) => (
-                        <p key={`prod-out-r-${r.name}`} className="text-emerald-300">
-                          {r.name}: {formatRate(r.perUnit)}/unit/hr ({formatRate(r.total)}/hr)
-                        </p>
-                      ))}
-                      {productionFlow.outputs.products.map((p) => (
-                        <p key={`prod-out-p-${p.name}`} className="text-emerald-300">
-                          {p.name}: {formatRate(p.perUnit)}/unit/hr ({formatRate(p.total)}/hr)
-                        </p>
-                      ))}
-                    </div>
-                  )}
-                  <p className="text-gray-400 text-[10px] mt-1">Revenue based on product prices (no state multiplier)</p>
-                </>
-              ) : (
-                <>
-                  <p>Revenue: {formatCurrency(UNIT_ECONOMICS.production.baseRevenue)}/hr</p>
-                  <p>Cost: {formatCurrency(UNIT_ECONOMICS.production.baseCost)}/hr</p>
-                  <p className="text-emerald-400">
-                    Profit: {formatCurrency(UNIT_ECONOMICS.production.baseRevenue - UNIT_ECONOMICS.production.baseCost)}/hr
-                  </p>
-                  {producedProduct && <p className="text-emerald-400 mt-1">Produces: {producedProduct}</p>}
-                  {requiredResource && <p className="text-amber-400 mt-1">Requires: {requiredResource}</p>}
-                  {productionFlow && (productionFlow.inputs.products.length > 0 || productionFlow.inputs.resources.length > 0) && (
-                    <div className="mt-2">
-                      <p className="text-gray-200">Consumes:</p>
-                      {productionFlow.inputs.resources.map((r) => (
-                        <p key={`prod-in-r-${r.name}`} className="text-amber-300">
-                          {r.name}: {formatRate(r.perUnit)}/unit/hr ({formatRate(r.total)}/hr)
-                        </p>
-                      ))}
-                      {productionFlow.inputs.products.map((p) => (
-                        <p key={`prod-in-p-${p.name}`} className="text-amber-300">
-                          {p.name}: {formatRate(p.perUnit)}/unit/hr ({formatRate(p.total)}/hr)
-                        </p>
-                      ))}
-                    </div>
-                  )}
-                  {productionFlow && (productionFlow.outputs.products.length > 0 || productionFlow.outputs.resources.length > 0) && (
-                    <div className="mt-2">
-                      <p className="text-gray-200">Produces:</p>
-                      {productionFlow.outputs.resources.map((r) => (
-                        <p key={`prod-out-r-${r.name}`} className="text-emerald-300">
-                          {r.name}: {formatRate(r.perUnit)}/unit/hr ({formatRate(r.total)}/hr)
-                        </p>
-                      ))}
-                      {productionFlow.outputs.products.map((p) => (
-                        <p key={`prod-out-p-${p.name}`} className="text-emerald-300">
-                          {p.name}: {formatRate(p.perUnit)}/unit/hr ({formatRate(p.total)}/hr)
-                        </p>
-                      ))}
-                    </div>
-                  )}
-                  <p className="text-gray-400 text-[10px] mt-1">Revenue is flat (no state multiplier)</p>
-                </>
-              )}
+            <div className="text-right font-mono">
+              <p>{formatCurrency2(productionRevenue)}</p>
+              <p>{formatCurrency2(productionCost)}</p>
+              <p>{Math.round((productionFlow?.inputs.products || []).reduce((s, p) => s + p.total, 0))}</p>
+              <p>{Math.round(((productionFlow?.outputs.products || []).reduce((s, p) => s + p.total, 0) + (productionFlow?.outputs.resources || []).reduce((s, r) => s + r.total, 0)))}</p>
             </div>
           </TooltipPanel>
         </div>
@@ -669,38 +546,11 @@ export default function SectorCard({
             </button>
           )}
           <TooltipPanel>
-            <div className="space-y-2">
-              <p className="font-medium">Service Unit Economics</p>
-              <p>Revenue: {formatCurrency(UNIT_ECONOMICS.service.baseRevenue)}/hr</p>
-              <p>Cost: {formatCurrency(UNIT_ECONOMICS.service.baseCost)}/hr</p>
-              <p className="text-emerald-400">Profit: {formatCurrency(serviceProfit)}/hr</p>
-              {serviceFlow && (serviceFlow.inputs.products.length > 0 || serviceFlow.inputs.resources.length > 0) && (
-                <div className="mt-2 grid md:grid-cols-2 gap-3">
-                  <div>
-                    <p className="text-gray-200 mb-1">Consumes</p>
-                    {serviceFlow.inputs.resources.map((r) => (
-                      <p key={`svc-in-r-${r.name}`} className="text-amber-300">
-                        {r.name}: {formatRate(r.perUnit)}/u/hr ({formatRate(r.total)}/hr)
-                      </p>
-                    ))}
-                    {serviceFlow.inputs.products.map((p) => (
-                      <p key={`svc-in-p-${p.name}`} className="text-amber-300">
-                        {p.name}: {formatRate(p.perUnit)}/u/hr ({formatRate(p.total)}/hr)
-                      </p>
-                    ))}
-                  </div>
-                  <div>
-                    <p className="text-gray-200 mb-1">Input Costs</p>
-                    {computeInputCosts({ resources: Object.fromEntries(serviceFlow.inputs.resources.map(i => [i.name, i.perUnit])), products: Object.fromEntries(serviceFlow.inputs.products.map(i => [i.name, i.perUnit])) }).map((it) => (
-                      <div key={`svc-cost-${it.name}`} className="flex justify-between">
-                        <span className="text-gray-300">{it.name}</span>
-                        <span className="font-mono text-red-300">{formatCurrency2(it.costHr)}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-              <p className="text-gray-400 text-[10px] mt-1">Revenue is flat (no state multiplier)</p>
+            <div className="text-right font-mono">
+              <p>{formatCurrency2(UNIT_ECONOMICS.service.baseRevenue)}</p>
+              <p>{formatCurrency2(UNIT_ECONOMICS.service.baseCost)}</p>
+              <p>{Math.round((serviceFlow?.inputs.products || []).reduce((s, p) => s + p.total, 0))}</p>
+              <p>0</p>
             </div>
           </TooltipPanel>
         </div>
@@ -745,69 +595,20 @@ export default function SectorCard({
             </>
           )}
           <TooltipPanel>
-            <div className="space-y-2">
+            <div className="text-right font-mono">
               {canExtract ? (
                 <>
-                  <p className="font-medium">Extraction Unit Economics</p>
-                  {commodityPrices && extractableResources && extractableResources.length > 0 ? (
-                    <>
-                      <p>Revenue: {EXTRACTION_OUTPUT_RATE} × {formatCurrency(commodityPrices[extractableResources[0]]?.currentPrice || 0)}/unit</p>
-                      <p className="text-gray-400">= {formatCurrency(extractionRevenue)}/hr</p>
-                    </>
-                  ) : (
-                    <p>Revenue: ${UNIT_ECONOMICS.extraction.baseRevenue}/hr (base)</p>
-                  )}
-                  <p>Cost: ${UNIT_ECONOMICS.extraction.baseCost}/hr</p>
-                  <p className="text-emerald-400">Profit: ${extractionProfit.toFixed(0)}/hr</p>
-                  <p className="text-amber-400 mt-1">Extracts: {extractableResources?.join(', ')}</p>
-                  {extractionFlow && (extractionFlow.inputs.products.length > 0 || extractionFlow.inputs.resources.length > 0) && (
-                    <div className="mt-2 grid md:grid-cols-2 gap-3">
-                      <div>
-                        <p className="text-gray-200 mb-1">Consumes</p>
-                        {extractionFlow.inputs.resources.map((r) => (
-                          <p key={`ext-in-r-${r.name}`} className="text-amber-300">
-                            {r.name}: {formatRate(r.perUnit)}/u/hr ({formatRate(r.total)}/hr)
-                          </p>
-                        ))}
-                        {extractionFlow.inputs.products.map((p) => (
-                          <p key={`ext-in-p-${p.name}`} className="text-amber-300">
-                            {p.name}: {formatRate(p.perUnit)}/u/hr ({formatRate(p.total)}/hr)
-                          </p>
-                        ))}
-                      </div>
-                      <div>
-                        <p className="text-gray-200 mb-1">Input Costs</p>
-                        {computeInputCosts({ resources: Object.fromEntries(extractionFlow.inputs.resources.map(i => [i.name, i.perUnit])), products: Object.fromEntries(extractionFlow.inputs.products.map(i => [i.name, i.perUnit])) }).map((it) => (
-                          <div key={`ext-cost-${it.name}`} className="flex justify-between">
-                            <span className="text-gray-300">{it.name}</span>
-                            <span className="font-mono text-red-300">{formatCurrency2(it.costHr)}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  {extractionFlow && (extractionFlow.outputs.products.length > 0 || extractionFlow.outputs.resources.length > 0) && (
-                    <div className="mt-2">
-                      <p className="text-gray-200">Produces:</p>
-                      {extractionFlow.outputs.resources.map((r) => (
-                        <p key={`ext-out-r-${r.name}`} className="text-emerald-300">
-                          {r.name}: {formatRate(r.perUnit)}/unit/hr ({formatRate(r.total)}/hr)
-                        </p>
-                      ))}
-                      {extractionFlow.outputs.products.map((p) => (
-                        <p key={`ext-out-p-${p.name}`} className="text-emerald-300">
-                          {p.name}: {formatRate(p.perUnit)}/unit/hr ({formatRate(p.total)}/hr)
-                        </p>
-                      ))}
-                    </div>
-                  )}
-                  <p className="text-gray-400 text-[10px] mt-1">Revenue based on commodity prices (no state multiplier)</p>
+                  <p>{formatCurrency2(extractionRevenue)}</p>
+                  <p>{formatCurrency2(UNIT_ECONOMICS.extraction.baseCost)}</p>
+                  <p>{Math.round((extractionFlow?.inputs.products || []).reduce((s, p) => s + p.total, 0))}</p>
+                  <p>{Math.round((extractionFlow?.outputs.resources || []).reduce((s, r) => s + r.total, 0))}</p>
                 </>
               ) : (
                 <>
-                  <p className="font-medium text-gray-400">Extraction Not Available</p>
-                  <p className="text-gray-400">{sectorType} sector cannot extract resources</p>
-                  <p className="text-gray-500 mt-1 text-[10px]">Available: Mining, Energy, Agriculture,<br/>Manufacturing, Construction, Pharmaceuticals</p>
+                  <p>0</p>
+                  <p>{formatCurrency2(0)}</p>
+                  <p>0</p>
+                  <p>0</p>
                 </>
               )}
             </div>
