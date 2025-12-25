@@ -293,6 +293,26 @@ export const corporationAPI = {
     const response = await api.get('/api/corporation');
     return response.data;
   },
+  getList: async (params: {
+    page?: number;
+    limit?: number;
+    sort?: 'revenue' | 'profit' | 'assets' | 'market_cap' | 'share_price' | 'book_value' | 'name';
+    dir?: 'asc' | 'desc';
+    sector?: string;
+    q?: string;
+    ceo?: string;
+  }): Promise<{ items: any[]; total: number; page: number; limit: number; available_metrics: string[]; sectors: string[] }> => {
+    const query = new URLSearchParams();
+    if (params.page) query.append('page', String(params.page));
+    if (params.limit) query.append('limit', String(params.limit));
+    if (params.sort) query.append('sort', params.sort);
+    if (params.dir) query.append('dir', params.dir);
+    if (params.sector) query.append('sector', params.sector);
+    if (params.q) query.append('q', params.q);
+    if (params.ceo) query.append('ceo', params.ceo);
+    const response = await api.get(`/api/corporation/list${query.toString() ? `?${query.toString()}` : ''}`);
+    return response.data;
+  },
   getById: async (id: number): Promise<CorporationResponse> => {
     const response = await api.get(`/api/corporation/${id}`);
     return response.data;

@@ -9,6 +9,7 @@ import { UserModel } from '../models/User';
 import { TransactionModel } from '../models/Transaction';
 import { normalizeImageUrl } from '../utils/imageUrl';
 import { SECTORS, isValidSector, CORP_FOCUS_TYPES, isValidCorpFocus, CorpFocus } from '../constants/sectors';
+import { MarketEntryModel } from '../models/MarketEntry';
 import pool from '../db/connection';
 
 const router = express.Router();
@@ -93,6 +94,142 @@ router.get('/', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('List corporations error:', error);
     res.status(500).json({ error: 'Failed to fetch corporations' });
+  }
+});
+
+// GET /api/corporation/list - Paginated corporations with metrics, search, sorting, filtering
+router.get('/list', async (req: Request, res: Response) => {
+  try {
+    const page = parseInt((req.query.page as string) || '1', 10);
+    const limit = parseInt((req.query.limit as string) || '25', 10);
+    const sort = (req.query.sort as string) || 'revenue';
+    const dir = ((req.query.dir as string) || 'desc').toLowerCase() === 'asc' ? 'asc' : 'desc';
+    const sector = (req.query.sector as string) || '';
+    const q = (req.query.q as string) || '';
+    const ceo = (req.query.ceo as string) || '';
+
+    // Base query with optional filters
+    let whereClauses: string[] = [];
+    let params: any[] = [];
+    let idx = 1;
+
+    if (sector) {
+      whereClauses.push(`type = $${idx++}`);
+      params.push(sector);
+    }
+    if (q) {
+      whereClauses.push(`LOWER(name) LIKE LOWER($${idx++})`);
+      params.push(`%${q}%`);
+    }
+    let ceoFilterJoin = '';
+    if (ceo) {
+      ceoFilterJoin = 'JOIN users u ON u.id = c.ceo_id';
+      whereClauses.push(`(LOWER(u.username) LIKE LOWER($${idx}) OR LOWER(u.player_name) LIKE LOWER($${idx}))`);
+      params.push(`%${ceo}%`);
+      idx++;
+    }
+
+    const whereSQL = whereClauses.length ? `WHERE ${whereClauses.join(' AND ')}` : '';
+
+    // Count total
+    const countResult = await pool.query(
+      `SELECT COUNT(*)::int as total FROM corporations c ${ceoFilterJoin} ${whereSQL}`,
+      params
+    );
+    const total = countResult.rows[0]?.total || 0;
+
+    // Fetch all matching corporations (for sorting on computed metrics)
+    const corpResult = await pool.query(
+      `SELECT c.* FROM corporations c ${ceoFilterJoin} ${whereSQL}`,
+      params
+    );
+    const corporations = corpResult.rows;
+
+    // Batch CEO details
+    const ceoIds = [...new Set(corporations.map((c: any) => c.ceo_id))];
+    let ceoMap = new Map<number, any>();
+    if (ceoIds.length > 0) {
+      const ceoResult = await pool.query(
+        `SELECT id, profile_id, username, player_name, profile_slug, profile_image_url FROM users WHERE id = ANY($1)`,
+        [ceoIds]
+      );
+      for (const u of ceoResult.rows) {
+        ceoMap.set(u.id, {
+          id: u.id,
+          profile_id: u.profile_id,
+          username: u.username,
+          player_name: u.player_name,
+          profile_slug: u.profile_slug,
+          profile_image_url: normalizeImageUrl(u.profile_image_url),
+        });
+      }
+    }
+
+    // Compute metrics (revenue/cost/profit 96h, assets/book, market cap)
+    const itemsWithMetrics = await Promise.all(
+      corporations.map(async (c: any) => {
+        const financesResult = await MarketEntryModel.calculateCorporationFinances(c.id).catch(() => null);
+        const { calculateBalanceSheet } = await import('../utils/valuation');
+        const balanceSheet = await calculateBalanceSheet(c.id).catch(() => null);
+        const marketCap = (Number(c.shares) || 0) * (Number(c.share_price) || 0);
+        return {
+          id: c.id,
+          name: c.name,
+          logo: normalizeImageUrl(c.logo),
+          sector: c.type,
+          ceo: ceoMap.get(c.ceo_id) || null,
+          shares: c.shares,
+          share_price: c.share_price,
+          market_cap: marketCap,
+          revenue_96h: financesResult?.display_revenue || 0,
+          costs_96h: financesResult?.display_costs || 0,
+          profit_96h: financesResult?.display_profit || 0,
+          assets: balanceSheet?.totalAssets || 0,
+          book_value: balanceSheet?.shareholdersEquity || 0,
+        };
+      })
+    );
+
+    // Sorting
+    const sortKey = (
+      ['revenue', 'profit', 'assets', 'market_cap', 'share_price', 'book_value', 'name'] as const
+    ).includes(sort as any)
+      ? sort
+      : 'revenue';
+    const keyMap: Record<string, (x: any) => number | string> = {
+      revenue: (x) => x.revenue_96h,
+      profit: (x) => x.profit_96h,
+      assets: (x) => x.assets,
+      market_cap: (x) => x.market_cap,
+      share_price: (x) => x.share_price,
+      book_value: (x) => x.book_value,
+      name: (x) => x.name,
+    };
+    itemsWithMetrics.sort((a, b) => {
+      const ka = keyMap[sortKey](a);
+      const kb = keyMap[sortKey](b);
+      if (typeof ka === 'string' && typeof kb === 'string') {
+        return dir === 'asc' ? String(ka).localeCompare(String(kb)) : String(kb).localeCompare(String(ka));
+      }
+      return dir === 'asc' ? Number(ka) - Number(kb) : Number(kb) - Number(ka);
+    });
+
+    // Pagination
+    const start = (page - 1) * limit;
+    const end = start + limit;
+    const pageItems = itemsWithMetrics.slice(start, end);
+
+    res.json({
+      items: pageItems,
+      total,
+      page,
+      limit,
+      available_metrics: ['revenue', 'profit', 'assets', 'market_cap', 'share_price', 'book_value'],
+      sectors: SECTORS,
+    });
+  } catch (error) {
+    console.error('Corporations list error:', error);
+    res.status(500).json({ error: 'Failed to fetch corporations list' });
   }
 });
 

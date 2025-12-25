@@ -1,4 +1,5 @@
 import { BaseSector, UnitCounts } from './BaseSector';
+import { SECTOR_PRODUCT_DEMANDS } from '../../constants/sectors';
 
 export class ProductionSector extends BaseSector {
   computeCommoditySupply(resource: string, counts: UnitCounts): number {
@@ -21,7 +22,10 @@ export class ProductionSector extends BaseSector {
     if (product === 'Electricity') {
       return counts.production * elecCons;
     }
-    return counts.production * prodCons;
+    const demandedProducts = (SECTOR_PRODUCT_DEMANDS as any)[this.sectorName] as string[] | null;
+    if (demandedProducts && demandedProducts.includes(product)) {
+      return counts.production * prodCons;
+    }
+    return 0;
   }
 }
-
