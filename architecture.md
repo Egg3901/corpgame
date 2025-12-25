@@ -24,6 +24,7 @@ graph TB
         Express[Express Server]
         AuthRoutes[Auth Routes]
         MarketRoutes[Markets Routes]
+        SectorCalc[Sector Calculator Service]
         AuthMiddleware[JWT Auth Middleware]
         Models[Models: MarketEntry, BusinessUnit, Corporation, PriceHistory]
     end
@@ -39,6 +40,7 @@ graph TB
     API_Client -->|API Calls| Express
     Express --> AuthRoutes
     Express --> MarketRoutes
+    MarketRoutes --> SectorCalc
     MarketRoutes --> Models
     AuthRoutes --> AuthMiddleware
     Models --> UsersTable
@@ -104,7 +106,17 @@ corporate-sim/
 │   ├── src/
 │   │   ├── routes/             # API route handlers
 │   │   │   ├── auth.ts         # Authentication endpoints
-│   │   │   └── markets.ts      # Market data, prices, metadata, detail pages
+│   │   │   └── markets.ts      # Market data, prices, metadata, detail pages (uses SectorCalculator)
+│   │   ├── services/
+│   │   │   └── SectorCalculator.ts  # Aggregates supply/demand using sector classes and config
+│   │   ├── domain/
+│   │   │   └── sectors/
+│   │   │       ├── BaseSector.ts            # Base class common logic
+│   │   │       ├── ProductionSector.ts      # Production-specific formulas
+│   │   │       ├── ExtractionSector.ts      # Extraction-specific formulas
+│   │   │       └── RetailServiceSector.ts   # Retail/Service-specific formulas
+│   │   ├── config/
+│   │   │   └── sector_rules.json            # Configurable rulesets (override without code changes)
 │   │   ├── middleware/         # Express middleware
 │   │   │   └── auth.ts         # JWT authentication middleware
 │   │   ├── models/             # Data models
@@ -149,6 +161,16 @@ CREATE INDEX idx_users_username ON users(username);
 - `username`: Display name, unique and indexed
 - `password_hash`: Bcrypt-hashed password (never store plaintext)
 - `created_at`: Timestamp for account creation tracking
+
+## Sector Calculation Model
+
+- BaseSector encapsulates shared helpers and config access.
+- Specialized classes implement category-specific supply/demand computations:
+  - ProductionSector: product supply, required resource demand, product demand incl. electricity.
+  - ExtractionSector: commodity supply, electricity demand.
+  - RetailServiceSector: product demand for retail/service including electricity.
+- SectorCalculator loads `config/sector_rules.json`, chooses class per sector, aggregates national supply/demand.
+- Config overrides allow tuning rates per sector/category without code changes; validations ensure non-negative results.
 
 ## API Endpoints
 

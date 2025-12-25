@@ -1288,6 +1288,14 @@ export const marketsAPI = {
     const response = await api.delete(`/api/markets/entries/${entryId}/abandon`);
     return response.data;
   },
+  getSectorRules: async (): Promise<any> => {
+    const response = await api.get('/api/markets/config');
+    return response.data;
+  },
+  updateSectorRules: async (rules: any): Promise<{ ok: boolean }> => {
+    const response = await api.put('/api/markets/config', rules);
+    return response.data;
+  },
 };
 
 // Corporate Actions API types

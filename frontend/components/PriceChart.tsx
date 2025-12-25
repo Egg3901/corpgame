@@ -197,22 +197,24 @@ export default function PriceChart({ currentPrice, fetchHistory, title = 'Price 
     if (active && payload && payload.length) {
       const data = payload[0].payload as ChartDataPoint;
       return (
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 p-3">
-          <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{data.time}</p>
-          <p className="text-lg font-bold text-gray-900 dark:text-white font-mono">
+        <div className="rounded-lg px-4 py-3 text-xs shadow-2xl border border-gray-700 bg-gray-900 text-white max-w-[560px]">
+          <p className="text-[10px] text-gray-400 mb-1">{data.time}</p>
+          <p className="text-lg font-bold font-mono">
             {formatCurrency(data.price)}
           </p>
           {(data.supply !== undefined || data.demand !== undefined) && (
-            <div className="mt-2 space-y-1">
+            <div className="mt-2 grid grid-cols-2 gap-2">
               {data.supply !== undefined && (
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Supply: {data.supply.toLocaleString()}
-                </p>
+                <div className="text-right">
+                  <p className="text-[10px] text-gray-400">Supply</p>
+                  <p className="font-mono">{Math.round(data.supply).toLocaleString()}</p>
+                </div>
               )}
               {data.demand !== undefined && (
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Demand: {data.demand.toLocaleString()}
-                </p>
+                <div className="text-right">
+                  <p className="text-[10px] text-gray-400">Demand</p>
+                  <p className="font-mono">{Math.round(data.demand).toLocaleString()}</p>
+                </div>
               )}
             </div>
           )}

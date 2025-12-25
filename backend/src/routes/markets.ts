@@ -48,6 +48,9 @@ import {
   getStateSectorCapacity,
   getDynamicUnitEconomics,
 } from '../constants/sectors';
+import { SectorCalculator } from '../services/SectorCalculator';
+import fs from 'fs';
+import path from 'path';
 import pool from '../db/connection';
 import { calculateBalanceSheet, updateStockPrice } from '../utils/valuation';
 
@@ -72,20 +75,7 @@ router.get('/commodities', async (req: Request, res: Response) => {
       sectorExtractionUnits[row.sector_type] = row.extraction_units || 0;
     }
     
-    // Calculate commodity supply (extraction units * extraction rate)
-    const { EXTRACTION_OUTPUT_RATE } = await import('../constants/sectors');
-    const commoditySupply: Record<Resource, number> = {} as Record<Resource, number>;
-    for (const resource of RESOURCES) {
-      let supply = 0;
-      // Sum extraction from all sectors that can extract this resource
-      for (const [sector, extractableResources] of Object.entries(SECTOR_EXTRACTION)) {
-        if (extractableResources && extractableResources.includes(resource)) {
-          const extractionUnits = sectorExtractionUnits[sector] || 0;
-          supply += extractionUnits * EXTRACTION_OUTPUT_RATE;
-        }
-      }
-      commoditySupply[resource] = supply;
-    }
+    const calculator = new SectorCalculator();
     
     // Get production units count by sector to calculate commodity demand
     const productionQuery = await pool.query(`
@@ -131,87 +121,22 @@ router.get('/commodities', async (req: Request, res: Response) => {
       sectorServiceUnits[row.sector_type] = row.service_units || 0;
     }
     
-    // Calculate commodity demand (production units * consumption rate)
-    const { PRODUCTION_RESOURCE_CONSUMPTION } = await import('../constants/sectors');
-    const commodityDemand: Record<Resource, number> = {} as Record<Resource, number>;
-    for (const resource of RESOURCES) {
-      let demand = 0;
-      // Sum demand from all sectors that require this resource
-      for (const [sector, requiredResource] of Object.entries(SECTOR_RESOURCES)) {
-        if (requiredResource === resource) {
-          const productionUnits = sectorProductionUnits[sector] || 0;
-          demand += productionUnits * PRODUCTION_RESOURCE_CONSUMPTION;
-        }
-      }
-      commodityDemand[resource] = demand;
-    }
-    
+    // Build unit maps
+    const unitMaps = {
+      production: sectorProductionUnits,
+      retail: sectorRetailUnits,
+      service: sectorServiceUnits,
+      extraction: sectorExtractionUnits,
+    };
     // Calculate commodity prices with actual supply/demand
     const { calculateAllCommodityPrices } = await import('../constants/sectors');
+    const { supply: commoditySupply, demand: commodityDemand } = calculator.computeCommoditySupplyDemand(unitMaps, [...RESOURCES]);
     const commodities = calculateAllCommodityPrices(commoditySupply, commodityDemand);
     
     // Calculate supply for each product (sum of production units in producing sectors * output rate)
-    const { PRODUCTION_OUTPUT_RATE } = await import('../constants/sectors');
-    const productSupply: Record<Product, number> = {} as Record<Product, number>;
-    for (const product of PRODUCTS) {
-      let supply = 0;
-      for (const [sector, producedProduct] of Object.entries(SECTOR_PRODUCTS)) {
-        if (producedProduct === product) {
-          supply += (sectorProductionUnits[sector] || 0) * PRODUCTION_OUTPUT_RATE;
-        }
-      }
-      productSupply[product] = supply;
-    }
+    const { supply: productSupply, demand: productDemand } = calculator.computeProductSupplyDemand(unitMaps, [...PRODUCTS]);
     
-    const {
-      EXTRACTION_ELECTRICITY_CONSUMPTION,
-      PRODUCTION_ELECTRICITY_CONSUMPTION,
-      PRODUCTION_PRODUCT_CONSUMPTION,
-      RETAIL_PRODUCT_CONSUMPTION,
-      SECTOR_RETAIL_DEMANDS,
-      SECTOR_SERVICE_DEMANDS,
-      SERVICE_ELECTRICITY_CONSUMPTION,
-      SERVICE_PRODUCT_CONSUMPTION,
-    } = await import('../constants/sectors');
-
-    // Calculate demand for each product
-    const productDemand: Record<Product, number> = {} as Record<Product, number>;
-    for (const product of PRODUCTS) {
-      let demand = 0;
-
-      for (const [sector, demandedProducts] of Object.entries(SECTOR_PRODUCT_DEMANDS)) {
-        if (demandedProducts && demandedProducts.includes(product)) {
-          demand += (sectorProductionUnits[sector] || 0) * PRODUCTION_PRODUCT_CONSUMPTION;
-        }
-      }
-
-      for (const [sector, demandedProducts] of Object.entries(SECTOR_RETAIL_DEMANDS)) {
-        if (demandedProducts && demandedProducts.includes(product)) {
-          demand += (sectorRetailUnits[sector] || 0) * RETAIL_PRODUCT_CONSUMPTION;
-        }
-      }
-
-      for (const [sector, demandedProducts] of Object.entries(SECTOR_SERVICE_DEMANDS)) {
-        if (demandedProducts && demandedProducts.includes(product)) {
-          const perUnitDemand = product === 'Electricity' ? SERVICE_ELECTRICITY_CONSUMPTION : SERVICE_PRODUCT_CONSUMPTION;
-          demand += (sectorServiceUnits[sector] || 0) * perUnitDemand;
-        }
-      }
-
-      if (product === 'Electricity') {
-        for (const productionUnits of Object.values(sectorProductionUnits)) {
-          demand += (productionUnits || 0) * PRODUCTION_ELECTRICITY_CONSUMPTION;
-        }
-
-        for (const [sector, extractableResources] of Object.entries(SECTOR_EXTRACTION)) {
-          if (extractableResources && extractableResources.length > 0) {
-            demand += (sectorExtractionUnits[sector] || 0) * EXTRACTION_ELECTRICITY_CONSUMPTION;
-          }
-        }
-      }
-
-      productDemand[product] = demand;
-    }
+    
     
     // Calculate prices for all products
     const products = PRODUCTS.map(product => 
@@ -397,6 +322,48 @@ router.get('/metadata', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Get market metadata error:', error);
     res.status(500).json({ error: 'Failed to fetch market metadata' });
+  }
+});
+
+// GET /api/markets/config - Get current sector rules (admin only)
+router.get('/config', authenticateToken, async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.user || !req.user.is_admin) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+    const cfgPath = path.resolve(process.cwd(), 'config', 'sector_rules.json');
+    if (!fs.existsSync(cfgPath)) {
+      return res.json({ categories: {}, sectors: {} });
+    }
+    const raw = fs.readFileSync(cfgPath, 'utf8');
+    const json = JSON.parse(raw);
+    res.json(json);
+  } catch (error) {
+    console.error('Get markets config error:', error);
+    res.status(500).json({ error: 'Failed to fetch config' });
+  }
+});
+
+// PUT /api/markets/config - Update sector rules (admin only)
+router.put('/config', authenticateToken, async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.user || !req.user.is_admin) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+    const body = req.body;
+    if (typeof body !== 'object' || body === null) {
+      return res.status(400).json({ error: 'Invalid config body' });
+    }
+    const cfgPath = path.resolve(process.cwd(), 'config', 'sector_rules.json');
+    const safe = {
+      categories: body.categories || {},
+      sectors: body.sectors || {},
+    };
+    fs.writeFileSync(cfgPath, JSON.stringify(safe, null, 2), 'utf8');
+    res.json({ ok: true });
+  } catch (error) {
+    console.error('Update markets config error:', error);
+    res.status(500).json({ error: 'Failed to update config' });
   }
 });
 

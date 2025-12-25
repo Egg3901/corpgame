@@ -1,0 +1,38 @@
+{
+  "categories": {
+    "production": {
+      "PRODUCTION_OUTPUT_RATE": 1.0,
+      "PRODUCTION_RESOURCE_CONSUMPTION": 0.5,
+      "PRODUCTION_ELECTRICITY_CONSUMPTION": 0.5,
+      "PRODUCTION_PRODUCT_CONSUMPTION": 0.5
+    },
+    "extraction": {
+      "EXTRACTION_OUTPUT_RATE": 2.0,
+      "EXTRACTION_ELECTRICITY_CONSUMPTION": 0.25
+    },
+    "retail_service": {
+      "RETAIL_PRODUCT_CONSUMPTION": 2.0,
+      "SERVICE_PRODUCT_CONSUMPTION": 1.5,
+      "SERVICE_ELECTRICITY_CONSUMPTION": 0.25
+    }
+  },
+  "sectors": {
+    "Energy": {
+      "category": "production",
+      "overrides": {
+        "PRODUCTION_OUTPUT_RATE": 1.0,
+        "PRODUCTION_ELECTRICITY_CONSUMPTION": 0.0
+      }
+    },
+    "Manufacturing": {
+      "category": "production"
+    },
+    "Agriculture": {
+      "category": "extraction",
+      "overrides": {
+        "EXTRACTION_OUTPUT_RATE": 2.0
+      }
+    }
+  }
+}
+

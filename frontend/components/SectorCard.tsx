@@ -224,12 +224,12 @@ export default function SectorCard({
     if (!flow) return null;
 
     const inputBadges = [
-      ...flow.inputs.resources.map((i) => ({ name: i.name, perUnit: i.perUnit, kind: 'input' as const })),
-      ...flow.inputs.products.map((i) => ({ name: i.name, perUnit: i.perUnit, kind: 'input' as const })),
+      ...flow.inputs.resources.map((i) => ({ name: i.name, perUnit: i.perUnit, total: i.total, kind: 'input' as const })),
+      ...flow.inputs.products.map((i) => ({ name: i.name, perUnit: i.perUnit, total: i.total, kind: 'input' as const })),
     ];
     const outputBadges = [
-      ...flow.outputs.resources.map((i) => ({ name: i.name, perUnit: i.perUnit, kind: 'output' as const })),
-      ...flow.outputs.products.map((i) => ({ name: i.name, perUnit: i.perUnit, kind: 'output' as const })),
+      ...flow.outputs.resources.map((i) => ({ name: i.name, perUnit: i.perUnit, total: i.total, kind: 'output' as const })),
+      ...flow.outputs.products.map((i) => ({ name: i.name, perUnit: i.perUnit, total: i.total, kind: 'output' as const })),
     ];
 
     const maxBadges = 3;
@@ -243,12 +243,18 @@ export default function SectorCard({
     return (
       <div className="mt-2 flex flex-wrap gap-1">
         {inputsToShow.map((b) => (
-          <span
-            key={`in-${b.name}`}
-            className="px-2 py-0.5 rounded-full text-[10px] bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200"
-          >
-            {b.name} {formatRate(b.perUnit)}/u/hr
-          </span>
+          <div key={`in-${b.name}`} className="relative group">
+            <span
+              className="px-2 py-0.5 rounded-full text-[10px] bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200"
+            >
+              {b.name} {formatRate(b.perUnit)}/u/hr
+            </span>
+            <TooltipPanel>
+              <div className="text-right font-mono">
+                <p>{Math.round(b.total)}</p>
+              </div>
+            </TooltipPanel>
+          </div>
         ))}
         {inputRemainder > 0 && (
           <span className="px-2 py-0.5 rounded-full text-[10px] bg-amber-50 dark:bg-amber-900/10 text-amber-700 dark:text-amber-300">
@@ -256,12 +262,18 @@ export default function SectorCard({
           </span>
         )}
         {outputsToShow.map((b) => (
-          <span
-            key={`out-${b.name}`}
-            className="px-2 py-0.5 rounded-full text-[10px] bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-200"
-          >
-            {b.name} {formatRate(b.perUnit)}/u/hr
-          </span>
+          <div key={`out-${b.name}`} className="relative group">
+            <span
+              className="px-2 py-0.5 rounded-full text-[10px] bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-200"
+            >
+              {b.name} {formatRate(b.perUnit)}/u/hr
+            </span>
+            <TooltipPanel>
+              <div className="text-right font-mono">
+                <p>{Math.round(b.total)}</p>
+              </div>
+            </TooltipPanel>
+          </div>
         ))}
         {outputRemainder > 0 && (
           <span className="px-2 py-0.5 rounded-full text-[10px] bg-emerald-50 dark:bg-emerald-900/10 text-emerald-700 dark:text-emerald-300">
