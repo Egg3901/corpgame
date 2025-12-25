@@ -13,7 +13,6 @@ CREATE TABLE IF NOT EXISTS corporate_actions (
 CREATE INDEX IF NOT EXISTS idx_corporate_actions_corporation_id ON corporate_actions(corporation_id);
 CREATE INDEX IF NOT EXISTS idx_corporate_actions_expires_at ON corporate_actions(expires_at);
 CREATE INDEX IF NOT EXISTS idx_corporate_actions_corp_type ON corporate_actions(corporation_id, action_type);
-
--- Add composite index for active actions queries
-CREATE INDEX IF NOT EXISTS idx_corporate_actions_active ON corporate_actions(corporation_id, action_type, expires_at) WHERE expires_at > CURRENT_TIMESTAMP;
+-- Composite index for active actions queries (used with WHERE expires_at > NOW() in application)
+CREATE INDEX IF NOT EXISTS idx_corporate_actions_corp_type_expires ON corporate_actions(corporation_id, action_type, expires_at);
 
