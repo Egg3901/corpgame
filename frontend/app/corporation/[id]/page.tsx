@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import AppNavigation from '@/components/AppNavigation';
@@ -10,6 +10,7 @@ import { Building2, Edit, Trash2, TrendingUp, DollarSign, Users, User, Calendar,
 import BoardTab from '@/components/BoardTab';
 import StockPriceChart from '@/components/StockPriceChart';
 import SectorCard from '@/components/SectorCard';
+import { computeFinancialStatements } from '@/lib/finance';
 
 // Sector to Resource mapping (must match backend)
 const SECTOR_RESOURCES: Record<string, string | null> = {
@@ -386,6 +387,32 @@ export default function CorporationDetailPage() {
       maximumFractionDigits: 2,
     }).format(value);
   };
+
+  const statements = useMemo(() => {
+    const entries = marketEntries.map(e => ({
+      sector_type: e.sector_type,
+      retail_count: e.retail_count,
+      production_count: e.production_count,
+      service_count: e.service_count,
+      extraction_count: e.extraction_count || 0,
+    }));
+    const flows = marketMetadata?.sector_unit_flows || {};
+    const comPrices: Record<string, { currentPrice: number }> = Object.fromEntries(
+      Object.entries(commodityPrices).map(([k, v]) => [k, { currentPrice: v.currentPrice }])
+    );
+    const prodPrices: Record<string, { currentPrice: number }> = Object.fromEntries(
+      Object.entries(productPrices).map(([k, v]) => [k, { currentPrice: v.currentPrice }])
+    );
+    return computeFinancialStatements({
+      entries,
+      sectorUnitFlows: flows,
+      commodityPrices: comPrices,
+      productPrices: prodPrices,
+      unitEconomics: UNIT_ECONOMICS,
+      periodHours: DISPLAY_PERIOD_HOURS,
+      fixedCosts: { ceoSalary: corporation?.ceo_salary || 0 },
+    });
+  }, [marketEntries, marketMetadata, commodityPrices, productPrices, corporation]);
 
   // Calculate revenue and cost breakdown by sector and unit type
   const calculateRevenueCostBreakdown = () => {
@@ -1984,7 +2011,7 @@ export default function CorporationDetailPage() {
                       <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700 group relative">
                         <span className="text-sm text-gray-600 dark:text-gray-400">Revenue (96hr)</span>
                         <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400 font-mono">
-                          {formatCurrency(corpFinances?.display_revenue || 0)}
+                          {formatCurrency(statements.revenue)}
                         </span>
                         {/* Tooltip */}
                         <div className="absolute bottom-full right-0 mb-2 hidden group-hover:block z-[9999] pointer-events-none">
@@ -1992,15 +2019,12 @@ export default function CorporationDetailPage() {
                             <p className="font-medium mb-2 text-emerald-400">Revenue Breakdown (96hr)</p>
                             <div className="space-y-2 max-h-96 overflow-y-auto">
                               {(() => {
-                                const breakdown = calculateRevenueCostBreakdown();
-                                const sectors = Object.keys(breakdown).sort();
-                                return sectors.map(sector => {
-                                  const sectorData = breakdown[sector];
+                                const sectors = statements.sectors.slice().sort((a, b) => a.sector.localeCompare(b.sector));
+                                return sectors.map(sectorData => {
                                   if (sectorData.revenue === 0) return null;
-                                  
                                   return (
-                                    <div key={sector} className="border-t border-gray-700 pt-2 first:border-t-0 first:pt-0">
-                                      <p className="font-semibold text-white mb-1">{sector}</p>
+                                    <div key={sectorData.sector} className="border-t border-gray-700 pt-2 first:border-t-0 first:pt-0">
+                                      <p className="font-semibold text-white mb-1">{sectorData.sector}</p>
                                       <div className="ml-2 space-y-1 text-gray-300">
                                         {sectorData.unitBreakdown.retail.units > 0 && (
                                           <div className="flex justify-between">
@@ -2038,7 +2062,7 @@ export default function CorporationDetailPage() {
                             </div>
                             <div className="border-t border-gray-700 pt-2 mt-2 flex justify-between font-semibold text-white">
                               <span>Grand Total:</span>
-                              <span className="font-mono text-emerald-300">{formatCurrency(corpFinances?.display_revenue || 0)}</span>
+                              <span className="font-mono text-emerald-300">{formatCurrency(statements.revenue)}</span>
                             </div>
                           </div>
                         </div>
@@ -2046,7 +2070,7 @@ export default function CorporationDetailPage() {
                       <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700 group relative">
                         <span className="text-sm text-gray-600 dark:text-gray-400">Operating Costs (96hr)</span>
                         <span className="text-sm font-semibold text-red-600 dark:text-red-400 font-mono">
-                          {formatCurrency(corpFinances?.display_costs || 0)}
+                          {formatCurrency(statements.variableCosts)}
                         </span>
                         {/* Tooltip */}
                         <div className="absolute bottom-full right-0 mb-2 hidden group-hover:block z-[9999] pointer-events-none">
@@ -2054,15 +2078,12 @@ export default function CorporationDetailPage() {
                             <p className="font-medium mb-2 text-red-400">Operating Costs Breakdown (96hr)</p>
                             <div className="space-y-2 max-h-96 overflow-y-auto">
                               {(() => {
-                                const breakdown = calculateRevenueCostBreakdown();
-                                const sectors = Object.keys(breakdown).sort();
-                                return sectors.map(sector => {
-                                  const sectorData = breakdown[sector];
-                                  if (sectorData.cost === 0) return null;
-                                  
+                                const sectors = statements.sectors.slice().sort((a, b) => a.sector.localeCompare(b.sector));
+                                return sectors.map(sectorData => {
+                                  if (sectorData.variableCosts === 0) return null;
                                   return (
-                                    <div key={sector} className="border-t border-gray-700 pt-2 first:border-t-0 first:pt-0">
-                                      <p className="font-semibold text-white mb-1">{sector}</p>
+                                    <div key={sectorData.sector} className="border-t border-gray-700 pt-2 first:border-t-0 first:pt-0">
+                                      <p className="font-semibold text-white mb-1">{sectorData.sector}</p>
                                       <div className="ml-2 space-y-1 text-gray-300">
                                         {sectorData.unitBreakdown.retail.units > 0 && (
                                           <div className="flex justify-between">
@@ -2090,7 +2111,7 @@ export default function CorporationDetailPage() {
                                         )}
                                         <div className="flex justify-between font-semibold text-white pt-1 border-t border-gray-700">
                                           <span>Total:</span>
-                                          <span className="font-mono text-red-300">{formatCurrency(sectorData.cost)}</span>
+                                          <span className="font-mono text-red-300">{formatCurrency(sectorData.variableCosts)}</span>
                                         </div>
                                       </div>
                                     </div>
@@ -2100,7 +2121,7 @@ export default function CorporationDetailPage() {
                             </div>
                             <div className="border-t border-gray-700 pt-2 mt-2 flex justify-between font-semibold text-white">
                               <span>Grand Total:</span>
-                              <span className="font-mono text-red-300">{formatCurrency(corpFinances?.display_costs || 0)}</span>
+                              <span className="font-mono text-red-300">{formatCurrency(statements.variableCosts)}</span>
                             </div>
                           </div>
                         </div>

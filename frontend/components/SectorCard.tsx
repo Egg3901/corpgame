@@ -271,6 +271,88 @@ export default function SectorCard({
     );
   };
 
+  const formatCurrency2 = (value: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(value);
+  };
+
+  const renderProductionFlowBadges = (flow: ReturnType<typeof formatFlowTotals>) => {
+    if (!flow) return null;
+
+    const inputs = [
+      ...flow.inputs.resources.map((i) => ({ name: i.name, perUnit: i.perUnit })),
+      ...flow.inputs.products.map((i) => ({ name: i.name, perUnit: i.perUnit })),
+    ];
+    const outputs = [
+      ...flow.outputs.resources.map((i) => ({ name: i.name, perUnit: i.perUnit })),
+      ...flow.outputs.products.map((i) => ({ name: i.name, perUnit: i.perUnit })),
+    ];
+
+    const unitsDemanded = Math.round(flow.inputs.products.reduce((sum, p) => sum + p.total, 0));
+    const unitsProduced = Math.round(flow.outputs.products.reduce((sum, p) => sum + p.total, 0));
+
+    const maxBadges = 3;
+    const inputsToShow = inputs.slice(0, maxBadges);
+    const outputsToShow = outputs.slice(0, maxBadges);
+    const inputRemainder = Math.max(0, inputs.length - inputsToShow.length);
+    const outputRemainder = Math.max(0, outputs.length - outputsToShow.length);
+
+    return (
+      <div className="mt-2 flex flex-wrap gap-1">
+        {inputsToShow.map((b) => (
+          <div key={`in-${b.name}`} className="relative group">
+            <span
+              tabIndex={0}
+              className="px-2 py-0.5 rounded-full text-[10px] bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 focus:outline-none"
+            >
+              {b.name} {formatRate(b.perUnit)}/u/hr
+            </span>
+            <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 bottom-full mb-2 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-200 z-50">
+              <div className="rounded-md px-3 py-2 text-xs shadow-xl border border-gray-700 bg-gray-900 text-white min-w-[120px] text-right font-mono">
+                <p>{formatCurrency2(productionRevenue)}</p>
+                <p>{formatCurrency2(productionCost)}</p>
+                <p>{unitsDemanded}</p>
+                <p>{unitsProduced}</p>
+              </div>
+            </div>
+          </div>
+        ))}
+        {inputRemainder > 0 && (
+          <span className="px-2 py-0.5 rounded-full text-[10px] bg-amber-50 dark:bg-amber-900/10 text-amber-700 dark:text-amber-300">
+            +{inputRemainder} in
+          </span>
+        )}
+        {outputsToShow.map((b) => (
+          <div key={`out-${b.name}`} className="relative group">
+            <span
+              tabIndex={0}
+              className="px-2 py-0.5 rounded-full text-[10px] bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-200 focus:outline-none"
+            >
+              {b.name} {formatRate(b.perUnit)}/u/hr
+            </span>
+            <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 bottom-full mb-2 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-200 z-50">
+              <div className="rounded-md px-3 py-2 text-xs shadow-xl border border-gray-700 bg-gray-900 text-white min-w-[120px] text-right font-mono">
+                <p>{formatCurrency2(productionRevenue)}</p>
+                <p>{formatCurrency2(productionCost)}</p>
+                <p>{unitsDemanded}</p>
+                <p>{unitsProduced}</p>
+              </div>
+            </div>
+          </div>
+        ))}
+        {outputRemainder > 0 && (
+          <span className="px-2 py-0.5 rounded-full text-[10px] bg-emerald-50 dark:bg-emerald-900/10 text-emerald-700 dark:text-emerald-300">
+            +{outputRemainder} out
+          </span>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="rounded-xl border border-white/60 bg-white/70 dark:border-gray-800/70 dark:bg-gray-800/60 p-4 shadow-sm">
       {/* Header */}
@@ -670,7 +752,7 @@ export default function SectorCard({
           {units.production > 0 && productionFlow && (
             <div>
               <p className="text-xs text-gray-500 dark:text-gray-400">Production flows</p>
-              {renderFlowBadges(productionFlow)}
+              {renderProductionFlowBadges(productionFlow)}
             </div>
           )}
           {units.service > 0 && serviceFlow && (
