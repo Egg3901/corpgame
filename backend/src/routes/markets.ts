@@ -743,12 +743,58 @@ router.get('/states', async (req: Request, res: Response) => {
     const stateMetaResult = await pool.query('SELECT * FROM state_metadata ORDER BY name');
     const stateMeta = stateMetaResult.rows;
 
+    // Compute growth factor per state (last 24h unit builds normalized by current units)
+    const currentUnitsByStateSector = await pool.query(`
+      SELECT me.state_code, me.sector_type, COALESCE(SUM(bu.count), 0)::int AS units
+      FROM market_entries me
+      LEFT JOIN business_units bu ON me.id = bu.market_entry_id
+      GROUP BY me.state_code, me.sector_type
+    `);
+    const buildsLastDayByStateSector = await pool.query(`
+      SELECT me.state_code, me.sector_type, COUNT(*)::int AS builds
+      FROM transactions t
+      JOIN business_units bu ON t.reference_type = 'business_unit' AND t.reference_id = bu.id
+      JOIN market_entries me ON bu.market_entry_id = me.id
+      WHERE t.transaction_type = 'unit_build'
+        AND t.created_at >= NOW() - INTERVAL '24 hours'
+      GROUP BY me.state_code, me.sector_type
+    `);
+    const unitsMap = new Map<string, Map<string, number>>(); // state -> sector -> units
+    for (const row of currentUnitsByStateSector.rows) {
+      if (!unitsMap.has(row.state_code)) unitsMap.set(row.state_code, new Map());
+      unitsMap.get(row.state_code)!.set(row.sector_type, row.units || 0);
+    }
+    const buildsMap = new Map<string, Map<string, number>>();
+    for (const row of buildsLastDayByStateSector.rows) {
+      if (!buildsMap.has(row.state_code)) buildsMap.set(row.state_code, new Map());
+      buildsMap.get(row.state_code)!.set(row.sector_type, row.builds || 0);
+    }
+    const growthFactorByState: Record<string, number> = {};
+    for (const st of stateMeta) {
+      const stateCode = st.state_code;
+      const sectorUnits = unitsMap.get(stateCode) || new Map();
+      const sectorBuilds = buildsMap.get(stateCode) || new Map();
+      const sectors = new Set<string>([...sectorUnits.keys(), ...sectorBuilds.keys()]);
+      let ratiosSum = 0;
+      let count = 0;
+      for (const sector of sectors) {
+        const u = sectorUnits.get(sector) || 0;
+        const b = sectorBuilds.get(sector) || 0;
+        const ratio = u > 0 ? (b / u) : 0;
+        ratiosSum += ratio;
+        count += 1;
+      }
+      const avg = count > 0 ? (ratiosSum / count) : 0;
+      growthFactorByState[stateCode] = 1 + 0.25 * avg;
+    }
+
     // Group states by region
     const statesByRegion: Record<string, Array<{
       code: string;
       name: string;
       region: string;
       multiplier: number;
+      growth_factor?: number;
     }>> = {};
 
     for (const state of stateMeta) {
@@ -761,6 +807,7 @@ router.get('/states', async (req: Request, res: Response) => {
         name: state.name,
         region: state.region,
         multiplier: parseFloat(state.population_multiplier),
+        growth_factor: growthFactorByState[state.state_code] || 1,
       });
     }
 
@@ -800,6 +847,38 @@ router.get('/states/:code', authenticateToken, async (req: AuthRequest, res: Res
     }
 
     const stateMeta = stateMetaResult.rows[0];
+
+    // Compute growth factor for this state (last 24h builds normalized by current units)
+    const currentUnitsBySector = await pool.query(`
+      SELECT me.sector_type, COALESCE(SUM(bu.count), 0)::int AS units
+      FROM market_entries me
+      LEFT JOIN business_units bu ON me.id = bu.market_entry_id
+      WHERE me.state_code = $1
+      GROUP BY me.sector_type
+    `, [stateCode]);
+    const buildsLastDayBySector = await pool.query(`
+      SELECT me.sector_type, COUNT(*)::int AS builds
+      FROM transactions t
+      JOIN business_units bu ON t.reference_type = 'business_unit' AND t.reference_id = bu.id
+      JOIN market_entries me ON bu.market_entry_id = me.id
+      WHERE t.transaction_type = 'unit_build'
+        AND t.created_at >= NOW() - INTERVAL '24 hours'
+        AND me.state_code = $1
+      GROUP BY me.sector_type
+    `, [stateCode]);
+    const unitsBySector = new Map<string, number>();
+    for (const row of currentUnitsBySector.rows) unitsBySector.set(row.sector_type, row.units || 0);
+    const buildsBySector = new Map<string, number>();
+    for (const row of buildsLastDayBySector.rows) buildsBySector.set(row.sector_type, row.builds || 0);
+    const sectorsSet = new Set<string>([...unitsBySector.keys(), ...buildsBySector.keys()]);
+    let sumRatios = 0; let cnt = 0;
+    for (const sector of sectorsSet) {
+      const u = unitsBySector.get(sector) || 0;
+      const b = buildsBySector.get(sector) || 0;
+      const ratio = u > 0 ? (b / u) : 0;
+      sumRatios += ratio; cnt++;
+    }
+    const growthFactor = 1 + 0.25 * (cnt > 0 ? (sumRatios / cnt) : 0);
 
     // Get all market entries for this state
     const marketEntries = await MarketEntryModel.findByStateCode(stateCode);
@@ -859,6 +938,7 @@ router.get('/states/:code', authenticateToken, async (req: AuthRequest, res: Res
         name: stateMeta.name,
         region: stateMeta.region,
         multiplier: parseFloat(stateMeta.population_multiplier),
+        growth_factor: growthFactor,
         capacity: stateCapacity,
       },
       markets: marketsWithDetails,

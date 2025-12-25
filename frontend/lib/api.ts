@@ -924,6 +924,7 @@ export interface StateInfo {
   name: string;
   region: string;
   multiplier: number;
+  growth_factor?: number;
 }
 
 export interface StatesListResponse {
@@ -985,7 +986,7 @@ export interface StateResourceBreakdown {
 }
 
 export interface StateDetailResponse {
-  state: StateInfo;
+  state: StateInfo & { growth_factor?: number };
   markets: MarketWithDetails[];
   sectors: string[];
   sector_resources: Record<string, string | null>;

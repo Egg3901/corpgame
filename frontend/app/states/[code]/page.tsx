@@ -600,6 +600,17 @@ export default function StateDetailPage() {
                         </div>
                       </div>
                     </span>
+                    {typeof state.growth_factor === 'number' && (
+                      <span className="px-2 py-0.5 text-xs font-medium bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 rounded-full group relative cursor-help">
+                        Growth {state.growth_factor.toFixed(2)}x
+                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-10 pointer-events-none">
+                          <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 whitespace-nowrap shadow-lg">
+                            <p className="font-medium">State Growth Factor</p>
+                            <p>1 + 25% × sector growth average (24h builds / current units)</p>
+                          </div>
+                        </div>
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -690,6 +701,7 @@ export default function StateDetailPage() {
                         stateCode={state.code}
                         stateName={state.name}
                         stateMultiplier={state.multiplier}
+                        stateGrowthFactor={state.growth_factor || 1}
                         enteredDate={entry.created_at}
                         units={entry.units}
                         corporation={null}

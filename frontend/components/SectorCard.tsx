@@ -2,6 +2,7 @@
 
 import { Store, Factory, Briefcase, Pickaxe, Building2, Trash2, MapPin } from 'lucide-react';
 import TooltipPanel from './TooltipPanel';
+import FinancialTooltip from './FinancialTooltip';
 import Link from 'next/link';
 import type { MarketUnitFlow } from '@/lib/api';
 
@@ -10,6 +11,7 @@ interface SectorCardProps {
   stateCode: string;
   stateName: string;
   stateMultiplier: number;
+  stateGrowthFactor?: number;
   enteredDate: string;
   units: {
     retail: number;
@@ -56,6 +58,7 @@ export default function SectorCard({
   stateCode,
   stateName,
   stateMultiplier,
+  stateGrowthFactor = 1,
   enteredDate,
   units,
   corporation,
@@ -98,6 +101,10 @@ export default function SectorCard({
   const PRODUCTION_ELECTRICITY_CONSUMPTION = 0.5;
   const PRODUCTION_PRODUCT_CONSUMPTION = 0.5;
   const PRODUCTION_OUTPUT_RATE = 1.0;
+
+  // Placeholder demand factor for retail/service to ensure slight profitability
+  // TODO: replace with growth-based factor: average daily change in unit counts per state
+  const applyDemandFactorCost = (baseCost: number) => baseCost / Math.max(1, stateGrowthFactor);
 
   const totalUnits = units.retail + units.production + units.service + units.extraction;
 
@@ -488,12 +495,18 @@ export default function SectorCard({
             </button>
           )}
           <TooltipPanel>
-            <div className="text-right font-mono">
-              <p>{formatCurrency2(UNIT_ECONOMICS.retail.baseRevenue)}</p>
-              <p>{formatCurrency2(UNIT_ECONOMICS.retail.baseCost)}</p>
-              <p>{Math.round((retailFlow?.inputs.products || []).reduce((s, p) => s + p.total, 0))}</p>
-              <p>0</p>
-            </div>
+            <FinancialTooltip
+              title="Retail Financials"
+              revenueHr={UNIT_ECONOMICS.retail.baseRevenue}
+              costHr={applyDemandFactorCost(UNIT_ECONOMICS.retail.baseCost)}
+              profitHr={UNIT_ECONOMICS.retail.baseRevenue - applyDemandFactorCost(UNIT_ECONOMICS.retail.baseCost)}
+              outputSoldUnits={Math.round((retailFlow?.inputs.products || []).reduce((s, p) => s + p.total, 0))}
+              costItems={computeInputCosts({
+                resources: Object.fromEntries((retailFlow?.inputs.resources || []).map(i => [i.name, i.perUnit])),
+                products: Object.fromEntries((retailFlow?.inputs.products || []).map(i => [i.name, i.perUnit]))
+              }).map(it => ({ name: it.name, costHr: it.costHr }))}
+              note={`Demand-based cost factor applied: ÷ Growth ${stateGrowthFactor.toFixed(2)}x (1 + 25% × sector growth avg)`}
+            />
           </TooltipPanel>
         </div>
 
@@ -517,12 +530,20 @@ export default function SectorCard({
             </button>
           )}
           <TooltipPanel>
-            <div className="text-right font-mono">
-              <p>{formatCurrency2(productionRevenue)}</p>
-              <p>{formatCurrency2(productionCost)}</p>
-              <p>{Math.round((productionFlow?.inputs.products || []).reduce((s, p) => s + p.total, 0))}</p>
-              <p>{Math.round(((productionFlow?.outputs.products || []).reduce((s, p) => s + p.total, 0) + (productionFlow?.outputs.resources || []).reduce((s, r) => s + r.total, 0)))}</p>
-            </div>
+            <FinancialTooltip
+              title="Production Financials"
+              revenueHr={productionRevenue}
+              costHr={productionCost}
+              profitHr={productionProfit}
+              outputSoldUnits={Math.round(((productionFlow?.outputs.products || []).reduce((s, p) => s + p.total, 0) + (productionFlow?.outputs.resources || []).reduce((s, r) => s + r.total, 0)))}
+              costItems={[
+                ...computeInputCosts({
+                  resources: Object.fromEntries((productionFlow?.inputs.resources || []).map(i => [i.name, i.perUnit])),
+                  products: Object.fromEntries((productionFlow?.inputs.products || []).map(i => [i.name, i.perUnit]))
+                }, producedProduct).map(it => ({ name: it.name, costHr: it.costHr })),
+                { name: 'Labor/Operations', costHr: PRODUCTION_LABOR_COST },
+              ]}
+            />
           </TooltipPanel>
         </div>
 
@@ -546,12 +567,18 @@ export default function SectorCard({
             </button>
           )}
           <TooltipPanel>
-            <div className="text-right font-mono">
-              <p>{formatCurrency2(UNIT_ECONOMICS.service.baseRevenue)}</p>
-              <p>{formatCurrency2(UNIT_ECONOMICS.service.baseCost)}</p>
-              <p>{Math.round((serviceFlow?.inputs.products || []).reduce((s, p) => s + p.total, 0))}</p>
-              <p>0</p>
-            </div>
+            <FinancialTooltip
+              title="Service Financials"
+              revenueHr={UNIT_ECONOMICS.service.baseRevenue}
+              costHr={applyDemandFactorCost(UNIT_ECONOMICS.service.baseCost)}
+              profitHr={UNIT_ECONOMICS.service.baseRevenue - applyDemandFactorCost(UNIT_ECONOMICS.service.baseCost)}
+              outputSoldUnits={Math.round((serviceFlow?.inputs.products || []).reduce((s, p) => s + p.total, 0))}
+              costItems={computeInputCosts({
+                resources: Object.fromEntries((serviceFlow?.inputs.resources || []).map(i => [i.name, i.perUnit])),
+                products: Object.fromEntries((serviceFlow?.inputs.products || []).map(i => [i.name, i.perUnit]))
+              }).map(it => ({ name: it.name, costHr: it.costHr }))}
+              note={`Demand-based cost factor applied: ÷ Growth ${stateGrowthFactor.toFixed(2)}x (1 + 25% × sector growth avg)`}
+            />
           </TooltipPanel>
         </div>
 
@@ -595,23 +622,29 @@ export default function SectorCard({
             </>
           )}
           <TooltipPanel>
-            <div className="text-right font-mono">
-              {canExtract ? (
-                <>
-                  <p>{formatCurrency2(extractionRevenue)}</p>
-                  <p>{formatCurrency2(UNIT_ECONOMICS.extraction.baseCost)}</p>
-                  <p>{Math.round((extractionFlow?.inputs.products || []).reduce((s, p) => s + p.total, 0))}</p>
-                  <p>{Math.round((extractionFlow?.outputs.resources || []).reduce((s, r) => s + r.total, 0))}</p>
-                </>
-              ) : (
-                <>
-                  <p>0</p>
-                  <p>{formatCurrency2(0)}</p>
-                  <p>0</p>
-                  <p>0</p>
-                </>
-              )}
-            </div>
+            {canExtract ? (
+              <FinancialTooltip
+                title="Extraction Financials"
+                revenueHr={extractionRevenue}
+                costHr={UNIT_ECONOMICS.extraction.baseCost}
+                profitHr={extractionProfit}
+                outputSoldUnits={Math.round((extractionFlow?.outputs.resources || []).reduce((s, r) => s + r.total, 0))}
+                costItems={[
+                  ...computeInputCosts({
+                    resources: Object.fromEntries((extractionFlow?.inputs.resources || []).map(i => [i.name, i.perUnit])),
+                    products: Object.fromEntries((extractionFlow?.inputs.products || []).map(i => [i.name, i.perUnit]))
+                  }).map(it => ({ name: it.name, costHr: it.costHr })),
+                  { name: 'Operations', costHr: UNIT_ECONOMICS.extraction.baseCost },
+                ]}
+              />
+            ) : (
+              <div className="text-right font-mono">
+                <p>0</p>
+                <p>{formatCurrency2(0)}</p>
+                <p>0</p>
+                <p>0</p>
+              </div>
+            )}
           </TooltipPanel>
         </div>
       </div>
@@ -646,5 +679,6 @@ export default function SectorCard({
       )}
     </div>
   );
+
 }
 

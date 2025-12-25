@@ -167,8 +167,15 @@ export default function StatesPage() {
                               </h3>
                               <p className="text-xs text-gray-500 dark:text-gray-400">{state.code}</p>
                             </div>
-                            <div className={`px-2 py-1 rounded-lg text-xs font-bold ${getMultiplierBg(state.multiplier)} ${getMultiplierColor(state.multiplier)}`}>
-                              {state.multiplier.toFixed(1)}x
+                            <div className="flex items-center gap-2">
+                              <div className={`px-2 py-1 rounded-lg text-xs font-bold ${getMultiplierBg(state.multiplier)} ${getMultiplierColor(state.multiplier)}`}>
+                                {state.multiplier.toFixed(1)}x
+                              </div>
+                              {typeof state.growth_factor === 'number' && (
+                                <div className="px-2 py-1 rounded-lg text-xs font-bold bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300">
+                                  Growth {state.growth_factor.toFixed(2)}x
+                                </div>
+                              )}
                             </div>
                           </div>
                           <div className="mt-3 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
