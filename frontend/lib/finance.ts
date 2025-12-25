@@ -60,7 +60,7 @@ const RETAIL_PRODUCT_CONSUMPTION = 2.0;
 const SERVICE_PRODUCT_CONSUMPTION = 1.5;
 const SERVICE_ELECTRICITY_CONSUMPTION = 0.5;
 const RETAIL_WHOLESALE_DISCOUNT = 0.995;
-const SERVICE_WHOLESALE_DISCOUNT = 0.9;
+const SERVICE_WHOLESALE_DISCOUNT = 0.995;
 const RETAIL_MIN_GROSS_MARGIN_PCT = 0.1;
 const SERVICE_MIN_GROSS_MARGIN_PCT = 0.1;
 const UNIT_LABOR_COSTS = {
@@ -192,11 +192,16 @@ export function computeFinancialStatements(params: ComputeParams): ConsolidatedS
         
         if (sector === 'Defense' && product !== 'Electricity') {
           consumedAmount = 1.0;
+        } else if (sector === 'Manufacturing' && product !== 'Electricity') {
+          consumedAmount = 0.5;
         }
 
         let discount = product === 'Electricity' ? 1.0 : SERVICE_WHOLESALE_DISCOUNT;
         if (sector === 'Defense' && product !== 'Electricity') {
           discount = DEFENSE_WHOLESALE_DISCOUNT;
+        } else if (sector === 'Manufacturing') {
+          // Align Manufacturing service with retail discount
+          discount = RETAIL_WHOLESALE_DISCOUNT;
         }
 
         const productCost = productPrice * consumedAmount * discount;

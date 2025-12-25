@@ -231,15 +231,22 @@ router.get('/metadata', async (req: Request, res: Response) => {
       const retailInputsProducts: Record<string, number> = {};
       if (retailDemands) {
         for (const product of retailDemands) {
-          retailInputsProducts[product] = RETAIL_PRODUCT_CONSUMPTION;
+          let consumed = RETAIL_PRODUCT_CONSUMPTION;
+          if (sector === 'Defense') consumed = 1.0;
+          retailInputsProducts[product] = consumed;
         }
       }
 
       const serviceInputsProducts: Record<string, number> = {};
       if (serviceDemands) {
         for (const product of serviceDemands) {
-          serviceInputsProducts[product] =
-            product === 'Electricity' ? SERVICE_ELECTRICITY_CONSUMPTION : SERVICE_PRODUCT_CONSUMPTION;
+          let consumed = product === 'Electricity' ? SERVICE_ELECTRICITY_CONSUMPTION : SERVICE_PRODUCT_CONSUMPTION;
+          if (sector === 'Defense' && product !== 'Electricity') {
+            consumed = 1.0;
+          } else if (sector === 'Manufacturing' && product !== 'Electricity') {
+            consumed = 0.5; // Manufacturing service demands less
+          }
+          serviceInputsProducts[product] = consumed;
         }
       }
 

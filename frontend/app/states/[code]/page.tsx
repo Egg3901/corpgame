@@ -75,7 +75,7 @@ const SECTOR_RESOURCES: Record<string, string | null> = {
   'Technology': 'Rare Earth',
   'Finance': null,
   'Healthcare': null,
-  'Manufacturing': 'Steel',
+  'Manufacturing': null,
   'Energy': 'Oil',
   'Retail': null,
   'Real Estate': null,
@@ -155,7 +155,7 @@ const RETAIL_PRODUCT_CONSUMPTION = 2.0;
 const SERVICE_PRODUCT_CONSUMPTION = 1.5;
 const SERVICE_ELECTRICITY_CONSUMPTION = 0.5;
 const RETAIL_WHOLESALE_DISCOUNT = 0.995;
-const SERVICE_WHOLESALE_DISCOUNT = 0.9;
+const SERVICE_WHOLESALE_DISCOUNT = 0.995;
 const RETAIL_MIN_GROSS_MARGIN_PCT = 0.1;
 const SERVICE_MIN_GROSS_MARGIN_PCT = 0.1;
 const UNIT_LABOR_COSTS = {
@@ -170,7 +170,7 @@ const SECTORS_CAN_EXTRACT: Record<string, string[] | null> = {
   'Technology': null,
   'Finance': null,
   'Healthcare': null,
-  'Manufacturing': ['Steel'],
+  'Manufacturing': null,
   'Energy': ['Oil'],
   'Retail': null,
   'Real Estate': null,
@@ -391,12 +391,17 @@ export default function StateDetailPage() {
         if (unitType === 'retail' || product !== 'Electricity') {
           consumedAmount = 1.0;
         }
+      } else if (sector === 'Manufacturing' && unitType === 'service' && product !== 'Electricity') {
+        consumedAmount = 0.5; // Manufacturing service demands less
       }
 
       let discount = unitType === 'retail' ? RETAIL_WHOLESALE_DISCOUNT : (product === 'Electricity' ? 1.0 : SERVICE_WHOLESALE_DISCOUNT);
       
       if (sector === 'Defense' && (unitType === 'retail' || product !== 'Electricity')) {
         discount = DEFENSE_WHOLESALE_DISCOUNT;
+      } else if (sector === 'Manufacturing' && unitType === 'service') {
+        // Align Manufacturing service with retail discount
+        discount = RETAIL_WHOLESALE_DISCOUNT;
       }
 
       const productCost = productPrice * consumedAmount * discount;

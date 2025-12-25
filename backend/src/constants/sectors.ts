@@ -116,7 +116,7 @@ export const SECTOR_EXTRACTION: Record<Sector, Resource[] | null> = {
   'Technology': null,           // Cannot extract
   'Finance': null,              // Cannot extract
   'Healthcare': null,           // Cannot extract
-  'Manufacturing': ['Steel'],   // Can extract iron ore -> steel
+  'Manufacturing': null,   // Only production and service
   'Energy': ['Oil'],            // Oil extraction
   'Retail': null,               // Cannot extract
   'Real Estate': null,          // Cannot extract
@@ -798,6 +798,19 @@ export function canBuildUnit(
     }
   }
 
+  // For production, check if sector allows production units
+  if (unitType === 'production') {
+    if (!isValidSector(sector)) {
+      return { allowed: false, reason: 'Invalid sector' };
+    }
+    if (!sectorCanBuildProduction(sector)) {
+      return {
+        allowed: false,
+        reason: `${sector} sector cannot build production units`,
+      };
+    }
+  }
+
   // For retail, check if sector allows retail units
   if (unitType === 'retail') {
     if (!isValidSector(sector)) {
@@ -1014,6 +1027,8 @@ export function getDynamicUnitEconomics(
       // Defense sector rule: 1.0 consumption for products (excluding electricity)
       if (sectorTyped === 'Defense' && product !== 'Electricity') {
         consumedAmount = 1.0;
+      } else if (sectorTyped === 'Manufacturing' && product !== 'Electricity') {
+        consumedAmount = 0.5; // Manufacturing service demands less
       }
 
       let discount = product === 'Electricity' ? 1 : SERVICE_WHOLESALE_DISCOUNT;
@@ -1703,7 +1718,7 @@ export const SECTOR_SERVICE_DEMANDS: Record<Sector, Product[] | null> = {
   'Technology': null,                              // Cannot build service units
   'Finance': ['Technology Products', 'Electricity'],              // Banking systems
   'Healthcare': ['Pharmaceutical Products', 'Electricity'],       // Hospitals, clinics
-  'Manufacturing': null,                           // Cannot build service units
+  'Manufacturing': ['Manufactured Goods', 'Electricity'],                           // Manufacturing services
   'Energy': ['Electricity'],                       // Energy services
   'Retail': ['Manufactured Goods', 'Electricity'],                // Retail services
   'Real Estate': ['Construction Capacity', 'Electricity'],        // Real estate management
@@ -1771,6 +1786,12 @@ export function getSectorRetailDemands(sector: Sector): Product[] | null {
 // Get what products a sector's service units demand
 export function getSectorServiceDemands(sector: Sector): Product[] | null {
   return SECTOR_SERVICE_DEMANDS[sector];
+}
+
+// Check if a sector can build production units
+export function sectorCanBuildProduction(sector: string): boolean {
+  if (!isValidSector(sector)) return false;
+  return SECTOR_PRODUCTS[sector as Sector] !== null;
 }
 
 // Check if a sector can build retail units

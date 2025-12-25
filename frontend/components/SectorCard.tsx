@@ -104,8 +104,17 @@ export default function SectorCard({
 
   const DEFENSE_WHOLESALE_DISCOUNT = 0.8;
   const DEFENSE_REVENUE_MULTIPLIER = 1.0;
+  const RETAIL_WHOLESALE_DISCOUNT = 0.995;
+  const SERVICE_WHOLESALE_DISCOUNT = 0.995;
 
   const isDefense = sectorType === 'Defense';
+  const isManufacturing = sectorType === 'Manufacturing';
+  const isRetailSector = sectorType === 'Retail';
+
+  const showRetail = !isManufacturing;
+  const showProduction = !isRetailSector;
+  const showService = true; // Always show service for now
+  const showExtraction = canExtract;
 
   // Placeholder demand factor for retail/service to ensure slight profitability
   // TODO: replace with growth-based factor: average daily change in unit counts per state
@@ -194,6 +203,9 @@ export default function SectorCard({
       // Apply Defense wholesale discount for non-electricity products
       if (isDefenseSector && name !== 'Electricity') {
         mult *= DEFENSE_WHOLESALE_DISCOUNT;
+      } else if (sectorType === 'Manufacturing' && name !== 'Electricity') {
+        // Align Manufacturing service/retail (if applicable) with retail discount
+        mult = RETAIL_WHOLESALE_DISCOUNT;
       }
       
       items.push({ name, amount, price, costHr: amount * price * mult });
@@ -232,8 +244,8 @@ export default function SectorCard({
     const revMult = isDefense && p.name !== 'Electricity' ? DEFENSE_REVENUE_MULTIPLIER : 1.0;
     
     if (isDefense && p.name !== 'Electricity') {
-      // Defense revenue is 1.0x wholesale cost
-      return sum + (price * p.perUnit * revMult);
+      // Defense revenue is 1.0x wholesale cost (cost is price * perUnit * 0.8)
+      return sum + (price * p.perUnit * DEFENSE_WHOLESALE_DISCOUNT * revMult);
     }
     // Normal retail revenue is based on market price (simplified here to match parent)
     return sum + (price * p.perUnit);
@@ -255,7 +267,8 @@ export default function SectorCard({
     const revMult = isDefense && p.name !== 'Electricity' ? DEFENSE_REVENUE_MULTIPLIER : 1.0;
 
     if (isDefense && p.name !== 'Electricity') {
-      return sum + (price * p.perUnit * revMult);
+      // Defense revenue is 1.0x wholesale cost (cost is price * perUnit * 0.8)
+      return sum + (price * p.perUnit * DEFENSE_WHOLESALE_DISCOUNT * revMult);
     }
     return sum + (price * p.perUnit);
   }, 0);
@@ -445,162 +458,153 @@ export default function SectorCard({
         )}
       </div>
 
-      {/* Unit Types - Always 4 columns */}
-      <div className="grid grid-cols-4 gap-3">
+      {/* Unit Types - Grid layout adapts to visible columns */}
+      <div className={`grid gap-3 ${
+        [showRetail, showProduction, showService, showExtraction].filter(Boolean).length === 4 ? 'grid-cols-4' :
+        [showRetail, showProduction, showService, showExtraction].filter(Boolean).length === 3 ? 'grid-cols-3' :
+        [showRetail, showProduction, showService, showExtraction].filter(Boolean).length === 2 ? 'grid-cols-2' :
+        'grid-cols-1'
+      }`}>
         {/* Retail */}
-        <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3 group relative">
-          <div className="flex items-center gap-2 mb-2">
-            <Store className="h-4 w-4 text-pink-500" />
-            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Retail</span>
+        {showRetail && (
+          <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3 group relative">
+            <div className="flex items-center gap-2 mb-2">
+              <Store className="h-4 w-4 text-pink-500" />
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Retail</span>
+            </div>
+            <p className="text-2xl font-bold text-gray-900 dark:text-white">{units.retail}</p>
+            <p className="text-xs text-emerald-600 dark:text-emerald-400">
+              +{formatCurrency(calculateUnitProfit('retail') * units.retail)}/96hr
+            </p>
+            {showActions && onBuildUnit && (
+              <button
+                onClick={() => onBuildUnit('retail')}
+                disabled={building === 'retail' || !canBuild}
+                className="mt-2 w-full px-2 py-1 text-xs bg-pink-500 text-white rounded hover:bg-pink-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {building === 'retail' ? '...' : `+1 (${formatCurrency(buildCost)})`}
+              </button>
+            )}
+            <TooltipPanel>
+              <FinancialTooltip
+                title="Retail Financials"
+                revenueHr={retailRevenueHr}
+                costHr={retailCostHr}
+                profitHr={retailProfit}
+                outputSoldUnits={Math.round((retailFlow?.inputs.products || []).reduce((s, p) => s + p.total, 0))}
+                costItems={retailInputItems.map(it => ({ name: it.name, costHr: it.costHr }))}
+                breakdown={[
+                  { label: 'Base', value: isDefense ? 0 : UNIT_ECONOMICS.retail.baseRevenue },
+                  { label: isDefense ? 'Cost-Plus Revenue' : 'Price × Output', value: retailRevenueFromFlow },
+                ]}
+                note={isDefense ? 'Defense sector: 1.0 consumption, 0.8x wholesale price, 1.0x cost revenue' : `Demand-based cost factor applied: ÷ Growth ${stateGrowthFactor.toFixed(2)}x (1 + 25% × sector growth avg)`}
+              />
+            </TooltipPanel>
           </div>
-          <p className="text-2xl font-bold text-gray-900 dark:text-white">{units.retail}</p>
-          <p className="text-xs text-emerald-600 dark:text-emerald-400">
-            +{formatCurrency(calculateUnitProfit('retail') * units.retail)}/96hr
-          </p>
-          {showActions && onBuildUnit && (
-            <button
-              onClick={() => onBuildUnit('retail')}
-              disabled={building === 'retail' || !canBuild}
-              className="mt-2 w-full px-2 py-1 text-xs bg-pink-500 text-white rounded hover:bg-pink-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              {building === 'retail' ? '...' : `+1 (${formatCurrency(buildCost)})`}
-            </button>
-          )}
-          <TooltipPanel>
-            <FinancialTooltip
-              title="Retail Financials"
-              revenueHr={retailRevenueHr}
-              costHr={retailCostHr}
-              profitHr={retailProfit}
-              outputSoldUnits={Math.round((retailFlow?.inputs.products || []).reduce((s, p) => s + p.total, 0))}
-              costItems={retailInputItems.map(it => ({ name: it.name, costHr: it.costHr }))}
-              breakdown={[
-                { label: 'Base', value: isDefense ? 0 : UNIT_ECONOMICS.retail.baseRevenue },
-                { label: isDefense ? 'Cost-Plus Revenue' : 'Price × Output', value: retailRevenueFromFlow },
-              ]}
-              note={isDefense ? 'Defense sector: 1.0 consumption, 0.8x wholesale price, 1.0x cost revenue' : `Demand-based cost factor applied: ÷ Growth ${stateGrowthFactor.toFixed(2)}x (1 + 25% × sector growth avg)`}
-            />
-          </TooltipPanel>
-        </div>
+        )}
 
         {/* Production */}
-        <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3 group relative">
-          <div className="flex items-center gap-2 mb-2">
-            <Factory className="h-4 w-4 text-orange-500" />
-            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Production</span>
+        {showProduction && (
+          <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3 group relative">
+            <div className="flex items-center gap-2 mb-2">
+              <Factory className="h-4 w-4 text-orange-500" />
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Production</span>
+            </div>
+            <p className="text-2xl font-bold text-gray-900 dark:text-white">{units.production}</p>
+            <p className="text-xs text-emerald-600 dark:text-emerald-400">
+              +{formatCurrency(calculateUnitProfit('production') * units.production)}/96hr
+            </p>
+            {showActions && onBuildUnit && (
+              <button
+                onClick={() => onBuildUnit('production')}
+                disabled={building === 'production' || !canBuild}
+                className="mt-2 w-full px-2 py-1 text-xs bg-orange-500 text-white rounded hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {building === 'production' ? '...' : `+1 (${formatCurrency(buildCost)})`}
+              </button>
+            )}
+            <TooltipPanel>
+              <FinancialTooltip
+                title="Production Financials"
+                revenueHr={productionRevenue}
+                costHr={productionCost}
+                profitHr={productionProfit}
+                outputSoldUnits={Math.round(((productionFlow?.outputs.products || []).reduce((s, p) => s + p.total, 0) + (productionFlow?.outputs.resources || []).reduce((s, r) => s + r.total, 0)))}
+                costItems={[
+                  ...computeInputCosts({
+                    resources: Object.fromEntries((productionFlow?.inputs.resources || []).map(i => [i.name, i.perUnit])),
+                    products: Object.fromEntries((productionFlow?.inputs.products || []).map(i => [i.name, i.perUnit]))
+                  }, producedProduct).map(it => ({ name: it.name, costHr: it.costHr })),
+                  { name: 'Labor/Operations', costHr: PRODUCTION_LABOR_COST },
+                ]}
+                breakdown={[
+                  { label: 'Base', value: productionProductBase },
+                  { label: 'Price × Output', value: productionProductPrice * productionOutputRate },
+                ]}
+              />
+            </TooltipPanel>
           </div>
-          <p className="text-2xl font-bold text-gray-900 dark:text-white">{units.production}</p>
-          <p className="text-xs text-emerald-600 dark:text-emerald-400">
-            +{formatCurrency(calculateUnitProfit('production') * units.production)}/96hr
-          </p>
-          {showActions && onBuildUnit && (
-            <button
-              onClick={() => onBuildUnit('production')}
-              disabled={building === 'production' || !canBuild}
-              className="mt-2 w-full px-2 py-1 text-xs bg-orange-500 text-white rounded hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              {building === 'production' ? '...' : `+1 (${formatCurrency(buildCost)})`}
-            </button>
-          )}
-          <TooltipPanel>
-            <FinancialTooltip
-              title="Production Financials"
-              revenueHr={productionRevenue}
-              costHr={productionCost}
-              profitHr={productionProfit}
-              outputSoldUnits={Math.round(((productionFlow?.outputs.products || []).reduce((s, p) => s + p.total, 0) + (productionFlow?.outputs.resources || []).reduce((s, r) => s + r.total, 0)))}
-              costItems={[
-                ...computeInputCosts({
-                  resources: Object.fromEntries((productionFlow?.inputs.resources || []).map(i => [i.name, i.perUnit])),
-                  products: Object.fromEntries((productionFlow?.inputs.products || []).map(i => [i.name, i.perUnit]))
-                }, producedProduct).map(it => ({ name: it.name, costHr: it.costHr })),
-                { name: 'Labor/Operations', costHr: PRODUCTION_LABOR_COST },
-              ]}
-              breakdown={[
-                { label: 'Base', value: productionProductBase },
-                { label: 'Price × Output', value: productionProductPrice * productionOutputRate },
-              ]}
-            />
-          </TooltipPanel>
-        </div>
+        )}
 
         {/* Service */}
-        <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3 group relative">
-          <div className="flex items-center gap-2 mb-2">
-            <Briefcase className="h-4 w-4 text-blue-500" />
-            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Service</span>
+        {showService && (
+          <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3 group relative">
+            <div className="flex items-center gap-2 mb-2">
+              <Briefcase className="h-4 w-4 text-blue-500" />
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Service</span>
+            </div>
+            <p className="text-2xl font-bold text-gray-900 dark:text-white">{units.service}</p>
+            <p className="text-xs text-emerald-600 dark:text-emerald-400">
+              +{formatCurrency(calculateUnitProfit('service') * units.service)}/96hr
+            </p>
+            {showActions && onBuildUnit && (
+              <button
+                onClick={() => onBuildUnit('service')}
+                disabled={building === 'service' || !canBuild}
+                className="mt-2 w-full px-2 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {building === 'service' ? '...' : `+1 (${formatCurrency(buildCost)})`}
+              </button>
+            )}
+            <TooltipPanel>
+              <FinancialTooltip
+                title="Service Financials"
+                revenueHr={serviceRevenueHr}
+                costHr={serviceCostHr}
+                profitHr={serviceProfit}
+                outputSoldUnits={Math.round((serviceFlow?.inputs.products || []).reduce((s, p) => s + p.total, 0))}
+                costItems={serviceInputItems.map(it => ({ name: it.name, costHr: it.costHr }))}
+                breakdown={[
+                  { label: 'Base', value: isDefense ? 0 : UNIT_ECONOMICS.service.baseRevenue },
+                  { label: isDefense ? 'Cost-Plus Revenue' : 'Price × Output', value: serviceRevenueFromFlow },
+                ]}
+                note={isDefense ? 'Defense sector: 1.0 consumption, 0.8x wholesale price, 1.0x cost revenue' : `Demand-based cost factor applied: ÷ Growth ${stateGrowthFactor.toFixed(2)}x (1 + 25% × sector growth avg)`}
+              />
+            </TooltipPanel>
           </div>
-          <p className="text-2xl font-bold text-gray-900 dark:text-white">{units.service}</p>
-          <p className="text-xs text-emerald-600 dark:text-emerald-400">
-            +{formatCurrency(calculateUnitProfit('service') * units.service)}/96hr
-          </p>
-          {showActions && onBuildUnit && (
-            <button
-              onClick={() => onBuildUnit('service')}
-              disabled={building === 'service' || !canBuild}
-              className="mt-2 w-full px-2 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              {building === 'service' ? '...' : `+1 (${formatCurrency(buildCost)})`}
-            </button>
-          )}
-          <TooltipPanel>
-            <FinancialTooltip
-              title="Service Financials"
-              revenueHr={serviceRevenueHr}
-              costHr={serviceCostHr}
-              profitHr={serviceProfit}
-              outputSoldUnits={Math.round((serviceFlow?.inputs.products || []).reduce((s, p) => s + p.total, 0))}
-              costItems={serviceInputItems.map(it => ({ name: it.name, costHr: it.costHr }))}
-              breakdown={[
-                { label: 'Base', value: isDefense ? 0 : UNIT_ECONOMICS.service.baseRevenue },
-                { label: isDefense ? 'Cost-Plus Revenue' : 'Price × Output', value: serviceRevenueFromFlow },
-              ]}
-              note={isDefense ? 'Defense sector: 1.0 consumption, 0.8x wholesale price, 1.0x cost revenue' : `Demand-based cost factor applied: ÷ Growth ${stateGrowthFactor.toFixed(2)}x (1 + 25% × sector growth avg)`}
-            />
-          </TooltipPanel>
-        </div>
+        )}
 
-        {/* Extraction - frosted if sector doesn't support it */}
-        <div className={`rounded-lg border p-3 group relative ${
-          canExtract 
-            ? 'border-gray-200 dark:border-gray-700' 
-            : 'border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/30'
-        }`}>
-          <div className={`flex items-center gap-2 mb-2 ${!canExtract ? 'opacity-40' : ''}`}>
-            <Pickaxe className={`h-4 w-4 ${canExtract ? 'text-amber-500' : 'text-gray-400'}`} />
-            <span className={`text-sm font-medium ${canExtract ? 'text-gray-700 dark:text-gray-300' : 'text-gray-400 dark:text-gray-600'}`}>Extraction</span>
-          </div>
-          {canExtract ? (
-            <>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">{units.extraction || 0}</p>
-              <p className="text-xs text-emerald-600 dark:text-emerald-400">
-                +{formatCurrency(calculateUnitProfit('extraction') * (units.extraction || 0))}/96hr
-              </p>
-              {showActions && onBuildUnit && (
-                <button
-                  onClick={() => onBuildUnit('extraction')}
-                  disabled={building === 'extraction' || !canBuild}
-                  className="mt-2 w-full px-2 py-1 text-xs bg-amber-500 text-white rounded hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  {building === 'extraction' ? '...' : `+1 (${formatCurrency(buildCost)})`}
-                </button>
-              )}
-            </>
-          ) : (
-            <>
-              <p className="text-2xl font-bold text-gray-300 dark:text-gray-600">—</p>
-              <p className="text-xs text-gray-400 dark:text-gray-600">
-                Not available
-              </p>
-              {showActions && (
-                <div className="mt-2 w-full px-2 py-1 text-xs text-gray-400 dark:text-gray-600 text-center">
-                  Unavailable
-                </div>
-              )}
-            </>
-          )}
-          <TooltipPanel>
-            {canExtract ? (
+        {/* Extraction */}
+        {showExtraction && (
+          <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3 group relative">
+            <div className="flex items-center gap-2 mb-2">
+              <Pickaxe className="h-4 w-4 text-amber-500" />
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Extraction</span>
+            </div>
+            <p className="text-2xl font-bold text-gray-900 dark:text-white">{units.extraction || 0}</p>
+            <p className="text-xs text-emerald-600 dark:text-emerald-400">
+              +{formatCurrency(calculateUnitProfit('extraction') * (units.extraction || 0))}/96hr
+            </p>
+            {showActions && onBuildUnit && (
+              <button
+                onClick={() => onBuildUnit('extraction')}
+                disabled={building === 'extraction' || !canBuild}
+                className="mt-2 w-full px-2 py-1 text-xs bg-amber-500 text-white rounded hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {building === 'extraction' ? '...' : `+1 (${formatCurrency(buildCost)})`}
+              </button>
+            )}
+            <TooltipPanel>
               <FinancialTooltip
                 title="Extraction Financials"
                 revenueHr={extractionRevenueWithBase}
@@ -619,17 +623,11 @@ export default function SectorCard({
                   { label: 'Price × Output', value: getExtractionRevenue() },
                 ]}
               />
-            ) : (
-              <div className="text-right font-mono">
-                <p>0</p>
-                <p>{formatCurrency(0)}</p>
-                <p>0</p>
-                <p>0</p>
-              </div>
-            )}
-          </TooltipPanel>
-        </div>
+            </TooltipPanel>
+          </div>
+        )}
       </div>
+
 
       {(retailFlow || productionFlow || serviceFlow || extractionFlow) && (
         <div className="mt-3 space-y-2">

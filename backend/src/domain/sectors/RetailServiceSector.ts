@@ -25,6 +25,11 @@ export class RetailServiceSector extends BaseSector {
       serviceProd = 1.0;
     }
 
+    // Manufacturing service rule: 0.5 consumption
+    if (this.sectorName === 'Manufacturing') {
+      serviceProd = 0.5;
+    }
+
     let total = 0;
     const retailDemands = (SECTOR_RETAIL_DEMANDS as any)[this.sectorName] as string[] | null;
     const serviceDemands = (SECTOR_SERVICE_DEMANDS as any)[this.sectorName] as string[] | null;
