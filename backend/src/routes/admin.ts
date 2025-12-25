@@ -18,6 +18,41 @@ const router = express.Router();
 
 router.use(authenticateToken, requireAdmin);
 
+// GET /api/admin/corporations/search - Autocomplete for corporation names
+router.get('/corporations/search', async (req: AuthRequest, res: Response) => {
+  try {
+    const { q } = req.query;
+    const query = (q as string || '').trim();
+
+    if (!query) {
+      // Return all corporations if no query
+      const allCorps = await CorporationModel.findAll();
+      const results = allCorps.map(corp => ({
+        id: corp.id,
+        name: corp.name,
+        sector: corp.sector,
+        logo: corp.logo || null,
+      }));
+      return res.json(results.slice(0, 50)); // Limit to 50
+    }
+
+    // Search by name (case-insensitive)
+    const searchResults = await pool.query(
+      `SELECT id, name, sector, logo
+       FROM corporations
+       WHERE name ILIKE $1
+       ORDER BY name ASC
+       LIMIT 20`,
+      [`%${query}%`]
+    );
+
+    res.json(searchResults.rows);
+  } catch (error) {
+    console.error('Search corporations error:', error);
+    res.status(500).json({ error: 'Failed to search corporations' });
+  }
+});
+
 router.post('/ban-ip', async (req: AuthRequest, res: Response) => {
   try {
     const { ip, reason } = req.body;
@@ -758,6 +793,70 @@ router.delete('/corporation/:corpId/shares/:userId', async (req: AuthRequest, re
     res.status(500).json({ error: 'Failed to delete shares' });
   } finally {
     client.release();
+  }
+});
+
+/**
+ * POST /api/admin/corporation/:corpId/force-end-vote/:proposalId
+ * Admin-only: Force end a specific board vote immediately
+ */
+router.post('/corporation/:corpId/force-end-vote/:proposalId', async (req: AuthRequest, res: Response) => {
+  try {
+    const corpId = parseInt(req.params.corpId, 10);
+    const proposalId = parseInt(req.params.proposalId, 10);
+
+    if (isNaN(corpId) || isNaN(proposalId)) {
+      return res.status(400).json({ error: 'Invalid corporation or proposal ID' });
+    }
+
+    const adminUserId = req.userId!;
+
+    // Verify corporation exists
+    const corporation = await CorporationModel.findById(corpId);
+    if (!corporation) {
+      return res.status(404).json({ error: 'Corporation not found' });
+    }
+
+    // Verify proposal exists and is active
+    const proposal = await BoardVoteModel.findById(proposalId);
+    if (!proposal) {
+      return res.status(404).json({ error: 'Proposal not found' });
+    }
+
+    if (proposal.corporation_id !== corpId) {
+      return res.status(400).json({ error: 'Proposal does not belong to this corporation' });
+    }
+
+    if (proposal.status !== 'active') {
+      return res.status(400).json({ error: `Proposal is already ${proposal.status}` });
+    }
+
+    console.log(`[Admin] Force ending proposal ${proposalId} for corp ${corpId} (${corporation.name}) by user ${adminUserId}`);
+
+    // Force end the vote by setting expires_at to now
+    const result = await pool.query(
+      'UPDATE board_proposals SET expires_at = NOW() WHERE id = $1 RETURNING *',
+      [proposalId]
+    );
+
+    // Get vote counts
+    const votes = await BoardVoteModel.getVoteCounts(proposalId);
+
+    res.json({
+      success: true,
+      message: 'Vote force-ended successfully. It will be resolved in the next cron check.',
+      proposal_id: proposalId,
+      corporation_id: corpId,
+      corporation_name: corporation.name,
+      votes: {
+        aye: votes.aye,
+        nay: votes.nay,
+        total: votes.total,
+      },
+    });
+  } catch (error) {
+    console.error('Force end vote error:', error);
+    res.status(500).json({ error: 'Failed to force end vote' });
   }
 });
 

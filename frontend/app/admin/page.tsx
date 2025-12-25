@@ -52,6 +52,17 @@ export default function AdminPage() {
     after: { total_shares: number; public_shares: number; share_price: number };
     shareholders_updated: number;
   } | null>(null);
+  // Force end vote state
+  const [forceEndCorpSearch, setForceEndCorpSearch] = useState('');
+  const [forceEndCorpResults, setForceEndCorpResults] = useState<Array<{ id: number; name: string; sector: string; logo: string | null }>>([]);
+  const [forceEndSelectedCorp, setForceEndSelectedCorp] = useState<{ id: number; name: string } | null>(null);
+  const [forceEndProposalId, setForceEndProposalId] = useState('');
+  const [endingVote, setEndingVote] = useState(false);
+  const [forceEndResult, setForceEndResult] = useState<{
+    message: string;
+    corporation_name: string;
+    votes: { aye: number; nay: number; total: number };
+  } | null>(null);
   // Transactions state
   const [transactionsExpanded, setTransactionsExpanded] = useState(false);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -284,6 +295,55 @@ export default function AdminPage() {
       alert(err?.response?.data?.error || 'Failed to execute stock split');
     } finally {
       setRunningSplit(false);
+    }
+  };
+
+  const handleForceEndCorpSearch = async (value: string) => {
+    setForceEndCorpSearch(value);
+    if (value.trim().length < 2) {
+      setForceEndCorpResults([]);
+      return;
+    }
+
+    try {
+      const results = await adminAPI.searchCorporations(value);
+      setForceEndCorpResults(results);
+    } catch (err: any) {
+      console.error('Search corporations error:', err);
+    }
+  };
+
+  const handleForceEndVote = async () => {
+    if (!forceEndSelectedCorp) {
+      alert('Please select a corporation');
+      return;
+    }
+
+    const proposalId = parseInt(forceEndProposalId, 10);
+    if (isNaN(proposalId) || proposalId <= 0) {
+      alert('Please enter a valid proposal ID');
+      return;
+    }
+
+    if (!confirm(`Are you sure you want to force end proposal #${proposalId} for ${forceEndSelectedCorp.name}? This will immediately expire the vote and it will be resolved in the next cron check.`)) {
+      return;
+    }
+
+    try {
+      setEndingVote(true);
+      setForceEndResult(null);
+      const result = await adminAPI.forceEndVote(forceEndSelectedCorp.id, proposalId);
+      setForceEndResult({
+        message: result.message,
+        corporation_name: result.corporation_name,
+        votes: result.votes,
+      });
+      setForceEndProposalId('');
+    } catch (err: any) {
+      console.error('Force end vote error:', err);
+      alert(err?.response?.data?.error || 'Failed to force end vote');
+    } finally {
+      setEndingVote(false);
     }
   };
 
@@ -667,6 +727,107 @@ export default function AdminPage() {
                   <p className="text-xs text-amber-600 dark:text-amber-400 mt-2">
                     {splitResult.shareholders_updated} shareholder position{splitResult.shareholders_updated !== 1 ? 's' : ''} updated
                   </p>
+                </div>
+              )}
+
+              {/* Force End Board Vote Section */}
+              <div className="border-t border-gray-200 dark:border-gray-700 pt-4 mt-4">
+                <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Force End Board Vote</h3>
+                <div className="space-y-4">
+                  {/* Corporation Autocomplete */}
+                  <div className="relative">
+                    <label htmlFor="forceEndCorpSearch" className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                      Corporation Name
+                    </label>
+                    <input
+                      type="text"
+                      id="forceEndCorpSearch"
+                      value={forceEndCorpSearch}
+                      onChange={(e) => handleForceEndCorpSearch(e.target.value)}
+                      placeholder="Type to search corporations..."
+                      className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      disabled={endingVote}
+                    />
+                    {forceEndCorpResults.length > 0 && !forceEndSelectedCorp && (
+                      <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                        {forceEndCorpResults.map((corp) => (
+                          <button
+                            key={corp.id}
+                            onClick={() => {
+                              setForceEndSelectedCorp({ id: corp.id, name: corp.name });
+                              setForceEndCorpSearch(corp.name);
+                              setForceEndCorpResults([]);
+                            }}
+                            className="w-full px-3 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-sm"
+                          >
+                            <div className="font-medium text-gray-900 dark:text-gray-100">{corp.name}</div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400">ID: {corp.id} | Sector: {corp.sector}</div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    {forceEndSelectedCorp && (
+                      <div className="mt-2 flex items-center justify-between p-2 bg-purple-50 dark:bg-purple-900/20 rounded-md">
+                        <span className="text-sm text-purple-800 dark:text-purple-200">
+                          Selected: {forceEndSelectedCorp.name} (ID: {forceEndSelectedCorp.id})
+                        </span>
+                        <button
+                          onClick={() => {
+                            setForceEndSelectedCorp(null);
+                            setForceEndCorpSearch('');
+                          }}
+                          className="text-xs text-purple-600 dark:text-purple-400 hover:text-purple-800 dark:hover:text-purple-200"
+                        >
+                          Clear
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Proposal ID Input */}
+                  <div>
+                    <label htmlFor="forceEndProposalId" className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                      Proposal ID
+                    </label>
+                    <input
+                      type="number"
+                      id="forceEndProposalId"
+                      value={forceEndProposalId}
+                      onChange={(e) => setForceEndProposalId(e.target.value)}
+                      placeholder="Enter proposal ID"
+                      className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      disabled={endingVote}
+                    />
+                  </div>
+
+                  {/* Force End Button */}
+                  <button
+                    onClick={handleForceEndVote}
+                    disabled={endingVote || !forceEndSelectedCorp || !forceEndProposalId}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium rounded-md bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {endingVote ? (
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <Clock className="w-4 h-4" />
+                    )}
+                    Force End Vote
+                  </button>
+                </div>
+              </div>
+
+              {/* Force End Vote Result */}
+              {forceEndResult && (
+                <div className="p-4 rounded-lg bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800">
+                  <h3 className="text-sm font-semibold text-purple-800 dark:text-purple-200 mb-2">
+                    Vote Force-Ended: {forceEndResult.corporation_name}
+                  </h3>
+                  <p className="text-sm text-purple-700 dark:text-purple-300 mb-2">
+                    {forceEndResult.message}
+                  </p>
+                  <div className="text-sm text-purple-600 dark:text-purple-400">
+                    Final Votes: {forceEndResult.votes.aye} Aye, {forceEndResult.votes.nay} Nay ({forceEndResult.votes.total} total)
+                  </div>
                 </div>
               )}
 

@@ -456,7 +456,7 @@ export default function SectorCard({
       }`}>
         {/* Retail */}
         {showRetail && (
-          <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3 group relative">
+          <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3 group relative overflow-visible">
             <div className="flex items-center gap-2 mb-2">
               <Store className="h-4 w-4 text-pink-500" />
               <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Retail</span>
@@ -503,7 +503,7 @@ export default function SectorCard({
 
         {/* Production */}
         {showProduction && (
-          <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3 group relative">
+          <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3 group relative overflow-visible">
             <div className="flex items-center gap-2 mb-2">
               <Factory className="h-4 w-4 text-orange-500" />
               <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Production</span>
@@ -555,7 +555,7 @@ export default function SectorCard({
 
         {/* Service */}
         {showService && (
-          <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3 group relative">
+          <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3 group relative overflow-visible">
             <div className="flex items-center gap-2 mb-2">
               <Briefcase className="h-4 w-4 text-blue-500" />
               <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Service</span>
@@ -602,7 +602,7 @@ export default function SectorCard({
 
         {/* Extraction */}
         {showExtraction && (
-          <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3 group relative">
+          <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3 group relative overflow-visible">
             <div className="flex items-center gap-2 mb-2">
               <Pickaxe className="h-4 w-4 text-amber-500" />
               <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Extraction</span>

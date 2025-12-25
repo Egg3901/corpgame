@@ -670,6 +670,27 @@ export const adminAPI = {
     const response = await api.post(`/api/admin/corporation/${corpId}/reset-board`);
     return response.data;
   },
+  forceEndVote: async (corpId: number, proposalId: number): Promise<{
+    success: boolean;
+    message: string;
+    proposal_id: number;
+    corporation_id: number;
+    corporation_name: string;
+    votes: { aye: number; nay: number; total: number };
+  }> => {
+    const response = await api.post(`/api/admin/corporation/${corpId}/force-end-vote/${proposalId}`);
+    return response.data;
+  },
+  searchCorporations: async (query?: string): Promise<Array<{
+    id: number;
+    name: string;
+    sector: string;
+    logo: string | null;
+  }>> => {
+    const params = query ? `?q=${encodeURIComponent(query)}` : '';
+    const response = await api.get(`/api/admin/corporations/search${params}`);
+    return response.data;
+  },
   deleteUserShares: async (corpId: number, userId: number, amount: number): Promise<DeleteSharesResponse> => {
     const response = await api.delete(`/api/admin/corporation/${corpId}/shares/${userId}`, {
       data: { amount }

@@ -699,7 +699,7 @@ export default function StateDetailPage() {
                       {state.region}
                     </span>
                     <span className={`text-lg font-bold ${getMultiplierColor(state.multiplier)} group relative cursor-help`}>
-                      {getStateCapacity(state.multiplier)} unit capacity
+                      {getStateCapacity(state.multiplier)} unit capacity/sector
                       <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-10 pointer-events-none">
                         <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 whitespace-nowrap shadow-lg">
                           <p className="font-medium">State Unit Capacity</p>
@@ -708,6 +708,18 @@ export default function StateDetailPage() {
                         </div>
                       </div>
                     </span>
+                    {user_corporation && user_market_entries && user_market_entries.length > 0 && (
+                      <span className="text-lg font-bold text-corporate-blue dark:text-corporate-blue-light group relative cursor-help">
+                        {user_market_entries.reduce((total, entry) => total + getTotalUnits(entry.units), 0)} / {user_market_entries.length * getStateCapacity(state.multiplier)} units used
+                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-10 pointer-events-none">
+                          <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 whitespace-nowrap shadow-lg">
+                            <p className="font-medium">Your Units in {state.name}</p>
+                            <p>You have {user_market_entries.length} sector{user_market_entries.length !== 1 ? 's' : ''} × {getStateCapacity(state.multiplier)} capacity = {user_market_entries.length * getStateCapacity(state.multiplier)} total capacity</p>
+                            <p className="text-gray-400 mt-1">Each sector can hold up to {getStateCapacity(state.multiplier)} business units</p>
+                          </div>
+                        </div>
+                      </span>
+                    )}
                     {typeof state.growth_factor === 'number' && (
                       <span className="px-2 py-0.5 text-xs font-medium bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 rounded-full group relative cursor-help">
                         Growth {state.growth_factor.toFixed(2)}x
@@ -862,23 +874,45 @@ export default function StateDetailPage() {
                     Your Markets in {state.name}
                   </h2>
                   <div className="space-y-4">
-                    {user_market_entries.map((entry) => (
-                      <SectorCard
-                        key={entry.id}
-                        sectorType={entry.sector_type}
-                        stateCode={state.code}
-                        stateName={state.name}
-                        stateMultiplier={state.multiplier}
-                        stateGrowthFactor={state.growth_factor || 1}
-                        enteredDate={entry.created_at}
-                        units={entry.units}
-                        corporation={null}
-                        canExtract={sectorCanExtract(entry.sector_type)}
-                        extractableResources={SECTORS_CAN_EXTRACT[entry.sector_type]}
-                        requiredResource={SECTOR_RESOURCES[entry.sector_type] || null}
-                        producedProduct={SECTOR_PRODUCTS[entry.sector_type] || null}
-                        productDemands={SECTOR_PRODUCT_DEMANDS[entry.sector_type] || null}
-                        showActions={true}
+                    {user_market_entries.map((entry) => {
+                      // Calculate revenue and profit for this entry
+                      const retailRevenue = entry.units.retail * calculateUnitRevenue('retail') * DISPLAY_PERIOD_HOURS;
+                      const productionRevenue = entry.units.production * calculateUnitRevenue('production') * DISPLAY_PERIOD_HOURS;
+                      const serviceRevenue = entry.units.service * calculateUnitRevenue('service') * DISPLAY_PERIOD_HOURS;
+                      const extractionRevenue = (entry.units.extraction || 0) * calculateUnitRevenue('extraction') * DISPLAY_PERIOD_HOURS;
+
+                      const retailCost = entry.units.retail * UNIT_LABOR_COSTS.retail * DISPLAY_PERIOD_HOURS;
+                      const productionCost = entry.units.production * UNIT_LABOR_COSTS.production * DISPLAY_PERIOD_HOURS;
+                      const serviceCost = entry.units.service * UNIT_LABOR_COSTS.service * DISPLAY_PERIOD_HOURS;
+                      const extractionCost = (entry.units.extraction || 0) * UNIT_LABOR_COSTS.extraction * DISPLAY_PERIOD_HOURS;
+
+                      const entryRevenue = retailRevenue + productionRevenue + serviceRevenue + extractionRevenue;
+                      const entryCost = retailCost + productionCost + serviceCost + extractionCost;
+                      const entryProfit = entryRevenue - entryCost;
+
+                      return (
+                        <SectorCard
+                          key={entry.id}
+                          sectorType={entry.sector_type}
+                          stateCode={state.code}
+                          stateName={state.name}
+                          stateMultiplier={state.multiplier}
+                          stateGrowthFactor={state.growth_factor || 1}
+                          enteredDate={entry.created_at}
+                          units={entry.units}
+                          corporation={user_corporation ? {
+                            id: user_corporation.id,
+                            name: user_corporation.name,
+                            logo: null,
+                          } : null}
+                          canExtract={sectorCanExtract(entry.sector_type)}
+                          extractableResources={SECTORS_CAN_EXTRACT[entry.sector_type]}
+                          requiredResource={SECTOR_RESOURCES[entry.sector_type] || null}
+                          producedProduct={SECTOR_PRODUCTS[entry.sector_type] || null}
+                          productDemands={SECTOR_PRODUCT_DEMANDS[entry.sector_type] || null}
+                          revenue={entryRevenue}
+                          profit={entryProfit}
+                          showActions={true}
                         onAbandon={(unitType) => handleAbandonUnit(entry.id, unitType, entry.sector_type)}
                         onBuildUnit={(unitType) => handleBuildUnit(entry.id, unitType)}
                         abandoning={abandoning?.startsWith(`${entry.id}-`) ? abandoning.split('-')[1] : null}
@@ -894,7 +928,8 @@ export default function StateDetailPage() {
                         EXTRACTION_OUTPUT_RATE={2.0}
                         unitFlows={marketMetadata?.sector_unit_flows?.[entry.sector_type]}
                       />
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               </div>

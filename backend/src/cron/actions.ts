@@ -180,6 +180,50 @@ async function applyProposalChanges(proposal: any): Promise<void> {
     case 'ceo_salary_change':
       await CorporationModel.update(corpId, { ceo_salary: data.new_salary });
       break;
+
+    case 'dividend_change':
+      await CorporationModel.update(corpId, { dividend_percentage: data.new_percentage });
+      break;
+
+    case 'special_dividend':
+      // Pay special dividend immediately when proposal passes
+      const specialCorp = await CorporationModel.findById(corpId);
+      if (specialCorp) {
+        const capitalPercentage = data.capital_percentage / 100;
+        const currentCapital = typeof specialCorp.capital === 'string' ? parseFloat(specialCorp.capital) : specialCorp.capital;
+        const dividendAmount = currentCapital * capitalPercentage;
+
+        // Get all shareholders
+        const shareholders = await ShareholderModel.findByCorporationId(corpId);
+        const totalShares = shareholders.reduce((sum, sh) => sum + sh.shares, 0) + specialCorp.public_shares;
+
+        if (totalShares > 0 && dividendAmount > 0) {
+          // Pay each shareholder their proportional share
+          for (const shareholder of shareholders) {
+            const shareholderPayout = (dividendAmount * shareholder.shares) / totalShares;
+            await UserModel.updateCash(shareholder.user_id, shareholderPayout);
+
+            // Record transaction
+            await TransactionModel.create({
+              transaction_type: 'special_dividend',
+              amount: shareholderPayout,
+              from_user_id: null,
+              to_user_id: shareholder.user_id,
+              corporation_id: corpId,
+              description: `Special dividend from ${specialCorp.name} (${data.capital_percentage}% of capital)`,
+            });
+          }
+
+          // Deduct dividend from corporation capital
+          const newCapital = currentCapital - dividendAmount;
+          await CorporationModel.update(corpId, {
+            capital: newCapital,
+            special_dividend_last_paid_at: new Date(),
+            special_dividend_last_amount: dividendAmount,
+          });
+        }
+      }
+      break;
   }
 }
 
