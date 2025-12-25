@@ -1770,11 +1770,28 @@ export function getSectorsProducingProduct(product: Product): Sector[] {
 // Get all sectors that demand a specific product
 export function getSectorsDemandingProduct(product: Product): Sector[] {
   const sectors: Sector[] = [];
+
+  // Check production unit demands
   for (const [sector, demands] of Object.entries(SECTOR_PRODUCT_DEMANDS)) {
     if (demands && demands.includes(product)) {
       sectors.push(sector as Sector);
     }
   }
+
+  // Check retail unit demands
+  for (const [sector, demands] of Object.entries(SECTOR_RETAIL_DEMANDS)) {
+    if (demands && demands.includes(product) && !sectors.includes(sector as Sector)) {
+      sectors.push(sector as Sector);
+    }
+  }
+
+  // Check service unit demands
+  for (const [sector, demands] of Object.entries(SECTOR_SERVICE_DEMANDS)) {
+    if (demands && demands.includes(product) && !sectors.includes(sector as Sector)) {
+      sectors.push(sector as Sector);
+    }
+  }
+
   return sectors;
 }
 

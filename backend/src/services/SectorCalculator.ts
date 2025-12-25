@@ -1,10 +1,5 @@
-import fs from 'fs';
-import path from 'path';
-import { BaseSector, SectorParams, UnitCounts } from '../domain/sectors/BaseSector';
-import { ProductionSector } from '../domain/sectors/ProductionSector';
-import { ExtractionSector } from '../domain/sectors/ExtractionSector';
-import { RetailServiceSector } from '../domain/sectors/RetailServiceSector';
-import { SECTOR_PRODUCTS, SECTOR_RESOURCES, SECTOR_EXTRACTION } from '../constants/sectors';
+import { businessUnitCalculator, UnitCounts } from './BusinessUnitCalculator';
+import { SECTOR_PRODUCTS } from '../constants/sectors';
 
 type UnitMaps = {
   production: Record<string, number>;
@@ -13,45 +8,23 @@ type UnitMaps = {
   extraction: Record<string, number>;
 };
 
+/**
+ * SectorCalculator - Computes aggregate supply/demand across all sectors
+ *
+ * Uses BusinessUnitCalculator for unified unit-type-based economics.
+ * FID-20251225-001: Refactored to use BusinessUnitCalculator
+ */
 export class SectorCalculator {
-  private params: SectorParams;
-
-  constructor() {
-    const cfgPath = path.resolve(process.cwd(), 'config', 'sector_rules.json');
-    const raw = fs.existsSync(cfgPath) ? JSON.parse(fs.readFileSync(cfgPath, 'utf8')) : {};
-    this.params = {
-      categoryParams: {
-        production: raw.categories?.production || {},
-        extraction: raw.categories?.extraction || {},
-        retail_service: raw.categories?.retail_service || {},
-      },
-      sectorOverrides: raw.sectors || {},
-    };
-  }
-
-  private getSector(sector: string): BaseSector {
-    const prod = (SECTOR_PRODUCTS as any)[sector];
-    const ext = (SECTOR_EXTRACTION as any)[sector];
-    const category = this.params.sectorOverrides[sector]?.category
-      || (prod ? 'production' : ext ? 'extraction' : 'retail_service');
-    switch (category) {
-      case 'production':
-        return new ProductionSector(sector, this.params);
-      case 'extraction':
-        return new ExtractionSector(sector, this.params);
-      default:
-        return new RetailServiceSector(sector, this.params);
-    }
-  }
-
   computeCommoditySupplyDemand(unitMaps: UnitMaps, resources: string[]): { supply: Record<string, number>; demand: Record<string, number> } {
     const supply: Record<string, number> = {};
     const demand: Record<string, number> = {};
     const sectors = Object.keys({ ...unitMaps.production, ...unitMaps.retail, ...unitMaps.service, ...unitMaps.extraction });
+
     for (const res of resources) {
       supply[res] = 0;
       demand[res] = 0;
     }
+
     for (const sector of sectors) {
       const counts: UnitCounts = {
         production: unitMaps.production[sector] || 0,
@@ -59,15 +32,13 @@ export class SectorCalculator {
         service: unitMaps.service[sector] || 0,
         extraction: unitMaps.extraction[sector] || 0,
       };
-      const s = this.getSector(sector);
+
       for (const res of resources) {
-        supply[res] += s.computeCommoditySupply(res, counts);
-        const reqRes = (SECTOR_RESOURCES as any)[sector];
-        if (reqRes === res) {
-          demand[res] += s.computeCommodityDemand(res, counts);
-        }
+        supply[res] += businessUnitCalculator.computeTotalCommoditySupply(sector, res, counts);
+        demand[res] += businessUnitCalculator.computeTotalCommodityDemand(sector, res, counts);
       }
     }
+
     return { supply, demand };
   }
 
@@ -75,10 +46,12 @@ export class SectorCalculator {
     const supply: Record<string, number> = {};
     const demand: Record<string, number> = {};
     const sectors = Object.keys({ ...unitMaps.production, ...unitMaps.retail, ...unitMaps.service, ...unitMaps.extraction });
+
     for (const p of products) {
       supply[p] = 0;
       demand[p] = 0;
     }
+
     for (const sector of sectors) {
       const counts: UnitCounts = {
         production: unitMaps.production[sector] || 0,
@@ -86,16 +59,19 @@ export class SectorCalculator {
         service: unitMaps.service[sector] || 0,
         extraction: unitMaps.extraction[sector] || 0,
       };
-      const s = this.getSector(sector);
+
       for (const p of products) {
-        const produced = (SECTOR_PRODUCTS as any)[sector];
+        // Supply: only production units create products
+        const produced = (SECTOR_PRODUCTS as Record<string, string | null>)[sector];
         if (produced === p) {
-          supply[p] += s.computeProductSupply(p, counts);
+          supply[p] += businessUnitCalculator.computeProductSupplyByUnitType('production', sector, p, counts.production);
         }
-        const demands = s.computeProductDemand(p, counts);
-        demand[p] += demands;
+
+        // Demand: all unit types may consume products
+        demand[p] += businessUnitCalculator.computeTotalProductDemand(sector, p, counts);
       }
     }
+
     return { supply, demand };
   }
 }

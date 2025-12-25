@@ -6,4 +6,3 @@ logs/
 backend/uploads/
 INSTRUCTIONS.md
 instructions.md
-dev/**/*.md
