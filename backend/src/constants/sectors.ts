@@ -116,7 +116,7 @@ export const SECTOR_EXTRACTION: Record<Sector, Resource[] | null> = {
   'Technology': null,           // Cannot extract
   'Finance': null,              // Cannot extract
   'Healthcare': null,           // Cannot extract
-  'Manufacturing': null,   // Only production and service
+  'Manufacturing': ['Steel'],   // Only production and service, now extracts Steel
   'Energy': ['Oil'],            // Oil extraction
   'Retail': null,               // Cannot extract
   'Real Estate': null,          // Cannot extract

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { boardAPI, BoardResponse, BoardProposal, CreateProposalData } from '@/lib/api';
+import { boardAPI, BoardResponse, BoardProposal, CreateProposalData, adminAPI } from '@/lib/api';
 import { 
   Users, Crown, Clock, CheckCircle, XCircle, 
   ThumbsUp, ThumbsDown, Plus, ChevronDown, ChevronUp,
@@ -30,9 +30,10 @@ interface BoardTabProps {
   corporationId: number;
   corporationName: string;
   viewerUserId: number | null;
+  isAdmin?: boolean;
 }
 
-export default function BoardTab({ corporationId, corporationName, viewerUserId }: BoardTabProps) {
+export default function BoardTab({ corporationId, corporationName, viewerUserId, isAdmin = false }: BoardTabProps) {
   const [boardData, setBoardData] = useState<BoardResponse | null>(null);
   const [proposals, setProposals] = useState<BoardProposal[]>([]);
   const [loading, setLoading] = useState(true);
@@ -41,6 +42,7 @@ export default function BoardTab({ corporationId, corporationName, viewerUserId 
   const [showHistory, setShowHistory] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [voting, setVoting] = useState<number | null>(null);
+  const [resettingBoard, setResettingBoard] = useState(false);
 
   // Form state
   const [proposalType, setProposalType] = useState<CreateProposalData['proposal_type']>('ceo_nomination');
@@ -186,6 +188,23 @@ export default function BoardTab({ corporationId, corporationName, viewerUserId 
       await fetchBoardData();
     } catch (err: any) {
       alert(err.response?.data?.error || 'Failed to resign');
+    }
+  };
+
+  const handleAdminResetBoard = async () => {
+    if (!confirm('Are you sure you want to reset the board? This will remove all board members except the CEO and set the board size to 1. This action cannot be undone.')) {
+      return;
+    }
+
+    setResettingBoard(true);
+    try {
+      const result = await adminAPI.resetBoard(corporationId);
+      alert(`Board reset successfully. ${result.removed_count} member(s) removed.`);
+      await fetchBoardData();
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Failed to reset board');
+    } finally {
+      setResettingBoard(false);
     }
   };
 
@@ -351,6 +370,25 @@ export default function BoardTab({ corporationId, corporationName, viewerUserId 
               >
                 Resign as CEO
               </button>
+            </div>
+          )}
+
+          {/* Admin Reset Board Button */}
+          {isAdmin && (
+            <div className="mt-4 pt-4 border-t-2 border-red-200 dark:border-red-800">
+              <div className="bg-red-50 dark:bg-red-900/20 p-3 rounded-lg">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-red-700 dark:text-red-400 mb-2">Admin Controls</h4>
+                <button
+                  onClick={handleAdminResetBoard}
+                  disabled={resettingBoard}
+                  className="w-full px-4 py-2 text-sm bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 rounded-lg transition-colors font-semibold"
+                >
+                  {resettingBoard ? 'Resetting Board...' : 'Reset Board Members'}
+                </button>
+                <p className="text-xs text-red-600 dark:text-red-400 mt-2">
+                  This will remove all board members except the CEO and set board size to 1
+                </p>
+              </div>
             </div>
           )}
         </div>

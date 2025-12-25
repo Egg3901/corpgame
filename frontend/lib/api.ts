@@ -666,6 +666,22 @@ export const adminAPI = {
     const response = await api.post(`/api/admin/force-stock-split/${corpId}`);
     return response.data;
   },
+  resetBoard: async (corpId: number): Promise<ResetBoardResponse> => {
+    const response = await api.post(`/api/admin/corporation/${corpId}/reset-board`);
+    return response.data;
+  },
+  deleteUserShares: async (corpId: number, userId: number, amount: number): Promise<DeleteSharesResponse> => {
+    const response = await api.delete(`/api/admin/corporation/${corpId}/shares/${userId}`, {
+      data: { amount }
+    });
+    return response.data;
+  },
+  deletePublicShares: async (corpId: number, amount: number): Promise<DeletePublicSharesResponse> => {
+    const response = await api.delete(`/api/admin/corporation/${corpId}/public-shares`, {
+      data: { amount }
+    });
+    return response.data;
+  },
 };
 
 export interface MessageResponse {
@@ -1377,5 +1393,32 @@ export const normalizeImageUrl = (url: string | null | undefined, defaultPath: s
   // If it doesn't start with /, assume it's a relative path and prepend /
   return '/' + trimmed;
 };
+
+// Admin API types
+export interface ResetBoardResponse {
+  success: boolean;
+  message: string;
+  board_members: any[];
+  removed_count: number;
+}
+
+export interface DeleteSharesResponse {
+  success: boolean;
+  message: string;
+  user_id: number;
+  previous_shares: number;
+  new_shares: number;
+  deleted_shares: number;
+}
+
+export interface DeletePublicSharesResponse {
+  success: boolean;
+  message: string;
+  previous_public_shares: number;
+  new_public_shares: number;
+  previous_total_shares: number;
+  new_total_shares: number;
+  deleted_shares: number;
+}
 
 export default api;

@@ -11,6 +11,8 @@ import { normalizeImageUrl } from '../utils/imageUrl';
 import { triggerActionsIncrement, triggerMarketRevenue, triggerCeoSalaries } from '../cron/actions';
 import { updateStockPrice } from '../utils/valuation';
 import { resetGameTime } from '../utils/gameTime';
+import { BoardModel } from '../models/BoardProposal';
+import pool from '../db/connection';
 
 const router = express.Router();
 
@@ -583,6 +585,257 @@ router.post('/fix-all-shares', async (req: AuthRequest, res: Response) => {
   } catch (error) {
     console.error('Fix all shares error:', error);
     res.status(500).json({ error: 'Failed to fix shares' });
+  }
+});
+
+/**
+ * POST /api/admin/corporation/:corpId/reset-board
+ * Admin-only: Remove all board members except the CEO by setting board size to 1
+ */
+router.post('/corporation/:corpId/reset-board', async (req: AuthRequest, res: Response) => {
+  const client = await pool.connect();
+
+  try {
+    const corpId = parseInt(req.params.corpId, 10);
+    if (isNaN(corpId)) {
+      return res.status(400).json({ error: 'Invalid corporation ID' });
+    }
+
+    const adminUserId = req.userId!;
+
+    // Verify corporation exists
+    const corporation = await CorporationModel.findById(corpId);
+    if (!corporation) {
+      return res.status(404).json({ error: 'Corporation not found' });
+    }
+
+    // Get current effective CEO
+    const effectiveCeo = await BoardModel.getEffectiveCeo(corpId);
+    const ceoUserId = effectiveCeo?.userId || null;
+
+    // Get current board members before reset
+    const currentBoardMembers = await BoardModel.getBoardMembers(corpId);
+
+    // Begin transaction
+    await client.query('BEGIN');
+
+    // Board size should be at least 1 (CEO only)
+    const newBoardSize = 1;
+    await CorporationModel.update(corpId, { board_size: newBoardSize });
+
+    // The CEO (if exists) will remain on the board automatically as they're the top shareholder
+    // or elected CEO. All others are removed by virtue of board_size = 1
+
+    await client.query('COMMIT');
+
+    // Send system messages to removed board members
+    const admin = await UserModel.findById(adminUserId);
+    const adminName = admin?.player_name || admin?.username || 'Administrator';
+
+    for (const member of currentBoardMembers) {
+      // Skip CEO
+      if (ceoUserId && member.user_id === ceoUserId) {
+        continue;
+      }
+
+      // Send notification to removed member
+      await MessageModel.create({
+        sender_id: 1, // System user ID
+        recipient_id: member.user_id,
+        subject: `Board Reset: ${corporation.name}`,
+        body: `The board of directors for ${corporation.name} has been reset by ${adminName}. All board members except the CEO have been removed. The board size has been set to 1.`,
+      });
+    }
+
+    // Get updated board members
+    const updatedBoardMembers = await BoardModel.getBoardMembers(corpId);
+
+    console.log(`[Admin] Reset board for corp ${corpId} (${corporation.name}) by user ${adminUserId}`);
+
+    res.json({
+      success: true,
+      message: 'Board reset successfully',
+      board_members: updatedBoardMembers,
+      removed_count: currentBoardMembers.length - updatedBoardMembers.length,
+    });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Reset board error:', error);
+    res.status(500).json({ error: 'Failed to reset board' });
+  } finally {
+    client.release();
+  }
+});
+
+/**
+ * DELETE /api/admin/corporation/:corpId/shares/:userId
+ * Admin-only: Delete specified number of shares from a user
+ */
+router.delete('/corporation/:corpId/shares/:userId', async (req: AuthRequest, res: Response) => {
+  const client = await pool.connect();
+
+  try {
+    const corpId = parseInt(req.params.corpId, 10);
+    const userId = parseInt(req.params.userId, 10);
+    const { amount } = req.body;
+
+    if (isNaN(corpId) || isNaN(userId)) {
+      return res.status(400).json({ error: 'Invalid IDs' });
+    }
+
+    if (!amount || typeof amount !== 'number' || amount <= 0) {
+      return res.status(400).json({ error: 'Amount must be a positive number' });
+    }
+
+    const adminUserId = req.userId!;
+
+    // Verify corporation exists
+    const corporation = await CorporationModel.findById(corpId);
+    if (!corporation) {
+      return res.status(404).json({ error: 'Corporation not found' });
+    }
+
+    // Get current shareholder record
+    const shareholders = await ShareholderModel.findByCorporationId(corpId);
+    const shareholderRecord = shareholders.find(sh => sh.user_id === userId);
+
+    if (!shareholderRecord) {
+      return res.status(404).json({ error: 'User is not a shareholder of this corporation' });
+    }
+
+    if (amount > shareholderRecord.shares) {
+      return res.status(400).json({
+        error: `Cannot delete ${amount} shares. User only has ${shareholderRecord.shares} shares.`
+      });
+    }
+
+    // Begin transaction
+    await client.query('BEGIN');
+
+    const newShareCount = shareholderRecord.shares - amount;
+
+    if (newShareCount === 0) {
+      // Delete shareholder record entirely
+      await ShareholderModel.delete(corpId, userId);
+    } else {
+      // Update shares
+      await ShareholderModel.updateShares(corpId, userId, newShareCount);
+    }
+
+    // Update corporation total shares
+    const newTotalShares = corporation.shares - amount;
+    await CorporationModel.update(corpId, { shares: newTotalShares });
+
+    await client.query('COMMIT');
+
+    // Send system message to affected user
+    const admin = await UserModel.findById(adminUserId);
+    const adminName = admin?.player_name || admin?.username || 'Administrator';
+
+    await MessageModel.create({
+      sender_id: 1, // System user ID
+      recipient_id: userId,
+      subject: `Share Adjustment: ${corporation.name}`,
+      body: `${amount.toLocaleString()} shares of ${corporation.name} have been removed from your portfolio by ${adminName}. ${newShareCount > 0 ? `You now hold ${newShareCount.toLocaleString()} shares.` : 'You no longer hold any shares.'}`,
+    });
+
+    console.log(`[Admin] Deleted ${amount} shares from user ${userId} for corp ${corpId} by admin ${adminUserId}`);
+
+    res.json({
+      success: true,
+      message: `Successfully deleted ${amount} shares`,
+      user_id: userId,
+      previous_shares: shareholderRecord.shares,
+      new_shares: newShareCount,
+      deleted_shares: amount,
+    });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Delete shares error:', error);
+    res.status(500).json({ error: 'Failed to delete shares' });
+  } finally {
+    client.release();
+  }
+});
+
+/**
+ * DELETE /api/admin/corporation/:corpId/public-shares
+ * Admin-only: Delete specified number of public shares
+ */
+router.delete('/corporation/:corpId/public-shares', async (req: AuthRequest, res: Response) => {
+  const client = await pool.connect();
+
+  try {
+    const corpId = parseInt(req.params.corpId, 10);
+    const { amount } = req.body;
+
+    if (isNaN(corpId)) {
+      return res.status(400).json({ error: 'Invalid corporation ID' });
+    }
+
+    if (!amount || typeof amount !== 'number' || amount <= 0) {
+      return res.status(400).json({ error: 'Amount must be a positive number' });
+    }
+
+    const adminUserId = req.userId!;
+
+    // Verify corporation exists
+    const corporation = await CorporationModel.findById(corpId);
+    if (!corporation) {
+      return res.status(404).json({ error: 'Corporation not found' });
+    }
+
+    if (amount > corporation.public_shares) {
+      return res.status(400).json({
+        error: `Cannot delete ${amount} public shares. Only ${corporation.public_shares} public shares available.`
+      });
+    }
+
+    // Begin transaction
+    await client.query('BEGIN');
+
+    const newPublicShares = corporation.public_shares - amount;
+    const newTotalShares = corporation.shares - amount;
+
+    await CorporationModel.update(corpId, {
+      public_shares: newPublicShares,
+      shares: newTotalShares,
+    });
+
+    await client.query('COMMIT');
+
+    // Get all board members to notify
+    const boardMembers = await BoardModel.getBoardMembers(corpId);
+    const admin = await UserModel.findById(adminUserId);
+    const adminName = admin?.player_name || admin?.username || 'Administrator';
+
+    // Notify board members about public share reduction
+    for (const member of boardMembers) {
+      await MessageModel.create({
+        sender_id: 1, // System user ID
+        recipient_id: member.user_id,
+        subject: `Public Shares Reduced: ${corporation.name}`,
+        body: `${amount.toLocaleString()} public shares of ${corporation.name} have been removed by ${adminName}. Public shares: ${corporation.public_shares.toLocaleString()} → ${newPublicShares.toLocaleString()}. Total shares: ${corporation.shares.toLocaleString()} → ${newTotalShares.toLocaleString()}.`,
+      });
+    }
+
+    console.log(`[Admin] Deleted ${amount} public shares for corp ${corpId} by admin ${adminUserId}`);
+
+    res.json({
+      success: true,
+      message: `Successfully deleted ${amount} public shares`,
+      previous_public_shares: corporation.public_shares,
+      new_public_shares: newPublicShares,
+      previous_total_shares: corporation.shares,
+      new_total_shares: newTotalShares,
+      deleted_shares: amount,
+    });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Delete public shares error:', error);
+    res.status(500).json({ error: 'Failed to delete public shares' });
+  } finally {
+    client.release();
   }
 });
 

@@ -112,7 +112,7 @@ export default function SectorCard({
   const isRetailSector = sectorType === 'Retail';
 
   const showRetail = !isManufacturing;
-  const showProduction = !isRetailSector;
+  const showProduction = !!producedProduct;
   const showService = true; // Always show service for now
   const showExtraction = canExtract;
 
@@ -324,6 +324,7 @@ export default function SectorCard({
     : 0;
   const extractionRevenueWithBase = extractionBasePrice + extractionRevenue;
   const extractionProfit = extractionRevenueWithBase - extractionCost;
+  const extractionUnitCost = extractionCost / EXTRACTION_OUTPUT_RATE;
 
   const renderFlowBadges = (flow: ReturnType<typeof formatFlowTotals>) => {
     if (!flow) return null;
@@ -616,11 +617,12 @@ export default function SectorCard({
                     resources: Object.fromEntries((extractionFlow?.inputs.resources || []).map(i => [i.name, i.perUnit])),
                     products: Object.fromEntries((extractionFlow?.inputs.products || []).map(i => [i.name, i.perUnit]))
                   }).map(it => ({ name: it.name, costHr: it.costHr })),
-                  { name: 'Operations', costHr: UNIT_ECONOMICS.extraction.baseCost },
+                  { name: 'Labor', costHr: UNIT_ECONOMICS.extraction.baseCost },
                 ]}
                 breakdown={[
-                  { label: 'Base', value: extractionBasePrice },
-                  { label: 'Price × Output', value: getExtractionRevenue() },
+                  { label: 'Base Price', value: extractionBasePrice },
+                  { label: 'Market Revenue', value: getExtractionRevenue() },
+                  { label: 'Total Cost/Unit', value: extractionUnitCost },
                 ]}
               />
             </TooltipPanel>

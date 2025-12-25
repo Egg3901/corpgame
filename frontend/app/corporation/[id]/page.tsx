@@ -4,7 +4,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import AppNavigation from '@/components/AppNavigation';
-import { corporationAPI, CorporationResponse, authAPI, sharesAPI, marketsAPI, CorporationFinances, MarketEntryWithUnits, BalanceSheet, CommodityPrice, ProductMarketData, MarketMetadataResponse, MarketUnitFlow } from '@/lib/api';
+import { corporationAPI, CorporationResponse, authAPI, sharesAPI, marketsAPI, CorporationFinances, MarketEntryWithUnits, BalanceSheet, CommodityPrice, ProductMarketData, MarketMetadataResponse, MarketUnitFlow, adminAPI } from '@/lib/api';
 import { formatCash } from '@/lib/utils';
 import { Building2, Edit, Trash2, TrendingUp, DollarSign, Users, User, Calendar, ArrowUp, ArrowDown, TrendingDown, Plus, BarChart3, MapPin, Store, Factory, Briefcase, Layers, Droplets, Package, Cpu, Zap, Wheat, Trees, FlaskConical, Box, Lightbulb, Pill, Wrench, Truck, Shield, UtensilsCrossed, Info, ArrowRight, Pickaxe, HelpCircle } from 'lucide-react';
 import BoardTab from '@/components/BoardTab';
@@ -209,6 +209,7 @@ export default function CorporationDetailPage() {
   
   const [corporation, setCorporation] = useState<CorporationResponse | null>(null);
   const [viewerUserId, setViewerUserId] = useState<number | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [deleting, setDeleting] = useState(false);
@@ -239,6 +240,14 @@ export default function CorporationDetailPage() {
     annual_profit: number;
     annual_dividend_per_share: number;
   } | null>(null);
+
+  // Admin controls state
+  const [deleteSharesUserId, setDeleteSharesUserId] = useState<number | null>(null);
+  const [deleteSharesAmount, setDeleteSharesAmount] = useState('');
+  const [deletePublicSharesAmount, setDeletePublicSharesAmount] = useState('');
+  const [showDeleteSharesModal, setShowDeleteSharesModal] = useState(false);
+  const [showDeletePublicSharesModal, setShowDeletePublicSharesModal] = useState(false);
+  const [deletingShares, setDeletingShares] = useState(false);
 
   const getProductionFlow = (sector: string): MarketUnitFlow | null => {
     const flowFromMetadata = marketMetadata?.sector_unit_flows?.[sector]?.production;
@@ -376,6 +385,7 @@ export default function CorporationDetailPage() {
         setCorporation(corpData);
         if (userData) {
           setViewerUserId(userData.id);
+          setIsAdmin(userData.is_admin || false);
           // Find user's shares in this corporation
           const userShareholder = corpData.shareholders?.find(sh => sh.user_id === userData.id);
           setUserOwnedShares(userShareholder?.shares || 0);
@@ -690,9 +700,88 @@ export default function CorporationDetailPage() {
     }
   };
 
+  const handleAdminDeleteShares = async () => {
+    if (!corporation || !deleteSharesUserId || !deleteSharesAmount) return;
+
+    const amount = parseInt(deleteSharesAmount, 10);
+    if (isNaN(amount) || amount <= 0) {
+      alert('Please enter a valid number of shares');
+      return;
+    }
+
+    const shareholder = corporation.shareholders?.find(sh => sh.user_id === deleteSharesUserId);
+    if (!shareholder) {
+      alert('Shareholder not found');
+      return;
+    }
+
+    if (amount > shareholder.shares) {
+      alert(`Cannot delete ${amount.toLocaleString()} shares. User only has ${shareholder.shares.toLocaleString()} shares.`);
+      return;
+    }
+
+    if (!confirm(`Are you sure you want to delete ${amount.toLocaleString()} shares from ${shareholder.user?.player_name || shareholder.user?.username || 'this user'}? This action cannot be undone.`)) {
+      return;
+    }
+
+    setDeletingShares(true);
+    try {
+      await adminAPI.deleteUserShares(corporation.id, deleteSharesUserId, amount);
+      alert(`Successfully deleted ${amount.toLocaleString()} shares`);
+
+      // Refresh corporation data
+      const updatedCorp = await corporationAPI.getById(corporation.id);
+      setCorporation(updatedCorp);
+
+      setShowDeleteSharesModal(false);
+      setDeleteSharesUserId(null);
+      setDeleteSharesAmount('');
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Failed to delete shares');
+    } finally {
+      setDeletingShares(false);
+    }
+  };
+
+  const handleAdminDeletePublicShares = async () => {
+    if (!corporation || !deletePublicSharesAmount) return;
+
+    const amount = parseInt(deletePublicSharesAmount, 10);
+    if (isNaN(amount) || amount <= 0) {
+      alert('Please enter a valid number of shares');
+      return;
+    }
+
+    if (amount > corporation.public_shares) {
+      alert(`Cannot delete ${amount.toLocaleString()} public shares. Only ${corporation.public_shares.toLocaleString()} public shares available.`);
+      return;
+    }
+
+    if (!confirm(`Are you sure you want to delete ${amount.toLocaleString()} public shares? This will reduce the total shares outstanding. This action cannot be undone.`)) {
+      return;
+    }
+
+    setDeletingShares(true);
+    try {
+      await adminAPI.deletePublicShares(corporation.id, amount);
+      alert(`Successfully deleted ${amount.toLocaleString()} public shares`);
+
+      // Refresh corporation data
+      const updatedCorp = await corporationAPI.getById(corporation.id);
+      setCorporation(updatedCorp);
+
+      setShowDeletePublicSharesModal(false);
+      setDeletePublicSharesAmount('');
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Failed to delete public shares');
+    } finally {
+      setDeletingShares(false);
+    }
+  };
+
   const handleAbandonSector = async (entryId: number, sectorType: string, stateName: string, totalUnits: number) => {
     if (!corporation) return;
-    
+
     if (!confirm(`Are you sure you want to abandon the ${sectorType} sector in ${stateName}? This will delete all ${totalUnits} business units in this sector. This action cannot be undone.`)) {
       return;
     }
@@ -1039,6 +1128,9 @@ export default function CorporationDetailPage() {
                           <th className="text-right py-4 px-4 text-xs font-bold uppercase tracking-[0.15em] text-gray-600 dark:text-gray-400">Shares</th>
                           <th className="text-right py-4 px-4 text-xs font-bold uppercase tracking-[0.15em] text-gray-600 dark:text-gray-400">Ownership</th>
                           <th className="text-right py-4 px-4 text-xs font-bold uppercase tracking-[0.15em] text-gray-600 dark:text-gray-400">Value</th>
+                          {isAdmin && (
+                            <th className="text-right py-4 px-4 text-xs font-bold uppercase tracking-[0.15em] text-gray-600 dark:text-gray-400">Admin</th>
+                          )}
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-200/60 dark:divide-gray-700/50">
@@ -1098,6 +1190,21 @@ export default function CorporationDetailPage() {
                                 <td className="text-right py-4 px-4 font-bold text-gray-900 dark:text-white font-mono">
                                   {formatCurrency(value)}
                                 </td>
+                                {isAdmin && (
+                                  <td className="text-right py-4 px-4">
+                                    <button
+                                      onClick={() => {
+                                        setDeleteSharesUserId(sh.user_id);
+                                        setDeleteSharesAmount(sh.shares.toString());
+                                        setShowDeleteSharesModal(true);
+                                      }}
+                                      className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold rounded transition-colors"
+                                      title="Delete shares from this user"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5 inline" />
+                                    </button>
+                                  </td>
+                                )}
                               </tr>
                             );
                           })}
@@ -1123,6 +1230,20 @@ export default function CorporationDetailPage() {
                           <td className="text-right py-4 px-4 font-bold text-gray-900 dark:text-white font-mono">
                             {formatCurrency(corporation.public_shares * corporation.share_price)}
                           </td>
+                          {isAdmin && (
+                            <td className="text-right py-4 px-4">
+                              <button
+                                onClick={() => {
+                                  setDeletePublicSharesAmount(corporation.public_shares.toString());
+                                  setShowDeletePublicSharesModal(true);
+                                }}
+                                className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold rounded transition-colors"
+                                title="Delete public shares"
+                              >
+                                <Trash2 className="w-3.5 h-3.5 inline" />
+                              </button>
+                            </td>
+                          )}
                         </tr>
                       </tbody>
                     </table>
@@ -2361,6 +2482,7 @@ export default function CorporationDetailPage() {
                 corporationId={corpId}
                 corporationName={corporation.name}
                 viewerUserId={viewerUserId}
+                isAdmin={isAdmin}
               />
             )}
           </div>
@@ -2476,6 +2598,107 @@ export default function CorporationDetailPage() {
           )}
         </div>
       </div>
+
+      {/* Admin Delete Shares Modal */}
+      {showDeleteSharesModal && deleteSharesUserId && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full p-6">
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Delete Shares</h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+              Delete shares from {corporation?.shareholders?.find(sh => sh.user_id === deleteSharesUserId)?.user?.player_name || corporation?.shareholders?.find(sh => sh.user_id === deleteSharesUserId)?.user?.username}
+            </p>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Number of shares to delete
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max={corporation?.shareholders?.find(sh => sh.user_id === deleteSharesUserId)?.shares || 0}
+                  value={deleteSharesAmount}
+                  onChange={(e) => setDeleteSharesAmount(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  placeholder="Enter amount"
+                />
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  Current holdings: {(corporation?.shareholders?.find(sh => sh.user_id === deleteSharesUserId)?.shares || 0).toLocaleString()} shares
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={handleAdminDeleteShares}
+                  disabled={deletingShares || !deleteSharesAmount}
+                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors font-semibold"
+                >
+                  {deletingShares ? 'Deleting...' : 'Delete Shares'}
+                </button>
+                <button
+                  onClick={() => {
+                    setShowDeleteSharesModal(false);
+                    setDeleteSharesUserId(null);
+                    setDeleteSharesAmount('');
+                  }}
+                  disabled={deletingShares}
+                  className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Admin Delete Public Shares Modal */}
+      {showDeletePublicSharesModal && corporation && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full p-6">
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Delete Public Shares</h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+              Remove public shares from {corporation.name}
+            </p>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Number of public shares to delete
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max={corporation.public_shares}
+                  value={deletePublicSharesAmount}
+                  onChange={(e) => setDeletePublicSharesAmount(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  placeholder="Enter amount"
+                />
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  Current public shares: {corporation.public_shares.toLocaleString()} shares
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={handleAdminDeletePublicShares}
+                  disabled={deletingShares || !deletePublicSharesAmount}
+                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors font-semibold"
+                >
+                  {deletingShares ? 'Deleting...' : 'Delete Public Shares'}
+                </button>
+                <button
+                  onClick={() => {
+                    setShowDeletePublicSharesModal(false);
+                    setDeletePublicSharesAmount('');
+                  }}
+                  disabled={deletingShares}
+                  className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </AppNavigation>
   );
 }
