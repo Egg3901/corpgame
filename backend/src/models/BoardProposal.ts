@@ -78,6 +78,12 @@ export interface BoardMember {
   is_acting_ceo: boolean;
 }
 
+export interface VoterDetails {
+  aye: BoardMember[];
+  nay: BoardMember[];
+  abstained: BoardMember[];
+}
+
 export interface ProposalWithVotes extends BoardProposal {
   proposer?: {
     id: number;
@@ -91,6 +97,7 @@ export interface ProposalWithVotes extends BoardProposal {
     total: number;
   };
   user_vote?: 'aye' | 'nay' | null;
+  voter_details?: VoterDetails;
 }
 
 export class BoardProposalModel {
@@ -233,14 +240,57 @@ export class BoardProposalModel {
     return history.slice(0, limit);
   }
 
+  // Get voter details for a proposal
+  static async getVoterDetailsForProposal(
+    proposalId: number,
+    corporationId: number
+  ): Promise<VoterDetails> {
+    // Get all board members
+    const boardMembers = await BoardModel.getBoardMembers(corporationId);
+
+    // Get votes for this proposal
+    const votesResult = await pool.query(
+      `SELECT bv.voter_id, bv.vote, u.username, u.player_name, u.profile_id, u.profile_slug, u.profile_image_url,
+              COALESCE(s.shares, 0) as shares
+       FROM board_votes bv
+       JOIN users u ON bv.voter_id = u.id
+       LEFT JOIN shareholders s ON s.user_id = bv.voter_id AND s.corporation_id = $2
+       WHERE bv.proposal_id = $1`,
+      [proposalId, corporationId]
+    );
+
+    const votes: Record<number, 'aye' | 'nay'> = {};
+    votesResult.rows.forEach(row => {
+      votes[row.voter_id] = row.vote;
+    });
+
+    const aye: BoardMember[] = [];
+    const nay: BoardMember[] = [];
+    const abstained: BoardMember[] = [];
+
+    for (const member of boardMembers) {
+      const vote = votes[member.user_id];
+      if (vote === 'aye') {
+        aye.push(member);
+      } else if (vote === 'nay') {
+        nay.push(member);
+      } else {
+        abstained.push(member);
+      }
+    }
+
+    return { aye, nay, abstained };
+  }
+
   // Get all proposals (active and history) with vote counts
   static async getProposalsWithVotes(
     corporationId: number,
-    userId?: number
+    userId?: number,
+    includeVoterDetails: boolean = true
   ): Promise<ProposalWithVotes[]> {
     const result = await pool.query(
       `SELECT bp.*,
-              u.id as proposer_user_id, u.username as proposer_username, 
+              u.id as proposer_user_id, u.username as proposer_username,
               u.player_name as proposer_player_name, u.profile_id as proposer_profile_id,
               COALESCE(SUM(CASE WHEN bv.vote = 'aye' THEN 1 ELSE 0 END), 0)::int as aye_count,
               COALESCE(SUM(CASE WHEN bv.vote = 'nay' THEN 1 ELSE 0 END), 0)::int as nay_count,
@@ -267,29 +317,42 @@ export class BoardProposalModel {
       }, {} as Record<number, 'aye' | 'nay'>);
     }
 
-    return result.rows.map(row => ({
-      id: row.id,
-      corporation_id: row.corporation_id,
-      proposer_id: row.proposer_id,
-      proposal_type: row.proposal_type,
-      proposal_data: row.proposal_data,
-      status: row.status,
-      created_at: row.created_at,
-      resolved_at: row.resolved_at,
-      expires_at: row.expires_at,
-      proposer: row.proposer_user_id ? {
-        id: row.proposer_user_id,
-        username: row.proposer_username,
-        player_name: row.proposer_player_name,
-        profile_id: row.proposer_profile_id,
-      } : undefined,
-      votes: {
-        aye: row.aye_count,
-        nay: row.nay_count,
-        total: row.total_votes,
-      },
-      user_vote: userId ? userVotes[row.id] || null : null,
-    }));
+    const proposals: ProposalWithVotes[] = [];
+
+    for (const row of result.rows) {
+      const proposal: ProposalWithVotes = {
+        id: row.id,
+        corporation_id: row.corporation_id,
+        proposer_id: row.proposer_id,
+        proposal_type: row.proposal_type,
+        proposal_data: row.proposal_data,
+        status: row.status,
+        created_at: row.created_at,
+        resolved_at: row.resolved_at,
+        expires_at: row.expires_at,
+        proposer: row.proposer_user_id ? {
+          id: row.proposer_user_id,
+          username: row.proposer_username,
+          player_name: row.proposer_player_name,
+          profile_id: row.proposer_profile_id,
+        } : undefined,
+        votes: {
+          aye: row.aye_count,
+          nay: row.nay_count,
+          total: row.total_votes,
+        },
+        user_vote: userId ? userVotes[row.id] || null : null,
+      };
+
+      // Add voter details if requested
+      if (includeVoterDetails) {
+        proposal.voter_details = await this.getVoterDetailsForProposal(row.id, corporationId);
+      }
+
+      proposals.push(proposal);
+    }
+
+    return proposals;
   }
 
   // Get expired active proposals that need resolution
@@ -319,6 +382,31 @@ export class BoardProposalModel {
 }
 
 export class BoardVoteModel {
+  // Clean up votes from users who are no longer board members
+  static async cleanupNonBoardMemberVotes(corporationId: number): Promise<number> {
+    const boardMembers = await BoardModel.getBoardMembers(corporationId);
+    const boardMemberIds = boardMembers.map(m => m.user_id);
+
+    if (boardMemberIds.length === 0) {
+      // If no board members, delete all votes for this corp's proposals
+      const result = await pool.query(
+        `DELETE FROM board_votes
+         WHERE proposal_id IN (SELECT id FROM board_proposals WHERE corporation_id = $1)`,
+        [corporationId]
+      );
+      return result.rowCount || 0;
+    }
+
+    // Delete votes from users who aren't on the board
+    const result = await pool.query(
+      `DELETE FROM board_votes
+       WHERE proposal_id IN (SELECT id FROM board_proposals WHERE corporation_id = $1)
+       AND voter_id NOT IN (${boardMemberIds.map((_, i) => `$${i + 2}`).join(', ')})`,
+      [corporationId, ...boardMemberIds]
+    );
+    return result.rowCount || 0;
+  }
+
   // Cast a vote (or update existing vote)
   static async castVote(
     proposalId: number,
@@ -328,7 +416,7 @@ export class BoardVoteModel {
     const result = await pool.query(
       `INSERT INTO board_votes (proposal_id, voter_id, vote)
        VALUES ($1, $2, $3)
-       ON CONFLICT (proposal_id, voter_id) 
+       ON CONFLICT (proposal_id, voter_id)
        DO UPDATE SET vote = EXCLUDED.vote, voted_at = NOW()
        RETURNING *`,
       [proposalId, voterId, vote]

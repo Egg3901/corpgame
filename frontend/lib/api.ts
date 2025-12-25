@@ -845,6 +845,11 @@ export interface BoardProposal {
     total: number;
   };
   user_vote?: 'aye' | 'nay' | null;
+  voter_details?: {
+    aye: BoardMember[];
+    nay: BoardMember[];
+    abstained: BoardMember[];
+  };
 }
 
 export interface BoardResponse {

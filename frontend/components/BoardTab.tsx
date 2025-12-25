@@ -688,10 +688,16 @@ export default function BoardTab({ corporationId, corporationName, viewerUserId,
             </p>
           ) : (
             <div className="space-y-4">
-              {activeProposals.map((proposal) => (
+              {activeProposals.map((proposal) => {
+                const needsUserVote = boardData.is_on_board && !proposal.user_vote;
+                return (
                 <div
                   key={proposal.id}
-                  className="p-4 rounded-xl border border-gray-200/60 dark:border-gray-700/50 bg-white/50 dark:bg-gray-800/50"
+                  className={`p-4 rounded-xl border transition-all ${
+                    needsUserVote
+                      ? 'border-corporate-blue/60 bg-corporate-blue/5 dark:bg-corporate-blue/10 ring-2 ring-corporate-blue/20'
+                      : 'border-gray-200/60 dark:border-gray-700/50 bg-white/50 dark:bg-gray-800/50'
+                  }`}
                 >
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex items-center gap-2">
@@ -735,14 +741,97 @@ export default function BoardTab({ corporationId, corporationName, viewerUserId,
                     </div>
                   </div>
 
+                  {/* Voter Details */}
+                  {proposal.voter_details && (
+                    <div className="mb-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-gray-200/50 dark:border-gray-700/50">
+                      <div className="grid grid-cols-3 gap-2 text-xs">
+                        {/* Aye Voters */}
+                        <div>
+                          <div className="font-semibold text-emerald-600 dark:text-emerald-400 mb-1">
+                            Aye ({proposal.voter_details.aye.length})
+                          </div>
+                          {proposal.voter_details.aye.length > 0 ? (
+                            <ul className="space-y-1">
+                              {proposal.voter_details.aye.map((voter) => (
+                                <li key={voter.user_id} className="text-gray-700 dark:text-gray-300">
+                                  <Link
+                                    href={`/profile/${voter.profile_id}`}
+                                    className="hover:text-corporate-blue dark:hover:text-corporate-blue-light transition-colors"
+                                  >
+                                    {voter.player_name || voter.username}
+                                  </Link>
+                                </li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <p className="text-gray-400 dark:text-gray-500 italic">None</p>
+                          )}
+                        </div>
+
+                        {/* Nay Voters */}
+                        <div>
+                          <div className="font-semibold text-red-600 dark:text-red-400 mb-1">
+                            Nay ({proposal.voter_details.nay.length})
+                          </div>
+                          {proposal.voter_details.nay.length > 0 ? (
+                            <ul className="space-y-1">
+                              {proposal.voter_details.nay.map((voter) => (
+                                <li key={voter.user_id} className="text-gray-700 dark:text-gray-300">
+                                  <Link
+                                    href={`/profile/${voter.profile_id}`}
+                                    className="hover:text-corporate-blue dark:hover:text-corporate-blue-light transition-colors"
+                                  >
+                                    {voter.player_name || voter.username}
+                                  </Link>
+                                </li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <p className="text-gray-400 dark:text-gray-500 italic">None</p>
+                          )}
+                        </div>
+
+                        {/* Abstained (Not Voted Yet) */}
+                        <div>
+                          <div className="font-semibold text-gray-500 dark:text-gray-400 mb-1">
+                            Not Voted ({proposal.voter_details.abstained.length})
+                          </div>
+                          {proposal.voter_details.abstained.length > 0 ? (
+                            <ul className="space-y-1">
+                              {proposal.voter_details.abstained.map((voter) => (
+                                <li key={voter.user_id} className="text-gray-700 dark:text-gray-300">
+                                  <Link
+                                    href={`/profile/${voter.profile_id}`}
+                                    className="hover:text-corporate-blue dark:hover:text-corporate-blue-light transition-colors"
+                                  >
+                                    {voter.player_name || voter.username}
+                                  </Link>
+                                </li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <p className="text-gray-400 dark:text-gray-500 italic">All voted</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Vote Buttons */}
                   {boardData.is_on_board && (
                     <div className="flex gap-2">
                       {proposal.user_vote ? (
-                        <div className="text-sm text-gray-600 dark:text-gray-400">
-                          You voted: <span className={`font-semibold ${proposal.user_vote === 'aye' ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
-                            {proposal.user_vote.toUpperCase()}
-                          </span>
+                        <div className={`w-full px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 ${
+                          proposal.user_vote === 'aye'
+                            ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300'
+                            : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300'
+                        }`}>
+                          {proposal.user_vote === 'aye' ? (
+                            <ThumbsUp className="w-4 h-4" />
+                          ) : (
+                            <ThumbsDown className="w-4 h-4" />
+                          )}
+                          You voted: {proposal.user_vote.toUpperCase()}
                         </div>
                       ) : (
                         <>
@@ -752,7 +841,7 @@ export default function BoardTab({ corporationId, corporationName, viewerUserId,
                             className="flex-1 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2 text-sm font-semibold"
                           >
                             <ThumbsUp className="w-4 h-4" />
-                            Aye
+                            Vote Aye
                           </button>
                           <button
                             onClick={() => handleVote(proposal.id, 'nay')}
@@ -760,14 +849,15 @@ export default function BoardTab({ corporationId, corporationName, viewerUserId,
                             className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2 text-sm font-semibold"
                           >
                             <ThumbsDown className="w-4 h-4" />
-                            Nay
+                            Vote Nay
                           </button>
                         </>
                       )}
                     </div>
                   )}
                 </div>
-              ))}
+              );
+              })}
             </div>
           )}
         </div>

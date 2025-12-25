@@ -332,19 +332,35 @@ router.post('/:corpId/proposals/:proposalId/vote', authenticateToken, async (req
     // Cast the vote
     const boardVote = await BoardVoteModel.castVote(proposalId, userId, vote);
 
-    // Check if all board members have voted - if so, resolve immediately
-    const allVoted = await BoardModel.haveAllBoardMembersVoted(proposalId, corpId);
-    if (allVoted) {
-      await resolveProposal(proposalId);
-    }
-
-    // Return updated vote counts
+    // Get current vote counts and board size
     const voteCounts = await BoardVoteModel.getVoteCounts(proposalId);
+    const boardMembers = await BoardModel.getBoardMembers(corpId);
+    const boardSize = boardMembers.length;
+    const majorityNeeded = Math.floor(boardSize / 2) + 1;
+
+    // Check if supermajority is reached (autopass/autofail)
+    let resolved = false;
+    if (voteCounts.aye >= majorityNeeded) {
+      // Majority voted aye - auto-pass
+      await resolveProposal(proposalId);
+      resolved = true;
+    } else if (voteCounts.nay >= majorityNeeded) {
+      // Majority voted nay - auto-fail
+      await resolveProposal(proposalId);
+      resolved = true;
+    } else {
+      // Check if all board members have voted - if so, resolve immediately
+      const allVoted = await BoardModel.haveAllBoardMembersVoted(proposalId, corpId);
+      if (allVoted) {
+        await resolveProposal(proposalId);
+        resolved = true;
+      }
+    }
 
     res.json({
       vote: boardVote,
       votes: voteCounts,
-      resolved: allVoted,
+      resolved,
     });
   } catch (error) {
     console.error('Cast vote error:', error);
@@ -439,6 +455,8 @@ async function applyProposalChanges(proposal: any): Promise<void> {
   switch (proposal.proposal_type) {
     case 'ceo_nomination':
       await CorporationModel.setElectedCeo(corpId, data.nominee_id);
+      // Clean up votes since CEO is always on the board and this may change board composition
+      await BoardVoteModel.cleanupNonBoardMemberVotes(corpId);
       break;
 
     case 'sector_change':
@@ -451,6 +469,8 @@ async function applyProposalChanges(proposal: any): Promise<void> {
 
     case 'board_size':
       await CorporationModel.update(corpId, { board_size: data.new_size });
+      // Clean up votes from removed board members if board size decreased
+      await BoardVoteModel.cleanupNonBoardMemberVotes(corpId);
       break;
 
     case 'appoint_member':
@@ -461,6 +481,8 @@ async function applyProposalChanges(proposal: any): Promise<void> {
          ON CONFLICT (corporation_id, user_id) DO NOTHING`,
         [corpId, data.appointee_id, proposal.id]
       );
+      // Clean up votes in case board composition changed
+      await BoardVoteModel.cleanupNonBoardMemberVotes(corpId);
       break;
 
     case 'ceo_salary_change':

@@ -11,7 +11,7 @@ import { normalizeImageUrl } from '../utils/imageUrl';
 import { triggerActionsIncrement, triggerMarketRevenue, triggerCeoSalaries } from '../cron/actions';
 import { updateStockPrice } from '../utils/valuation';
 import { resetGameTime } from '../utils/gameTime';
-import { BoardModel } from '../models/BoardProposal';
+import { BoardModel, BoardVoteModel } from '../models/BoardProposal';
 import pool from '../db/connection';
 
 const router = express.Router();
@@ -625,6 +625,9 @@ router.post('/corporation/:corpId/reset-board', async (req: AuthRequest, res: Re
       'DELETE FROM board_appointments WHERE corporation_id = $1',
       [corpId]
     );
+
+    // Clean up votes from users who are no longer board members
+    await BoardVoteModel.cleanupNonBoardMemberVotes(corpId);
 
     await client.query('COMMIT');
 
