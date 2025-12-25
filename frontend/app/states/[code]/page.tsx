@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import AppNavigation from '@/components/AppNavigation';
 import { marketsAPI, StateDetailResponse, authAPI } from '@/lib/api';
+import SectorCard from '@/components/SectorCard';
 import {
   MapPin,
   Building2,
@@ -67,6 +68,46 @@ const UNIT_ECONOMICS = {
   production: { baseRevenue: 800, baseCost: 600 },
   service: { baseRevenue: 400, baseCost: 200 },
   extraction: { baseRevenue: 1000, baseCost: 700 },  // High revenue, high cost
+};
+
+// Sector to Resource mapping (must match backend)
+const SECTOR_RESOURCES: Record<string, string | null> = {
+  'Technology': 'Rare Earth',
+  'Finance': null,
+  'Healthcare': null,
+  'Manufacturing': 'Steel',
+  'Energy': 'Oil',
+  'Retail': null,
+  'Real Estate': null,
+  'Transportation': 'Steel',
+  'Media': null,
+  'Telecommunications': 'Copper',
+  'Agriculture': 'Fertile Land',
+  'Defense': 'Steel',
+  'Hospitality': null,
+  'Construction': 'Lumber',
+  'Pharmaceuticals': 'Chemical Compounds',
+  'Mining': null,
+};
+
+// Sector to Product output mapping (what production units create)
+const SECTOR_PRODUCTS: Record<string, string | null> = {
+  'Technology': 'Technology Products',
+  'Finance': null,
+  'Healthcare': null,
+  'Manufacturing': 'Manufactured Goods',
+  'Energy': 'Electricity',
+  'Retail': null,
+  'Real Estate': null,
+  'Transportation': 'Logistics Capacity',
+  'Media': null,
+  'Telecommunications': null,
+  'Agriculture': 'Food Products',
+  'Defense': 'Defense Equipment',
+  'Hospitality': null,
+  'Construction': 'Construction Capacity',
+  'Pharmaceuticals': 'Pharmaceutical Products',
+  'Mining': null,
 };
 
 // Sectors that can build extraction units and what they can extract (must match backend SECTOR_EXTRACTION)
@@ -199,6 +240,7 @@ export default function StateDetailPage() {
   const [building, setBuilding] = useState<string | null>(null);
   const [userActions, setUserActions] = useState<number>(0);
   const [abandoning, setAbandoning] = useState<number | null>(null);
+  const [commodityPrices, setCommodityPrices] = useState<Record<string, { currentPrice: number }>>({});
 
   useEffect(() => {
     const fetchData = async () => {
@@ -209,13 +251,21 @@ export default function StateDetailPage() {
       }
 
       try {
-        const [stateResult, meResult] = await Promise.all([
+        const [stateResult, meResult, commoditiesResult] = await Promise.all([
           marketsAPI.getState(stateCode),
           authAPI.getMe().catch(() => null),
+          marketsAPI.getCommodities().catch(() => null),
         ]);
         setStateData(stateResult);
         if (meResult) {
           setUserActions(meResult.actions || 0);
+        }
+        if (commoditiesResult) {
+          const pricesMap: Record<string, { currentPrice: number }> = {};
+          commoditiesResult.commodities.forEach((price: any) => {
+            pricesMap[price.resource] = { currentPrice: price.currentPrice };
+          });
+          setCommodityPrices(pricesMap);
         }
       } catch (err: any) {
         console.error('Failed to fetch state:', err);
@@ -489,173 +539,33 @@ export default function StateDetailPage() {
                   </h2>
                   <div className="space-y-4">
                     {user_market_entries.map((entry) => (
-                      <div
+                      <SectorCard
                         key={entry.id}
-                        className="rounded-xl border border-white/60 bg-white/70 dark:border-gray-800/70 dark:bg-gray-800/60 p-4 shadow-sm"
-                      >
-                        <div className="flex items-center justify-between mb-4">
-                          <div>
-                            <h3 className="font-semibold text-gray-900 dark:text-white">{entry.sector_type}</h3>
-                            <span className="text-xs text-gray-500 dark:text-gray-400">
-                              Entered {new Date(entry.created_at).toLocaleDateString()}
-                            </span>
-                          </div>
-                          <button
-                            onClick={() => handleAbandonSector(entry.id, entry.sector_type)}
-                            disabled={abandoning === entry.id}
-                            className="px-3 py-1.5 text-xs bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1"
-                          >
-                            {abandoning === entry.id ? (
-                              'Abandoning...'
-                            ) : (
-                              <>
-                                <Trash2 className="w-3 h-3" />
-                                Abandon
-                              </>
-                            )}
-                          </button>
-                        </div>
-
-                        {/* Unit Types - Always 4 columns, frost extraction if not supported */}
-                        <div className="grid grid-cols-4 gap-3">
-                          {/* Retail */}
-                          <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3 group relative">
-                            <div className="flex items-center gap-2 mb-2">
-                              <Store className="h-4 w-4 text-pink-500" />
-                              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Retail</span>
-                            </div>
-                            <p className="text-2xl font-bold text-gray-900 dark:text-white">{entry.units.retail}</p>
-                            <p className="text-xs text-emerald-600 dark:text-emerald-400">
-                              +{formatCurrency(calculateUnitProfit('retail') * entry.units.retail)}/96hr
-                            </p>
-                            <button
-                              onClick={() => handleBuildUnit(entry.id, 'retail')}
-                              disabled={building === `${entry.id}-retail` || user_corporation.capital < BUILD_UNIT_COST || userActions < 1 || getTotalUnits(entry.units) >= getStateCapacity(state.multiplier)}
-                              className="mt-2 w-full px-2 py-1 text-xs bg-pink-500 text-white rounded hover:bg-pink-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                            >
-                              {building === `${entry.id}-retail` ? '...' : `+1 (${formatCurrency(BUILD_UNIT_COST)})`}
-                            </button>
-                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-10 pointer-events-none">
-                              <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 whitespace-nowrap shadow-lg">
-                                <p className="font-medium">Retail Unit Economics</p>
-                                <p>Revenue: ${UNIT_ECONOMICS.retail.baseRevenue}/hr</p>
-                                <p>Cost: ${UNIT_ECONOMICS.retail.baseCost}/hr</p>
-                                <p className="text-emerald-400">Profit: ${(UNIT_ECONOMICS.retail.baseRevenue - UNIT_ECONOMICS.retail.baseCost)}/hr</p>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Production */}
-                          <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3 group relative">
-                            <div className="flex items-center gap-2 mb-2">
-                              <Factory className="h-4 w-4 text-orange-500" />
-                              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Production</span>
-                            </div>
-                            <p className="text-2xl font-bold text-gray-900 dark:text-white">{entry.units.production}</p>
-                            <p className="text-xs text-emerald-600 dark:text-emerald-400">
-                              +{formatCurrency(calculateUnitProfit('production') * entry.units.production)}/96hr
-                            </p>
-                            <button
-                              onClick={() => handleBuildUnit(entry.id, 'production')}
-                              disabled={building === `${entry.id}-production` || user_corporation.capital < BUILD_UNIT_COST || userActions < 1 || getTotalUnits(entry.units) >= getStateCapacity(state.multiplier)}
-                              className="mt-2 w-full px-2 py-1 text-xs bg-orange-500 text-white rounded hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                            >
-                              {building === `${entry.id}-production` ? '...' : `+1 (${formatCurrency(BUILD_UNIT_COST)})`}
-                            </button>
-                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-10 pointer-events-none">
-                              <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 whitespace-nowrap shadow-lg">
-                                <p className="font-medium">Production Unit Economics</p>
-                                <p>Revenue: varies by sector output</p>
-                                <p>Cost: labor + commodity inputs</p>
-                                <p className="text-gray-400">Dynamic pricing based on market</p>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Service */}
-                          <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3 group relative">
-                            <div className="flex items-center gap-2 mb-2">
-                              <Briefcase className="h-4 w-4 text-blue-500" />
-                              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Service</span>
-                            </div>
-                            <p className="text-2xl font-bold text-gray-900 dark:text-white">{entry.units.service}</p>
-                            <p className="text-xs text-emerald-600 dark:text-emerald-400">
-                              +{formatCurrency(calculateUnitProfit('service') * entry.units.service)}/96hr
-                            </p>
-                            <button
-                              onClick={() => handleBuildUnit(entry.id, 'service')}
-                              disabled={building === `${entry.id}-service` || user_corporation.capital < BUILD_UNIT_COST || userActions < 1 || getTotalUnits(entry.units) >= getStateCapacity(state.multiplier)}
-                              className="mt-2 w-full px-2 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                            >
-                              {building === `${entry.id}-service` ? '...' : `+1 (${formatCurrency(BUILD_UNIT_COST)})`}
-                            </button>
-                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-10 pointer-events-none">
-                              <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 whitespace-nowrap shadow-lg">
-                                <p className="font-medium">Service Unit Economics</p>
-                                <p>Revenue: ${UNIT_ECONOMICS.service.baseRevenue}/hr</p>
-                                <p>Cost: ${UNIT_ECONOMICS.service.baseCost}/hr</p>
-                                <p className="text-emerald-400">Profit: ${(UNIT_ECONOMICS.service.baseRevenue - UNIT_ECONOMICS.service.baseCost)}/hr</p>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Extraction - frosted if sector doesn't support it */}
-                          <div className={`rounded-lg border p-3 group relative ${
-                            sectorCanExtract(entry.sector_type) 
-                              ? 'border-gray-200 dark:border-gray-700' 
-                              : 'border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/30'
-                          }`}>
-                            <div className={`flex items-center gap-2 mb-2 ${!sectorCanExtract(entry.sector_type) ? 'opacity-40' : ''}`}>
-                              <Pickaxe className={`h-4 w-4 ${sectorCanExtract(entry.sector_type) ? 'text-amber-500' : 'text-gray-400'}`} />
-                              <span className={`text-sm font-medium ${sectorCanExtract(entry.sector_type) ? 'text-gray-700 dark:text-gray-300' : 'text-gray-400 dark:text-gray-600'}`}>Extraction</span>
-                            </div>
-                            {sectorCanExtract(entry.sector_type) ? (
-                              <>
-                                <p className="text-2xl font-bold text-gray-900 dark:text-white">{entry.units.extraction || 0}</p>
-                                <p className="text-xs text-emerald-600 dark:text-emerald-400">
-                                  +{formatCurrency(calculateUnitProfit('extraction') * (entry.units.extraction || 0))}/96hr
-                                </p>
-                                <button
-                                  onClick={() => handleBuildUnit(entry.id, 'extraction')}
-                                  disabled={building === `${entry.id}-extraction` || user_corporation.capital < BUILD_UNIT_COST || userActions < 1 || getTotalUnits(entry.units) >= getStateCapacity(state.multiplier)}
-                                  className="mt-2 w-full px-2 py-1 text-xs bg-amber-500 text-white rounded hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                                >
-                                  {building === `${entry.id}-extraction` ? '...' : `+1 (${formatCurrency(BUILD_UNIT_COST)})`}
-                                </button>
-                              </>
-                            ) : (
-                              <>
-                                <p className="text-2xl font-bold text-gray-300 dark:text-gray-600">—</p>
-                                <p className="text-xs text-gray-400 dark:text-gray-600">
-                                  Not available
-                                </p>
-                                <div className="mt-2 w-full px-2 py-1 text-xs text-gray-400 dark:text-gray-600 text-center">
-                                  Unavailable
-                                </div>
-                              </>
-                            )}
-                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-10 pointer-events-none">
-                              <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 whitespace-nowrap shadow-lg">
-                                {sectorCanExtract(entry.sector_type) ? (
-                                  <>
-                                    <p className="font-medium">Extraction Unit Economics</p>
-                                    <p>Revenue: ${UNIT_ECONOMICS.extraction.baseRevenue}/hr × {state.multiplier.toFixed(1)}x</p>
-                                    <p>Cost: ${UNIT_ECONOMICS.extraction.baseCost}/hr</p>
-                                    <p className="text-emerald-400">Profit: ${(UNIT_ECONOMICS.extraction.baseRevenue * state.multiplier - UNIT_ECONOMICS.extraction.baseCost).toFixed(0)}/hr</p>
-                                    <p className="text-amber-400 mt-1">Extracts: {SECTORS_CAN_EXTRACT[entry.sector_type]?.join(', ')}</p>
-                                  </>
-                                ) : (
-                                  <>
-                                    <p className="font-medium text-gray-400">Extraction Not Available</p>
-                                    <p className="text-gray-400">{entry.sector_type} sector cannot extract resources</p>
-                                    <p className="text-gray-500 mt-1 text-[10px]">Available: Mining, Energy, Agriculture,<br/>Manufacturing, Construction, Pharmaceuticals</p>
-                                  </>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
+                        sectorType={entry.sector_type}
+                        stateCode={state.code}
+                        stateName={state.name}
+                        stateMultiplier={state.multiplier}
+                        enteredDate={entry.created_at}
+                        units={entry.units}
+                        corporation={null}
+                        canExtract={sectorCanExtract(entry.sector_type)}
+                        extractableResources={SECTORS_CAN_EXTRACT[entry.sector_type]}
+                        requiredResource={SECTOR_RESOURCES[entry.sector_type] || null}
+                        producedProduct={SECTOR_PRODUCTS[entry.sector_type] || null}
+                        showActions={true}
+                        onAbandon={() => handleAbandonSector(entry.id, entry.sector_type)}
+                        onBuildUnit={(unitType) => handleBuildUnit(entry.id, unitType)}
+                        abandoning={abandoning === entry.id}
+                        building={building?.startsWith(`${entry.id}-`) ? building.split('-')[1] : null}
+                        canBuild={user_corporation.capital >= BUILD_UNIT_COST && userActions >= 1 && getTotalUnits(entry.units) < getStateCapacity(state.multiplier)}
+                        buildCost={BUILD_UNIT_COST}
+                        formatCurrency={formatCurrency}
+                        calculateUnitProfit={calculateUnitProfit}
+                        UNIT_ECONOMICS={UNIT_ECONOMICS}
+                        SECTORS_CAN_EXTRACT={SECTORS_CAN_EXTRACT}
+                        commodityPrices={commodityPrices}
+                        EXTRACTION_OUTPUT_RATE={2.0}
+                      />
                     ))}
                   </div>
                 </div>

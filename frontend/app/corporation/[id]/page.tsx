@@ -4,11 +4,12 @@ import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import AppNavigation from '@/components/AppNavigation';
-import { corporationAPI, CorporationResponse, authAPI, sharesAPI, marketsAPI, CorporationFinances, MarketEntryWithUnits, BalanceSheet, CommodityPrice, ProductMarketData } from '@/lib/api';
+import { corporationAPI, CorporationResponse, authAPI, sharesAPI, marketsAPI, CorporationFinances, MarketEntryWithUnits, BalanceSheet, CommodityPrice, ProductMarketData, corporateActionsAPI, CorporateAction } from '@/lib/api';
 import { formatCash } from '@/lib/utils';
 import { Building2, Edit, Trash2, TrendingUp, DollarSign, Users, User, Calendar, ArrowUp, ArrowDown, TrendingDown, Plus, BarChart3, MapPin, Store, Factory, Briefcase, Layers, Droplets, Package, Cpu, Zap, Wheat, Trees, FlaskConical, Box, Lightbulb, Pill, Wrench, Truck, Shield, UtensilsCrossed, Info, ArrowRight, Pickaxe, HelpCircle } from 'lucide-react';
 import BoardTab from '@/components/BoardTab';
 import StockPriceChart from '@/components/StockPriceChart';
+import SectorCard from '@/components/SectorCard';
 
 // Sector to Resource mapping (must match backend)
 const SECTOR_RESOURCES: Record<string, string | null> = {
@@ -164,7 +165,7 @@ const PRODUCT_BASE_PRICES: Record<string, number> = {
 const PRODUCTION_LABOR_COST = 400; // per hour
 const PRODUCTION_RESOURCE_CONSUMPTION = 0.5; // units per hour
 const PRODUCTION_OUTPUT_RATE = 1.0; // product units per hour
-const EXTRACTION_OUTPUT_RATE = 0.25; // resource units per hour (must match backend)
+const EXTRACTION_OUTPUT_RATE = 2.0; // resource units per hour (must match backend)
 
 // US States for display
 const US_STATES: Record<string, string> = {
@@ -198,8 +199,9 @@ export default function CorporationDetailPage() {
   const [issueShares, setIssueShares] = useState('');
   const [trading, setTrading] = useState(false);
   const [userOwnedShares, setUserOwnedShares] = useState(0);
-  const [activeTab, setActiveTab] = useState<'overview' | 'sectors' | 'finance' | 'board'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'sectors' | 'finance' | 'board' | 'actions'>('overview');
   const [abandoning, setAbandoning] = useState<number | null>(null);
+  const [building, setBuilding] = useState<string | null>(null);
   const [corpFinances, setCorpFinances] = useState<CorporationFinances | null>(null);
   const [balanceSheet, setBalanceSheet] = useState<BalanceSheet | null>(null);
   const [marketEntries, setMarketEntries] = useState<MarketEntryWithUnits[]>([]);
@@ -218,6 +220,8 @@ export default function CorporationDetailPage() {
     annual_profit: number;
     annual_dividend_per_share: number;
   } | null>(null);
+  const [corporateActions, setCorporateActions] = useState<CorporateAction[]>([]);
+  const [activatingAction, setActivatingAction] = useState<'supply_rush' | 'marketing_campaign' | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -276,6 +280,22 @@ export default function CorporationDetailPage() {
     } else {
       setError('Invalid corporation ID');
       setLoading(false);
+    }
+  }, [corpId]);
+
+  // Fetch corporate actions separately
+  useEffect(() => {
+    const fetchCorporateActions = async () => {
+      try {
+        const actions = await corporateActionsAPI.getActiveActions(corpId);
+        setCorporateActions(actions);
+      } catch (err) {
+        console.error('Failed to fetch corporate actions:', err);
+      }
+    };
+
+    if (!isNaN(corpId)) {
+      fetchCorporateActions();
     }
   }, [corpId]);
 
@@ -561,6 +581,93 @@ export default function CorporationDetailPage() {
     }
   };
 
+  const handleBuildUnit = async (entryId: number, unitType: 'retail' | 'production' | 'service' | 'extraction') => {
+    if (!corporation) return;
+
+    setBuilding(`${entryId}-${unitType}`);
+    try {
+      await marketsAPI.buildUnit(entryId, unitType);
+      // Refresh data
+      const [corpData, financesData] = await Promise.all([
+        corporationAPI.getById(corpId),
+        marketsAPI.getCorporationFinances(corpId).catch(() => null),
+      ]);
+      setCorporation(corpData);
+      if (financesData) {
+        setCorpFinances(financesData.finances);
+        setBalanceSheet(financesData.balance_sheet || null);
+        setMarketEntries(financesData.market_entries || []);
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Failed to build unit');
+    } finally {
+      setBuilding(null);
+    }
+  };
+
+  const handleActivateSupplyRush = async () => {
+    if (!corporation) return;
+    
+    if (!confirm(`Activate Supply Rush? This will cost $${formatCash(calculateActionCost())} and boost all production and extraction output by 10% for 4 hours.`)) {
+      return;
+    }
+
+    setActivatingAction('supply_rush');
+    try {
+      const action = await corporateActionsAPI.activateSupplyRush(corporation.id);
+      setCorporateActions([...corporateActions, action]);
+      // Refresh corporation data to show updated capital
+      const updatedCorp = await corporationAPI.getById(corpId);
+      setCorporation(updatedCorp);
+      alert('Supply Rush activated! All production and extraction output will be boosted by 10% for 4 hours.');
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Failed to activate Supply Rush');
+    } finally {
+      setActivatingAction(null);
+    }
+  };
+
+  const handleActivateMarketingCampaign = async () => {
+    if (!corporation) return;
+    
+    if (!confirm(`Activate Marketing Campaign? This will cost $${formatCash(calculateActionCost())} and boost all production and extraction output by 10% for 4 hours.`)) {
+      return;
+    }
+
+    setActivatingAction('marketing_campaign');
+    try {
+      const action = await corporateActionsAPI.activateMarketingCampaign(corporation.id);
+      setCorporateActions([...corporateActions, action]);
+      // Refresh corporation data to show updated capital
+      const updatedCorp = await corporationAPI.getById(corpId);
+      setCorporation(updatedCorp);
+      alert('Marketing Campaign activated! All production and extraction output will be boosted by 10% for 4 hours.');
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Failed to activate Marketing Campaign');
+    } finally {
+      setActivatingAction(null);
+    }
+  };
+
+  const calculateActionCost = (): number => {
+    if (!corporation) return 0;
+    const marketCap = corporation.shares * corporation.share_price;
+    return 500000 + (marketCap * 0.01);
+  };
+
+  const getRemainingTime = (expiresAt: string): string => {
+    const now = new Date();
+    const expires = new Date(expiresAt);
+    const diff = expires.getTime() - now.getTime();
+    
+    if (diff <= 0) return 'Expired';
+    
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    
+    return `${hours}h ${minutes}m`;
+  };
+
   if (loading) {
     return (
       <AppNavigation>
@@ -754,6 +861,16 @@ export default function CorporationDetailPage() {
                 }`}
               >
                 Finance
+              </button>
+              <button
+                onClick={() => setActiveTab('actions')}
+                className={`flex-1 px-6 py-4 text-sm font-semibold transition-colors ${
+                  activeTab === 'actions'
+                    ? 'text-corporate-blue dark:text-corporate-blue-light border-b-2 border-corporate-blue dark:border-corporate-blue-light bg-corporate-blue/5 dark:bg-corporate-blue/10'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                }`}
+              >
+                Actions
               </button>
             </div>
           </div>
@@ -1264,11 +1381,67 @@ export default function CorporationDetailPage() {
                                   const entryProfit = entryRevenue - entryCost;
 
                                   return (
-                                    <div key={entry.id} className="p-4 hover:bg-gray-50/50 dark:hover:bg-gray-800/30 transition-colors">
-                                      <div className="flex items-start justify-between mb-3">
-                                        <div>
-                                          <h4 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                                            {entry.sector_type}
+                                    <SectorCard
+                                      key={entry.id}
+                                      sectorType={entry.sector_type}
+                                      stateCode={entry.state_code}
+                                      stateName={stateName}
+                                      stateMultiplier={stateMultiplier}
+                                      enteredDate={entry.created_at}
+                                      units={{
+                                        retail: entry.retail_count,
+                                        production: entry.production_count,
+                                        service: entry.service_count,
+                                        extraction: entry.extraction_count || 0,
+                                      }}
+                                      corporation={corporation ? {
+                                        id: corporation.id,
+                                        name: corporation.name,
+                                        logo: corporation.logo,
+                                      } : null}
+                                      canExtract={canExtract}
+                                      extractableResources={extractableResources}
+                                      requiredResource={requiredResource || null}
+                                      producedProduct={SECTOR_PRODUCTS[entry.sector_type] || null}
+                                      revenue={entryRevenue}
+                                      profit={entryProfit}
+                                      showActions={corporation && viewerUserId === corporation.ceo_id}
+                                      onAbandon={() => handleAbandonSector(entry.id, entry.sector_type, stateName, totalUnits)}
+                                      onBuildUnit={(unitType) => handleBuildUnit(entry.id, unitType)}
+                                      abandoning={abandoning === entry.id}
+                                      building={building?.startsWith(`${entry.id}-`) ? building.split('-')[1] : null}
+                                      canBuild={corporation && viewerUserId === corporation.ceo_id && corporation.capital >= 10000}
+                                      buildCost={10000}
+                                      formatCurrency={formatCurrency}
+                                      calculateUnitProfit={(unitType) => {
+                                        if (unitType === 'retail') return (UNIT_ECONOMICS.retail.baseRevenue - UNIT_ECONOMICS.retail.baseCost) * DISPLAY_PERIOD_HOURS;
+                                        if (unitType === 'production') return 0;
+                                        if (unitType === 'service') return (UNIT_ECONOMICS.service.baseRevenue - UNIT_ECONOMICS.service.baseCost) * DISPLAY_PERIOD_HOURS;
+                                        if (unitType === 'extraction') {
+                                          if (extractableResources && extractableResources.length > 0 && commodityPrices[extractableResources[0]]) {
+                                            const extractionRevenue = commodityPrices[extractableResources[0]].currentPrice * EXTRACTION_OUTPUT_RATE * DISPLAY_PERIOD_HOURS;
+                                            const extractionCost = UNIT_ECONOMICS.extraction.baseCost * DISPLAY_PERIOD_HOURS;
+                                            return extractionRevenue - extractionCost;
+                                          }
+                                          return (UNIT_ECONOMICS.extraction.baseRevenue - UNIT_ECONOMICS.extraction.baseCost) * DISPLAY_PERIOD_HOURS;
+                                        }
+                                        return 0;
+                                      }}
+                                      UNIT_ECONOMICS={UNIT_ECONOMICS}
+                                      SECTORS_CAN_EXTRACT={SECTORS_CAN_EXTRACT}
+                                      commodityPrices={commodityPrices}
+                                      EXTRACTION_OUTPUT_RATE={EXTRACTION_OUTPUT_RATE}
+                                    />
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          );
+                        });
+                      })()}
+
+                      {/* Resource Demand Summary */}
+                      <div className="rounded-xl border border-white/60 bg-white/70 dark:border-gray-800/70 dark:bg-gray-800/60 p-6 shadow-sm mt-6">
                                             {canExtract && (
                                               <span className="text-xs font-normal text-amber-600 dark:text-amber-400 flex items-center gap-1">
                                                 <Pickaxe className="w-3 h-3" />
@@ -2407,10 +2580,158 @@ export default function CorporationDetailPage() {
                 viewerUserId={viewerUserId}
               />
             )}
+
+            {activeTab === 'actions' && (
+              <div className="space-y-6">
+                <div className="relative rounded-2xl border border-gray-200/50 dark:border-gray-700/50 bg-gradient-to-br from-white via-white to-gray-50/50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800/50 shadow-2xl overflow-hidden backdrop-blur-sm">
+                  <div className="absolute inset-0 bg-gradient-to-br from-corporate-blue/5 via-transparent to-corporate-blue-light/5 dark:from-corporate-blue/10 dark:via-transparent dark:to-corporate-blue-dark/10 pointer-events-none" />
+                  <div className="absolute inset-0 ring-1 ring-inset ring-white/20 dark:ring-gray-700/30 pointer-events-none" />
+                  <div className="relative p-6">
+                    <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Corporate Actions</h2>
+                    
+                    {!isCeo && (
+                      <div className="mb-6 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+                        <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                          Only the CEO can activate corporate actions.
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Active Actions */}
+                    {corporateActions.length > 0 && (
+                      <div className="mb-8">
+                        <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Active Actions</h3>
+                        <div className="space-y-3">
+                          {corporateActions.map(action => (
+                            <div key={action.id} className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <p className="font-bold text-gray-900 dark:text-white">
+                                    {action.action_type === 'supply_rush' ? 'Supply Rush' : 'Marketing Campaign'}
+                                  </p>
+                                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                                    +10% production and extraction output
+                                  </p>
+                                </div>
+                                <div className="text-right">
+                                  <p className="text-sm font-bold text-green-600 dark:text-green-400">
+                                    Active
+                                  </p>
+                                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                                    {getRemainingTime(action.expires_at)} remaining
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Available Actions */}
+                    <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Available Actions</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {/* Supply Rush */}
+                      <div className="relative rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-lg">
+                        <h4 className="text-xl font-bold text-gray-900 dark:text-white mb-3">Supply Rush</h4>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                          Accelerate all production and extraction operations by 10% for 4 hours.
+                        </p>
+                        <div className="space-y-2 mb-4">
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-gray-600 dark:text-gray-400">Cost:</span>
+                            <span className="font-bold text-gray-900 dark:text-white">{formatCash(calculateActionCost())}</span>
+                          </div>
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-gray-600 dark:text-gray-400">Duration:</span>
+                            <span className="font-bold text-gray-900 dark:text-white">4 hours</span>
+                          </div>
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-gray-600 dark:text-gray-400">Boost:</span>
+                            <span className="font-bold text-green-600 dark:text-green-400">+10%</span>
+                          </div>
+                        </div>
+                        <button
+                          onClick={handleActivateSupplyRush}
+                          disabled={
+                            !isCeo || 
+                            activatingAction !== null || 
+                            corporateActions.some(a => a.action_type === 'supply_rush')
+                          }
+                          className="w-full px-4 py-3 bg-corporate-blue text-white rounded-lg hover:bg-corporate-blue-dark disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-semibold"
+                        >
+                          {corporateActions.some(a => a.action_type === 'supply_rush') 
+                            ? 'Already Active' 
+                            : activatingAction === 'supply_rush' 
+                              ? 'Activating...' 
+                              : 'Activate Supply Rush'}
+                        </button>
+                      </div>
+
+                      {/* Marketing Campaign */}
+                      <div className="relative rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-lg">
+                        <h4 className="text-xl font-bold text-gray-900 dark:text-white mb-3">Marketing Campaign</h4>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                          Launch a marketing campaign to boost all production and extraction by 10% for 4 hours.
+                        </p>
+                        <div className="space-y-2 mb-4">
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-gray-600 dark:text-gray-400">Cost:</span>
+                            <span className="font-bold text-gray-900 dark:text-white">{formatCash(calculateActionCost())}</span>
+                          </div>
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-gray-600 dark:text-gray-400">Duration:</span>
+                            <span className="font-bold text-gray-900 dark:text-white">4 hours</span>
+                          </div>
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-gray-600 dark:text-gray-400">Boost:</span>
+                            <span className="font-bold text-green-600 dark:text-green-400">+10%</span>
+                          </div>
+                        </div>
+                        <button
+                          onClick={handleActivateMarketingCampaign}
+                          disabled={
+                            !isCeo || 
+                            activatingAction !== null || 
+                            corporateActions.some(a => a.action_type === 'marketing_campaign')
+                          }
+                          className="w-full px-4 py-3 bg-corporate-blue text-white rounded-lg hover:bg-corporate-blue-dark disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-semibold"
+                        >
+                          {corporateActions.some(a => a.action_type === 'marketing_campaign') 
+                            ? 'Already Active' 
+                            : activatingAction === 'marketing_campaign' 
+                              ? 'Activating...' 
+                              : 'Activate Marketing Campaign'}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Cost Breakdown */}
+                    <div className="mt-6 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+                      <h4 className="text-sm font-bold text-gray-900 dark:text-white mb-2">Cost Calculation</h4>
+                      <div className="space-y-1 text-xs text-gray-600 dark:text-gray-400">
+                        <div className="flex items-center justify-between">
+                          <span>Base Cost:</span>
+                          <span className="font-mono">{formatCash(500000)}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span>1% of Market Cap ({formatCash(marketCap)}):</span>
+                          <span className="font-mono">{formatCash(marketCap * 0.01)}</span>
+                        </div>
+                        <div className="border-t border-gray-300 dark:border-gray-600 mt-2 pt-2 flex items-center justify-between font-bold text-gray-900 dark:text-white">
+                          <span>Total Cost:</span>
+                          <span className="font-mono">{formatCash(calculateActionCost())}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Sidebar - Only show on overview, sectors, and finance tabs */}
-          {activeTab !== 'board' && (
+          {activeTab !== 'board' && activeTab !== 'actions' && (
           <div className="space-y-6">
             <div className="relative rounded-2xl border border-gray-200/50 dark:border-gray-700/50 bg-gradient-to-br from-white via-white to-gray-50/50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800/50 shadow-2xl overflow-hidden backdrop-blur-sm">
               <div className="absolute inset-0 bg-gradient-to-br from-corporate-blue/5 via-transparent to-corporate-blue-light/5 dark:from-corporate-blue/10 dark:via-transparent dark:to-corporate-blue-dark/10 pointer-events-none" />

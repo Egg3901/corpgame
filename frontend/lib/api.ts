@@ -1252,6 +1252,37 @@ export const marketsAPI = {
   },
 };
 
+// Corporate Actions API types
+export interface CorporateAction {
+  id: number;
+  corporation_id: number;
+  action_type: 'supply_rush' | 'marketing_campaign';
+  cost: number;
+  started_at: string;
+  expires_at: string;
+  created_at: string;
+}
+
+// Corporate Actions API
+export const corporateActionsAPI = {
+  getAllActions: async (corporationId: number): Promise<CorporateAction[]> => {
+    const response = await api.get(`/api/corporate-actions/${corporationId}`);
+    return response.data;
+  },
+  getActiveActions: async (corporationId: number): Promise<CorporateAction[]> => {
+    const response = await api.get(`/api/corporate-actions/${corporationId}/active`);
+    return response.data;
+  },
+  activateSupplyRush: async (corporationId: number): Promise<CorporateAction> => {
+    const response = await api.post(`/api/corporate-actions/${corporationId}/supply-rush`);
+    return response.data;
+  },
+  activateMarketingCampaign: async (corporationId: number): Promise<CorporateAction> => {
+    const response = await api.post(`/api/corporate-actions/${corporationId}/marketing-campaign`);
+    return response.data;
+  },
+};
+
 /**
  * Normalizes image URLs to ensure they work correctly.
  * - If the URL is already absolute (starts with http:// or https://), returns it as-is

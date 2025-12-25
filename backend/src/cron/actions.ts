@@ -6,6 +6,7 @@ import { MessageModel } from '../models/Message';
 import { MarketEntryModel } from '../models/MarketEntry';
 import { TransactionModel } from '../models/Transaction';
 import { ShareholderModel } from '../models/Shareholder';
+import { CorporateActionModel } from '../models/CorporateAction';
 import { updateStockPrice } from '../utils/valuation';
 import { SharePriceHistoryModel } from '../models/SharePriceHistory';
 import { CommodityPriceHistoryModel } from '../models/CommodityPriceHistory';
@@ -200,6 +201,7 @@ function getProposalDescription(type: string, data: any): string {
 /**
  * Process market revenue/costs for all corporations with business units
  * Called hourly to add net profit to corporation capital
+ * Applies 10% boost from active Supply Rush or Marketing Campaign actions
  */
 async function processMarketRevenue(): Promise<void> {
   try {
@@ -211,6 +213,22 @@ async function processMarketRevenue(): Promise<void> {
     if (corpFinancials.length === 0) {
       console.log('[Cron] No corporations with business units to process');
       return;
+    }
+
+    // Get all active corporate actions for performance boost
+    const activeActionsQuery = await pool.query(`
+      SELECT DISTINCT corporation_id, action_type
+      FROM corporate_actions
+      WHERE expires_at > NOW()
+    `);
+    
+    // Build a map of corporation_id -> set of active action types
+    const activeCorporateActions = new Map<number, Set<string>>();
+    for (const row of activeActionsQuery.rows) {
+      if (!activeCorporateActions.has(row.corporation_id)) {
+        activeCorporateActions.set(row.corporation_id, new Set());
+      }
+      activeCorporateActions.get(row.corporation_id)!.add(row.action_type);
     }
 
     let totalProcessed = 0;
@@ -226,16 +244,40 @@ async function processMarketRevenue(): Promise<void> {
 
         const currentCapital = typeof corp.capital === 'string' ? parseFloat(corp.capital) : corp.capital;
 
-        // Add hourly profit to capital (can be negative if costs exceed revenue)
-        const newCapital = Math.max(0, currentCapital + hourly_profit);
+        // Apply corporate action boost if active
+        let adjustedProfit = hourly_profit;
+        const activeActions = activeCorporateActions.get(corporation_id);
+        
+        if (activeActions) {
+          let boostMultiplier = 1.0;
+          let boostDescription = '';
+          
+          if (activeActions.has('supply_rush')) {
+            boostMultiplier += 0.10; // +10% boost
+            boostDescription = ' (Supply Rush +10%)';
+          }
+          
+          if (activeActions.has('marketing_campaign')) {
+            boostMultiplier += 0.10; // +10% boost
+            boostDescription += boostDescription ? ', Marketing Campaign +10%' : ' (Marketing Campaign +10%)';
+          }
+          
+          adjustedProfit = hourly_profit * boostMultiplier;
+          
+          console.log(`[Cron] Corporation ${corporation_id} has active corporate actions - boosting profit from $${hourly_profit.toFixed(2)} to $${adjustedProfit.toFixed(2)}${boostDescription}`);
+        }
+
+        // Add adjusted hourly profit to capital (can be negative if costs exceed revenue)
+        const newCapital = Math.max(0, currentCapital + adjustedProfit);
         await CorporationModel.update(corporation_id, { capital: newCapital });
 
         // Record transaction for corporation revenue
+        const boostNote = activeActions && activeActions.size > 0 ? ` (with ${activeActions.size} active boost${activeActions.size > 1 ? 's' : ''})` : '';
         await TransactionModel.create({
           transaction_type: 'corp_revenue',
-          amount: hourly_profit,
+          amount: adjustedProfit,
           corporation_id: corporation_id,
-          description: `Hourly ${hourly_profit >= 0 ? 'profit' : 'loss'}: $${Math.abs(hourly_profit).toLocaleString()}`,
+          description: `Hourly ${adjustedProfit >= 0 ? 'profit' : 'loss'}: $${Math.abs(adjustedProfit).toLocaleString()}${boostNote}`,
         });
 
         // Recalculate stock price based on new fundamentals (with hourly random variation)
@@ -249,7 +291,7 @@ async function processMarketRevenue(): Promise<void> {
         });
 
         totalProcessed++;
-        totalRevenue += hourly_profit;
+        totalRevenue += adjustedProfit;
       } catch (corpErr) {
         console.error(`[Cron] Error processing revenue for corporation ${corporation_id}:`, corpErr);
       }

@@ -16,6 +16,7 @@ import messagesRoutes from './routes/messages';
 import cashRoutes from './routes/cash';
 import boardRoutes from './routes/board';
 import marketsRoutes from './routes/markets';
+import corporateActionsRoutes from './routes/corporateActions';
 import { startActionsCron } from './cron/actions';
 
 // Load .env from multiple possible locations
@@ -213,6 +214,7 @@ app.use('/api/messages', messagesRoutes);
 app.use('/api/cash', cashRoutes);
 app.use('/api/board', boardRoutes);
 app.use('/api/markets', marketsRoutes);
+app.use('/api/corporate-actions', corporateActionsRoutes);
 
 // Health check
 app.get('/health', (req, res) => {
