@@ -237,6 +237,169 @@ router.get('/commodities', async (req: Request, res: Response) => {
   }
 });
 
+router.get('/metadata', async (req: Request, res: Response) => {
+  try {
+    const {
+      SECTORS,
+      RESOURCES,
+      PRODUCTS,
+      SECTOR_RESOURCES,
+      SECTOR_PRODUCTS,
+      SECTOR_PRODUCT_DEMANDS,
+      SECTOR_RETAIL_DEMANDS,
+      SECTOR_SERVICE_DEMANDS,
+      SECTOR_EXTRACTION,
+      EXTRACTION_OUTPUT_RATE,
+      EXTRACTION_ELECTRICITY_CONSUMPTION,
+      PRODUCTION_OUTPUT_RATE,
+      PRODUCTION_RESOURCE_CONSUMPTION,
+      PRODUCTION_ELECTRICITY_CONSUMPTION,
+      PRODUCTION_PRODUCT_CONSUMPTION,
+      RETAIL_PRODUCT_CONSUMPTION,
+      SERVICE_ELECTRICITY_CONSUMPTION,
+      SERVICE_PRODUCT_CONSUMPTION,
+    } = await import('../constants/sectors');
+
+    type UnitType = 'retail' | 'production' | 'service' | 'extraction';
+    type UnitFlow = {
+      inputs: { resources: Record<string, number>; products: Record<string, number> };
+      outputs: { resources: Record<string, number>; products: Record<string, number> };
+    };
+
+    const sector_unit_flows: Record<string, Record<UnitType, UnitFlow>> = {};
+
+    for (const sector of SECTORS) {
+      const requiredResource = SECTOR_RESOURCES[sector] ?? null;
+      const producedProduct = SECTOR_PRODUCTS[sector] ?? null;
+      const productionProductDemands = SECTOR_PRODUCT_DEMANDS[sector] ?? null;
+      const retailDemands = SECTOR_RETAIL_DEMANDS[sector] ?? null;
+      const serviceDemands = SECTOR_SERVICE_DEMANDS[sector] ?? null;
+      const extractableResources = SECTOR_EXTRACTION[sector] ?? null;
+
+      const productionInputsResources: Record<string, number> = {};
+      if (requiredResource) {
+        productionInputsResources[requiredResource] = PRODUCTION_RESOURCE_CONSUMPTION;
+      }
+
+      const productionInputsProducts: Record<string, number> = {};
+      if (PRODUCTION_ELECTRICITY_CONSUMPTION > 0) {
+        productionInputsProducts['Electricity'] = PRODUCTION_ELECTRICITY_CONSUMPTION;
+      }
+      if (productionProductDemands) {
+        for (const product of productionProductDemands) {
+          productionInputsProducts[product] = PRODUCTION_PRODUCT_CONSUMPTION;
+        }
+      }
+
+      const productionOutputsProducts: Record<string, number> = {};
+      if (producedProduct) {
+        productionOutputsProducts[producedProduct] = PRODUCTION_OUTPUT_RATE;
+      }
+
+      const retailInputsProducts: Record<string, number> = {};
+      if (retailDemands) {
+        for (const product of retailDemands) {
+          retailInputsProducts[product] = RETAIL_PRODUCT_CONSUMPTION;
+        }
+      }
+
+      const serviceInputsProducts: Record<string, number> = {};
+      if (serviceDemands) {
+        for (const product of serviceDemands) {
+          serviceInputsProducts[product] =
+            product === 'Electricity' ? SERVICE_ELECTRICITY_CONSUMPTION : SERVICE_PRODUCT_CONSUMPTION;
+        }
+      }
+
+      const extractionInputsProducts: Record<string, number> = {};
+      if (EXTRACTION_ELECTRICITY_CONSUMPTION > 0) {
+        extractionInputsProducts['Electricity'] = EXTRACTION_ELECTRICITY_CONSUMPTION;
+      }
+
+      const extractionOutputsResources: Record<string, number> = {};
+      if (extractableResources) {
+        for (const resource of extractableResources) {
+          extractionOutputsResources[resource] = EXTRACTION_OUTPUT_RATE;
+        }
+      }
+
+      sector_unit_flows[sector] = {
+        retail: {
+          inputs: { resources: {}, products: retailInputsProducts },
+          outputs: { resources: {}, products: {} },
+        },
+        production: {
+          inputs: { resources: productionInputsResources, products: productionInputsProducts },
+          outputs: { resources: {}, products: productionOutputsProducts },
+        },
+        service: {
+          inputs: { resources: {}, products: serviceInputsProducts },
+          outputs: { resources: {}, products: {} },
+        },
+        extraction: {
+          inputs: { resources: {}, products: extractionInputsProducts },
+          outputs: { resources: extractionOutputsResources, products: {} },
+        },
+      };
+    }
+
+    const product_consumers: Record<string, string[]> = {};
+    const product_suppliers: Record<string, string[]> = {};
+    for (const product of PRODUCTS) {
+      const consumers: string[] = [];
+      const suppliers: string[] = [];
+      for (const sector of SECTORS) {
+        const flows = sector_unit_flows[sector];
+        const consumes = Object.prototype.hasOwnProperty.call(flows.production.inputs.products, product)
+          || Object.prototype.hasOwnProperty.call(flows.retail.inputs.products, product)
+          || Object.prototype.hasOwnProperty.call(flows.service.inputs.products, product)
+          || Object.prototype.hasOwnProperty.call(flows.extraction.inputs.products, product);
+        const supplies = Object.prototype.hasOwnProperty.call(flows.production.outputs.products, product)
+          || Object.prototype.hasOwnProperty.call(flows.retail.outputs.products, product)
+          || Object.prototype.hasOwnProperty.call(flows.service.outputs.products, product)
+          || Object.prototype.hasOwnProperty.call(flows.extraction.outputs.products, product);
+        if (consumes) consumers.push(sector);
+        if (supplies) suppliers.push(sector);
+      }
+      product_consumers[product] = consumers;
+      product_suppliers[product] = suppliers;
+    }
+
+    const resource_consumers: Record<string, string[]> = {};
+    const resource_suppliers: Record<string, string[]> = {};
+    for (const resource of RESOURCES) {
+      const consumers: string[] = [];
+      const suppliers: string[] = [];
+      for (const sector of SECTORS) {
+        const flows = sector_unit_flows[sector];
+        const consumes = Object.prototype.hasOwnProperty.call(flows.production.inputs.resources, resource)
+          || Object.prototype.hasOwnProperty.call(flows.retail.inputs.resources, resource)
+          || Object.prototype.hasOwnProperty.call(flows.service.inputs.resources, resource)
+          || Object.prototype.hasOwnProperty.call(flows.extraction.inputs.resources, resource);
+        const supplies = Object.prototype.hasOwnProperty.call(flows.production.outputs.resources, resource)
+          || Object.prototype.hasOwnProperty.call(flows.retail.outputs.resources, resource)
+          || Object.prototype.hasOwnProperty.call(flows.service.outputs.resources, resource)
+          || Object.prototype.hasOwnProperty.call(flows.extraction.outputs.resources, resource);
+        if (consumes) consumers.push(sector);
+        if (supplies) suppliers.push(sector);
+      }
+      resource_consumers[resource] = consumers;
+      resource_suppliers[resource] = suppliers;
+    }
+
+    res.json({
+      sector_unit_flows,
+      product_consumers,
+      product_suppliers,
+      resource_consumers,
+      resource_suppliers,
+    });
+  } catch (error) {
+    console.error('Get market metadata error:', error);
+    res.status(500).json({ error: 'Failed to fetch market metadata' });
+  }
+});
+
 // GET /api/markets/resource/:name - Get detailed resource/commodity info
 router.get('/resource/:name', async (req: Request, res: Response) => {
   try {

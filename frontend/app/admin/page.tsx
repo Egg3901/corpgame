@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Trash2, Shield, ShieldOff, Eye, EyeOff, AlertTriangle, Flag, CheckCircle2, X, ChevronDown, ChevronUp, MessageSquare, Play, RefreshCw, DollarSign, Clock, Receipt, Search, ArrowUpRight, ArrowDownLeft, Scissors } from 'lucide-react';
+import { Trash2, Shield, ShieldOff, Eye, EyeOff, AlertTriangle, Flag, CheckCircle2, X, ChevronDown, ChevronUp, MessageSquare, Play, RefreshCw, DollarSign, Clock, Receipt, Search, ArrowUpRight, ArrowDownLeft, Scissors, CalendarClock } from 'lucide-react';
 import AppNavigation from '@/components/AppNavigation';
-import { authAPI, adminAPI, AdminUser, ReportedChat, Transaction, TransactionType, normalizeImageUrl } from '@/lib/api';
+import { authAPI, adminAPI, AdminUser, ReportedChat, Transaction, TransactionType, normalizeImageUrl, gameAPI, AdminGameTimeResetResponse } from '@/lib/api';
 import Link from 'next/link';
+import { calculateGameTime, GameTime } from '@/lib/gameTime';
 
 export default function AdminPage() {
   const router = useRouter();
@@ -31,6 +32,16 @@ export default function AdminPage() {
     corporations_updated: number;
     changes: Array<{ corporation_id: number; name: string; old_price: number; new_price: number }>;
   } | null>(null);
+  // Game time state
+  const [gameYear, setGameYear] = useState('');
+  const [gameQuarter, setGameQuarter] = useState('1');
+  const [resettingGameTime, setResettingGameTime] = useState(false);
+  const [gameTimeInfo, setGameTimeInfo] = useState<{
+    current: GameTime;
+    startDate: string;
+    serverTime: string;
+  } | null>(null);
+  const [gameTimeResult, setGameTimeResult] = useState<AdminGameTimeResetResponse | null>(null);
   // Stock split state
   const [stockSplitCorpId, setStockSplitCorpId] = useState('');
   const [runningSplit, setRunningSplit] = useState(false);
@@ -68,12 +79,24 @@ export default function AdminPage() {
           return;
         }
 
-        const [allUsers, reportedChatsData] = await Promise.all([
+        const [allUsers, reportedChatsData, serverTimeData] = await Promise.all([
           adminAPI.getAllUsers(),
           adminAPI.getReportedChats(false), // Only get unreviewed by default
+          gameAPI.getTime().catch(() => null),
         ]);
         setUsers(allUsers);
         setReportedChats(reportedChatsData);
+
+        if (serverTimeData) {
+          const currentGameTime = calculateGameTime(serverTimeData.game_start_date, serverTimeData.server_time);
+          setGameTimeInfo({
+            current: currentGameTime,
+            startDate: serverTimeData.game_start_date,
+            serverTime: serverTimeData.server_time,
+          });
+          setGameYear(currentGameTime.year.toString());
+          setGameQuarter(currentGameTime.quarter.toString());
+        }
       } catch (err: any) {
         console.error('Admin panel error:', err);
         if (err?.response?.status === 403) {
@@ -186,6 +209,50 @@ export default function AdminPage() {
       alert(err?.response?.data?.error || 'Failed to recalculate prices');
     } finally {
       setRecalculatingPrices(false);
+    }
+  };
+
+  const refreshGameTime = async () => {
+    try {
+      const serverTimeData = await gameAPI.getTime();
+      const currentGameTime = calculateGameTime(serverTimeData.game_start_date, serverTimeData.server_time);
+      setGameTimeInfo({
+        current: currentGameTime,
+        startDate: serverTimeData.game_start_date,
+        serverTime: serverTimeData.server_time,
+      });
+      setGameYear(currentGameTime.year.toString());
+      setGameQuarter(currentGameTime.quarter.toString());
+    } catch (err) {
+      console.error('Refresh game time error:', err);
+    }
+  };
+
+  const handleResetGameTime = async () => {
+    const parsedYear = parseInt(gameYear, 10);
+    const parsedQuarter = parseInt(gameQuarter, 10);
+
+    if (isNaN(parsedYear) || parsedYear < 1900) {
+      alert('Please enter a valid year (>= 1900)');
+      return;
+    }
+
+    if (isNaN(parsedQuarter) || parsedQuarter < 1 || parsedQuarter > 4) {
+      alert('Quarter must be between 1 and 4');
+      return;
+    }
+
+    try {
+      setResettingGameTime(true);
+      setGameTimeResult(null);
+      const result = await adminAPI.setGameTime(parsedYear, parsedQuarter);
+      setGameTimeResult(result);
+      await refreshGameTime();
+    } catch (err: any) {
+      console.error('Set game time error:', err);
+      alert(err?.response?.data?.error || 'Failed to reset game time');
+    } finally {
+      setResettingGameTime(false);
     }
   };
 
@@ -462,6 +529,82 @@ export default function AdminPage() {
                 </div>
               )}
 
+              {/* Game Time Reset */}
+              <div className="border-t border-gray-200 dark:border-gray-700 pt-4 mt-4">
+                <div className="flex items-start justify-between gap-4 mb-3">
+                  <div>
+                    <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                      <CalendarClock className="w-4 h-4 text-indigo-500" />
+                      Game Time
+                    </h3>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      Set the in-game calendar to a specific year and quarter.
+                    </p>
+                  </div>
+                  {gameTimeInfo && (
+                    <div className="text-xs text-gray-600 dark:text-gray-400 text-right">
+                      <p className="font-semibold text-gray-800 dark:text-gray-200">
+                        Current: Q{gameTimeInfo.current.quarter} {gameTimeInfo.current.year}
+                      </p>
+                      <p>Start: {formatDate(gameTimeInfo.startDate)}</p>
+                    </div>
+                  )}
+                </div>
+                <div className="grid md:grid-cols-4 gap-3">
+                  <div className="md:col-span-2">
+                    <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                      Year
+                    </label>
+                    <input
+                      type="number"
+                      value={gameYear}
+                      onChange={(e) => setGameYear(e.target.value)}
+                      placeholder="e.g. 1932"
+                      className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                      Quarter
+                    </label>
+                    <select
+                      value={gameQuarter}
+                      onChange={(e) => setGameQuarter(e.target.value)}
+                      className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    >
+                      <option value="1">Q1</option>
+                      <option value="2">Q2</option>
+                      <option value="3">Q3</option>
+                      <option value="4">Q4</option>
+                    </select>
+                  </div>
+                  <div className="flex items-end">
+                    <button
+                      onClick={handleResetGameTime}
+                      disabled={resettingGameTime || !gameYear}
+                      className="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium rounded-md bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {resettingGameTime ? (
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <CalendarClock className="w-4 h-4" />
+                      )}
+                      Set Game Time
+                    </button>
+                  </div>
+                </div>
+                {gameTimeResult && (
+                  <div className="mt-3 p-3 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800">
+                    <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">
+                      Game time reset to Q{gameTimeResult.game_time.quarter} {gameTimeResult.game_time.year}
+                    </p>
+                    <p className="text-xs text-emerald-700 dark:text-emerald-300 mt-1">
+                      New start date: {formatDate(gameTimeResult.game_start_date)}
+                    </p>
+                  </div>
+                )}
+              </div>
+
               {/* Stock Split Section */}
               <div className="border-t border-gray-200 dark:border-gray-700 pt-4 mt-4">
                 <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Force Stock Split</h3>
@@ -531,6 +674,8 @@ export default function AdminPage() {
                 <strong>Run Turn:</strong> Triggers hourly actions (+2 for all, +1 extra for CEOs), processes market revenue, and pays CEO salaries. Stock prices update automatically.
                 <br />
                 <strong>Recalculate Prices:</strong> Forces recalculation of all stock prices based on current book value (80%) and trade history (20%).
+                <br />
+                <strong>Set Game Time:</strong> Resets the in-game calendar to the chosen year and quarter (1 real day = 1 quarter).
                 <br />
                 <strong>Force Stock Split:</strong> Executes a 2:1 stock split on a corporation (doubles shares, halves price). Use with caution.
               </p>

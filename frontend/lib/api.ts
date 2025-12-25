@@ -481,6 +481,15 @@ export interface ReportedChat {
   } | null;
 }
 
+export interface AdminGameTimeResetResponse {
+  success: boolean;
+  message: string;
+  game_time: { year: number; quarter: number };
+  game_start_date: string;
+  quarters_from_start: number;
+  applied_at: string;
+}
+
 // Transaction types
 export type TransactionType = 
   | 'corp_revenue'
@@ -605,6 +614,10 @@ export const adminAPI = {
     changes: Array<{ corporation_id: number; name: string; old_price: number; new_price: number }>;
   }> => {
     const response = await api.post('/api/admin/recalculate-prices');
+    return response.data;
+  },
+  setGameTime: async (year: number, quarter: number): Promise<AdminGameTimeResetResponse> => {
+    const response = await api.post('/api/admin/set-game-time', { year, quarter });
     return response.data;
   },
   getTransactions: async (filters?: TransactionFilters): Promise<TransactionsResponse> => {
@@ -1089,6 +1102,27 @@ export interface CommoditiesResponse {
   product_demand: Record<string, number>;
 }
 
+export type MarketUnitType = 'retail' | 'production' | 'service' | 'extraction';
+
+export interface MarketUnitFlow {
+  inputs: {
+    resources: Record<string, number>;
+    products: Record<string, number>;
+  };
+  outputs: {
+    resources: Record<string, number>;
+    products: Record<string, number>;
+  };
+}
+
+export interface MarketMetadataResponse {
+  sector_unit_flows: Record<string, Record<MarketUnitType, MarketUnitFlow>>;
+  product_consumers: Record<string, string[]>;
+  product_suppliers: Record<string, string[]>;
+  resource_consumers: Record<string, string[]>;
+  resource_suppliers: Record<string, string[]>;
+}
+
 // Resource detail types
 export interface ResourceSupplierDemander {
   corporation_id: number;
@@ -1170,6 +1204,10 @@ export interface ProductDetailResponse {
 export const marketsAPI = {
   getCommodities: async (): Promise<CommoditiesResponse> => {
     const response = await api.get('/api/markets/commodities');
+    return response.data;
+  },
+  getMarketMetadata: async (): Promise<MarketMetadataResponse> => {
+    const response = await api.get('/api/markets/metadata');
     return response.data;
   },
   getResourceDetail: async (resourceName: string, page: number = 1, limit: number = 10, filter: 'producers' | 'demanders' = 'demanders'): Promise<ResourceDetailResponse> => {

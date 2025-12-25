@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import AppNavigation from '@/components/AppNavigation';
 import TickerTape from '@/components/TickerTape';
-import { corporationAPI, CorporationResponse, marketsAPI, CommodityPrice, ProductMarketData } from '@/lib/api';
+import { corporationAPI, CorporationResponse, marketsAPI, CommodityPrice, ProductMarketData, MarketMetadataResponse } from '@/lib/api';
 import { Building2, Plus, TrendingUp, TrendingDown, Clock, FileText, ChevronRight, ArrowUpRight, ArrowDownRight, Package, Droplets, Cpu, Zap, Wheat, Trees, FlaskConical, MapPin, Box, Lightbulb, Pill, Wrench, Truck, Shield, UtensilsCrossed } from 'lucide-react';
 
 // Resource icon mapping
@@ -61,6 +61,7 @@ export default function StockMarketPage() {
   const [products, setProducts] = useState<ProductMarketData[]>([]);
   const [commoditySupply, setCommoditySupply] = useState<Record<string, number>>({});
   const [commodityDemand, setCommodityDemand] = useState<Record<string, number>>({});
+  const [marketMetadata, setMarketMetadata] = useState<MarketMetadataResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [commoditiesLoading, setCommoditiesLoading] = useState(false);
   const [activeSubTab, setActiveSubTab] = useState<'resources' | 'products'>('resources');
@@ -90,11 +91,15 @@ export default function StockMarketPage() {
       const fetchCommodities = async () => {
         setCommoditiesLoading(true);
         try {
-          const data = await marketsAPI.getCommodities();
+          const [data, metadata] = await Promise.all([
+            marketsAPI.getCommodities(),
+            marketsAPI.getMarketMetadata().catch(() => null),
+          ]);
           setCommodities(data.commodities);
           setProducts(data.products);
           setCommoditySupply(data.commodity_supply || {});
           setCommodityDemand(data.commodity_demand || {});
+          if (metadata) setMarketMetadata(metadata);
         } catch (err) {
           console.error('Failed to fetch commodities:', err);
         } finally {
@@ -616,22 +621,45 @@ export default function StockMarketPage() {
                             </span>
                           </div>
 
-                          {/* Demanding sectors */}
-                          {commodity.demandingSectors.length > 0 && (
-                            <div className="pt-2 border-t border-gray-100 dark:border-gray-700">
-                              <p className="text-xs text-gray-500 dark:text-gray-400 mb-1.5">Used by:</p>
-                              <div className="flex flex-wrap gap-1">
-                                {commodity.demandingSectors.map((sector) => (
-                                  <span
-                                    key={sector}
-                                    className="text-xs px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300"
-                                  >
-                                    {sector}
-                                  </span>
-                                ))}
+                          {(() => {
+                            const suppliers = marketMetadata?.resource_suppliers?.[commodity.resource] || [];
+                            const consumers = marketMetadata?.resource_consumers?.[commodity.resource] || commodity.demandingSectors || [];
+                            if (suppliers.length === 0 && consumers.length === 0) return null;
+                            return (
+                              <div className="pt-2 border-t border-gray-100 dark:border-gray-700 space-y-2">
+                                {suppliers.length > 0 && (
+                                  <div>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1.5">Supplied by:</p>
+                                    <div className="flex flex-wrap gap-1">
+                                      {suppliers.map((sector) => (
+                                        <span
+                                          key={sector}
+                                          className="text-xs px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300"
+                                        >
+                                          {sector}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                                {consumers.length > 0 && (
+                                  <div>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1.5">Used by:</p>
+                                    <div className="flex flex-wrap gap-1">
+                                      {consumers.map((sector) => (
+                                        <span
+                                          key={sector}
+                                          className="text-xs px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300"
+                                        >
+                                          {sector}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
                               </div>
-                            </div>
-                          )}
+                            );
+                          })()}
 
                           {/* Top producers */}
                           <div className="pt-2 border-t border-gray-100 dark:border-gray-700">
@@ -674,6 +702,9 @@ export default function StockMarketPage() {
                       ? ((product.currentPrice - product.referenceValue) / product.referenceValue) * 100 
                       : 0;
                     const isPositive = priceChange >= 0;
+
+                    const producingSectors = marketMetadata?.product_suppliers?.[product.product] || product.producingSectors || [];
+                    const consumingSectors = marketMetadata?.product_consumers?.[product.product] || product.demandingSectors || [];
                     
                     return (
                       <Link
@@ -745,11 +776,11 @@ export default function StockMarketPage() {
                           </div>
 
                           {/* Producing sectors */}
-                          {product.producingSectors.length > 0 && (
+                          {producingSectors.length > 0 && (
                             <div className="pt-2 border-t border-gray-100 dark:border-gray-700">
                               <p className="text-xs text-gray-500 dark:text-gray-400 mb-1.5">Produced by:</p>
                               <div className="flex flex-wrap gap-1">
-                                {product.producingSectors.map((sector) => (
+                                {producingSectors.map((sector) => (
                                   <span
                                     key={sector}
                                     className="text-xs px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300"
@@ -761,12 +792,12 @@ export default function StockMarketPage() {
                             </div>
                           )}
 
-                          {/* Demanding sectors */}
-                          {product.demandingSectors.length > 0 && (
+                          {/* Consuming sectors */}
+                          {consumingSectors.length > 0 && (
                             <div className="pt-2 border-t border-gray-100 dark:border-gray-700">
                               <p className="text-xs text-gray-500 dark:text-gray-400 mb-1.5">Consumed by:</p>
                               <div className="flex flex-wrap gap-1">
-                                {product.demandingSectors.map((sector) => (
+                                {consumingSectors.map((sector) => (
                                   <span
                                     key={sector}
                                     className="text-xs px-2 py-0.5 rounded-full bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300"
@@ -807,5 +838,3 @@ export default function StockMarketPage() {
     </AppNavigation>
   );
 }
-
-

@@ -2,6 +2,7 @@
 
 import { Store, Factory, Briefcase, Pickaxe, Building2, Trash2, MapPin } from 'lucide-react';
 import Link from 'next/link';
+import type { MarketUnitFlow } from '@/lib/api';
 
 interface SectorCardProps {
   sectorType: string;
@@ -45,6 +46,7 @@ interface SectorCardProps {
   commodityPrices?: Record<string, { currentPrice: number }>;
   productPrices?: Record<string, { currentPrice: number }>;
   EXTRACTION_OUTPUT_RATE?: number;
+  unitFlows?: Record<'retail' | 'production' | 'service' | 'extraction', MarketUnitFlow>;
 }
 
 export default function SectorCard({
@@ -75,6 +77,7 @@ export default function SectorCard({
   commodityPrices,
   productPrices,
   EXTRACTION_OUTPUT_RATE = 2.0,
+  unitFlows,
 }: SectorCardProps) {
   const PRODUCT_BASE_PRICES: Record<string, number> = {
     'Technology Products': 5000,
@@ -93,6 +96,39 @@ export default function SectorCard({
   const PRODUCTION_OUTPUT_RATE = 1.0;
 
   const totalUnits = units.retail + units.production + units.service + units.extraction;
+
+  const formatRate = (value: number) => {
+    return new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 }).format(value);
+  };
+
+  const formatFlowTotals = (flow: MarketUnitFlow | undefined, unitCount: number) => {
+    if (!flow) return null;
+
+    const inputResourceEntries = Object.entries(flow.inputs.resources || {}).filter(([, v]) => v > 0);
+    const inputProductEntries = Object.entries(flow.inputs.products || {}).filter(([, v]) => v > 0);
+    const outputResourceEntries = Object.entries(flow.outputs.resources || {}).filter(([, v]) => v > 0);
+    const outputProductEntries = Object.entries(flow.outputs.products || {}).filter(([, v]) => v > 0);
+
+    if (
+      inputResourceEntries.length === 0 &&
+      inputProductEntries.length === 0 &&
+      outputResourceEntries.length === 0 &&
+      outputProductEntries.length === 0
+    ) {
+      return null;
+    }
+
+    return {
+      inputs: {
+        resources: inputResourceEntries.map(([k, v]) => ({ name: k, perUnit: v, total: v * unitCount })),
+        products: inputProductEntries.map(([k, v]) => ({ name: k, perUnit: v, total: v * unitCount })),
+      },
+      outputs: {
+        resources: outputResourceEntries.map(([k, v]) => ({ name: k, perUnit: v, total: v * unitCount })),
+        products: outputProductEntries.map(([k, v]) => ({ name: k, perUnit: v, total: v * unitCount })),
+      },
+    };
+  };
 
   // Calculate extraction revenue if commodity prices available
   const getExtractionRevenue = () => {
@@ -130,6 +166,63 @@ export default function SectorCard({
       (requiredResource ? PRODUCTION_RESOURCE_CONSUMPTION * productionResourcePrice : 0)
     : UNIT_ECONOMICS.production.baseCost;
   const productionProfit = productionRevenue - productionCost;
+
+  const retailFlow = formatFlowTotals(unitFlows?.retail, units.retail);
+  const productionFlow = formatFlowTotals(unitFlows?.production, units.production);
+  const serviceFlow = formatFlowTotals(unitFlows?.service, units.service);
+  const extractionFlow = formatFlowTotals(unitFlows?.extraction, units.extraction || 0);
+
+  const renderFlowBadges = (flow: ReturnType<typeof formatFlowTotals>) => {
+    if (!flow) return null;
+
+    const inputBadges = [
+      ...flow.inputs.resources.map((i) => ({ name: i.name, perUnit: i.perUnit, kind: 'input' as const })),
+      ...flow.inputs.products.map((i) => ({ name: i.name, perUnit: i.perUnit, kind: 'input' as const })),
+    ];
+    const outputBadges = [
+      ...flow.outputs.resources.map((i) => ({ name: i.name, perUnit: i.perUnit, kind: 'output' as const })),
+      ...flow.outputs.products.map((i) => ({ name: i.name, perUnit: i.perUnit, kind: 'output' as const })),
+    ];
+
+    const maxBadges = 3;
+    const inputsToShow = inputBadges.slice(0, maxBadges);
+    const outputsToShow = outputBadges.slice(0, maxBadges);
+    const inputRemainder = Math.max(0, inputBadges.length - inputsToShow.length);
+    const outputRemainder = Math.max(0, outputBadges.length - outputsToShow.length);
+
+    if (inputsToShow.length === 0 && outputsToShow.length === 0) return null;
+
+    return (
+      <div className="mt-2 flex flex-wrap gap-1">
+        {inputsToShow.map((b) => (
+          <span
+            key={`in-${b.name}`}
+            className="px-2 py-0.5 rounded-full text-[10px] bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200"
+          >
+            {b.name} {formatRate(b.perUnit)}/u/hr
+          </span>
+        ))}
+        {inputRemainder > 0 && (
+          <span className="px-2 py-0.5 rounded-full text-[10px] bg-amber-50 dark:bg-amber-900/10 text-amber-700 dark:text-amber-300">
+            +{inputRemainder} in
+          </span>
+        )}
+        {outputsToShow.map((b) => (
+          <span
+            key={`out-${b.name}`}
+            className="px-2 py-0.5 rounded-full text-[10px] bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-200"
+          >
+            {b.name} {formatRate(b.perUnit)}/u/hr
+          </span>
+        ))}
+        {outputRemainder > 0 && (
+          <span className="px-2 py-0.5 rounded-full text-[10px] bg-emerald-50 dark:bg-emerald-900/10 text-emerald-700 dark:text-emerald-300">
+            +{outputRemainder} out
+          </span>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="rounded-xl border border-white/60 bg-white/70 dark:border-gray-800/70 dark:bg-gray-800/60 p-4 shadow-sm">
@@ -236,11 +329,26 @@ export default function SectorCard({
             </button>
           )}
           <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-50 pointer-events-none">
-            <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 whitespace-nowrap shadow-xl border border-gray-700">
+            <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 max-w-xs whitespace-normal shadow-xl border border-gray-700">
               <p className="font-medium">Retail Unit Economics</p>
               <p>Revenue: {formatCurrency(UNIT_ECONOMICS.retail.baseRevenue)}/hr</p>
               <p>Cost: {formatCurrency(UNIT_ECONOMICS.retail.baseCost)}/hr</p>
               <p className="text-emerald-400">Profit: {formatCurrency(retailProfit)}/hr</p>
+              {retailFlow && (retailFlow.inputs.products.length > 0 || retailFlow.inputs.resources.length > 0) && (
+                <div className="mt-2">
+                  <p className="text-gray-200">Consumes:</p>
+                  {retailFlow.inputs.resources.map((r) => (
+                    <p key={`retail-in-r-${r.name}`} className="text-amber-300">
+                      {r.name}: {formatRate(r.perUnit)}/unit/hr ({formatRate(r.total)}/hr)
+                    </p>
+                  ))}
+                  {retailFlow.inputs.products.map((p) => (
+                    <p key={`retail-in-p-${p.name}`} className="text-amber-300">
+                      {p.name}: {formatRate(p.perUnit)}/unit/hr ({formatRate(p.total)}/hr)
+                    </p>
+                  ))}
+                </div>
+              )}
               <p className="text-gray-400 text-[10px] mt-1">Revenue is flat (no state multiplier)</p>
             </div>
           </div>
@@ -266,7 +374,7 @@ export default function SectorCard({
             </button>
           )}
           <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-50 pointer-events-none">
-            <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 whitespace-nowrap shadow-xl border border-gray-700">
+            <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 max-w-xs whitespace-normal shadow-xl border border-gray-700">
               <p className="font-medium">Production Unit Economics</p>
               {productionIsDynamic && producedProduct ? (
                 <>
@@ -285,6 +393,36 @@ export default function SectorCard({
                   <p className="text-amber-400">
                     Electricity: {PRODUCTION_ELECTRICITY_CONSUMPTION} × {formatCurrency(productionElectricityPrice)}/unit
                   </p>
+                  {productionFlow && (productionFlow.inputs.products.length > 0 || productionFlow.inputs.resources.length > 0) && (
+                    <div className="mt-2">
+                      <p className="text-gray-200">Consumes:</p>
+                      {productionFlow.inputs.resources.map((r) => (
+                        <p key={`prod-in-r-${r.name}`} className="text-amber-300">
+                          {r.name}: {formatRate(r.perUnit)}/unit/hr ({formatRate(r.total)}/hr)
+                        </p>
+                      ))}
+                      {productionFlow.inputs.products.map((p) => (
+                        <p key={`prod-in-p-${p.name}`} className="text-amber-300">
+                          {p.name}: {formatRate(p.perUnit)}/unit/hr ({formatRate(p.total)}/hr)
+                        </p>
+                      ))}
+                    </div>
+                  )}
+                  {productionFlow && (productionFlow.outputs.products.length > 0 || productionFlow.outputs.resources.length > 0) && (
+                    <div className="mt-2">
+                      <p className="text-gray-200">Produces:</p>
+                      {productionFlow.outputs.resources.map((r) => (
+                        <p key={`prod-out-r-${r.name}`} className="text-emerald-300">
+                          {r.name}: {formatRate(r.perUnit)}/unit/hr ({formatRate(r.total)}/hr)
+                        </p>
+                      ))}
+                      {productionFlow.outputs.products.map((p) => (
+                        <p key={`prod-out-p-${p.name}`} className="text-emerald-300">
+                          {p.name}: {formatRate(p.perUnit)}/unit/hr ({formatRate(p.total)}/hr)
+                        </p>
+                      ))}
+                    </div>
+                  )}
                   <p className="text-gray-400 text-[10px] mt-1">Revenue based on product prices (no state multiplier)</p>
                 </>
               ) : (
@@ -296,6 +434,36 @@ export default function SectorCard({
                   </p>
                   {producedProduct && <p className="text-emerald-400 mt-1">Produces: {producedProduct}</p>}
                   {requiredResource && <p className="text-amber-400 mt-1">Requires: {requiredResource}</p>}
+                  {productionFlow && (productionFlow.inputs.products.length > 0 || productionFlow.inputs.resources.length > 0) && (
+                    <div className="mt-2">
+                      <p className="text-gray-200">Consumes:</p>
+                      {productionFlow.inputs.resources.map((r) => (
+                        <p key={`prod-in-r-${r.name}`} className="text-amber-300">
+                          {r.name}: {formatRate(r.perUnit)}/unit/hr ({formatRate(r.total)}/hr)
+                        </p>
+                      ))}
+                      {productionFlow.inputs.products.map((p) => (
+                        <p key={`prod-in-p-${p.name}`} className="text-amber-300">
+                          {p.name}: {formatRate(p.perUnit)}/unit/hr ({formatRate(p.total)}/hr)
+                        </p>
+                      ))}
+                    </div>
+                  )}
+                  {productionFlow && (productionFlow.outputs.products.length > 0 || productionFlow.outputs.resources.length > 0) && (
+                    <div className="mt-2">
+                      <p className="text-gray-200">Produces:</p>
+                      {productionFlow.outputs.resources.map((r) => (
+                        <p key={`prod-out-r-${r.name}`} className="text-emerald-300">
+                          {r.name}: {formatRate(r.perUnit)}/unit/hr ({formatRate(r.total)}/hr)
+                        </p>
+                      ))}
+                      {productionFlow.outputs.products.map((p) => (
+                        <p key={`prod-out-p-${p.name}`} className="text-emerald-300">
+                          {p.name}: {formatRate(p.perUnit)}/unit/hr ({formatRate(p.total)}/hr)
+                        </p>
+                      ))}
+                    </div>
+                  )}
                   <p className="text-gray-400 text-[10px] mt-1">Revenue is flat (no state multiplier)</p>
                 </>
               )}
@@ -323,11 +491,26 @@ export default function SectorCard({
             </button>
           )}
           <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-50 pointer-events-none">
-            <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 whitespace-nowrap shadow-xl border border-gray-700">
+            <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 max-w-xs whitespace-normal shadow-xl border border-gray-700">
               <p className="font-medium">Service Unit Economics</p>
               <p>Revenue: {formatCurrency(UNIT_ECONOMICS.service.baseRevenue)}/hr</p>
               <p>Cost: {formatCurrency(UNIT_ECONOMICS.service.baseCost)}/hr</p>
               <p className="text-emerald-400">Profit: {formatCurrency(serviceProfit)}/hr</p>
+              {serviceFlow && (serviceFlow.inputs.products.length > 0 || serviceFlow.inputs.resources.length > 0) && (
+                <div className="mt-2">
+                  <p className="text-gray-200">Consumes:</p>
+                  {serviceFlow.inputs.resources.map((r) => (
+                    <p key={`svc-in-r-${r.name}`} className="text-amber-300">
+                      {r.name}: {formatRate(r.perUnit)}/unit/hr ({formatRate(r.total)}/hr)
+                    </p>
+                  ))}
+                  {serviceFlow.inputs.products.map((p) => (
+                    <p key={`svc-in-p-${p.name}`} className="text-amber-300">
+                      {p.name}: {formatRate(p.perUnit)}/unit/hr ({formatRate(p.total)}/hr)
+                    </p>
+                  ))}
+                </div>
+              )}
               <p className="text-gray-400 text-[10px] mt-1">Revenue is flat (no state multiplier)</p>
             </div>
           </div>
@@ -373,7 +556,7 @@ export default function SectorCard({
             </>
           )}
           <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-50 pointer-events-none">
-            <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 whitespace-nowrap shadow-xl border border-gray-700">
+            <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 max-w-xs whitespace-normal shadow-xl border border-gray-700">
               {canExtract ? (
                 <>
                   <p className="font-medium">Extraction Unit Economics</p>
@@ -388,6 +571,36 @@ export default function SectorCard({
                   <p>Cost: ${UNIT_ECONOMICS.extraction.baseCost}/hr</p>
                   <p className="text-emerald-400">Profit: ${extractionProfit.toFixed(0)}/hr</p>
                   <p className="text-amber-400 mt-1">Extracts: {extractableResources?.join(', ')}</p>
+                  {extractionFlow && (extractionFlow.inputs.products.length > 0 || extractionFlow.inputs.resources.length > 0) && (
+                    <div className="mt-2">
+                      <p className="text-gray-200">Consumes:</p>
+                      {extractionFlow.inputs.resources.map((r) => (
+                        <p key={`ext-in-r-${r.name}`} className="text-amber-300">
+                          {r.name}: {formatRate(r.perUnit)}/unit/hr ({formatRate(r.total)}/hr)
+                        </p>
+                      ))}
+                      {extractionFlow.inputs.products.map((p) => (
+                        <p key={`ext-in-p-${p.name}`} className="text-amber-300">
+                          {p.name}: {formatRate(p.perUnit)}/unit/hr ({formatRate(p.total)}/hr)
+                        </p>
+                      ))}
+                    </div>
+                  )}
+                  {extractionFlow && (extractionFlow.outputs.products.length > 0 || extractionFlow.outputs.resources.length > 0) && (
+                    <div className="mt-2">
+                      <p className="text-gray-200">Produces:</p>
+                      {extractionFlow.outputs.resources.map((r) => (
+                        <p key={`ext-out-r-${r.name}`} className="text-emerald-300">
+                          {r.name}: {formatRate(r.perUnit)}/unit/hr ({formatRate(r.total)}/hr)
+                        </p>
+                      ))}
+                      {extractionFlow.outputs.products.map((p) => (
+                        <p key={`ext-out-p-${p.name}`} className="text-emerald-300">
+                          {p.name}: {formatRate(p.perUnit)}/unit/hr ({formatRate(p.total)}/hr)
+                        </p>
+                      ))}
+                    </div>
+                  )}
                   <p className="text-gray-400 text-[10px] mt-1">Revenue based on commodity prices (no state multiplier)</p>
                 </>
               ) : (
@@ -401,6 +614,35 @@ export default function SectorCard({
           </div>
         </div>
       </div>
+
+      {(retailFlow || productionFlow || serviceFlow || extractionFlow) && (
+        <div className="mt-3 space-y-2">
+          {units.retail > 0 && retailFlow && (
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Retail flows</p>
+              {renderFlowBadges(retailFlow)}
+            </div>
+          )}
+          {units.production > 0 && productionFlow && (
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Production flows</p>
+              {renderFlowBadges(productionFlow)}
+            </div>
+          )}
+          {units.service > 0 && serviceFlow && (
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Service flows</p>
+              {renderFlowBadges(serviceFlow)}
+            </div>
+          )}
+          {canExtract && (units.extraction || 0) > 0 && extractionFlow && (
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Extraction flows</p>
+              {renderFlowBadges(extractionFlow)}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

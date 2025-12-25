@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import AppNavigation from '@/components/AppNavigation';
-import { marketsAPI, ProductDetailResponse } from '@/lib/api';
+import { marketsAPI, ProductDetailResponse, MarketMetadataResponse } from '@/lib/api';
+import { formatPriceLocalized, formatNumberLocalized, categorizeDemandLevel } from '@/lib/marketUtils';
 import PriceChart from '@/components/PriceChart';
 import {
   ArrowLeft,
@@ -57,10 +58,13 @@ export default function ProductDetailPage() {
   const productName = decodeURIComponent(params.name as string);
 
   const [data, setData] = useState<ProductDetailResponse | null>(null);
+  const [marketMetadata, setMarketMetadata] = useState<MarketMetadataResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState<Tab>('suppliers');
   const [page, setPage] = useState(1);
+  const [refreshing, setRefreshing] = useState(false);
+  const locale = typeof navigator !== 'undefined' ? navigator.language : 'en-US';
 
   useEffect(() => {
     const fetchData = async () => {
@@ -79,23 +83,28 @@ export default function ProductDetailPage() {
     fetchData();
   }, [productName, page, activeTab]);
 
+  useEffect(() => {
+    marketsAPI.getMarketMetadata().then(setMarketMetadata).catch(() => null);
+    const interval = setInterval(async () => {
+      try {
+        setRefreshing(true);
+        const result = await marketsAPI.getProductDetail(productName, page, 10, activeTab);
+        setData(result);
+      } catch {
+      } finally {
+        setRefreshing(false);
+      }
+    }, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
   const handleTabChange = (tab: Tab) => {
     setActiveTab(tab);
     setPage(1);
   };
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(value);
-  };
-
-  const formatNumber = (value: number) => {
-    return new Intl.NumberFormat('en-US').format(value);
-  };
+  const formatCurrency = (value: number) => formatPriceLocalized(value, locale);
+  const formatNumber = (value: number) => formatNumberLocalized(value, locale);
 
   const colors = PRODUCT_COLORS[productName] || { bg: 'bg-gray-100', text: 'text-gray-700', headerBg: 'bg-gradient-to-br from-gray-600 to-gray-800' };
   const icon = PRODUCT_ICONS[productName] || <Package className="w-6 h-6" />;
@@ -131,6 +140,9 @@ export default function ProductDetailPage() {
     : 0;
   const isPositive = priceChange >= 0;
   const listData = activeTab === 'suppliers' ? data.suppliers || [] : data.demanders || [];
+  const supplyingSectors = marketMetadata?.product_suppliers?.[productName] || data.producing_sectors;
+  const demandingSectors = marketMetadata?.product_consumers?.[productName] || data.demanding_sectors;
+  const demandLevel = categorizeDemandLevel(data.total_supply, data.total_demand);
 
   return (
     <AppNavigation>
@@ -208,6 +220,9 @@ export default function ProductDetailPage() {
             <div className="relative rounded-2xl border border-gray-200/50 dark:border-gray-700/50 bg-gradient-to-br from-white via-white to-gray-50/50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800/50 shadow-xl overflow-hidden backdrop-blur-sm">
               <div className="relative p-6">
                 <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Supply & Demand</h2>
+                {refreshing && (
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">Refreshing data…</p>
+                )}
                 <div className="grid grid-cols-2 gap-6">
                   <div className={`rounded-xl p-6 ${colors.bg}`}>
                     <p className={`text-sm font-medium ${colors.text} mb-1`}>Total Supply</p>
@@ -235,7 +250,7 @@ export default function ProductDetailPage() {
                   </div>
                   <div className="flex justify-between mt-2 text-xs text-gray-500 dark:text-gray-400">
                     <span>Supply Coverage: {data.total_demand > 0 ? ((data.total_supply / data.total_demand) * 100).toFixed(1) : 100}%</span>
-                    <span>{data.total_supply >= data.total_demand ? 'Surplus' : 'Shortage'}</span>
+                    <span>{demandLevel === 'high' ? 'Shortage' : demandLevel === 'medium' ? 'Balanced' : 'Surplus'}</span>
                   </div>
                 </div>
               </div>
@@ -375,7 +390,7 @@ export default function ProductDetailPage() {
                   Producing Sectors
                 </h3>
                 <div className="flex flex-wrap gap-2">
-                  {data.producing_sectors.map((sector) => (
+                  {supplyingSectors.map((sector) => (
                     <span
                       key={sector}
                       className={`px-3 py-1.5 rounded-full text-sm font-medium ${colors.bg} ${colors.text}`}
@@ -384,7 +399,7 @@ export default function ProductDetailPage() {
                     </span>
                   ))}
                 </div>
-                {data.producing_sectors.length === 0 && (
+                {supplyingSectors.length === 0 && (
                   <p className="text-sm text-gray-500 dark:text-gray-400">No sectors produce this product</p>
                 )}
               </div>
@@ -398,7 +413,7 @@ export default function ProductDetailPage() {
                   Demanding Sectors
                 </h3>
                 <div className="flex flex-wrap gap-2">
-                  {data.demanding_sectors.map((sector) => (
+                  {demandingSectors.map((sector) => (
                     <span
                       key={sector}
                       className="px-3 py-1.5 rounded-full text-sm font-medium bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300"
@@ -407,7 +422,7 @@ export default function ProductDetailPage() {
                     </span>
                   ))}
                 </div>
-                {data.demanding_sectors.length === 0 && (
+                {demandingSectors.length === 0 && (
                   <p className="text-sm text-gray-500 dark:text-gray-400">No sectors demand this product</p>
                 )}
               </div>

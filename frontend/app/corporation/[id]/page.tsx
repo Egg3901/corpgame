@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import AppNavigation from '@/components/AppNavigation';
-import { corporationAPI, CorporationResponse, authAPI, sharesAPI, marketsAPI, CorporationFinances, MarketEntryWithUnits, BalanceSheet, CommodityPrice, ProductMarketData } from '@/lib/api';
+import { corporationAPI, CorporationResponse, authAPI, sharesAPI, marketsAPI, CorporationFinances, MarketEntryWithUnits, BalanceSheet, CommodityPrice, ProductMarketData, MarketMetadataResponse } from '@/lib/api';
 import { formatCash } from '@/lib/utils';
 import { Building2, Edit, Trash2, TrendingUp, DollarSign, Users, User, Calendar, ArrowUp, ArrowDown, TrendingDown, Plus, BarChart3, MapPin, Store, Factory, Briefcase, Layers, Droplets, Package, Cpu, Zap, Wheat, Trees, FlaskConical, Box, Lightbulb, Pill, Wrench, Truck, Shield, UtensilsCrossed, Info, ArrowRight, Pickaxe, HelpCircle } from 'lucide-react';
 import BoardTab from '@/components/BoardTab';
@@ -208,6 +208,7 @@ export default function CorporationDetailPage() {
   const [marketEntries, setMarketEntries] = useState<MarketEntryWithUnits[]>([]);
   const [commodityPrices, setCommodityPrices] = useState<Record<string, CommodityPrice>>({});
   const [productPrices, setProductPrices] = useState<Record<string, ProductMarketData>>({});
+  const [marketMetadata, setMarketMetadata] = useState<MarketMetadataResponse | null>(null);
   const [stockValuation, setStockValuation] = useState<{
     book_value: number;
     earnings_value: number;
@@ -225,11 +226,12 @@ export default function CorporationDetailPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [corpData, userData, financesData, commoditiesData, valuationData] = await Promise.all([
+        const [corpData, userData, financesData, commoditiesData, metadataData, valuationData] = await Promise.all([
           corporationAPI.getById(corpId),
           authAPI.getMe().catch(() => null),
           marketsAPI.getCorporationFinances(corpId).catch(() => null),
           marketsAPI.getCommodities().catch(() => null),
+          marketsAPI.getMarketMetadata().catch(() => null),
           sharesAPI.getValuation(corpId).catch(() => null),
         ]);
         setCorporation(corpData);
@@ -258,6 +260,9 @@ export default function CorporationDetailPage() {
             productMap[product.product] = product;
           });
           setProductPrices(productMap);
+        }
+        if (metadataData) {
+          setMarketMetadata(metadataData);
         }
         if (valuationData) {
           setStockValuation(valuationData.valuation);
@@ -1394,6 +1399,7 @@ export default function CorporationDetailPage() {
                                       commodityPrices={commodityPrices}
                                       productPrices={productPrices}
                                       EXTRACTION_OUTPUT_RATE={2.0}
+                                      unitFlows={marketMetadata?.sector_unit_flows?.[entry.sector_type]}
                                     />
                                   );
                                 })}

@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import AppNavigation from '@/components/AppNavigation';
-import { marketsAPI, ResourceDetailResponse } from '@/lib/api';
+import { marketsAPI, ResourceDetailResponse, MarketMetadataResponse } from '@/lib/api';
+import { formatPriceLocalized, formatNumberLocalized, categorizeDemandLevel } from '@/lib/marketUtils';
 import PriceChart from '@/components/PriceChart';
 import {
   ArrowLeft,
@@ -51,10 +52,13 @@ export default function CommodityDetailPage() {
   const resourceName = decodeURIComponent(params.name as string);
 
   const [data, setData] = useState<ResourceDetailResponse | null>(null);
+  const [marketMetadata, setMarketMetadata] = useState<MarketMetadataResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [page, setPage] = useState(1);
   const [filter, setFilter] = useState<'producers' | 'demanders'>('demanders');
+  const [refreshing, setRefreshing] = useState(false);
+  const locale = typeof navigator !== 'undefined' ? navigator.language : 'en-US';
 
   useEffect(() => {
     const fetchData = async () => {
@@ -73,18 +77,23 @@ export default function CommodityDetailPage() {
     fetchData();
   }, [resourceName, page, filter]);
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(value);
-  };
+  useEffect(() => {
+    marketsAPI.getMarketMetadata().then(setMarketMetadata).catch(() => null);
+    const interval = setInterval(async () => {
+      try {
+        setRefreshing(true);
+        const result = await marketsAPI.getResourceDetail(resourceName, page, 10, filter);
+        setData(result);
+      } catch {
+      } finally {
+        setRefreshing(false);
+      }
+    }, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
-  const formatNumber = (value: number) => {
-    return new Intl.NumberFormat('en-US').format(value);
-  };
+  const formatCurrency = (value: number) => formatPriceLocalized(value, locale);
+  const formatNumber = (value: number) => formatNumberLocalized(value, locale);
 
   const colors = RESOURCE_COLORS[resourceName] || { bg: 'bg-gray-100', text: 'text-gray-700', headerBg: 'bg-gray-600' };
   const icon = RESOURCE_ICONS[resourceName] || <Package className="w-6 h-6" />;
@@ -116,6 +125,9 @@ export default function CommodityDetailPage() {
 
   const priceChange = ((data.price.currentPrice - data.price.basePrice) / data.price.basePrice) * 100;
   const isPositive = priceChange >= 0;
+  const supplyingSectors = marketMetadata?.resource_suppliers?.[resourceName] || [];
+  const demandingSectors = marketMetadata?.resource_consumers?.[resourceName] || data.demanding_sectors;
+  const demandLevel = categorizeDemandLevel(data.total_supply, data.total_demand);
 
   return (
     <AppNavigation>
@@ -167,6 +179,12 @@ export default function CommodityDetailPage() {
                   <span className="text-sm font-mono ml-2 text-white/70">({data.price.scarcityFactor.toFixed(2)}x)</span>
                 </p>
               </div>
+              <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
+                <p className="text-sm text-white/70">Demand Level</p>
+                <p className={`text-2xl font-bold ${demandLevel === 'high' ? 'text-amber-300' : demandLevel === 'medium' ? 'text-yellow-200' : 'text-emerald-300'}`}>
+                  {demandLevel.toUpperCase()}
+                </p>
+              </div>
             </div>
           </div>
         </div>
@@ -193,6 +211,9 @@ export default function CommodityDetailPage() {
             <div className="relative rounded-2xl border border-gray-200/50 dark:border-gray-700/50 bg-gradient-to-br from-white via-white to-gray-50/50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800/50 shadow-xl overflow-hidden backdrop-blur-sm">
               <div className="relative p-6">
                 <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Supply & Demand</h2>
+                {refreshing && (
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">Refreshing data…</p>
+                )}
                 <div className="grid grid-cols-2 gap-6">
                   <div className={`rounded-xl p-6 ${colors.bg}`}>
                     <p className={`text-sm font-medium ${colors.text} mb-1`}>Total Supply</p>
@@ -412,12 +433,32 @@ export default function CommodityDetailPage() {
               </div>
             </div>
 
+            {/* Supplying Sectors */}
+            <div className="relative rounded-2xl border border-gray-200/50 dark:border-gray-700/50 bg-gradient-to-br from-white via-white to-gray-50/50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800/50 shadow-xl overflow-hidden backdrop-blur-sm">
+              <div className="relative p-6">
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Supplying Sectors</h3>
+                <div className="flex flex-wrap gap-2">
+                  {supplyingSectors.map((sector) => (
+                    <span
+                      key={sector}
+                      className={`px-3 py-1.5 rounded-full text-sm font-medium ${colors.bg} ${colors.text}`}
+                    >
+                      {sector}
+                    </span>
+                  ))}
+                </div>
+                {supplyingSectors.length === 0 && (
+                  <p className="text-sm text-gray-500 dark:text-gray-400">No sectors supply this resource</p>
+                )}
+              </div>
+            </div>
+
             {/* Demanding Sectors */}
             <div className="relative rounded-2xl border border-gray-200/50 dark:border-gray-700/50 bg-gradient-to-br from-white via-white to-gray-50/50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800/50 shadow-xl overflow-hidden backdrop-blur-sm">
               <div className="relative p-6">
                 <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Demanding Sectors</h3>
                 <div className="flex flex-wrap gap-2">
-                  {data.demanding_sectors.map((sector) => (
+                  {demandingSectors.map((sector) => (
                     <span
                       key={sector}
                       className="px-3 py-1.5 rounded-full text-sm font-medium bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300"
@@ -426,7 +467,7 @@ export default function CommodityDetailPage() {
                     </span>
                   ))}
                 </div>
-                {data.demanding_sectors.length === 0 && (
+                {demandingSectors.length === 0 && (
                   <p className="text-sm text-gray-500 dark:text-gray-400">No sectors demand this resource</p>
                 )}
               </div>

@@ -10,6 +10,7 @@ import { TransactionModel, TransactionType } from '../models/Transaction';
 import { normalizeImageUrl } from '../utils/imageUrl';
 import { triggerActionsIncrement, triggerMarketRevenue, triggerCeoSalaries } from '../cron/actions';
 import { updateStockPrice } from '../utils/valuation';
+import { resetGameTime } from '../utils/gameTime';
 
 const router = express.Router();
 
@@ -277,6 +278,37 @@ router.post('/recalculate-prices', async (req: AuthRequest, res: Response) => {
   } catch (error) {
     console.error('Recalculate prices error:', error);
     res.status(500).json({ error: 'Failed to recalculate prices' });
+  }
+});
+
+// POST /api/admin/set-game-time - Reset game time to a specific year/quarter
+router.post('/set-game-time', async (req: AuthRequest, res: Response) => {
+  try {
+    const { year, quarter } = req.body;
+    const parsedYear = parseInt(year, 10);
+    const parsedQuarter = parseInt(quarter, 10);
+
+    if (!Number.isFinite(parsedYear)) {
+      return res.status(400).json({ error: 'A valid year is required' });
+    }
+
+    if (!Number.isFinite(parsedQuarter) || parsedQuarter < 1 || parsedQuarter > 4) {
+      return res.status(400).json({ error: 'Quarter must be between 1 and 4' });
+    }
+
+    const result = resetGameTime(parsedYear, parsedQuarter);
+
+    res.json({
+      success: true,
+      message: `Game time set to Q${parsedQuarter} ${parsedYear}`,
+      game_time: result.gameTime,
+      game_start_date: result.gameStartDate.toISOString(),
+      quarters_from_start: result.quartersFromStart,
+      applied_at: result.appliedAt.toISOString(),
+    });
+  } catch (error) {
+    console.error('Set game time error:', error);
+    res.status(500).json({ error: 'Failed to set game time' });
   }
 });
 

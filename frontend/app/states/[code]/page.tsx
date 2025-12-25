@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import AppNavigation from '@/components/AppNavigation';
-import { marketsAPI, StateDetailResponse, authAPI } from '@/lib/api';
+import { marketsAPI, StateDetailResponse, authAPI, MarketMetadataResponse } from '@/lib/api';
 import SectorCard from '@/components/SectorCard';
 import {
   MapPin,
@@ -241,6 +241,8 @@ export default function StateDetailPage() {
   const [userActions, setUserActions] = useState<number>(0);
   const [abandoning, setAbandoning] = useState<number | null>(null);
   const [commodityPrices, setCommodityPrices] = useState<Record<string, { currentPrice: number }>>({});
+  const [productPrices, setProductPrices] = useState<Record<string, { currentPrice: number }>>({});
+  const [marketMetadata, setMarketMetadata] = useState<MarketMetadataResponse | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -251,10 +253,11 @@ export default function StateDetailPage() {
       }
 
       try {
-        const [stateResult, meResult, commoditiesResult] = await Promise.all([
+        const [stateResult, meResult, commoditiesResult, metadataResult] = await Promise.all([
           marketsAPI.getState(stateCode),
           authAPI.getMe().catch(() => null),
           marketsAPI.getCommodities().catch(() => null),
+          marketsAPI.getMarketMetadata().catch(() => null),
         ]);
         setStateData(stateResult);
         if (meResult) {
@@ -262,10 +265,19 @@ export default function StateDetailPage() {
         }
         if (commoditiesResult) {
           const pricesMap: Record<string, { currentPrice: number }> = {};
-          commoditiesResult.commodities.forEach((price: any) => {
+          commoditiesResult.commodities.forEach((price) => {
             pricesMap[price.resource] = { currentPrice: price.currentPrice };
           });
           setCommodityPrices(pricesMap);
+
+          const productPricesMap: Record<string, { currentPrice: number }> = {};
+          commoditiesResult.products.forEach((price) => {
+            productPricesMap[price.product] = { currentPrice: price.currentPrice };
+          });
+          setProductPrices(productPricesMap);
+        }
+        if (metadataResult) {
+          setMarketMetadata(metadataResult);
         }
       } catch (err: any) {
         console.error('Failed to fetch state:', err);
@@ -564,7 +576,9 @@ export default function StateDetailPage() {
                         UNIT_ECONOMICS={UNIT_ECONOMICS}
                         SECTORS_CAN_EXTRACT={SECTORS_CAN_EXTRACT}
                         commodityPrices={commodityPrices}
+                        productPrices={productPrices}
                         EXTRACTION_OUTPUT_RATE={2.0}
+                        unitFlows={marketMetadata?.sector_unit_flows?.[entry.sector_type]}
                       />
                     ))}
                   </div>
@@ -912,4 +926,3 @@ export default function StateDetailPage() {
     </AppNavigation>
   );
 }
-
