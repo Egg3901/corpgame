@@ -32,6 +32,27 @@
 
 ---
 
+## [FID-20251225-006] State Page Rework with Capacity Management
+**Status:** PLANNED **Priority:** H **Complexity:** 4
+**Created:** 2025-12-25
+**Estimated:** 3h
+
+**Description:** Rework states listing page with better regional organization, capacity sorting (high/medium/low), resource availability sorting, backend capacity enforcement, and clear capacity display on sector cards.
+
+**Progress:**
+- [ ] Phase 1: Backend - New region mapping & capacity
+- [ ] Phase 2: Backend - Resource availability
+- [ ] Phase 3: Frontend - State page UI
+- [ ] Phase 4: Frontend - Sector card capacity display
+- [ ] Phase 5: Testing & verification
+
+**Files Modified:**
+- (pending)
+
+**Blockers:** None
+
+---
+
 ## [FID-20251225-004] Market UI and Business Unit Controls
 **Status:** IN_PROGRESS **Priority:** H **Complexity:** 3
 **Created:** 2025-12-25 **Started:** 2025-12-25

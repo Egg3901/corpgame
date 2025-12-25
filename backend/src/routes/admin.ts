@@ -30,7 +30,7 @@ router.get('/corporations/search', async (req: AuthRequest, res: Response) => {
       const results = allCorps.map(corp => ({
         id: corp.id,
         name: corp.name,
-        sector: corp.sector,
+        sector: corp.focus || corp.type || 'General',
         logo: corp.logo || null,
       }));
       return res.json(results.slice(0, 50)); // Limit to 50
@@ -38,7 +38,7 @@ router.get('/corporations/search', async (req: AuthRequest, res: Response) => {
 
     // Search by name (case-insensitive)
     const searchResults = await pool.query(
-      `SELECT id, name, sector, logo
+      `SELECT id, name, focus as sector, logo
        FROM corporations
        WHERE name ILIKE $1
        ORDER BY name ASC
@@ -818,7 +818,7 @@ router.post('/corporation/:corpId/force-end-vote/:proposalId', async (req: AuthR
     }
 
     // Verify proposal exists and is active
-    const proposal = await BoardVoteModel.findById(proposalId);
+    const proposal = await BoardModel.findById(proposalId);
     if (!proposal) {
       return res.status(404).json({ error: 'Proposal not found' });
     }
