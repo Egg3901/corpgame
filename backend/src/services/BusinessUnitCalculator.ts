@@ -132,6 +132,11 @@ export class BusinessUnitCalculator {
     if (product === 'Electricity') {
       switch (unitType) {
         case 'production':
+          // Energy sector production units produce electricity, they don't consume it
+          // (they only consume oil as their resource input)
+          if (sector === 'Energy') {
+            return 0;
+          }
           return unitCount * PRODUCTION_ELECTRICITY_CONSUMPTION;
         case 'service':
           return unitCount * SERVICE_ELECTRICITY_CONSUMPTION;

@@ -55,6 +55,32 @@ Fixed and improved board voting system with vote cleanup for non-board members, 
 
 ---
 
+## [FID-20251225-003] Price Display and Electricity Production Fixes
+**Status:** COMPLETED **Priority:** H **Complexity:** 2
+**Created:** 2025-12-25 **Completed:** 2025-12-25
+**Estimated:** 1h **Actual:** 1h
+
+**Metrics:**
+- Files Created: 0
+- Files Modified: 4 (BusinessUnitCalculator.ts, CommodityPriceHistory.ts, ProductPriceHistory.ts, markets.ts)
+- Quality: TS:PASS
+
+**Summary:**
+Fixed three related issues: removed electricity consumption for electricity production units (preventing circular dependency), changed price change % to show last-hour change instead of all-time, and documented expected behavior for commodity price graphs.
+
+**Key Changes:**
+- Modified `BusinessUnitCalculator.computeProductDemandByUnitType()` to exclude Energy sector production units from electricity consumption (they only consume oil)
+- Added `getPriceFromHoursAgo()` methods to CommodityPriceHistory and ProductPriceHistory models
+- Updated `/api/markets/commodities` endpoint to calculate priceChange from 1 hour ago instead of from base price
+- Uses Promise.all to fetch historical prices for all commodities and products in parallel
+
+**Lessons:**
+- Circular dependencies in resource consumption need explicit handling (e.g., electricity producers shouldn't consume electricity)
+- Price change % is more meaningful when showing recent trend (1 hour) vs all-time change from base price
+- Flat price graphs are expected when database lacks historical data - they populate over time as cron job records prices
+
+---
+
 ## Template
 - FID: FID-YYYYMMDD-XXX
 - Status: COMPLETED

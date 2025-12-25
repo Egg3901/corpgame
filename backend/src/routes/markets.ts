@@ -131,24 +131,42 @@ router.get('/commodities', async (req: Request, res: Response) => {
     };
     // Calculate commodity prices with actual supply/demand
     const { summary: commoditySummary, supply: commoditySupply, demand: commodityDemand } = await marketDataService.getCommoditySummary();
-    const commodities = commoditySummary.map((c: any) => ({
-      resource: c.resource,
-      basePrice: c.price.basePrice,
-      currentPrice: c.price.currentPrice,
-      priceChange: c.price.priceChange,
-      totalSupply: c.price.totalSupply,
-      scarcityFactor: c.price.scarcityFactor,
-      topProducers: [],
-      demandingSectors: [],
+
+    // Fetch historical prices to calculate actual hourly price change
+    const commodities = await Promise.all(commoditySummary.map(async (c: any) => {
+      const priceOneHourAgo = await CommodityPriceHistoryModel.getPriceFromHoursAgo(c.resource, 1);
+      const priceChange = priceOneHourAgo
+        ? ((c.price.currentPrice - priceOneHourAgo) / priceOneHourAgo) * 100
+        : 0; // If no history, show 0% change
+
+      return {
+        resource: c.resource,
+        basePrice: c.price.basePrice,
+        currentPrice: c.price.currentPrice,
+        priceChange,
+        totalSupply: c.price.totalSupply,
+        scarcityFactor: c.price.scarcityFactor,
+        topProducers: [],
+        demandingSectors: [],
+      };
     }));
     
     // Calculate supply for each product (sum of production units in producing sectors * output rate)
     const { summary: productSummary, supply: productSupply, demand: productDemand } = await marketDataService.getProductSummary();
-    
-    
-    
-    // Calculate prices for all products
-    const products = productSummary.map((p: any) => p.price);
+
+    // Fetch historical prices to calculate actual hourly price change for products
+    const products = await Promise.all(productSummary.map(async (p: any) => {
+      const priceOneHourAgo = await ProductPriceHistoryModel.getPriceFromHoursAgo(p.product, 1);
+      const currentPrice = p.price.currentPrice;
+      const priceChange = priceOneHourAgo
+        ? ((currentPrice - priceOneHourAgo) / priceOneHourAgo) * 100
+        : 0; // If no history, show 0% change
+
+      return {
+        ...p.price,
+        priceChange,
+      };
+    }));
     
     res.json({
       commodities,

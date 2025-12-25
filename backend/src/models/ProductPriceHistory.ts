@@ -58,5 +58,24 @@ export class ProductPriceHistoryModel {
     const result = await pool.query(query, params);
     return result.rows.map(row => this.mapRow(row));
   }
+
+  static async getPriceFromHoursAgo(
+    productName: string,
+    hoursAgo: number = 1
+  ): Promise<number | null> {
+    const result = await pool.query(
+      `SELECT price FROM product_price_history
+       WHERE product_name = $1
+       AND recorded_at <= NOW() - INTERVAL '${hoursAgo} hours'
+       ORDER BY recorded_at DESC
+       LIMIT 1`,
+      [productName]
+    );
+
+    if (result.rows.length === 0) return null;
+
+    const price = result.rows[0].price;
+    return typeof price === 'string' ? parseFloat(price) : price;
+  }
 }
 
