@@ -25,6 +25,7 @@ interface SectorCardProps {
   extractableResources?: string[] | null;
   requiredResource?: string | null;
   producedProduct?: string | null;
+  productDemands?: string[] | null;
   revenue?: number;
   profit?: number;
   showActions?: boolean;
@@ -61,6 +62,7 @@ export default function SectorCard({
   extractableResources,
   requiredResource,
   producedProduct,
+  productDemands,
   revenue,
   profit,
   showActions = false,
@@ -93,9 +95,41 @@ export default function SectorCard({
   const PRODUCTION_LABOR_COST = 400;
   const PRODUCTION_RESOURCE_CONSUMPTION = 0.5;
   const PRODUCTION_ELECTRICITY_CONSUMPTION = 0.5;
+  const PRODUCTION_PRODUCT_CONSUMPTION = 0.5;
   const PRODUCTION_OUTPUT_RATE = 1.0;
 
   const totalUnits = units.retail + units.production + units.service + units.extraction;
+
+  const buildProductionFlow = (): MarketUnitFlow | null => {
+    if (unitFlows?.production) {
+      return unitFlows.production;
+    }
+
+    const inputsResources: Record<string, number> = requiredResource
+      ? { [requiredResource]: PRODUCTION_RESOURCE_CONSUMPTION }
+      : {};
+
+    const inputsProducts: Record<string, number> = {};
+    if (PRODUCTION_ELECTRICITY_CONSUMPTION > 0) {
+      inputsProducts['Electricity'] = PRODUCTION_ELECTRICITY_CONSUMPTION;
+    }
+    if (productDemands) {
+      productDemands.forEach((product) => {
+        inputsProducts[product] = PRODUCTION_PRODUCT_CONSUMPTION;
+      });
+    }
+
+    const outputsProducts: Record<string, number> = producedProduct
+      ? { [producedProduct]: PRODUCTION_OUTPUT_RATE }
+      : {};
+
+    return {
+      inputs: { resources: inputsResources, products: inputsProducts },
+      outputs: { resources: {}, products: outputsProducts },
+    };
+  };
+
+  const productionFlowRaw = buildProductionFlow();
 
   const formatRate = (value: number) => {
     return new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 }).format(value);
@@ -147,28 +181,41 @@ export default function SectorCard({
   const retailProfit = UNIT_ECONOMICS.retail.baseRevenue - UNIT_ECONOMICS.retail.baseCost;
   const serviceProfit = UNIT_ECONOMICS.service.baseRevenue - UNIT_ECONOMICS.service.baseCost;
 
-  const productionIsDynamic = Boolean(productPrices && producedProduct);
+  const productionOutputRate = producedProduct
+    ? productionFlowRaw?.outputs.products?.[producedProduct] ?? PRODUCTION_OUTPUT_RATE
+    : PRODUCTION_OUTPUT_RATE;
   const productionProductPrice = producedProduct
-    ? (productionIsDynamic ? (productPrices?.[producedProduct]?.currentPrice ?? PRODUCT_BASE_PRICES[producedProduct] ?? 0) : 0)
+    ? productPrices?.[producedProduct]?.currentPrice ??
+      PRODUCT_BASE_PRICES[producedProduct] ??
+      UNIT_ECONOMICS.production.baseRevenue
     : 0;
-  const productionElectricityPrice = productionIsDynamic
-    ? (productPrices?.Electricity?.currentPrice ?? PRODUCT_BASE_PRICES.Electricity ?? 0)
-    : 0;
-  const productionResourcePrice =
-    productionIsDynamic && requiredResource ? (commodityPrices?.[requiredResource]?.currentPrice ?? 0) : 0;
 
-  const productionRevenue = productionIsDynamic
-    ? productionProductPrice * PRODUCTION_OUTPUT_RATE
-    : UNIT_ECONOMICS.production.baseRevenue;
-  const productionCost = productionIsDynamic
-    ? PRODUCTION_LABOR_COST +
-      PRODUCTION_ELECTRICITY_CONSUMPTION * productionElectricityPrice +
-      (requiredResource ? PRODUCTION_RESOURCE_CONSUMPTION * productionResourcePrice : 0)
-    : UNIT_ECONOMICS.production.baseCost;
+  let productionRevenue = UNIT_ECONOMICS.production.baseRevenue;
+  let productionCost = UNIT_ECONOMICS.production.baseCost;
+
+  if (producedProduct) {
+    productionRevenue = productionProductPrice * productionOutputRate;
+    productionCost = PRODUCTION_LABOR_COST;
+
+    const resourceInputs = productionFlowRaw?.inputs.resources || {};
+    Object.entries(resourceInputs).forEach(([resource, amount]) => {
+      const price = commodityPrices?.[resource]?.currentPrice ?? 0;
+      productionCost += amount * price;
+    });
+
+    const productInputs = productionFlowRaw?.inputs.products || { Electricity: PRODUCTION_ELECTRICITY_CONSUMPTION };
+    Object.entries(productInputs).forEach(([product, amount]) => {
+      const price = productPrices?.[product]?.currentPrice ?? PRODUCT_BASE_PRICES[product] ?? 0;
+      const costMultiplier = producedProduct === 'Electricity' && product === 'Electricity' ? 0.1 : 1;
+      productionCost += amount * price * costMultiplier;
+    });
+  }
+
   const productionProfit = productionRevenue - productionCost;
+  const productionIsDynamic = Boolean(producedProduct);
 
   const retailFlow = formatFlowTotals(unitFlows?.retail, units.retail);
-  const productionFlow = formatFlowTotals(unitFlows?.production, units.production);
+  const productionFlow = formatFlowTotals(productionFlowRaw || undefined, units.production);
   const serviceFlow = formatFlowTotals(unitFlows?.service, units.service);
   const extractionFlow = formatFlowTotals(unitFlows?.extraction, units.extraction || 0);
 
@@ -379,20 +426,17 @@ export default function SectorCard({
               {productionIsDynamic && producedProduct ? (
                 <>
                   <p>
-                    Revenue: {PRODUCTION_OUTPUT_RATE} × {formatCurrency(productionProductPrice)}/unit
+                    Revenue: {productionOutputRate} u/hr @ {formatCurrency(productionProductPrice)}/unit
                   </p>
                   <p className="text-gray-400">= {formatCurrency(productionRevenue)}/hr</p>
                   <p>Cost: {formatCurrency(productionCost)}/hr</p>
                   <p className="text-emerald-400">Profit: {formatCurrency(productionProfit)}/hr</p>
                   <p className="text-emerald-400 mt-1">Produces: {producedProduct}</p>
-                  {requiredResource && (
-                    <p className="text-amber-400 mt-1">
-                      Inputs: {PRODUCTION_RESOURCE_CONSUMPTION} × {requiredResource} @ {formatCurrency(productionResourcePrice)}/unit
+                  {producedProduct === 'Electricity' && (
+                    <p className="text-amber-300 text-[10px]">
+                      Electricity input cost uses 0.1x multiplier for generation
                     </p>
                   )}
-                  <p className="text-amber-400">
-                    Electricity: {PRODUCTION_ELECTRICITY_CONSUMPTION} × {formatCurrency(productionElectricityPrice)}/unit
-                  </p>
                   {productionFlow && (productionFlow.inputs.products.length > 0 || productionFlow.inputs.resources.length > 0) && (
                     <div className="mt-2">
                       <p className="text-gray-200">Consumes:</p>

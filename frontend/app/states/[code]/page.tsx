@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import AppNavigation from '@/components/AppNavigation';
-import { marketsAPI, StateDetailResponse, authAPI, MarketMetadataResponse } from '@/lib/api';
+import { marketsAPI, StateDetailResponse, authAPI, MarketMetadataResponse, MarketUnitFlow } from '@/lib/api';
 import SectorCard from '@/components/SectorCard';
 import {
   MapPin,
@@ -109,6 +109,44 @@ const SECTOR_PRODUCTS: Record<string, string | null> = {
   'Pharmaceuticals': 'Pharmaceutical Products',
   'Mining': null,
 };
+
+// Sector product demands (what products sectors need to operate)
+const SECTOR_PRODUCT_DEMANDS: Record<string, string[] | null> = {
+  'Technology': null,
+  'Finance': ['Technology Products'],
+  'Healthcare': ['Pharmaceutical Products'],
+  'Manufacturing': null,
+  'Energy': null,
+  'Retail': ['Manufactured Goods'],
+  'Real Estate': ['Construction Capacity'],
+  'Transportation': null,
+  'Media': ['Technology Products'],
+  'Telecommunications': ['Technology Products'],
+  'Agriculture': null,
+  'Defense': null,
+  'Hospitality': ['Food Products'],
+  'Construction': null,
+  'Pharmaceuticals': null,
+  'Mining': null,
+};
+
+const PRODUCT_BASE_PRICES: Record<string, number> = {
+  'Technology Products': 5000,
+  'Manufactured Goods': 1500,
+  'Electricity': 200,
+  'Food Products': 500,
+  'Construction Capacity': 2500,
+  'Pharmaceutical Products': 8000,
+  'Defense Equipment': 15000,
+  'Logistics Capacity': 1000,
+};
+
+const PRODUCTION_LABOR_COST = 400;
+const PRODUCTION_RESOURCE_CONSUMPTION = 0.5;
+const PRODUCTION_ELECTRICITY_CONSUMPTION = 0.5;
+const PRODUCTION_PRODUCT_CONSUMPTION = 0.5;
+const PRODUCTION_OUTPUT_RATE = 1.0;
+const EXTRACTION_OUTPUT_RATE = 2.0;
 
 // Sectors that can build extraction units and what they can extract (must match backend SECTOR_EXTRACTION)
 const SECTORS_CAN_EXTRACT: Record<string, string[] | null> = {
@@ -243,6 +281,101 @@ export default function StateDetailPage() {
   const [commodityPrices, setCommodityPrices] = useState<Record<string, { currentPrice: number }>>({});
   const [productPrices, setProductPrices] = useState<Record<string, { currentPrice: number }>>({});
   const [marketMetadata, setMarketMetadata] = useState<MarketMetadataResponse | null>(null);
+
+  const getProductionFlow = (sector: string): MarketUnitFlow | null => {
+    const flowFromMetadata = marketMetadata?.sector_unit_flows?.[sector]?.production;
+    if (flowFromMetadata) {
+      return flowFromMetadata;
+    }
+
+    const requiredResource = SECTOR_RESOURCES[sector] || null;
+    const producedProduct = SECTOR_PRODUCTS[sector] || null;
+    const productDemands = SECTOR_PRODUCT_DEMANDS[sector] || null;
+
+    const inputsResources: Record<string, number> = requiredResource
+      ? { [requiredResource]: PRODUCTION_RESOURCE_CONSUMPTION }
+      : {};
+
+    const inputsProducts: Record<string, number> = {};
+    if (PRODUCTION_ELECTRICITY_CONSUMPTION > 0) {
+      inputsProducts['Electricity'] = PRODUCTION_ELECTRICITY_CONSUMPTION;
+    }
+    if (productDemands) {
+      productDemands.forEach((product) => {
+        inputsProducts[product] = PRODUCTION_PRODUCT_CONSUMPTION;
+      });
+    }
+
+    const outputsProducts: Record<string, number> = producedProduct
+      ? { [producedProduct]: PRODUCTION_OUTPUT_RATE }
+      : {};
+
+    return {
+      inputs: { resources: inputsResources, products: inputsProducts },
+      outputs: { resources: {}, products: outputsProducts },
+    };
+  };
+
+  const getProductionUnitEconomics = (sector: string) => {
+    const producedProduct = SECTOR_PRODUCTS[sector];
+    const productionFlow = getProductionFlow(sector);
+
+    let unitRevenuePerHour = UNIT_ECONOMICS.production.baseRevenue;
+    let unitCostPerHour = UNIT_ECONOMICS.production.baseCost;
+
+    if (producedProduct) {
+      const outputRate =
+        productionFlow?.outputs.products?.[producedProduct] ?? PRODUCTION_OUTPUT_RATE;
+      const productPrice =
+        productPrices[producedProduct]?.currentPrice ??
+        PRODUCT_BASE_PRICES[producedProduct] ??
+        UNIT_ECONOMICS.production.baseRevenue;
+
+      unitRevenuePerHour = productPrice * outputRate;
+      unitCostPerHour = PRODUCTION_LABOR_COST;
+
+      const resourceInputs = productionFlow?.inputs.resources || {};
+      Object.entries(resourceInputs).forEach(([resource, amount]) => {
+        const price = commodityPrices[resource]?.currentPrice ?? 0;
+        unitCostPerHour += amount * price;
+      });
+
+      const productInputs =
+        productionFlow?.inputs.products || { Electricity: PRODUCTION_ELECTRICITY_CONSUMPTION };
+      Object.entries(productInputs).forEach(([product, amount]) => {
+        const price = productPrices[product]?.currentPrice ?? PRODUCT_BASE_PRICES[product] ?? 0;
+        const costMultiplier = producedProduct === 'Electricity' && product === 'Electricity' ? 0.1 : 1;
+        unitCostPerHour += amount * price * costMultiplier;
+      });
+    }
+
+    return {
+      unitRevenuePerHour,
+      unitCostPerHour,
+    };
+  };
+
+  const calculateSectorUnitProfit = (
+    sector: string,
+    unitType: 'retail' | 'production' | 'service' | 'extraction'
+  ) => {
+    if (unitType === 'production') {
+      const economics = getProductionUnitEconomics(sector);
+      return (economics.unitRevenuePerHour - economics.unitCostPerHour) * DISPLAY_PERIOD_HOURS;
+    }
+    if (unitType === 'extraction') {
+      const extractable = SECTORS_CAN_EXTRACT[sector];
+      if (extractable && extractable.length > 0 && commodityPrices[extractable[0]]) {
+        const revenue =
+          commodityPrices[extractable[0]].currentPrice * EXTRACTION_OUTPUT_RATE * DISPLAY_PERIOD_HOURS;
+        const cost = UNIT_ECONOMICS.extraction.baseCost * DISPLAY_PERIOD_HOURS;
+        return revenue - cost;
+      }
+    }
+    return (
+      UNIT_ECONOMICS[unitType].baseRevenue - UNIT_ECONOMICS[unitType].baseCost
+    ) * DISPLAY_PERIOD_HOURS;
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -564,6 +697,7 @@ export default function StateDetailPage() {
                         extractableResources={SECTORS_CAN_EXTRACT[entry.sector_type]}
                         requiredResource={SECTOR_RESOURCES[entry.sector_type] || null}
                         producedProduct={SECTOR_PRODUCTS[entry.sector_type] || null}
+                        productDemands={SECTOR_PRODUCT_DEMANDS[entry.sector_type] || null}
                         showActions={true}
                         onAbandon={() => handleAbandonSector(entry.id, entry.sector_type)}
                         onBuildUnit={(unitType) => handleBuildUnit(entry.id, unitType)}
@@ -572,7 +706,7 @@ export default function StateDetailPage() {
                         canBuild={user_corporation.capital >= BUILD_UNIT_COST && userActions >= 1 && getTotalUnits(entry.units) < getStateCapacity(state.multiplier)}
                         buildCost={BUILD_UNIT_COST}
                         formatCurrency={formatCurrency}
-                        calculateUnitProfit={calculateUnitProfit}
+                        calculateUnitProfit={(unitType) => calculateSectorUnitProfit(entry.sector_type, unitType)}
                         UNIT_ECONOMICS={UNIT_ECONOMICS}
                         SECTORS_CAN_EXTRACT={SECTORS_CAN_EXTRACT}
                         commodityPrices={commodityPrices}

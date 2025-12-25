@@ -14,17 +14,18 @@ graph TB
     
     subgraph Frontend["Frontend Server"]
         NextJS[Next.js App Router]
-        Pages[Pages: Landing, Login, Register, Overview]
-        Components[Components: Layout, AuthForm]
-        API_Client[API Client Library]
+        Pages[Pages: Overview, States, Stock Market, Commodity/Product, Corporation]
+        Components[Components: SectorCard, PriceChart, BoardTab]
+        API_Client[API Client Library (lib/api.ts)]
+        MarketUtils[Market Utils (formatting, rounding, demand)]
     end
     
     subgraph Backend["Backend API Server"]
         Express[Express Server]
         AuthRoutes[Auth Routes]
-        GameRoutes[Game Routes]
+        MarketRoutes[Markets Routes]
         AuthMiddleware[JWT Auth Middleware]
-        UserModel[User Model]
+        Models[Models: MarketEntry, BusinessUnit, Corporation, PriceHistory]
     end
     
     subgraph Database["PostgreSQL Database"]
@@ -37,11 +38,10 @@ graph TB
     Components --> API_Client
     API_Client -->|API Calls| Express
     Express --> AuthRoutes
-    Express --> GameRoutes
+    Express --> MarketRoutes
+    MarketRoutes --> Models
     AuthRoutes --> AuthMiddleware
-    AuthRoutes --> UserModel
-    GameRoutes --> AuthMiddleware
-    UserModel --> UsersTable
+    Models --> UsersTable
 ```
 
 ## Technology Stack
@@ -87,11 +87,14 @@ corporate-sim/
 │   │   │   └── page.tsx        # Game overview (protected)
 │   │   ├── layout.tsx          # Root layout
 │   │   └── globals.css         # Global styles
-│   ├── components/             # Reusable React components
-│   │   ├── Layout.tsx          # Main layout wrapper with navigation
-│   │   └── AuthForm.tsx        # Shared authentication form
+│   │   ├── components/             # Reusable React components
+│   │   │   ├── Layout.tsx          # Main layout wrapper with navigation
+│   │   │   ├── SectorCard.tsx      # Market unit economics + flow badges
+│   │   │   ├── PriceChart.tsx      # Commodity/product price history
+│   │   │   └── BoardTab.tsx        # Corporation board and actions
 │   ├── lib/                    # Utility libraries
-│   │   └── api.ts              # API client with axios
+│   │   └── api.ts              # API client with axios (markets, metadata, history)
+│   │   └── marketUtils.ts      # Shared formatting, rounding, demand categorization
 │   ├── package.json            # Frontend dependencies
 │   ├── tsconfig.json           # TypeScript configuration
 │   ├── tailwind.config.js      # Tailwind CSS configuration
@@ -101,11 +104,15 @@ corporate-sim/
 │   ├── src/
 │   │   ├── routes/             # API route handlers
 │   │   │   ├── auth.ts         # Authentication endpoints
-│   │   │   └── game.ts         # Game endpoints (placeholder)
+│   │   │   └── markets.ts      # Market data, prices, metadata, detail pages
 │   │   ├── middleware/         # Express middleware
 │   │   │   └── auth.ts         # JWT authentication middleware
 │   │   ├── models/             # Data models
-│   │   │   └── User.ts         # User model with database operations
+│   │   │   ├── User.ts         # User model with database operations
+│   │   │   ├── MarketEntry.ts  # Corporation entries per state/sector
+│   │   │   ├── BusinessUnit.ts # Units per market entry (retail, production, service, extraction)
+│   │   │   ├── CommodityPriceHistory.ts
+│   │   │   └── ProductPriceHistory.ts
 │   │   ├── db/                 # Database configuration
 │   │   │   └── connection.ts   # PostgreSQL connection pool
 │   │   └── server.ts           # Express server setup
@@ -227,10 +234,28 @@ Authorization: Bearer <jwt_token>
 - `404`: User not found
 - `500`: Internal server error
 
-### Game Endpoints
+### Markets Endpoints
 
-#### GET `/api/game/status`
-Placeholder endpoint for game status (protected).
+#### GET `/api/markets/commodities`
+Returns calculated commodity prices and product prices using actual supply/demand.
+
+#### GET `/api/markets/metadata`
+Returns `sector_unit_flows` for each sector and consumers/suppliers for products/resources. Used by `SectorCard` to render per-unit input/output badges.
+
+#### GET `/api/markets/states/:code`
+Returns state details, market entries, capacity, and resource breakdown. Frontend derives unit economics and passes `unitFlows` to `SectorCard`.
+
+#### GET `/api/markets/resource/:name`
+Returns detailed resource view (price, supply/demand, top producers, demanders).
+
+#### GET `/api/markets/product/:name`
+Returns detailed product view (price, supply/demand, suppliers/demanders, input resource).
+
+#### POST `/api/markets/entries/:id/build`
+Builds a new business unit on a market entry; returns updated counts.
+
+#### DELETE `/api/markets/entries/:id/abandon`
+Abandons a sector entry; removes units and updates valuation.
 
 **Headers**:
 ```
@@ -243,6 +268,13 @@ Authorization: Bearer <jwt_token>
   "message": "Game API - Coming soon"
 }
 ```
+
+## Frontend Data Flow
+
+- `lib/api.ts` provides typed calls for commodities, metadata, states, resource/product detail, histories.
+- Commodity and product pages poll every 30s to refresh supply/demand and pricing, showing a subtle “Refreshing data…” indicator.
+- `marketUtils.ts` enforces rounding to 2 decimals, locale-aware number/currency formatting, and demand-level categorization used across pages.
+- `SectorCard.tsx` displays per-unit input/output badges using `sector_unit_flows` (market metadata) plus dynamic unit economics tied to current prices.
 
 ## Authentication Flow
 

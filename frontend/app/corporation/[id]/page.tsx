@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import AppNavigation from '@/components/AppNavigation';
-import { corporationAPI, CorporationResponse, authAPI, sharesAPI, marketsAPI, CorporationFinances, MarketEntryWithUnits, BalanceSheet, CommodityPrice, ProductMarketData, MarketMetadataResponse } from '@/lib/api';
+import { corporationAPI, CorporationResponse, authAPI, sharesAPI, marketsAPI, CorporationFinances, MarketEntryWithUnits, BalanceSheet, CommodityPrice, ProductMarketData, MarketMetadataResponse, MarketUnitFlow } from '@/lib/api';
 import { formatCash } from '@/lib/utils';
 import { Building2, Edit, Trash2, TrendingUp, DollarSign, Users, User, Calendar, ArrowUp, ArrowDown, TrendingDown, Plus, BarChart3, MapPin, Store, Factory, Briefcase, Layers, Droplets, Package, Cpu, Zap, Wheat, Trees, FlaskConical, Box, Lightbulb, Pill, Wrench, Truck, Shield, UtensilsCrossed, Info, ArrowRight, Pickaxe, HelpCircle } from 'lucide-react';
 import BoardTab from '@/components/BoardTab';
@@ -165,6 +165,7 @@ const PRODUCT_BASE_PRICES: Record<string, number> = {
 const PRODUCTION_LABOR_COST = 400; // per hour
 const PRODUCTION_RESOURCE_CONSUMPTION = 0.5; // units per hour
 const PRODUCTION_ELECTRICITY_CONSUMPTION = 0.5; // units per hour
+const PRODUCTION_PRODUCT_CONSUMPTION = 0.5; // units per hour
 const PRODUCTION_OUTPUT_RATE = 1.0; // product units per hour
 const EXTRACTION_OUTPUT_RATE = 2.0; // resource units per hour (must match backend)
 
@@ -222,6 +223,80 @@ export default function CorporationDetailPage() {
     annual_profit: number;
     annual_dividend_per_share: number;
   } | null>(null);
+
+  const getProductionFlow = (sector: string): MarketUnitFlow | null => {
+    const flowFromMetadata = marketMetadata?.sector_unit_flows?.[sector]?.production;
+    if (flowFromMetadata) {
+      return flowFromMetadata;
+    }
+
+    const requiredResource = SECTOR_RESOURCES[sector] || null;
+    const producedProduct = SECTOR_PRODUCTS[sector] || null;
+    const productDemands = SECTOR_PRODUCT_DEMANDS[sector] || null;
+
+    const inputsResources: Record<string, number> = requiredResource
+      ? { [requiredResource]: PRODUCTION_RESOURCE_CONSUMPTION }
+      : {};
+
+    const inputsProducts: Record<string, number> = {};
+    if (PRODUCTION_ELECTRICITY_CONSUMPTION > 0) {
+      inputsProducts['Electricity'] = PRODUCTION_ELECTRICITY_CONSUMPTION;
+    }
+    if (productDemands) {
+      productDemands.forEach((product) => {
+        inputsProducts[product] = PRODUCTION_PRODUCT_CONSUMPTION;
+      });
+    }
+
+    const outputsProducts: Record<string, number> = producedProduct
+      ? { [producedProduct]: PRODUCTION_OUTPUT_RATE }
+      : {};
+
+    return {
+      inputs: { resources: inputsResources, products: inputsProducts },
+      outputs: { resources: {}, products: outputsProducts },
+    };
+  };
+
+  const getProductionUnitEconomics = (sector: string) => {
+    const producedProduct = SECTOR_PRODUCTS[sector];
+    const productionFlow = getProductionFlow(sector);
+
+    let unitRevenuePerHour = UNIT_ECONOMICS.production.baseRevenue;
+    let unitCostPerHour = UNIT_ECONOMICS.production.baseCost;
+
+    if (producedProduct) {
+      const outputRate =
+        productionFlow?.outputs.products?.[producedProduct] ?? PRODUCTION_OUTPUT_RATE;
+      const productPrice =
+        productPrices[producedProduct]?.currentPrice ??
+        PRODUCT_BASE_PRICES[producedProduct] ??
+        UNIT_ECONOMICS.production.baseRevenue;
+
+      unitRevenuePerHour = productPrice * outputRate;
+      unitCostPerHour = PRODUCTION_LABOR_COST;
+
+      const resourceInputs = productionFlow?.inputs.resources || {};
+      Object.entries(resourceInputs).forEach(([resource, amount]) => {
+        const price = commodityPrices[resource]?.currentPrice ?? 0;
+        unitCostPerHour += amount * price;
+      });
+
+      const productInputs =
+        productionFlow?.inputs.products || { Electricity: PRODUCTION_ELECTRICITY_CONSUMPTION };
+      Object.entries(productInputs).forEach(([product, amount]) => {
+        const price = productPrices[product]?.currentPrice ?? PRODUCT_BASE_PRICES[product] ?? 0;
+        const costMultiplier = producedProduct === 'Electricity' && product === 'Electricity' ? 0.1 : 1;
+        unitCostPerHour += amount * price * costMultiplier;
+      });
+    }
+
+    return {
+      unitRevenuePerHour,
+      unitCostPerHour,
+      productionFlow,
+    };
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -353,30 +428,9 @@ export default function CorporationDetailPage() {
 
       // Production units - use dynamic pricing if available
       if (entry.production_count > 0) {
-        const requiredResource = SECTOR_RESOURCES[sector];
-        const producedProduct = SECTOR_PRODUCTS[sector];
-        
-        let unitRev = UNIT_ECONOMICS.production.baseRevenue * DISPLAY_PERIOD_HOURS;
-        let unitCost = UNIT_ECONOMICS.production.baseCost * DISPLAY_PERIOD_HOURS;
-
-        if (producedProduct) {
-          unitCost = PRODUCTION_LABOR_COST * DISPLAY_PERIOD_HOURS;
-
-          const electricityPrice =
-            productPrices['Electricity']?.currentPrice ?? PRODUCT_BASE_PRICES['Electricity'] ?? 0;
-          unitCost += PRODUCTION_ELECTRICITY_CONSUMPTION * electricityPrice * DISPLAY_PERIOD_HOURS;
-
-          if (requiredResource && commodityPrices[requiredResource]) {
-            unitCost +=
-              PRODUCTION_RESOURCE_CONSUMPTION *
-              commodityPrices[requiredResource].currentPrice *
-              DISPLAY_PERIOD_HOURS;
-          }
-
-          const productPrice =
-            productPrices[producedProduct]?.currentPrice ?? PRODUCT_BASE_PRICES[producedProduct] ?? 0;
-          unitRev = productPrice * PRODUCTION_OUTPUT_RATE * DISPLAY_PERIOD_HOURS;
-        }
+        const { unitRevenuePerHour, unitCostPerHour } = getProductionUnitEconomics(sector);
+        const unitRev = unitRevenuePerHour * DISPLAY_PERIOD_HOURS;
+        const unitCost = unitCostPerHour * DISPLAY_PERIOD_HOURS;
         
         breakdown.unitBreakdown.production.revenue += unitRev * entry.production_count;
         breakdown.unitBreakdown.production.cost += unitCost * entry.production_count;
@@ -1107,30 +1161,9 @@ export default function CorporationDetailPage() {
                             
                             // Production units - use dynamic pricing
                             if (entry.production_count > 0) {
-                              const requiredResource = SECTOR_RESOURCES[entry.sector_type];
-                              const producedProduct = SECTOR_PRODUCTS[entry.sector_type];
-                              
-                              let unitRev = UNIT_ECONOMICS.production.baseRevenue * DISPLAY_PERIOD_HOURS;
-                              let unitCost = UNIT_ECONOMICS.production.baseCost * DISPLAY_PERIOD_HOURS;
-
-                              if (producedProduct) {
-                                unitCost = PRODUCTION_LABOR_COST * DISPLAY_PERIOD_HOURS;
-
-                                const electricityPrice =
-                                  productPrices['Electricity']?.currentPrice ?? PRODUCT_BASE_PRICES['Electricity'] ?? 0;
-                                unitCost += PRODUCTION_ELECTRICITY_CONSUMPTION * electricityPrice * DISPLAY_PERIOD_HOURS;
-
-                                if (requiredResource && commodityPrices[requiredResource]) {
-                                  unitCost +=
-                                    PRODUCTION_RESOURCE_CONSUMPTION *
-                                    commodityPrices[requiredResource].currentPrice *
-                                    DISPLAY_PERIOD_HOURS;
-                                }
-
-                                const productPrice =
-                                  productPrices[producedProduct]?.currentPrice ?? PRODUCT_BASE_PRICES[producedProduct] ?? 0;
-                                unitRev = productPrice * PRODUCTION_OUTPUT_RATE * DISPLAY_PERIOD_HOURS;
-                              }
+                              const { unitRevenuePerHour, unitCostPerHour } = getProductionUnitEconomics(entry.sector_type);
+                              const unitRev = unitRevenuePerHour * DISPLAY_PERIOD_HOURS;
+                              const unitCost = unitCostPerHour * DISPLAY_PERIOD_HOURS;
                               
                               stateRevenue += unitRev * entry.production_count;
                               stateCost += unitCost * entry.production_count;
@@ -1251,6 +1284,7 @@ export default function CorporationDetailPage() {
                                   // Calculate entry revenue and cost using dynamic economics (matching backend)
                                   let entryRevenue = 0;
                                   let entryCost = 0;
+                                  const productionEconomics = getProductionUnitEconomics(entry.sector_type);
                                   
                                   // Retail units
                                   if (entry.retail_count > 0) {
@@ -1260,34 +1294,8 @@ export default function CorporationDetailPage() {
                                   
                                   // Production units - use dynamic pricing
                                   if (entry.production_count > 0) {
-                                    const producedProduct = SECTOR_PRODUCTS[entry.sector_type];
-                                    let unitRev = UNIT_ECONOMICS.production.baseRevenue * DISPLAY_PERIOD_HOURS;
-                                    let unitCost = UNIT_ECONOMICS.production.baseCost * DISPLAY_PERIOD_HOURS;
-
-                                    if (producedProduct) {
-                                      unitCost = PRODUCTION_LABOR_COST * DISPLAY_PERIOD_HOURS;
-
-                                      const electricityPrice =
-                                        productPrices['Electricity']?.currentPrice ?? PRODUCT_BASE_PRICES['Electricity'] ?? 0;
-                                      unitCost +=
-                                        PRODUCTION_ELECTRICITY_CONSUMPTION * electricityPrice * DISPLAY_PERIOD_HOURS;
-
-                                      if (requiredResource && commodityPrices[requiredResource]) {
-                                        unitCost +=
-                                          PRODUCTION_RESOURCE_CONSUMPTION *
-                                          commodityPrices[requiredResource].currentPrice *
-                                          DISPLAY_PERIOD_HOURS;
-                                      }
-
-                                      const productPrice =
-                                        productPrices[producedProduct]?.currentPrice ??
-                                        PRODUCT_BASE_PRICES[producedProduct] ??
-                                        0;
-                                      unitRev = productPrice * PRODUCTION_OUTPUT_RATE * DISPLAY_PERIOD_HOURS;
-                                    }
-                                    
-                                    entryRevenue += unitRev * entry.production_count;
-                                    entryCost += unitCost * entry.production_count;
+                                    entryRevenue += productionEconomics.unitRevenuePerHour * DISPLAY_PERIOD_HOURS * entry.production_count;
+                                    entryCost += productionEconomics.unitCostPerHour * DISPLAY_PERIOD_HOURS * entry.production_count;
                                   }
                                   
                                   // Service units
@@ -1342,6 +1350,7 @@ export default function CorporationDetailPage() {
                                       extractableResources={extractableResources}
                                       requiredResource={requiredResource || null}
                                       producedProduct={SECTOR_PRODUCTS[entry.sector_type] || null}
+                                      productDemands={SECTOR_PRODUCT_DEMANDS[entry.sector_type] || null}
                                       revenue={entryRevenue}
                                       profit={entryProfit}
                                       showActions={corporation && viewerUserId === corporation.ceo_id}
@@ -1355,33 +1364,7 @@ export default function CorporationDetailPage() {
                                       calculateUnitProfit={(unitType) => {
                                         if (unitType === 'retail') return (UNIT_ECONOMICS.retail.baseRevenue - UNIT_ECONOMICS.retail.baseCost) * DISPLAY_PERIOD_HOURS;
                                         if (unitType === 'production') {
-                                          const producedProduct = SECTOR_PRODUCTS[entry.sector_type];
-                                          let unitRev = UNIT_ECONOMICS.production.baseRevenue * DISPLAY_PERIOD_HOURS;
-                                          let unitCost = UNIT_ECONOMICS.production.baseCost * DISPLAY_PERIOD_HOURS;
-
-                                          if (producedProduct) {
-                                            unitCost = PRODUCTION_LABOR_COST * DISPLAY_PERIOD_HOURS;
-
-                                            const electricityPrice =
-                                              productPrices['Electricity']?.currentPrice ?? PRODUCT_BASE_PRICES['Electricity'] ?? 0;
-                                            unitCost +=
-                                              PRODUCTION_ELECTRICITY_CONSUMPTION * electricityPrice * DISPLAY_PERIOD_HOURS;
-
-                                            if (requiredResource && commodityPrices[requiredResource]) {
-                                              unitCost +=
-                                                PRODUCTION_RESOURCE_CONSUMPTION *
-                                                commodityPrices[requiredResource].currentPrice *
-                                                DISPLAY_PERIOD_HOURS;
-                                            }
-
-                                            const productPrice =
-                                              productPrices[producedProduct]?.currentPrice ??
-                                              PRODUCT_BASE_PRICES[producedProduct] ??
-                                              0;
-                                            unitRev = productPrice * PRODUCTION_OUTPUT_RATE * DISPLAY_PERIOD_HOURS;
-                                          }
-
-                                          return unitRev - unitCost;
+                                          return (productionEconomics.unitRevenuePerHour - productionEconomics.unitCostPerHour) * DISPLAY_PERIOD_HOURS;
                                         }
                                         if (unitType === 'service') return (UNIT_ECONOMICS.service.baseRevenue - UNIT_ECONOMICS.service.baseCost) * DISPLAY_PERIOD_HOURS;
                                         if (unitType === 'extraction') {
@@ -1421,9 +1404,19 @@ export default function CorporationDetailPage() {
                             // Calculate total resource demand across all market entries
                             const resourceDemand: Record<string, number> = {};
                             marketEntries.forEach(entry => {
-                              const resource = SECTOR_RESOURCES[entry.sector_type];
-                              if (resource && entry.production_count > 0) {
-                                resourceDemand[resource] = (resourceDemand[resource] || 0) + entry.production_count;
+                              if (entry.production_count > 0) {
+                                const flow = getProductionFlow(entry.sector_type);
+                                const inputs = flow?.inputs.resources;
+                                if (inputs) {
+                                  Object.entries(inputs).forEach(([resource, amount]) => {
+                                    resourceDemand[resource] = (resourceDemand[resource] || 0) + amount * entry.production_count;
+                                  });
+                                } else {
+                                  const resource = SECTOR_RESOURCES[entry.sector_type];
+                                  if (resource) {
+                                    resourceDemand[resource] = (resourceDemand[resource] || 0) + entry.production_count;
+                                  }
+                                }
                               }
                             });
 
@@ -1446,13 +1439,13 @@ export default function CorporationDetailPage() {
                                   {RESOURCE_ICONS[resource]}
                                   <span className="font-medium text-sm">{resource}</span>
                                 </div>
-                                <p className="text-2xl font-bold">{demand}</p>
-                                <p className="text-xs opacity-75">units required</p>
+                                <p className="text-2xl font-bold">{demand.toLocaleString(undefined, { maximumFractionDigits: 2 })}</p>
+                                <p className="text-xs opacity-75">units required / hr</p>
                                 <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-50 pointer-events-none">
                                   <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 whitespace-nowrap shadow-lg">
                                     <p className="font-medium">{resource} Demand</p>
-                                    <p>{demand} production units need this resource</p>
-                                    <p className="text-gray-400 mt-1">efficiency = min(1, available / {demand})</p>
+                                    <p>{demand.toLocaleString(undefined, { maximumFractionDigits: 2 })} units/hr needed across production</p>
+                                    <p className="text-gray-400 mt-1">efficiency = min(1, available / total demand)</p>
                                   </div>
                                 </div>
                               </div>
@@ -1526,9 +1519,21 @@ export default function CorporationDetailPage() {
                             // Calculate total product output across all market entries
                             const productOutput: Record<string, number> = {};
                             marketEntries.forEach(entry => {
-                              const product = SECTOR_PRODUCTS[entry.sector_type];
-                              if (product && entry.production_count > 0) {
-                                productOutput[product] = (productOutput[product] || 0) + entry.production_count;
+                              if (entry.production_count > 0) {
+                                const flow = getProductionFlow(entry.sector_type);
+                                const outputs = flow?.outputs.products;
+                                if (outputs) {
+                                  Object.entries(outputs).forEach(([product, amount]) => {
+                                    productOutput[product] = (productOutput[product] || 0) + amount * entry.production_count;
+                                  });
+                                } else {
+                                  const product = SECTOR_PRODUCTS[entry.sector_type];
+                                  if (product) {
+                                    productOutput[product] =
+                                      (productOutput[product] || 0) +
+                                      entry.production_count * PRODUCTION_OUTPUT_RATE;
+                                  }
+                                }
                               }
                             });
 
@@ -1551,8 +1556,8 @@ export default function CorporationDetailPage() {
                                   {PRODUCT_ICONS[product]}
                                   <span className="font-medium text-sm">{product}</span>
                                 </div>
-                                <p className="text-2xl font-bold">{output}</p>
-                                <p className="text-xs opacity-75">units produced</p>
+                                <p className="text-2xl font-bold">{output.toLocaleString(undefined, { maximumFractionDigits: 2 })}</p>
+                                <p className="text-xs opacity-75">units produced / hr</p>
                               </div>
                             ));
                           })()}
@@ -1571,11 +1576,22 @@ export default function CorporationDetailPage() {
                             // Calculate total product demand across all market entries
                             const productDemand: Record<string, number> = {};
                             marketEntries.forEach(entry => {
-                              const demands = SECTOR_PRODUCT_DEMANDS[entry.sector_type];
-                              if (demands && entry.production_count > 0) {
-                                demands.forEach(product => {
-                                  productDemand[product] = (productDemand[product] || 0) + entry.production_count;
-                                });
+                              if (entry.production_count > 0) {
+                                const flow = getProductionFlow(entry.sector_type);
+                                const inputs = flow?.inputs.products;
+                                if (inputs) {
+                                  Object.entries(inputs).forEach(([product, amount]) => {
+                                    productDemand[product] = (productDemand[product] || 0) + amount * entry.production_count;
+                                  });
+                                } else {
+                                  const demands = SECTOR_PRODUCT_DEMANDS[entry.sector_type];
+                                  if (demands) {
+                                    demands.forEach(product => {
+                                      productDemand[product] = (productDemand[product] || 0) + PRODUCTION_PRODUCT_CONSUMPTION * entry.production_count;
+                                    });
+                                  }
+                                  productDemand['Electricity'] = (productDemand['Electricity'] || 0) + PRODUCTION_ELECTRICITY_CONSUMPTION * entry.production_count;
+                                }
                               }
                             });
 
@@ -1598,8 +1614,8 @@ export default function CorporationDetailPage() {
                                   {PRODUCT_ICONS[product]}
                                   <span className="font-medium text-sm">{product}</span>
                                 </div>
-                                <p className="text-2xl font-bold">{demand}</p>
-                                <p className="text-xs opacity-75">units needed</p>
+                                <p className="text-2xl font-bold">{demand.toLocaleString(undefined, { maximumFractionDigits: 2 })}</p>
+                                <p className="text-xs opacity-75">units needed / hr</p>
                               </div>
                             ));
                           })()}
