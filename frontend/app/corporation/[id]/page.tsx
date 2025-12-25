@@ -609,7 +609,7 @@ export default function CorporationDetailPage() {
     if (!corporation) return;
     
     const actionCost = 500000 + (corporation.shares * corporation.share_price * 0.01);
-    if (!confirm(`Activate Supply Rush? This will cost $${formatCash(actionCost)} and boost all production and extraction output by 10% for 4 hours.`)) {
+    if (!confirm('Activate Supply Rush? This will cost ' + formatCash(actionCost) + ' and boost all production and extraction output by 10% for 4 hours.')) {
       return;
     }
 
@@ -632,7 +632,7 @@ export default function CorporationDetailPage() {
     if (!corporation) return;
     
     const actionCost = 500000 + (corporation.shares * corporation.share_price * 0.01);
-    if (!confirm(`Activate Marketing Campaign? This will cost $${formatCash(actionCost)} and boost all production and extraction output by 10% for 4 hours.`)) {
+    if (!confirm('Activate Marketing Campaign? This will cost ' + formatCash(actionCost) + ' and boost all production and extraction output by 10% for 4 hours.')) {
       return;
     }
 
@@ -707,10 +707,7 @@ export default function CorporationDetailPage() {
   const publicSharesPercentage = (corporation.public_shares / effectiveTotalShares) * 100;
 
   // Calculate action cost (corporation is guaranteed to exist here)
-  const calculateActionCost = (): number => {
-    const actionMarketCap = corporation.shares * corporation.share_price;
-    return 500000 + (actionMarketCap * 0.01);
-  };
+  const actionCostValue = 500000 + (corporation.shares * corporation.share_price * 0.01);
 
   return (
     <AppNavigation>
@@ -2642,7 +2639,7 @@ export default function CorporationDetailPage() {
                         <div className="space-y-2 mb-4">
                           <div className="flex items-center justify-between text-sm">
                             <span className="text-gray-600 dark:text-gray-400">Cost:</span>
-                            <span className="font-bold text-gray-900 dark:text-white">{formatCash(calculateActionCost())}</span>
+                            <span className="font-bold text-gray-900 dark:text-white">{formatCash(actionCostValue)}</span>
                           </div>
                           <div className="flex items-center justify-between text-sm">
                             <span className="text-gray-600 dark:text-gray-400">Duration:</span>
@@ -2679,7 +2676,7 @@ export default function CorporationDetailPage() {
                         <div className="space-y-2 mb-4">
                           <div className="flex items-center justify-between text-sm">
                             <span className="text-gray-600 dark:text-gray-400">Cost:</span>
-                            <span className="font-bold text-gray-900 dark:text-white">{formatCash(calculateActionCost())}</span>
+                            <span className="font-bold text-gray-900 dark:text-white">{formatCash(actionCostValue)}</span>
                           </div>
                           <div className="flex items-center justify-between text-sm">
                             <span className="text-gray-600 dark:text-gray-400">Duration:</span>
@@ -2722,7 +2719,7 @@ export default function CorporationDetailPage() {
                         </div>
                         <div className="border-t border-gray-300 dark:border-gray-600 mt-2 pt-2 flex items-center justify-between font-bold text-gray-900 dark:text-white">
                           <span>Total Cost:</span>
-                          <span className="font-mono">{formatCash(calculateActionCost())}</span>
+                          <span className="font-mono">{formatCash(actionCostValue)}</span>
                         </div>
                       </div>
                     </div>
