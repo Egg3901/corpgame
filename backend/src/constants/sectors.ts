@@ -728,6 +728,8 @@ export const UNIT_LABOR_COSTS: Record<UnitType, number> = {
 // Resource consumption rate per production unit per hour
 export const PRODUCTION_RESOURCE_CONSUMPTION = 0.5;  // Units of resource consumed per hour
 
+export const PRODUCTION_PRODUCT_CONSUMPTION = 0.5;
+
 // Product output rate per production unit per hour  
 export const PRODUCTION_OUTPUT_RATE = 1.0;  // Units of product produced per hour
 
@@ -1106,7 +1108,7 @@ export function getDynamicUnitEconomics(
       productRevenue = baseEcon.baseRevenue;
     }
 
-    const electricityConsumedAmount = (sectorTyped === 'Manufacturing' || sectorTyped === 'Technology') ? PRODUCTION_ELECTRICITY_CONSUMPTION : 0;
+    const electricityConsumedAmount = PRODUCTION_ELECTRICITY_CONSUMPTION;
     const electricityCost = electricityConsumedAmount * getProductUnitPrice('Electricity');
     const productConsumedAmounts: Record<Product, number> = {} as Record<Product, number>;
     const productsConsumed: Product[] = [];
@@ -1133,7 +1135,7 @@ export function getDynamicUnitEconomics(
       productCost,
       productsConsumed,
       productConsumedAmounts,
-      isDynamic: requiredResource !== null || producedProduct !== null,
+      isDynamic: requiredResource !== null || producedProduct !== null || electricityConsumedAmount > 0,
     };
     if (canUseCache) {
       _dynamicEconomicsCache.set(cacheKey, result);
@@ -1633,10 +1635,10 @@ export const SECTOR_PRODUCTS: Record<Sector, Product | null> = {
 // What each sector's production units demand (products they need to operate)
 // null = no product demand, array = can demand multiple products
 export const SECTOR_PRODUCT_DEMANDS: Record<Sector, Product[] | null> = {
-  'Technology': ['Electricity'],                   // Produces, doesn't consume products
+  'Technology': null,                              // Produces, doesn't consume products
   'Finance': ['Technology Products'],              // Trading systems, software
   'Healthcare': ['Pharmaceutical Products'],       // Medicine
-  'Manufacturing': ['Electricity'],                // Produces, doesn't consume products
+  'Manufacturing': null,                           // Produces, doesn't consume products
   'Energy': null,                                  // Produces, doesn't consume products
   'Retail': ['Manufactured Goods'],                // Sells manufactured goods
   'Real Estate': ['Construction Capacity'],        // Needs construction for development

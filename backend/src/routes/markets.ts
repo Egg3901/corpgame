@@ -166,6 +166,7 @@ router.get('/commodities', async (req: Request, res: Response) => {
     const {
       EXTRACTION_ELECTRICITY_CONSUMPTION,
       PRODUCTION_ELECTRICITY_CONSUMPTION,
+      PRODUCTION_PRODUCT_CONSUMPTION,
       RETAIL_PRODUCT_CONSUMPTION,
       SECTOR_RETAIL_DEMANDS,
       SECTOR_SERVICE_DEMANDS,
@@ -180,8 +181,7 @@ router.get('/commodities', async (req: Request, res: Response) => {
 
       for (const [sector, demandedProducts] of Object.entries(SECTOR_PRODUCT_DEMANDS)) {
         if (demandedProducts && demandedProducts.includes(product)) {
-          const perUnitDemand = product === 'Electricity' ? PRODUCTION_ELECTRICITY_CONSUMPTION : PRODUCTION_RESOURCE_CONSUMPTION;
-          demand += (sectorProductionUnits[sector] || 0) * perUnitDemand;
+          demand += (sectorProductionUnits[sector] || 0) * PRODUCTION_PRODUCT_CONSUMPTION;
         }
       }
 
@@ -199,6 +199,10 @@ router.get('/commodities', async (req: Request, res: Response) => {
       }
 
       if (product === 'Electricity') {
+        for (const productionUnits of Object.values(sectorProductionUnits)) {
+          demand += (productionUnits || 0) * PRODUCTION_ELECTRICITY_CONSUMPTION;
+        }
+
         for (const [sector, extractableResources] of Object.entries(SECTOR_EXTRACTION)) {
           if (extractableResources && extractableResources.length > 0) {
             demand += (sectorExtractionUnits[sector] || 0) * EXTRACTION_ELECTRICITY_CONSUMPTION;

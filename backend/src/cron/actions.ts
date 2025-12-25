@@ -672,6 +672,7 @@ async function recordMarketPrices(): Promise<void> {
       EXTRACTION_ELECTRICITY_CONSUMPTION,
       EXTRACTION_OUTPUT_RATE,
       PRODUCTION_ELECTRICITY_CONSUMPTION,
+      PRODUCTION_PRODUCT_CONSUMPTION,
       PRODUCTION_RESOURCE_CONSUMPTION,
       PRODUCTION_OUTPUT_RATE,
       RETAIL_PRODUCT_CONSUMPTION,
@@ -792,8 +793,7 @@ async function recordMarketPrices(): Promise<void> {
       let demand = 0;
       for (const [sector, demandedProducts] of Object.entries(SECTOR_PRODUCT_DEMANDS)) {
         if (demandedProducts && demandedProducts.includes(product)) {
-          const perUnitDemand = product === 'Electricity' ? PRODUCTION_ELECTRICITY_CONSUMPTION : PRODUCTION_RESOURCE_CONSUMPTION;
-          demand += (sectorProductionUnits[sector] || 0) * perUnitDemand;
+          demand += (sectorProductionUnits[sector] || 0) * PRODUCTION_PRODUCT_CONSUMPTION;
         }
       }
 
@@ -811,6 +811,10 @@ async function recordMarketPrices(): Promise<void> {
       }
 
       if (product === 'Electricity') {
+        for (const productionUnits of Object.values(sectorProductionUnits)) {
+          demand += (productionUnits || 0) * PRODUCTION_ELECTRICITY_CONSUMPTION;
+        }
+
         for (const [sector, extractableResources] of Object.entries(SECTOR_EXTRACTION)) {
           if (extractableResources && extractableResources.length > 0) {
             demand += (sectorExtractionUnits[sector] || 0) * EXTRACTION_ELECTRICITY_CONSUMPTION;

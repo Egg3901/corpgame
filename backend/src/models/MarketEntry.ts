@@ -8,6 +8,7 @@ import {
   EXTRACTION_OUTPUT_RATE,
   MarketPriceOverrides,
   PRODUCTS,
+  PRODUCTION_PRODUCT_CONSUMPTION,
   PRODUCTION_ELECTRICITY_CONSUMPTION,
   PRODUCTION_OUTPUT_RATE,
   PRODUCTION_RESOURCE_CONSUMPTION,
@@ -145,8 +146,7 @@ export class MarketEntryModel {
       for (const [sector, demandedProducts] of Object.entries(SECTOR_PRODUCT_DEMANDS)) {
         if (!demandedProducts || !demandedProducts.includes(product)) continue;
         const productionUnits = sectorProductionUnits[sector] || 0;
-        const perUnitDemand = product === 'Electricity' ? PRODUCTION_ELECTRICITY_CONSUMPTION : PRODUCTION_RESOURCE_CONSUMPTION;
-        demand += productionUnits * perUnitDemand;
+        demand += productionUnits * PRODUCTION_PRODUCT_CONSUMPTION;
       }
 
       for (const [sector, demandedProducts] of Object.entries(SECTOR_RETAIL_DEMANDS)) {
@@ -161,6 +161,10 @@ export class MarketEntryModel {
       }
 
       if (product === 'Electricity') {
+        for (const productionUnits of Object.values(sectorProductionUnits)) {
+          demand += (productionUnits || 0) * PRODUCTION_ELECTRICITY_CONSUMPTION;
+        }
+
         for (const [sector, extractableResources] of Object.entries(SECTOR_EXTRACTION)) {
           if (!extractableResources || extractableResources.length === 0) continue;
           demand += (sectorExtractionUnits[sector] || 0) * EXTRACTION_ELECTRICITY_CONSUMPTION;
