@@ -5,6 +5,8 @@ import { BusinessUnitModel } from '../models/BusinessUnit';
 import { CorporationModel } from '../models/Corporation';
 import { UserModel } from '../models/User';
 import { TransactionModel } from '../models/Transaction';
+import { CommodityPriceHistoryModel } from '../models/CommodityPriceHistory';
+import { ProductPriceHistoryModel } from '../models/ProductPriceHistory';
 import {
   US_STATES,
   US_REGIONS,
@@ -1092,6 +1094,46 @@ router.delete('/entries/:entryId/abandon', authenticateToken, async (req: AuthRe
   } catch (error) {
     console.error('Abandon sector error:', error);
     res.status(500).json({ error: 'Failed to abandon sector' });
+  }
+});
+
+// GET /api/markets/resource/:name/history - Get price history for a commodity
+router.get('/resource/:name/history', async (req: Request, res: Response) => {
+  try {
+    const resourceName = decodeURIComponent(req.params.name);
+    const hours = parseInt(req.query.hours as string) || 96;
+    const limit = parseInt(req.query.limit as string) || 1000;
+    
+    const history = await CommodityPriceHistoryModel.findByResourceName(
+      resourceName,
+      limit,
+      hours
+    );
+    
+    res.json(history);
+  } catch (error) {
+    console.error('Get commodity price history error:', error);
+    res.status(500).json({ error: 'Failed to fetch commodity price history' });
+  }
+});
+
+// GET /api/markets/product/:name/history - Get price history for a product
+router.get('/product/:name/history', async (req: Request, res: Response) => {
+  try {
+    const productName = decodeURIComponent(req.params.name);
+    const hours = parseInt(req.query.hours as string) || 96;
+    const limit = parseInt(req.query.limit as string) || 1000;
+    
+    const history = await ProductPriceHistoryModel.findByProductName(
+      productName,
+      limit,
+      hours
+    );
+    
+    res.json(history);
+  } catch (error) {
+    console.error('Get product price history error:', error);
+    res.status(500).json({ error: 'Failed to fetch product price history' });
   }
 });
 

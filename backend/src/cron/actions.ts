@@ -8,6 +8,9 @@ import { TransactionModel } from '../models/Transaction';
 import { ShareholderModel } from '../models/Shareholder';
 import { updateStockPrice } from '../utils/valuation';
 import { SharePriceHistoryModel } from '../models/SharePriceHistory';
+import { CommodityPriceHistoryModel } from '../models/CommodityPriceHistory';
+import { ProductPriceHistoryModel } from '../models/ProductPriceHistory';
+import pool from '../db/connection';
 
 // Default CEO salary constants (used only as fallback)
 const DEFAULT_CEO_SALARY_PER_96H = 100000; // $100,000 per 96 hours
@@ -43,6 +46,9 @@ export function startActionsCron() {
       
       // Process dividends
       await processDividends();
+      
+      // Record commodity and product prices
+      await recordMarketPrices();
     } catch (error) {
       console.error('[Cron] Error incrementing actions:', error);
     }
@@ -600,5 +606,135 @@ export function getNextCronTimes(): {
   }
   
   return { nextActionUpdate, nextProposalCheck };
+}
+
+/**
+ * Record commodity and product prices to history
+ * Called hourly to track price changes over time
+ */
+async function recordMarketPrices(): Promise<void> {
+  try {
+    console.log('[Cron] Recording market prices...');
+    
+    const {
+      RESOURCES,
+      PRODUCTS,
+      SECTOR_EXTRACTION,
+      SECTOR_RESOURCES,
+      SECTOR_PRODUCTS,
+      SECTOR_PRODUCT_DEMANDS,
+      calculateAllCommodityPrices,
+      calculateProductPrice,
+      EXTRACTION_OUTPUT_RATE,
+      PRODUCTION_RESOURCE_CONSUMPTION,
+      PRODUCTION_OUTPUT_RATE,
+    } = await import('../constants/sectors');
+    
+    // Get extraction units count by sector
+    const extractionQuery = await pool.query(`
+      SELECT 
+        me.sector_type,
+        COALESCE(SUM(bu.count), 0)::int as extraction_units
+      FROM market_entries me
+      LEFT JOIN business_units bu ON me.id = bu.market_entry_id AND bu.unit_type = 'extraction'
+      GROUP BY me.sector_type
+    `);
+    
+    const sectorExtractionUnits: Record<string, number> = {};
+    for (const row of extractionQuery.rows) {
+      sectorExtractionUnits[row.sector_type] = row.extraction_units || 0;
+    }
+    
+    // Calculate commodity supply
+    const commoditySupply: Record<string, number> = {};
+    for (const resource of RESOURCES) {
+      let supply = 0;
+      for (const [sector, extractableResources] of Object.entries(SECTOR_EXTRACTION)) {
+        if (extractableResources && extractableResources.includes(resource)) {
+          const extractionUnits = sectorExtractionUnits[sector] || 0;
+          supply += extractionUnits * EXTRACTION_OUTPUT_RATE;
+        }
+      }
+      commoditySupply[resource] = supply;
+    }
+    
+    // Get production units count by sector
+    const productionQuery = await pool.query(`
+      SELECT 
+        me.sector_type,
+        COALESCE(SUM(bu.count), 0)::int as production_units
+      FROM market_entries me
+      LEFT JOIN business_units bu ON me.id = bu.market_entry_id AND bu.unit_type = 'production'
+      GROUP BY me.sector_type
+    `);
+    
+    const sectorProductionUnits: Record<string, number> = {};
+    for (const row of productionQuery.rows) {
+      sectorProductionUnits[row.sector_type] = row.production_units || 0;
+    }
+    
+    // Calculate commodity demand
+    const commodityDemand: Record<string, number> = {};
+    for (const resource of RESOURCES) {
+      let demand = 0;
+      for (const [sector, requiredResource] of Object.entries(SECTOR_RESOURCES)) {
+        if (requiredResource === resource) {
+          const productionUnits = sectorProductionUnits[sector] || 0;
+          demand += productionUnits * PRODUCTION_RESOURCE_CONSUMPTION;
+        }
+      }
+      commodityDemand[resource] = demand;
+    }
+    
+    // Calculate and record commodity prices
+    const commodities = calculateAllCommodityPrices(commoditySupply, commodityDemand);
+    for (const [resource, priceData] of Object.entries(commodities)) {
+      await CommodityPriceHistoryModel.create({
+        resource_name: resource,
+        price: priceData.currentPrice,
+        supply: commoditySupply[resource] || 0,
+        demand: commodityDemand[resource] || 0,
+      });
+    }
+    
+    // Calculate product supply
+    const productSupply: Record<string, number> = {};
+    for (const product of PRODUCTS) {
+      let supply = 0;
+      for (const [sector, producedProduct] of Object.entries(SECTOR_PRODUCTS)) {
+        if (producedProduct === product) {
+          supply += (sectorProductionUnits[sector] || 0) * PRODUCTION_OUTPUT_RATE;
+        }
+      }
+      productSupply[product] = supply;
+    }
+    
+    // Calculate product demand
+    const productDemand: Record<string, number> = {};
+    for (const product of PRODUCTS) {
+      let demand = 0;
+      for (const [sector, demandedProducts] of Object.entries(SECTOR_PRODUCT_DEMANDS)) {
+        if (demandedProducts && demandedProducts.includes(product)) {
+          demand += (sectorProductionUnits[sector] || 0) * PRODUCTION_RESOURCE_CONSUMPTION;
+        }
+      }
+      productDemand[product] = demand;
+    }
+    
+    // Calculate and record product prices
+    for (const product of PRODUCTS) {
+      const priceData = calculateProductPrice(product, productSupply[product], productDemand[product]);
+      await ProductPriceHistoryModel.create({
+        product_name: product,
+        price: priceData.currentPrice,
+        supply: productSupply[product] || 0,
+        demand: productDemand[product] || 0,
+      });
+    }
+    
+    console.log(`[Cron] Recorded prices for ${RESOURCES.length} commodities and ${PRODUCTS.length} products`);
+  } catch (error) {
+    console.error('[Cron] Error recording market prices:', error);
+  }
 }
 

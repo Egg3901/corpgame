@@ -1178,9 +1178,35 @@ export const marketsAPI = {
     });
     return response.data;
   },
+  getResourcePriceHistory: async (resourceName: string, hours: number = 96, limit: number = 1000): Promise<Array<{
+    id: number;
+    resource_name: string;
+    price: number;
+    supply: number;
+    demand: number;
+    recorded_at: string;
+  }>> => {
+    const response = await api.get(`/api/markets/resource/${encodeURIComponent(resourceName)}/history`, {
+      params: { hours, limit },
+    });
+    return response.data;
+  },
   getProductDetail: async (productName: string, page: number = 1, limit: number = 10, tab: 'suppliers' | 'demanders' = 'suppliers'): Promise<ProductDetailResponse> => {
     const response = await api.get(`/api/markets/product/${encodeURIComponent(productName)}`, {
       params: { page, limit, tab },
+    });
+    return response.data;
+  },
+  getProductPriceHistory: async (productName: string, hours: number = 96, limit: number = 1000): Promise<Array<{
+    id: number;
+    product_name: string;
+    price: number;
+    supply: number;
+    demand: number;
+    recorded_at: string;
+  }>> => {
+    const response = await api.get(`/api/markets/product/${encodeURIComponent(productName)}/history`, {
+      params: { hours, limit },
     });
     return response.data;
   },

@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import AppNavigation from '@/components/AppNavigation';
 import { marketsAPI, ResourceDetailResponse } from '@/lib/api';
+import PriceChart from '@/components/PriceChart';
 import {
   ArrowLeft,
   Building2,
@@ -173,6 +174,21 @@ export default function CommodityDetailPage() {
         <div className="grid lg:grid-cols-3 gap-6">
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-6">
+            {/* Price Chart */}
+            <PriceChart
+              currentPrice={data.price.currentPrice}
+              fetchHistory={async (hours, limit) => {
+                const history = await marketsAPI.getResourcePriceHistory(resourceName, hours, limit);
+                return history.map(h => ({
+                  price: typeof h.price === 'string' ? parseFloat(h.price) : h.price,
+                  recorded_at: h.recorded_at,
+                  supply: typeof h.supply === 'string' ? parseFloat(h.supply) : h.supply,
+                  demand: typeof h.demand === 'string' ? parseFloat(h.demand) : h.demand,
+                }));
+              }}
+              title={`${resourceName} Price`}
+            />
+
             {/* Supply & Demand */}
             <div className="relative rounded-2xl border border-gray-200/50 dark:border-gray-700/50 bg-gradient-to-br from-white via-white to-gray-50/50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800/50 shadow-xl overflow-hidden backdrop-blur-sm">
               <div className="relative p-6">
