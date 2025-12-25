@@ -49,6 +49,7 @@ import {
   getDynamicUnitEconomics,
 } from '../constants/sectors';
 import { SectorCalculator } from '../services/SectorCalculator';
+import { marketDataService } from '../services/MarketDataService';
 import fs from 'fs';
 import path from 'path';
 import pool from '../db/connection';
@@ -129,19 +130,25 @@ router.get('/commodities', async (req: Request, res: Response) => {
       extraction: sectorExtractionUnits,
     };
     // Calculate commodity prices with actual supply/demand
-    const { calculateAllCommodityPrices } = await import('../constants/sectors');
-    const { supply: commoditySupply, demand: commodityDemand } = calculator.computeCommoditySupplyDemand(unitMaps, [...RESOURCES]);
-    const commodities = calculateAllCommodityPrices(commoditySupply, commodityDemand);
+    const { summary: commoditySummary, supply: commoditySupply, demand: commodityDemand } = await marketDataService.getCommoditySummary();
+    const commodities = commoditySummary.map((c: any) => ({
+      resource: c.resource,
+      basePrice: c.price.basePrice,
+      currentPrice: c.price.currentPrice,
+      priceChange: c.price.priceChange,
+      totalSupply: c.price.totalSupply,
+      scarcityFactor: c.price.scarcityFactor,
+      topProducers: [],
+      demandingSectors: [],
+    }));
     
     // Calculate supply for each product (sum of production units in producing sectors * output rate)
-    const { supply: productSupply, demand: productDemand } = calculator.computeProductSupplyDemand(unitMaps, [...PRODUCTS]);
+    const { summary: productSummary, supply: productSupply, demand: productDemand } = await marketDataService.getProductSummary();
     
     
     
     // Calculate prices for all products
-    const products = PRODUCTS.map(product => 
-      calculateProductPrice(product, productSupply[product], productDemand[product])
-    );
+    const products = productSummary.map((p: any) => p.price);
     
     res.json({
       commodities,
@@ -367,6 +374,20 @@ router.put('/config', authenticateToken, async (req: AuthRequest, res: Response)
   }
 });
 
+// GET /api/markets/validate - Run market data validation and audit (admin only)
+router.get('/validate', authenticateToken, async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.user || !req.user.is_admin) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+    const result = await marketDataService.validateAndAudit();
+    res.json({ ok: true, result });
+  } catch (error) {
+    console.error('Market validation error:', error);
+    res.status(500).json({ error: 'Failed to run validation' });
+  }
+});
+
 // GET /api/markets/resource/:name - Get detailed resource/commodity info
 router.get('/resource/:name', async (req: Request, res: Response) => {
   try {
@@ -382,7 +403,7 @@ router.get('/resource/:name', async (req: Request, res: Response) => {
     const offset = (page - 1) * limit;
     const filter = (req.query.filter as string) || 'demanders'; // 'producers' or 'demanders'
     
-    // Calculate actual commodity supply/demand
+    // Calculate actual commodity supply/demand (unified)
     const { EXTRACTION_OUTPUT_RATE, PRODUCTION_RESOURCE_CONSUMPTION } = await import('../constants/sectors');
     
     // Get sectors that extract this resource
@@ -402,10 +423,9 @@ router.get('/resource/:name', async (req: Request, res: Response) => {
       GROUP BY me.sector_type
     `, [extractingSectors]);
     
-    let actualSupply = 0;
-    for (const row of extractionQuery.rows) {
-      actualSupply += row.extraction_units * EXTRACTION_OUTPUT_RATE;
-    }
+    // Unified supply/demand via MarketDataService
+    const detail = await marketDataService.getCommodityDetail(resourceName);
+    const actualSupply = detail.supply;
     
     // Get top producing states by actual extraction units
     const topProducingStatesQuery = await pool.query(`
@@ -440,18 +460,9 @@ router.get('/resource/:name', async (req: Request, res: Response) => {
       }
     }
     
-    const productionQuery = await pool.query(`
-      SELECT 
-        COALESCE(SUM(bu.count), 0)::int as production_units
-      FROM market_entries me
-      LEFT JOIN business_units bu ON me.id = bu.market_entry_id AND bu.unit_type = 'production'
-      WHERE me.sector_type = ANY($1::text[])
-    `, [demandingSectors]);
-    
-    const actualDemand = (productionQuery.rows[0]?.production_units || 0) * PRODUCTION_RESOURCE_CONSUMPTION;
-    
-    // Get commodity price with actual supply/demand
-    const commodityPrice = calculateCommodityPrice(resourceName, actualSupply, actualDemand);
+    // Unified demand and price
+    const actualDemand = detail.demand;
+    const commodityPrice = detail.price;
     const resourceInfo = getResourceInfo(resourceName);
     
     // Get top producers (corporations extracting this resource) or top demanders based on filter
@@ -523,16 +534,7 @@ router.get('/resource/:name', async (req: Request, res: Response) => {
     
     totalCount = countQuery.rows.length;
     
-    // Calculate total demand across all demanding corps (with consumption rate)
-    const totalDemandQuery = await pool.query(`
-      SELECT COALESCE(SUM(bu.count), 0)::int as total_production_units
-      FROM market_entries me
-      JOIN business_units bu ON me.id = bu.market_entry_id AND bu.unit_type = 'production'
-      WHERE me.sector_type = ANY($1::text[])
-    `, [demandingSectors]);
-    
-    const totalProductionUnits = totalDemandQuery.rows[0]?.total_production_units || 0;
-    const totalDemand = totalProductionUnits * PRODUCTION_RESOURCE_CONSUMPTION;
+    const totalDemand = actualDemand;
     
     res.json({
       resource: resourceName,
@@ -607,97 +609,11 @@ router.get('/product/:name', async (req: Request, res: Response) => {
       }
     }
     
-    // Calculate total supply (production units × output rate in producing sectors)
-    const supplyQuery = await pool.query(`
-      SELECT COALESCE(SUM(bu.count), 0)::int as total_supply
-      FROM market_entries me
-      JOIN business_units bu ON me.id = bu.market_entry_id AND bu.unit_type = 'production'
-      WHERE me.sector_type = ANY($1::text[])
-    `, [producingSectors]);
-    
-    const { PRODUCTION_OUTPUT_RATE } = await import('../constants/sectors');
-    const totalSupply = (supplyQuery.rows[0]?.total_supply || 0) * PRODUCTION_OUTPUT_RATE;
-    
-    // Calculate total demand using same logic as commodities endpoint
-    const productionUnitsBySector: Record<string, number> = {};
-    if (demandingSectors.length > 0) {
-      const demandProdQuery = await pool.query(`
-        SELECT me.sector_type, COALESCE(SUM(bu.count), 0)::int as production_units
-        FROM market_entries me
-        LEFT JOIN business_units bu ON me.id = bu.market_entry_id AND bu.unit_type = 'production'
-        WHERE me.sector_type = ANY($1::text[])
-        GROUP BY me.sector_type
-      `, [demandingSectors]);
-      for (const row of demandProdQuery.rows) {
-        productionUnitsBySector[row.sector_type] = row.production_units || 0;
-      }
-    }
-    const retailUnitsBySector: Record<string, number> = {};
-    if (demandingSectors.length > 0) {
-      const demandRetailQuery = await pool.query(`
-        SELECT me.sector_type, COALESCE(SUM(bu.count), 0)::int as retail_units
-        FROM market_entries me
-        LEFT JOIN business_units bu ON me.id = bu.market_entry_id AND bu.unit_type = 'retail'
-        WHERE me.sector_type = ANY($1::text[])
-        GROUP BY me.sector_type
-      `, [demandingSectors]);
-      for (const row of demandRetailQuery.rows) {
-        retailUnitsBySector[row.sector_type] = row.retail_units || 0;
-      }
-    }
-    const serviceUnitsBySector: Record<string, number> = {};
-    if (demandingSectors.length > 0) {
-      const demandServiceQuery = await pool.query(`
-        SELECT me.sector_type, COALESCE(SUM(bu.count), 0)::int as service_units
-        FROM market_entries me
-        LEFT JOIN business_units bu ON me.id = bu.market_entry_id AND bu.unit_type = 'service'
-        WHERE me.sector_type = ANY($1::text[])
-        GROUP BY me.sector_type
-      `, [demandingSectors]);
-      for (const row of demandServiceQuery.rows) {
-        serviceUnitsBySector[row.sector_type] = row.service_units || 0;
-      }
-    }
-    const extractionUnitsBySector: Record<string, number> = {};
-    if (demandingSectors.length > 0) {
-      const demandExtractionQuery = await pool.query(`
-        SELECT me.sector_type, COALESCE(SUM(bu.count), 0)::int as extraction_units
-        FROM market_entries me
-        LEFT JOIN business_units bu ON me.id = bu.market_entry_id AND bu.unit_type = 'extraction'
-        WHERE me.sector_type = ANY($1::text[])
-        GROUP BY me.sector_type
-      `, [demandingSectors]);
-      for (const row of demandExtractionQuery.rows) {
-        extractionUnitsBySector[row.sector_type] = row.extraction_units || 0;
-      }
-    }
-    const {
-      PRODUCTION_PRODUCT_CONSUMPTION,
-      RETAIL_PRODUCT_CONSUMPTION,
-      SERVICE_PRODUCT_CONSUMPTION,
-      SERVICE_ELECTRICITY_CONSUMPTION,
-      PRODUCTION_ELECTRICITY_CONSUMPTION,
-      EXTRACTION_ELECTRICITY_CONSUMPTION,
-    } = await import('../constants/sectors');
-
-    let totalDemand = 0;
-    for (const sector of demandingSectors) {
-      const prodUnits = productionUnitsBySector[sector] || 0;
-      const retUnits = retailUnitsBySector[sector] || 0;
-      const svcUnits = serviceUnitsBySector[sector] || 0;
-      if (productName === 'Electricity') {
-        totalDemand += prodUnits * PRODUCTION_ELECTRICITY_CONSUMPTION;
-        totalDemand += svcUnits * SERVICE_ELECTRICITY_CONSUMPTION;
-        totalDemand += (extractionUnitsBySector[sector] || 0) * EXTRACTION_ELECTRICITY_CONSUMPTION;
-      } else {
-        totalDemand += prodUnits * PRODUCTION_PRODUCT_CONSUMPTION;
-        totalDemand += retUnits * RETAIL_PRODUCT_CONSUMPTION;
-        totalDemand += svcUnits * SERVICE_PRODUCT_CONSUMPTION;
-      }
-    }
-    
-    // Calculate product price
-    const productPrice = calculateProductPrice(productName, totalSupply, totalDemand);
+    // Unified supply/demand and price via MarketDataService
+    const detail = await marketDataService.getProductDetail(productName);
+    const totalSupply = detail.supply;
+    const totalDemand = detail.demand;
+    const productPrice = detail.price;
     const productInfo = getProductInfo(productName);
     
     // Get top suppliers or demanders based on tab
@@ -1048,6 +964,7 @@ router.post('/states/:code/enter', authenticateToken, async (req: AuthRequest, r
       actions_deducted: MARKET_ENTRY_ACTIONS,
       new_capital: corporation.capital - MARKET_ENTRY_COST,
     });
+    try { marketDataService.invalidateAll(); } catch {}
   } catch (error) {
     console.error('Enter market error:', error);
     res.status(500).json({ error: 'Failed to enter market' });
@@ -1175,6 +1092,7 @@ router.post('/entries/:entryId/build', authenticateToken, async (req: AuthReques
         remaining: stateCapacity - newTotalUnits,
       },
     });
+    try { marketDataService.invalidateAll(); } catch {}
   } catch (error) {
     console.error('Build unit error:', error);
     res.status(500).json({ error: 'Failed to build unit' });

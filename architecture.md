@@ -23,8 +23,9 @@ graph TB
     subgraph Backend["Backend API Server"]
         Express[Express Server]
         AuthRoutes[Auth Routes]
-        MarketRoutes[Markets Routes]
-        SectorCalc[Sector Calculator Service]
+    MarketRoutes[Markets Routes]
+    SectorCalc[Sector Calculator Service]
+    MarketData[Market Data Service]
         AuthMiddleware[JWT Auth Middleware]
         Models[Models: MarketEntry, BusinessUnit, Corporation, PriceHistory]
     end
@@ -41,6 +42,7 @@ graph TB
     Express --> AuthRoutes
     Express --> MarketRoutes
     MarketRoutes --> SectorCalc
+    MarketRoutes --> MarketData
     MarketRoutes --> Models
     AuthRoutes --> AuthMiddleware
     Models --> UsersTable
@@ -106,9 +108,10 @@ corporate-sim/
 │   ├── src/
 │   │   ├── routes/             # API route handlers
 │   │   │   ├── auth.ts         # Authentication endpoints
-│   │   │   └── markets.ts      # Market data, prices, metadata, detail pages (uses SectorCalculator)
+│   │   │   └── markets.ts      # Market data, prices, metadata, detail pages (uses MarketDataService)
 │   │   ├── services/
-│   │   │   └── SectorCalculator.ts  # Aggregates supply/demand using sector classes and config
+│   │   │   ├── SectorCalculator.ts  # Aggregates supply/demand using sector classes and config
+│   │   │   └── MarketDataService.ts # Single source of truth + caching + validation/audit
 │   │   ├── domain/
 │   │   │   └── sectors/
 │   │   │       ├── BaseSector.ts            # Base class common logic
@@ -162,7 +165,7 @@ CREATE INDEX idx_users_username ON users(username);
 - `password_hash`: Bcrypt-hashed password (never store plaintext)
 - `created_at`: Timestamp for account creation tracking
 
-## Sector Calculation Model
+## Sector Calculation & Market Data Model
 
 - BaseSector encapsulates shared helpers and config access.
 - Specialized classes implement category-specific supply/demand computations:
@@ -170,6 +173,8 @@ CREATE INDEX idx_users_username ON users(username);
   - ExtractionSector: commodity supply, electricity demand.
   - RetailServiceSector: product demand for retail/service including electricity.
 - SectorCalculator loads `config/sector_rules.json`, chooses class per sector, aggregates national supply/demand.
+- MarketDataService provides unified commodity/product supply/demand + price with TTL cache; both overview and detail endpoints consume it.
+- Validation endpoint `/api/markets/validate` logs summary/detail parity to `logs/market_audit.log`.
 - Config overrides allow tuning rates per sector/category without code changes; validations ensure non-negative results.
 
 ## API Endpoints
