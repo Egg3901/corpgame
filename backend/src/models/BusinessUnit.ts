@@ -96,6 +96,36 @@ export class BusinessUnitModel {
     return result.rows[0];
   }
 
+  // Decrement unit count (remove units)
+  static async removeUnit(
+    marketEntryId: number,
+    unitType: UnitType,
+    decrementBy: number = 1
+  ): Promise<BusinessUnit | null> {
+    const result = await pool.query(
+      `UPDATE business_units
+       SET count = GREATEST(0, count - $3),
+           updated_at = CURRENT_TIMESTAMP
+       WHERE market_entry_id = $1 AND unit_type = $2
+       RETURNING *`,
+      [marketEntryId, unitType, decrementBy]
+    );
+
+    if (result.rows.length === 0) {
+      return null;
+    }
+
+    // If count is now 0, delete the row
+    if (result.rows[0].count === 0) {
+      await pool.query(
+        'DELETE FROM business_units WHERE market_entry_id = $1 AND unit_type = $2',
+        [marketEntryId, unitType]
+      );
+    }
+
+    return result.rows[0];
+  }
+
   // Get total unit counts for a market entry
   static async getUnitCounts(marketEntryId: number): Promise<{
     retail: number;
@@ -104,7 +134,7 @@ export class BusinessUnitModel {
     extraction: number;
   }> {
     const units = await this.findByMarketEntryId(marketEntryId);
-    
+
     return {
       retail: units.find(u => u.unit_type === 'retail')?.count || 0,
       production: units.find(u => u.unit_type === 'production')?.count || 0,

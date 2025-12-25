@@ -1,6 +1,6 @@
 import pool from '../db/connection';
 
-export type TransactionType = 
+export type TransactionType =
   | 'corp_revenue'
   | 'ceo_salary'
   | 'user_transfer'
@@ -13,6 +13,7 @@ export type TransactionType =
   | 'dividend'
   | 'special_dividend'
   | 'sector_abandon'
+  | 'unit_abandon'
   | 'corporate_action';
 
 export interface Transaction {

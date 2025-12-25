@@ -1330,6 +1330,10 @@ export const marketsAPI = {
     const response = await api.delete(`/api/markets/entries/${entryId}/abandon`);
     return response.data;
   },
+  abandonUnit: async (entryId: number, unitType: 'retail' | 'production' | 'service' | 'extraction'): Promise<{ success: boolean; message: string; new_stock_price: number }> => {
+    const response = await api.delete(`/api/markets/entries/${entryId}/abandon-unit/${unitType}`);
+    return response.data;
+  },
   getSectorRules: async (): Promise<any> => {
     const response = await api.get('/api/markets/config');
     return response.data;
