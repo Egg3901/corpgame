@@ -468,15 +468,32 @@ export default function SectorCard({
       }`}>
         {/* Retail */}
         {showRetail && (
-          <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3 group relative">
+          <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3">
             <div className="flex items-center gap-2 mb-2">
               <Store className="h-4 w-4 text-pink-500" />
               <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Retail</span>
             </div>
             <p className="text-2xl font-bold text-gray-900 dark:text-white">{units.retail}</p>
-            <p className="text-xs text-emerald-600 dark:text-emerald-400">
-              +{formatCurrency(calculateUnitProfit('retail') * units.retail)}/96hr
-            </p>
+            <div className="group relative inline-block">
+              <p className="text-xs text-emerald-600 dark:text-emerald-400 cursor-help">
+                +{formatCurrency(calculateUnitProfit('retail') * units.retail)}/96hr
+              </p>
+              <TooltipPanel>
+                <FinancialTooltip
+                  title="Retail Financials"
+                  revenueHr={retailRevenueHr}
+                  costHr={retailCostHr}
+                  profitHr={retailProfit}
+                  outputSoldUnits={Math.round((retailFlow?.inputs.products || []).reduce((s, p) => s + p.total, 0))}
+                  costItems={retailInputItems.map(it => ({ name: it.name, costHr: it.costHr }))}
+                  breakdown={[
+                    { label: 'Base', value: isDefense ? 0 : UNIT_ECONOMICS.retail.baseRevenue },
+                    { label: isDefense ? 'Cost-Plus Revenue' : 'Price × Output', value: retailRevenueFromFlow },
+                  ]}
+                  note={isDefense ? 'Defense sector: 1.0 consumption, 0.8x wholesale price, 1.0x cost revenue' : `Demand-based cost factor applied: ÷ Growth ${stateGrowthFactor.toFixed(2)}x (1 + 25% × sector growth avg)`}
+                />
+              </TooltipPanel>
+            </div>
             {showActions && onBuildUnit && (
               <button
                 onClick={() => onBuildUnit('retail')}
@@ -486,35 +503,42 @@ export default function SectorCard({
                 {building === 'retail' ? '...' : `+1 (${formatCurrency(buildCost)})`}
               </button>
             )}
-            <TooltipPanel>
-              <FinancialTooltip
-                title="Retail Financials"
-                revenueHr={retailRevenueHr}
-                costHr={retailCostHr}
-                profitHr={retailProfit}
-                outputSoldUnits={Math.round((retailFlow?.inputs.products || []).reduce((s, p) => s + p.total, 0))}
-                costItems={retailInputItems.map(it => ({ name: it.name, costHr: it.costHr }))}
-                breakdown={[
-                  { label: 'Base', value: isDefense ? 0 : UNIT_ECONOMICS.retail.baseRevenue },
-                  { label: isDefense ? 'Cost-Plus Revenue' : 'Price × Output', value: retailRevenueFromFlow },
-                ]}
-                note={isDefense ? 'Defense sector: 1.0 consumption, 0.8x wholesale price, 1.0x cost revenue' : `Demand-based cost factor applied: ÷ Growth ${stateGrowthFactor.toFixed(2)}x (1 + 25% × sector growth avg)`}
-              />
-            </TooltipPanel>
           </div>
         )}
 
         {/* Production */}
         {showProduction && (
-          <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3 group relative">
+          <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3">
             <div className="flex items-center gap-2 mb-2">
               <Factory className="h-4 w-4 text-orange-500" />
               <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Production</span>
             </div>
             <p className="text-2xl font-bold text-gray-900 dark:text-white">{units.production}</p>
-            <p className="text-xs text-emerald-600 dark:text-emerald-400">
-              +{formatCurrency(calculateUnitProfit('production') * units.production)}/96hr
-            </p>
+            <div className="group relative inline-block">
+              <p className="text-xs text-emerald-600 dark:text-emerald-400 cursor-help">
+                +{formatCurrency(calculateUnitProfit('production') * units.production)}/96hr
+              </p>
+              <TooltipPanel>
+                <FinancialTooltip
+                  title="Production Financials"
+                  revenueHr={productionRevenue}
+                  costHr={productionCost}
+                  profitHr={productionProfit}
+                  outputSoldUnits={Math.round(((productionFlow?.outputs.products || []).reduce((s, p) => s + p.total, 0) + (productionFlow?.outputs.resources || []).reduce((s, r) => s + r.total, 0)))}
+                  costItems={[
+                    ...computeInputCosts({
+                      resources: Object.fromEntries((productionFlow?.inputs.resources || []).map(i => [i.name, i.perUnit])),
+                      products: Object.fromEntries((productionFlow?.inputs.products || []).map(i => [i.name, i.perUnit]))
+                    }, producedProduct).map(it => ({ name: it.name, costHr: it.costHr })),
+                    { name: 'Labor/Operations', costHr: PRODUCTION_LABOR_COST },
+                  ]}
+                  breakdown={[
+                    { label: 'Base', value: productionProductBase },
+                    { label: 'Price × Output', value: productionProductPrice * productionOutputRate },
+                  ]}
+                />
+              </TooltipPanel>
+            </div>
             {showActions && onBuildUnit && (
               <button
                 onClick={() => onBuildUnit('production')}
@@ -524,40 +548,37 @@ export default function SectorCard({
                 {building === 'production' ? '...' : `+1 (${formatCurrency(buildCost)})`}
               </button>
             )}
-            <TooltipPanel>
-              <FinancialTooltip
-                title="Production Financials"
-                revenueHr={productionRevenue}
-                costHr={productionCost}
-                profitHr={productionProfit}
-                outputSoldUnits={Math.round(((productionFlow?.outputs.products || []).reduce((s, p) => s + p.total, 0) + (productionFlow?.outputs.resources || []).reduce((s, r) => s + r.total, 0)))}
-                costItems={[
-                  ...computeInputCosts({
-                    resources: Object.fromEntries((productionFlow?.inputs.resources || []).map(i => [i.name, i.perUnit])),
-                    products: Object.fromEntries((productionFlow?.inputs.products || []).map(i => [i.name, i.perUnit]))
-                  }, producedProduct).map(it => ({ name: it.name, costHr: it.costHr })),
-                  { name: 'Labor/Operations', costHr: PRODUCTION_LABOR_COST },
-                ]}
-                breakdown={[
-                  { label: 'Base', value: productionProductBase },
-                  { label: 'Price × Output', value: productionProductPrice * productionOutputRate },
-                ]}
-              />
-            </TooltipPanel>
           </div>
         )}
 
         {/* Service */}
         {showService && (
-          <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3 group relative">
+          <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3">
             <div className="flex items-center gap-2 mb-2">
               <Briefcase className="h-4 w-4 text-blue-500" />
               <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Service</span>
             </div>
             <p className="text-2xl font-bold text-gray-900 dark:text-white">{units.service}</p>
-            <p className="text-xs text-emerald-600 dark:text-emerald-400">
-              +{formatCurrency(calculateUnitProfit('service') * units.service)}/96hr
-            </p>
+            <div className="group relative inline-block">
+              <p className="text-xs text-emerald-600 dark:text-emerald-400 cursor-help">
+                +{formatCurrency(calculateUnitProfit('service') * units.service)}/96hr
+              </p>
+              <TooltipPanel>
+                <FinancialTooltip
+                  title="Service Financials"
+                  revenueHr={serviceRevenueHr}
+                  costHr={serviceCostHr}
+                  profitHr={serviceProfit}
+                  outputSoldUnits={Math.round((serviceFlow?.inputs.products || []).reduce((s, p) => s + p.total, 0))}
+                  costItems={serviceInputItems.map(it => ({ name: it.name, costHr: it.costHr }))}
+                  breakdown={[
+                    { label: 'Base', value: isDefense ? 0 : UNIT_ECONOMICS.service.baseRevenue },
+                    { label: isDefense ? 'Cost-Plus Revenue' : 'Price × Output', value: serviceRevenueFromFlow },
+                  ]}
+                  note={isDefense ? 'Defense sector: 1.0 consumption, 0.8x wholesale price, 1.0x cost revenue' : `Demand-based cost factor applied: ÷ Growth ${stateGrowthFactor.toFixed(2)}x (1 + 25% × sector growth avg)`}
+                />
+              </TooltipPanel>
+            </div>
             {showActions && onBuildUnit && (
               <button
                 onClick={() => onBuildUnit('service')}
@@ -567,35 +588,43 @@ export default function SectorCard({
                 {building === 'service' ? '...' : `+1 (${formatCurrency(buildCost)})`}
               </button>
             )}
-            <TooltipPanel>
-              <FinancialTooltip
-                title="Service Financials"
-                revenueHr={serviceRevenueHr}
-                costHr={serviceCostHr}
-                profitHr={serviceProfit}
-                outputSoldUnits={Math.round((serviceFlow?.inputs.products || []).reduce((s, p) => s + p.total, 0))}
-                costItems={serviceInputItems.map(it => ({ name: it.name, costHr: it.costHr }))}
-                breakdown={[
-                  { label: 'Base', value: isDefense ? 0 : UNIT_ECONOMICS.service.baseRevenue },
-                  { label: isDefense ? 'Cost-Plus Revenue' : 'Price × Output', value: serviceRevenueFromFlow },
-                ]}
-                note={isDefense ? 'Defense sector: 1.0 consumption, 0.8x wholesale price, 1.0x cost revenue' : `Demand-based cost factor applied: ÷ Growth ${stateGrowthFactor.toFixed(2)}x (1 + 25% × sector growth avg)`}
-              />
-            </TooltipPanel>
           </div>
         )}
 
         {/* Extraction */}
         {showExtraction && (
-          <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3 group relative">
+          <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3">
             <div className="flex items-center gap-2 mb-2">
               <Pickaxe className="h-4 w-4 text-amber-500" />
               <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Extraction</span>
             </div>
             <p className="text-2xl font-bold text-gray-900 dark:text-white">{units.extraction || 0}</p>
-            <p className="text-xs text-emerald-600 dark:text-emerald-400">
-              +{formatCurrency(calculateUnitProfit('extraction') * (units.extraction || 0))}/96hr
-            </p>
+            <div className="group relative inline-block">
+              <p className="text-xs text-emerald-600 dark:text-emerald-400 cursor-help">
+                +{formatCurrency(calculateUnitProfit('extraction') * (units.extraction || 0))}/96hr
+              </p>
+              <TooltipPanel>
+                <FinancialTooltip
+                  title="Extraction Financials"
+                  revenueHr={extractionRevenueWithBase}
+                  costHr={extractionCost}
+                  profitHr={extractionProfit}
+                  outputSoldUnits={Math.round((extractionFlow?.outputs.resources || []).reduce((s, r) => s + r.total, 0))}
+                  costItems={[
+                    ...computeInputCosts({
+                      resources: Object.fromEntries((extractionFlow?.inputs.resources || []).map(i => [i.name, i.perUnit])),
+                      products: Object.fromEntries((extractionFlow?.inputs.products || []).map(i => [i.name, i.perUnit]))
+                    }).map(it => ({ name: it.name, costHr: it.costHr })),
+                    { name: 'Labor', costHr: UNIT_ECONOMICS.extraction.baseCost },
+                  ]}
+                  breakdown={[
+                    { label: 'Base Price', value: extractionBasePrice },
+                    { label: 'Market Revenue', value: getExtractionRevenue() },
+                    { label: 'Total Cost/Unit', value: extractionUnitCost },
+                  ]}
+                />
+              </TooltipPanel>
+            </div>
             {showActions && onBuildUnit && (
               <button
                 onClick={() => onBuildUnit('extraction')}
@@ -605,27 +634,6 @@ export default function SectorCard({
                 {building === 'extraction' ? '...' : `+1 (${formatCurrency(buildCost)})`}
               </button>
             )}
-            <TooltipPanel>
-              <FinancialTooltip
-                title="Extraction Financials"
-                revenueHr={extractionRevenueWithBase}
-                costHr={extractionCost}
-                profitHr={extractionProfit}
-                outputSoldUnits={Math.round((extractionFlow?.outputs.resources || []).reduce((s, r) => s + r.total, 0))}
-                costItems={[
-                  ...computeInputCosts({
-                    resources: Object.fromEntries((extractionFlow?.inputs.resources || []).map(i => [i.name, i.perUnit])),
-                    products: Object.fromEntries((extractionFlow?.inputs.products || []).map(i => [i.name, i.perUnit]))
-                  }).map(it => ({ name: it.name, costHr: it.costHr })),
-                  { name: 'Labor', costHr: UNIT_ECONOMICS.extraction.baseCost },
-                ]}
-                breakdown={[
-                  { label: 'Base Price', value: extractionBasePrice },
-                  { label: 'Market Revenue', value: getExtractionRevenue() },
-                  { label: 'Total Cost/Unit', value: extractionUnitCost },
-                ]}
-              />
-            </TooltipPanel>
           </div>
         )}
       </div>

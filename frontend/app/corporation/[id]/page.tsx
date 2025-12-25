@@ -2078,11 +2078,22 @@ export default function CorporationDetailPage() {
                   <p className="text-xs text-gray-500 dark:text-gray-400 mb-6">96-hour projection based on market operations</p>
                   
                   <div className="rounded-xl border border-white/60 bg-white/70 dark:border-gray-800/70 dark:bg-gray-800/60 p-6 shadow-sm">
+                    {/* Header with column labels */}
+                    <div className="grid grid-cols-[1fr,auto,auto] gap-4 pb-3 mb-3 border-b-2 border-gray-300 dark:border-gray-600">
+                      <div className="text-sm font-semibold text-gray-700 dark:text-gray-300"></div>
+                      <div className="text-sm font-semibold text-gray-700 dark:text-gray-300 text-right min-w-[120px]">Yearly (96hr)</div>
+                      <div className="text-sm font-semibold text-gray-700 dark:text-gray-300 text-right min-w-[120px]">Hourly</div>
+                    </div>
+
                     <div className="space-y-4">
-                      <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700 group relative">
-                        <span className="text-sm text-gray-600 dark:text-gray-400">Revenue (96hr)</span>
-                        <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400 font-mono">
+                      {/* Revenue Row */}
+                      <div className="grid grid-cols-[1fr,auto,auto] gap-4 items-center py-2 border-b border-gray-200 dark:border-gray-700 group relative">
+                        <span className="text-sm text-gray-600 dark:text-gray-400">Revenue</span>
+                        <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400 font-mono text-right min-w-[120px]">
                           {formatCurrency(statements.revenue)}
+                        </span>
+                        <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400 font-mono text-right min-w-[120px]">
+                          {formatCurrency(statements.revenue / 96)}
                         </span>
                         {/* Tooltip */}
                         <div className="absolute bottom-full right-0 mb-2 hidden group-hover:block z-[9999] pointer-events-none">
@@ -2138,10 +2149,15 @@ export default function CorporationDetailPage() {
                           </div>
                         </div>
                       </div>
-                      <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700 group relative">
-                        <span className="text-sm text-gray-600 dark:text-gray-400">Operating Costs (96hr)</span>
-                        <span className="text-sm font-semibold text-red-600 dark:text-red-400 font-mono">
+
+                      {/* Operating Costs Row */}
+                      <div className="grid grid-cols-[1fr,auto,auto] gap-4 items-center py-2 border-b border-gray-200 dark:border-gray-700 group relative">
+                        <span className="text-sm text-gray-600 dark:text-gray-400">Operating Costs</span>
+                        <span className="text-sm font-semibold text-red-600 dark:text-red-400 font-mono text-right min-w-[120px]">
                           {formatCurrency(statements.variableCosts)}
+                        </span>
+                        <span className="text-sm font-semibold text-red-600 dark:text-red-400 font-mono text-right min-w-[120px]">
+                          {formatCurrency(statements.variableCosts / 96)}
                         </span>
                         {/* Tooltip */}
                         <div className="absolute bottom-full right-0 mb-2 hidden group-hover:block z-[9999] pointer-events-none">
@@ -2197,21 +2213,26 @@ export default function CorporationDetailPage() {
                           </div>
                         </div>
                       </div>
-                      <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm text-gray-600 dark:text-gray-400">CEO Salary (96hr)</span>
-                          <span className="text-xs text-gray-400 dark:text-gray-500" title={`$${((corporation.ceo_salary || 100000) / 96).toLocaleString(undefined, { maximumFractionDigits: 2 })}/hr`}>
-                            (${((corporation.ceo_salary || 100000) / 96).toLocaleString(undefined, { maximumFractionDigits: 2 })}/hr)
-                          </span>
-                        </div>
-                        <span className={`text-sm font-semibold font-mono ${(corporation.ceo_salary || 100000) > 0 ? 'text-purple-600 dark:text-purple-400' : 'text-gray-400 dark:text-gray-500'}`}>
+
+                      {/* CEO Salary Row */}
+                      <div className="grid grid-cols-[1fr,auto,auto] gap-4 items-center py-2 border-b border-gray-200 dark:border-gray-700">
+                        <span className="text-sm text-gray-600 dark:text-gray-400">CEO Salary</span>
+                        <span className={`text-sm font-semibold font-mono text-right min-w-[120px] ${(corporation.ceo_salary || 100000) > 0 ? 'text-purple-600 dark:text-purple-400' : 'text-gray-400 dark:text-gray-500'}`}>
                           {formatCurrency(corporation.ceo_salary ?? 100000)}
                         </span>
+                        <span className={`text-sm font-semibold font-mono text-right min-w-[120px] ${(corporation.ceo_salary || 100000) > 0 ? 'text-purple-600 dark:text-purple-400' : 'text-gray-400 dark:text-gray-500'}`}>
+                          {formatCurrency((corporation.ceo_salary ?? 100000) / 96)}
+                        </span>
                       </div>
-                      <div className="flex justify-between items-center pt-3 border-t-2 border-gray-300 dark:border-gray-600">
-                        <span className="text-lg font-bold text-gray-900 dark:text-white">Net Income (96hr)</span>
-                        <span className={`text-lg font-bold font-mono ${(statements.netIncome || 0) >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+
+                      {/* Net Income Row */}
+                      <div className="grid grid-cols-[1fr,auto,auto] gap-4 items-center pt-3 border-t-2 border-gray-300 dark:border-gray-600">
+                        <span className="text-lg font-bold text-gray-900 dark:text-white">Net Income</span>
+                        <span className={`text-lg font-bold font-mono text-right min-w-[120px] ${(statements.netIncome || 0) >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
                           {formatCurrency(statements.netIncome)}
+                        </span>
+                        <span className={`text-lg font-bold font-mono text-right min-w-[120px] ${(statements.netIncome || 0) >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+                          {formatCurrency(statements.netIncome / 96)}
                         </span>
                       </div>
                     </div>
