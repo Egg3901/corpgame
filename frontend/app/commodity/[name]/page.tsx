@@ -104,7 +104,7 @@ export default function CommodityDetailPage() {
       }
     }, 30000);
     return () => clearInterval(interval);
-  }, [showPieCharts]);
+  }, [showPieCharts, resourceName, page, filter]);
 
   // Fetch pie data when showPieCharts is enabled
   useEffect(() => {

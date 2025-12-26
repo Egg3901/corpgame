@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { boardAPI, BoardResponse, BoardProposal, CreateProposalData, adminAPI } from '@/lib/api';
 import { 
@@ -55,7 +55,7 @@ export default function BoardTab({ corporationId, corporationName, viewerUserId,
   const [newDividendPercentage, setNewDividendPercentage] = useState<number>(0);
   const [specialDividendCapitalPercentage, setSpecialDividendCapitalPercentage] = useState<number>(0);
 
-  const fetchBoardData = async () => {
+  const fetchBoardData = useCallback(async () => {
     try {
       const [board, allProposals] = await Promise.all([
         boardAPI.getBoard(corporationId),
@@ -69,11 +69,11 @@ export default function BoardTab({ corporationId, corporationName, viewerUserId,
     } finally {
       setLoading(false);
     }
-  };
+  }, [corporationId]);
 
   useEffect(() => {
     fetchBoardData();
-  }, [corporationId]);
+  }, [fetchBoardData]);
 
   const handleCreateProposal = async (e: React.FormEvent) => {
     e.preventDefault();

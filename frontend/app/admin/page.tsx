@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Trash2, Shield, ShieldOff, Eye, EyeOff, AlertTriangle, Flag, CheckCircle2, X, ChevronDown, ChevronUp, MessageSquare, Play, RefreshCw, DollarSign, Clock, Receipt, Search, ArrowUpRight, ArrowDownLeft, Scissors, CalendarClock } from 'lucide-react';
 import AppNavigation from '@/components/AppNavigation';
@@ -159,7 +159,7 @@ export default function AdminPage() {
     }
   };
 
-  const loadReportedChats = async () => {
+  const loadReportedChats = useCallback(async () => {
     try {
       const data = await adminAPI.getReportedChats(showReviewed);
       setReportedChats(data);
@@ -167,13 +167,13 @@ export default function AdminPage() {
       console.error('Load reported chats error:', err);
       alert(err?.response?.data?.error || 'Failed to load reported chats');
     }
-  };
+  }, [showReviewed]);
 
   useEffect(() => {
     if (currentUser?.is_admin) {
       loadReportedChats();
     }
-  }, [showReviewed, currentUser?.is_admin]);
+  }, [loadReportedChats, currentUser?.is_admin]);
 
   const handleClearReport = async (reportId: number) => {
     try {
@@ -347,7 +347,7 @@ export default function AdminPage() {
     }
   };
 
-  const loadTransactions = async (page: number = 0) => {
+  const loadTransactions = useCallback(async (page: number = 0) => {
     try {
       setTransactionsLoading(true);
       const result = await adminAPI.getTransactions({
@@ -365,14 +365,14 @@ export default function AdminPage() {
     } finally {
       setTransactionsLoading(false);
     }
-  };
+  }, [transactionSearch, transactionTypeFilter]);
 
   // Load transactions when expanded or filters change
   useEffect(() => {
     if (transactionsExpanded && currentUser?.is_admin) {
       loadTransactions(0);
     }
-  }, [transactionsExpanded, transactionSearch, transactionTypeFilter, currentUser?.is_admin]);
+  }, [transactionsExpanded, loadTransactions, currentUser?.is_admin]);
 
   const getTransactionTypeLabel = (type: TransactionType): string => {
     const labels: Record<TransactionType, string> = {

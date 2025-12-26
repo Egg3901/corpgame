@@ -106,7 +106,7 @@ export default function ProductDetailPage() {
       }
     }, 30000);
     return () => clearInterval(interval);
-  }, [showPieCharts]);
+  }, [showPieCharts, productName, page, activeTab]);
 
   // Fetch pie data when showPieCharts is enabled
   useEffect(() => {
