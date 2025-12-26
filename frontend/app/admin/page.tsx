@@ -72,6 +72,26 @@ export default function AdminPage() {
   const [transactionTypeFilter, setTransactionTypeFilter] = useState<TransactionType | ''>('');
   const [transactionPage, setTransactionPage] = useState(0);
   const TRANSACTIONS_PER_PAGE = 20;
+  // Cash Management state
+  const [cashAmount, setCashAmount] = useState('');
+  const [addingCashToAll, setAddingCashToAll] = useState(false);
+  const [cashAllResult, setCashAllResult] = useState<{ users_updated: number; amount: number } | null>(null);
+  const [userCashSearch, setUserCashSearch] = useState('');
+  const [userCashResults, setUserCashResults] = useState<Array<{ id: number; username: string; player_name: string | null; profile_image_url: string | null }>>([]);
+  const [selectedUserForCash, setSelectedUserForCash] = useState<{ id: number; username: string; player_name: string | null } | null>(null);
+  const [userCashAmount, setUserCashAmount] = useState('');
+  const [addingCashToUser, setAddingCashToUser] = useState(false);
+  const [userCashResult, setUserCashResult] = useState<{ username: string; player_name: string | null; old_cash: number; new_cash: number; amount: number } | null>(null);
+  // Capital Management state
+  const [capitalAmount, setCapitalAmount] = useState('');
+  const [addingCapitalToAll, setAddingCapitalToAll] = useState(false);
+  const [capitalAllResult, setCapitalAllResult] = useState<{ corporations_updated: number; amount: number } | null>(null);
+  const [corpCapitalSearch, setCorpCapitalSearch] = useState('');
+  const [corpCapitalResults, setCorpCapitalResults] = useState<Array<{ id: number; name: string; sector: string; logo: string | null }>>([]);
+  const [selectedCorpForCapital, setSelectedCorpForCapital] = useState<{ id: number; name: string } | null>(null);
+  const [corpCapitalAmount, setCorpCapitalAmount] = useState('');
+  const [addingCapitalToCorp, setAddingCapitalToCorp] = useState(false);
+  const [corpCapitalResult, setCorpCapitalResult] = useState<{ corporation_name: string; old_capital: number; new_capital: number; new_share_price: number; amount: number } | null>(null);
 
   useEffect(() => {
     const loadData = async () => {
@@ -373,6 +393,152 @@ export default function AdminPage() {
       loadTransactions(0);
     }
   }, [transactionsExpanded, loadTransactions, currentUser?.is_admin]);
+
+  // Cash Management Handlers
+  const handleAddCashToAll = async () => {
+    const amount = parseFloat(cashAmount);
+    if (isNaN(amount) || amount === 0) {
+      alert('Please enter a valid non-zero amount');
+      return;
+    }
+
+    if (!confirm(`Are you sure you want to add $${amount.toLocaleString()} to ALL users?`)) {
+      return;
+    }
+
+    try {
+      setAddingCashToAll(true);
+      setCashAllResult(null);
+      const result = await adminAPI.addCashToAllUsers(amount);
+      setCashAllResult({ users_updated: result.users_updated, amount: result.amount });
+      setCashAmount('');
+    } catch (err: any) {
+      console.error('Add cash to all users error:', err);
+      alert(err?.response?.data?.error || 'Failed to add cash to all users');
+    } finally {
+      setAddingCashToAll(false);
+    }
+  };
+
+  const handleUserCashSearch = async (value: string) => {
+    setUserCashSearch(value);
+    if (value.trim().length < 2) {
+      setUserCashResults([]);
+      return;
+    }
+
+    try {
+      const results = await adminAPI.searchUsers(value);
+      setUserCashResults(results);
+    } catch (err: any) {
+      console.error('Search users error:', err);
+    }
+  };
+
+  const handleAddCashToUser = async () => {
+    if (!selectedUserForCash) {
+      alert('Please select a user');
+      return;
+    }
+
+    const amount = parseFloat(userCashAmount);
+    if (isNaN(amount) || amount === 0) {
+      alert('Please enter a valid non-zero amount');
+      return;
+    }
+
+    try {
+      setAddingCashToUser(true);
+      setUserCashResult(null);
+      const result = await adminAPI.addCashToUser(selectedUserForCash.id, amount);
+      setUserCashResult({
+        username: result.username,
+        player_name: result.player_name,
+        old_cash: result.old_cash,
+        new_cash: result.new_cash,
+        amount: result.amount,
+      });
+      setUserCashAmount('');
+    } catch (err: any) {
+      console.error('Add cash to user error:', err);
+      alert(err?.response?.data?.error || 'Failed to add cash to user');
+    } finally {
+      setAddingCashToUser(false);
+    }
+  };
+
+  // Capital Management Handlers
+  const handleAddCapitalToAll = async () => {
+    const amount = parseFloat(capitalAmount);
+    if (isNaN(amount) || amount === 0) {
+      alert('Please enter a valid non-zero amount');
+      return;
+    }
+
+    if (!confirm(`Are you sure you want to add $${amount.toLocaleString()} capital to ALL corporations?`)) {
+      return;
+    }
+
+    try {
+      setAddingCapitalToAll(true);
+      setCapitalAllResult(null);
+      const result = await adminAPI.addCapitalToAllCorporations(amount);
+      setCapitalAllResult({ corporations_updated: result.corporations_updated, amount: result.amount });
+      setCapitalAmount('');
+    } catch (err: any) {
+      console.error('Add capital to all corporations error:', err);
+      alert(err?.response?.data?.error || 'Failed to add capital to all corporations');
+    } finally {
+      setAddingCapitalToAll(false);
+    }
+  };
+
+  const handleCorpCapitalSearch = async (value: string) => {
+    setCorpCapitalSearch(value);
+    if (value.trim().length < 2) {
+      setCorpCapitalResults([]);
+      return;
+    }
+
+    try {
+      const results = await adminAPI.searchCorporations(value);
+      setCorpCapitalResults(results);
+    } catch (err: any) {
+      console.error('Search corporations error:', err);
+    }
+  };
+
+  const handleAddCapitalToCorp = async () => {
+    if (!selectedCorpForCapital) {
+      alert('Please select a corporation');
+      return;
+    }
+
+    const amount = parseFloat(corpCapitalAmount);
+    if (isNaN(amount) || amount === 0) {
+      alert('Please enter a valid non-zero amount');
+      return;
+    }
+
+    try {
+      setAddingCapitalToCorp(true);
+      setCorpCapitalResult(null);
+      const result = await adminAPI.addCapitalToCorporation(selectedCorpForCapital.id, amount);
+      setCorpCapitalResult({
+        corporation_name: result.corporation_name,
+        old_capital: result.old_capital,
+        new_capital: result.new_capital,
+        new_share_price: result.new_share_price,
+        amount: result.amount,
+      });
+      setCorpCapitalAmount('');
+    } catch (err: any) {
+      console.error('Add capital to corporation error:', err);
+      alert(err?.response?.data?.error || 'Failed to add capital to corporation');
+    } finally {
+      setAddingCapitalToCorp(false);
+    }
+  };
 
   const getTransactionTypeLabel = (type: TransactionType): string => {
     const labels: Record<TransactionType, string> = {
@@ -839,6 +1005,322 @@ export default function AdminPage() {
                 <strong>Set Game Time:</strong> Resets the in-game calendar to the chosen year and quarter (1 real day = 1 quarter).
                 <br />
                 <strong>Force Stock Split:</strong> Executes a 2:1 stock split on a corporation (doubles shares, halves price). Use with caution.
+              </p>
+            </div>
+          </div>
+
+          {/* Cash & Capital Management Section */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700/50 mb-6">
+            <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700/60">
+              <h2 className="text-lg font-semibold flex items-center gap-2">
+                <DollarSign className="w-5 h-5 text-emerald-500" />
+                Cash & Capital Management
+              </h2>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                Add or remove cash from users and capital from corporations
+              </p>
+            </div>
+            <div className="p-6 space-y-6">
+              {/* User Cash Section */}
+              <div className="space-y-4">
+                <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                  <DollarSign className="w-4 h-4 text-blue-500" />
+                  User Cash
+                </h3>
+
+                {/* Add Cash to All Users */}
+                <div className="p-4 rounded-lg bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700">
+                  <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2 uppercase">Add Cash to All Users</p>
+                  <div className="flex flex-wrap gap-3 items-end">
+                    <div className="flex-1 min-w-[150px]">
+                      <label htmlFor="cashAmount" className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                        Amount ($)
+                      </label>
+                      <input
+                        type="number"
+                        id="cashAmount"
+                        value={cashAmount}
+                        onChange={(e) => setCashAmount(e.target.value)}
+                        placeholder="e.g. 10000 or -5000"
+                        className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        disabled={addingCashToAll}
+                      />
+                    </div>
+                    <button
+                      onClick={handleAddCashToAll}
+                      disabled={addingCashToAll || !cashAmount}
+                      className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {addingCashToAll ? (
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <DollarSign className="w-4 h-4" />
+                      )}
+                      Add to All Users
+                    </button>
+                  </div>
+                  {cashAllResult && (
+                    <div className="mt-3 p-2 rounded bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800">
+                      <p className="text-sm text-emerald-700 dark:text-emerald-300">
+                        Added ${cashAllResult.amount.toLocaleString()} to {cashAllResult.users_updated} users
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Add Cash to Individual User */}
+                <div className="p-4 rounded-lg bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700">
+                  <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2 uppercase">Add Cash to Individual User</p>
+                  <div className="space-y-3">
+                    {/* User Search */}
+                    <div className="relative">
+                      <label htmlFor="userCashSearch" className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                        Search User
+                      </label>
+                      <input
+                        type="text"
+                        id="userCashSearch"
+                        value={userCashSearch}
+                        onChange={(e) => handleUserCashSearch(e.target.value)}
+                        placeholder="Type to search users..."
+                        className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        disabled={addingCashToUser}
+                      />
+                      {userCashResults.length > 0 && !selectedUserForCash && (
+                        <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                          {userCashResults.map((user) => (
+                            <button
+                              key={user.id}
+                              onClick={() => {
+                                setSelectedUserForCash({ id: user.id, username: user.username, player_name: user.player_name });
+                                setUserCashSearch(user.player_name || user.username);
+                                setUserCashResults([]);
+                              }}
+                              className="w-full px-3 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-sm flex items-center gap-2"
+                            >
+                              <img
+                                src={user.profile_image_url || '/defaultpfp.jpg'}
+                                alt=""
+                                className="w-6 h-6 rounded-full object-cover"
+                                onError={(e) => { e.currentTarget.src = '/defaultpfp.jpg'; }}
+                              />
+                              <div>
+                                <div className="font-medium text-gray-900 dark:text-gray-100">{user.player_name || user.username}</div>
+                                <div className="text-xs text-gray-500 dark:text-gray-400">@{user.username}</div>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      {selectedUserForCash && (
+                        <div className="mt-2 flex items-center justify-between p-2 bg-blue-50 dark:bg-blue-900/20 rounded-md">
+                          <span className="text-sm text-blue-800 dark:text-blue-200">
+                            Selected: {selectedUserForCash.player_name || selectedUserForCash.username} (ID: {selectedUserForCash.id})
+                          </span>
+                          <button
+                            onClick={() => {
+                              setSelectedUserForCash(null);
+                              setUserCashSearch('');
+                              setUserCashResult(null);
+                            }}
+                            className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-200"
+                          >
+                            Clear
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Amount & Button */}
+                    <div className="flex flex-wrap gap-3 items-end">
+                      <div className="flex-1 min-w-[150px]">
+                        <label htmlFor="userCashAmount" className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                          Amount ($)
+                        </label>
+                        <input
+                          type="number"
+                          id="userCashAmount"
+                          value={userCashAmount}
+                          onChange={(e) => setUserCashAmount(e.target.value)}
+                          placeholder="e.g. 10000 or -5000"
+                          className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          disabled={addingCashToUser}
+                        />
+                      </div>
+                      <button
+                        onClick={handleAddCashToUser}
+                        disabled={addingCashToUser || !selectedUserForCash || !userCashAmount}
+                        className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {addingCashToUser ? (
+                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          <DollarSign className="w-4 h-4" />
+                        )}
+                        Add Cash
+                      </button>
+                    </div>
+                    {userCashResult && (
+                      <div className="p-2 rounded bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800">
+                        <p className="text-sm text-emerald-700 dark:text-emerald-300">
+                          {userCashResult.player_name || userCashResult.username}: ${userCashResult.old_cash.toLocaleString()} → ${userCashResult.new_cash.toLocaleString()} ({userCashResult.amount >= 0 ? '+' : ''}{userCashResult.amount.toLocaleString()})
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Divider */}
+              <div className="border-t border-gray-200 dark:border-gray-700"></div>
+
+              {/* Corporation Capital Section */}
+              <div className="space-y-4">
+                <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                  <DollarSign className="w-4 h-4 text-amber-500" />
+                  Corporation Capital
+                </h3>
+
+                {/* Add Capital to All Corporations */}
+                <div className="p-4 rounded-lg bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700">
+                  <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2 uppercase">Add Capital to All Corporations</p>
+                  <div className="flex flex-wrap gap-3 items-end">
+                    <div className="flex-1 min-w-[150px]">
+                      <label htmlFor="capitalAmount" className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                        Amount ($)
+                      </label>
+                      <input
+                        type="number"
+                        id="capitalAmount"
+                        value={capitalAmount}
+                        onChange={(e) => setCapitalAmount(e.target.value)}
+                        placeholder="e.g. 100000 or -50000"
+                        className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                        disabled={addingCapitalToAll}
+                      />
+                    </div>
+                    <button
+                      onClick={handleAddCapitalToAll}
+                      disabled={addingCapitalToAll || !capitalAmount}
+                      className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md bg-amber-600 text-white hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {addingCapitalToAll ? (
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <DollarSign className="w-4 h-4" />
+                      )}
+                      Add to All Corps
+                    </button>
+                  </div>
+                  {capitalAllResult && (
+                    <div className="mt-3 p-2 rounded bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800">
+                      <p className="text-sm text-emerald-700 dark:text-emerald-300">
+                        Added ${capitalAllResult.amount.toLocaleString()} capital to {capitalAllResult.corporations_updated} corporations
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Add Capital to Individual Corporation */}
+                <div className="p-4 rounded-lg bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700">
+                  <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2 uppercase">Add Capital to Individual Corporation</p>
+                  <div className="space-y-3">
+                    {/* Corporation Search */}
+                    <div className="relative">
+                      <label htmlFor="corpCapitalSearch" className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                        Search Corporation
+                      </label>
+                      <input
+                        type="text"
+                        id="corpCapitalSearch"
+                        value={corpCapitalSearch}
+                        onChange={(e) => handleCorpCapitalSearch(e.target.value)}
+                        placeholder="Type to search corporations..."
+                        className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                        disabled={addingCapitalToCorp}
+                      />
+                      {corpCapitalResults.length > 0 && !selectedCorpForCapital && (
+                        <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                          {corpCapitalResults.map((corp) => (
+                            <button
+                              key={corp.id}
+                              onClick={() => {
+                                setSelectedCorpForCapital({ id: corp.id, name: corp.name });
+                                setCorpCapitalSearch(corp.name);
+                                setCorpCapitalResults([]);
+                              }}
+                              className="w-full px-3 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-sm"
+                            >
+                              <div className="font-medium text-gray-900 dark:text-gray-100">{corp.name}</div>
+                              <div className="text-xs text-gray-500 dark:text-gray-400">ID: {corp.id} | Sector: {corp.sector}</div>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      {selectedCorpForCapital && (
+                        <div className="mt-2 flex items-center justify-between p-2 bg-amber-50 dark:bg-amber-900/20 rounded-md">
+                          <span className="text-sm text-amber-800 dark:text-amber-200">
+                            Selected: {selectedCorpForCapital.name} (ID: {selectedCorpForCapital.id})
+                          </span>
+                          <button
+                            onClick={() => {
+                              setSelectedCorpForCapital(null);
+                              setCorpCapitalSearch('');
+                              setCorpCapitalResult(null);
+                            }}
+                            className="text-xs text-amber-600 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-200"
+                          >
+                            Clear
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Amount & Button */}
+                    <div className="flex flex-wrap gap-3 items-end">
+                      <div className="flex-1 min-w-[150px]">
+                        <label htmlFor="corpCapitalAmount" className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                          Amount ($)
+                        </label>
+                        <input
+                          type="number"
+                          id="corpCapitalAmount"
+                          value={corpCapitalAmount}
+                          onChange={(e) => setCorpCapitalAmount(e.target.value)}
+                          placeholder="e.g. 100000 or -50000"
+                          className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                          disabled={addingCapitalToCorp}
+                        />
+                      </div>
+                      <button
+                        onClick={handleAddCapitalToCorp}
+                        disabled={addingCapitalToCorp || !selectedCorpForCapital || !corpCapitalAmount}
+                        className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md bg-amber-600 text-white hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {addingCapitalToCorp ? (
+                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          <DollarSign className="w-4 h-4" />
+                        )}
+                        Add Capital
+                      </button>
+                    </div>
+                    {corpCapitalResult && (
+                      <div className="p-2 rounded bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800">
+                        <p className="text-sm text-emerald-700 dark:text-emerald-300">
+                          {corpCapitalResult.corporation_name}: ${corpCapitalResult.old_capital.toLocaleString()} → ${corpCapitalResult.new_capital.toLocaleString()} ({corpCapitalResult.amount >= 0 ? '+' : ''}{corpCapitalResult.amount.toLocaleString()})
+                        </p>
+                        <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-1">
+                          New share price: ${corpCapitalResult.new_share_price.toFixed(2)}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                <strong>Note:</strong> Enter positive amounts to add cash/capital, or negative amounts to subtract. Cash/capital cannot go below $0.
               </p>
             </div>
           </div>

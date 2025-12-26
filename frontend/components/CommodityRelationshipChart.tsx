@@ -391,7 +391,7 @@ export default function CommodityRelationshipChart() {
       </div>
 
       {/* Diagram container */}
-      <div className="h-[600px] w-full rounded-2xl border border-gray-200/50 dark:border-gray-700/50 bg-gradient-to-br from-white via-white to-gray-50/50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800/50 shadow-lg overflow-hidden">
+      <div className="h-[350px] sm:h-[450px] md:h-[550px] lg:h-[600px] w-full rounded-2xl border border-gray-200/50 dark:border-gray-700/50 bg-gradient-to-br from-white via-white to-gray-50/50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800/50 shadow-lg overflow-hidden">
         <ReactFlow
           nodes={nodes}
           edges={edges}

@@ -290,7 +290,7 @@ export default function AppNavigation({ children }: AppNavigationProps) {
                 <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">Corporate Warfare</p>
               </div>
             </div>
-            <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-shrink">
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-shrink flex-wrap justify-end">
               {/* Actions Display */}
               {viewerProfileId && (
                 <>
@@ -317,7 +317,7 @@ export default function AppNavigation({ children }: AppNavigationProps) {
                   <button
                     type="button"
                     onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
-                    className="group relative inline-flex items-center gap-2 sm:gap-3 rounded-2xl border px-2 sm:px-3 py-2 text-left shadow-md transition hover:-translate-y-0.5 hover:shadow-lg border-white/70 bg-gradient-to-r from-white/90 to-white/60 dark:border-gray-600/70 dark:bg-gray-800 dark:from-transparent dark:to-transparent"
+                    className="group relative inline-flex items-center gap-2 sm:gap-3 rounded-2xl border px-2 sm:px-3 py-2 min-h-[44px] text-left shadow-md transition hover:-translate-y-0.5 hover:shadow-lg border-white/70 bg-gradient-to-r from-white/90 to-white/60 dark:border-gray-600/70 dark:bg-gray-800 dark:from-transparent dark:to-transparent"
                   >
                     <div className="relative flex h-10 w-10 items-center justify-center overflow-visible rounded-xl border flex-shrink-0 border-white/60 bg-corporate-blue/10 dark:border-gray-600 dark:bg-gray-700">
                       <img
@@ -400,7 +400,7 @@ export default function AppNavigation({ children }: AppNavigationProps) {
       {navOpen && (
         <div className="fixed inset-0 z-[60] bg-black/55 backdrop-blur-sm" onClick={() => setNavOpen(false)}>
           <div
-            className="fixed left-0 top-0 bottom-0 w-80 sm:w-96 overflow-y-auto scrollbar-hide bg-white text-gray-900 shadow-2xl ring-1 ring-black/5 dark:bg-gray-900 dark:text-gray-100 dark:ring-white/10"
+            className="fixed left-0 top-0 bottom-0 w-80 sm:w-96 overflow-y-auto scrollbar-hide bg-white text-gray-900 shadow-2xl ring-1 ring-black/5 dark:bg-gray-900 dark:text-gray-100 dark:ring-white/10 safe-area-inset-left safe-area-inset-top safe-area-inset-bottom"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4 dark:border-gray-800">

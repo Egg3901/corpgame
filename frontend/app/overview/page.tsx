@@ -199,7 +199,7 @@ export default function OverviewPage() {
             </div>
           </div>
 
-          <div className="grid lg:grid-cols-3 gap-6 mb-8">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
             {/* Step 1: Understanding the Game */}
             <div className="bg-white dark:bg-gray-800/50 bloomberg:bg-black rounded-xl border border-gray-200 dark:border-gray-700 bloomberg:border-bloomberg-green shadow-sm overflow-hidden group hover:shadow-lg transition-shadow">
               <div className="bg-gradient-to-br from-blue-500 to-indigo-600 dark:from-blue-600 dark:to-indigo-700 bloomberg:from-bloomberg-green bloomberg:to-bloomberg-green-dim px-6 py-4">

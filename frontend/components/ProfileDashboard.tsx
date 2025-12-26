@@ -339,7 +339,7 @@ export default function ProfileDashboard({ profileId }: ProfileDashboardProps) {
           </div>
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-[1fr_0.85fr] xl:grid-cols-[1.1fr_0.9fr] 2xl:grid-cols-[1.2fr_1fr]">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_0.85fr] xl:grid-cols-[1.1fr_0.9fr] 2xl:grid-cols-[1.2fr_1fr]">
           <section className="space-y-6 min-w-0">
             <div className="relative overflow-hidden rounded-2xl border border-white/60 bg-white/80 shadow-2xl backdrop-blur dark:border-gray-800/60 dark:bg-gray-900/70">
               <div className="absolute inset-0 bg-gradient-to-br from-corporate-blue/12 via-transparent to-corporate-blue-light/20 dark:from-corporate-blue/18 dark:via-transparent dark:to-corporate-blue-dark/30" />
@@ -661,7 +661,7 @@ export default function ProfileDashboard({ profileId }: ProfileDashboardProps) {
                     Stable
                   </span>
                 </div>
-                <div className="mt-4 grid grid-cols-2 gap-4">
+                <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   <div className="rounded-xl border border-white/60 bg-white/70 p-4 shadow-sm dark:border-gray-800/70 dark:bg-gray-800/60">
                     <div className="flex items-center gap-2 text-sm font-semibold text-gray-700 dark:text-gray-200">
                       <DollarSign className="h-4 w-4 text-corporate-blue" />

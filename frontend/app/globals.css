@@ -652,6 +652,61 @@ body {
 }
 
 /* ============================================================================
+   MOBILE-FRIENDLY UTILITIES
+   ============================================================================ */
+
+/* Touch-friendly target size (44px minimum for accessibility) */
+.touch-target {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* Safe area insets for iOS notch/home indicator */
+.safe-area-inset-top {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+.safe-area-inset-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.safe-area-inset-left {
+  padding-left: env(safe-area-inset-left, 0px);
+}
+
+.safe-area-inset-right {
+  padding-right: env(safe-area-inset-right, 0px);
+}
+
+/* Horizontal scroll container for tables/tabs on mobile */
+.mobile-scroll-x {
+  -webkit-overflow-scrolling: touch;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+}
+
+/* Prevent body scroll when modal is open */
+.body-scroll-lock {
+  overflow: hidden;
+  position: fixed;
+  width: 100%;
+}
+
+/* Touch-only hover prevention (prevents sticky hover on mobile) */
+@media (hover: none) and (pointer: coarse) {
+  .hover-none-on-touch:hover {
+    background-color: inherit !important;
+  }
+}
+
+/* Better tap highlight for mobile */
+@media (hover: none) {
+  button, a, [role="button"] {
+    -webkit-tap-highlight-color: rgba(59, 130, 246, 0.2);
+  }
+}
+
+/* ============================================================================
    MIDNIGHT THEME - COMPREHENSIVE UI POLISH
    ============================================================================ */
 

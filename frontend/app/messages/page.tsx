@@ -182,13 +182,13 @@ function MessagesPageContent() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Conversations List */}
-          <div className="lg:col-span-1">
+          {/* Conversations List - Hidden on mobile when a conversation is selected */}
+          <div className={`lg:col-span-1 ${selectedConversation ? 'hidden lg:block' : 'block'}`}>
             <div className="rounded-2xl border border-gray-200/50 dark:border-gray-700/50 bg-white/80 dark:bg-gray-900/70 shadow-xl backdrop-blur-sm overflow-hidden">
               <div className="p-4 border-b border-gray-200 dark:border-gray-700">
                 <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Conversations</h2>
               </div>
-              <div className="divide-y divide-gray-200 dark:divide-gray-700 max-h-[600px] overflow-y-auto">
+              <div className="divide-y divide-gray-200 dark:divide-gray-700 max-h-[calc(100vh-250px)] lg:max-h-[600px] overflow-y-auto">
                 {loading ? (
                   <div className="p-8 text-center text-gray-500 dark:text-gray-400">Loading...</div>
                 ) : conversations.length === 0 ? (
@@ -265,10 +265,10 @@ function MessagesPageContent() {
             </div>
           </div>
 
-          {/* Message Thread */}
-          <div className="lg:col-span-2">
+          {/* Message Thread - Hidden on mobile when no conversation is selected */}
+          <div className={`lg:col-span-2 ${selectedConversation ? 'block' : 'hidden lg:block'}`}>
             {selectedConversation && selectedConversationData ? (
-              <div className="rounded-2xl border border-gray-200/50 dark:border-gray-700/50 bg-white/80 dark:bg-gray-900/70 shadow-xl backdrop-blur-sm overflow-hidden flex flex-col h-[600px]">
+              <div className="rounded-2xl border border-gray-200/50 dark:border-gray-700/50 bg-white/80 dark:bg-gray-900/70 shadow-xl backdrop-blur-sm overflow-hidden flex flex-col h-[calc(100vh-200px)] lg:h-[600px]">
                 {/* Header */}
                 <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
                   <div className="flex items-center gap-3">

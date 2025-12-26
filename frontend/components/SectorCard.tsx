@@ -389,8 +389,8 @@ export default function SectorCard({
   return (
     <div className="rounded-xl border border-white/60 bg-white/70 dark:border-gray-800/70 dark:bg-gray-800/60 p-4 shadow-sm">
       {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex-1">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-4">
+        <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
             <h3 className="font-semibold text-gray-900 dark:text-white">{sectorType}</h3>
             {canExtract && (
@@ -400,9 +400,9 @@ export default function SectorCard({
               </span>
             )}
           </div>
-          <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500 dark:text-gray-400">
             <span>Entered {new Date(enteredDate).toLocaleDateString()}</span>
-            <span>•</span>
+            <span className="hidden sm:inline">•</span>
             <span className={`font-mono ${
               isAtCapacity ? 'text-red-600 dark:text-red-400' :
               isNearCapacity ? 'text-amber-600 dark:text-amber-400' :
@@ -417,7 +417,7 @@ export default function SectorCard({
             )}
             {corporation && (
               <>
-                <span>•</span>
+                <span className="hidden sm:inline">•</span>
                 <Link
                   href={`/corporation/${corporation.id}`}
                   className="flex items-center gap-1 hover:text-corporate-blue dark:hover:text-corporate-blue-light transition-colors"
@@ -432,11 +432,11 @@ export default function SectorCard({
                   ) : (
                     <Building2 className="w-4 h-4" />
                   )}
-                  <span>{corporation.name}</span>
+                  <span className="truncate max-w-[120px] sm:max-w-none">{corporation.name}</span>
                 </Link>
               </>
             )}
-            <span>•</span>
+            <span className="hidden sm:inline">•</span>
             <Link
               href={`/states/${stateCode}`}
               className="flex items-center gap-1 hover:text-corporate-blue dark:hover:text-corporate-blue-light transition-colors"
@@ -463,28 +463,31 @@ export default function SectorCard({
           </button>
         )}
         {revenue !== undefined && profit !== undefined && (
-          <div className="flex items-center gap-4 flex-shrink-0">
+          <div className="flex items-center gap-3 sm:gap-4 flex-shrink-0">
             <div className="text-right group relative">
               <p className="text-sm font-bold text-emerald-600 dark:text-emerald-400 font-mono">
                 {formatCurrency(revenue)}
               </p>
-              <p className="text-xs text-gray-500 dark:text-gray-400">revenue/96h</p>
+              <p className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400">revenue/96h</p>
             </div>
             <div className="text-right group relative">
               <p className={`text-sm font-bold font-mono ${profit >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
                 {formatCurrency(profit)}
               </p>
-              <p className="text-xs text-gray-500 dark:text-gray-400">profit/96h</p>
+              <p className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400">profit/96h</p>
             </div>
           </div>
         )}
       </div>
 
-      {/* Unit Types - Grid layout adapts to visible columns */}
-      <div className={`grid gap-3 ${
-        [showRetail, showProduction, showService, showExtraction].filter(Boolean).length === 4 ? 'grid-cols-4' :
-        [showRetail, showProduction, showService, showExtraction].filter(Boolean).length === 3 ? 'grid-cols-3' :
-        [showRetail, showProduction, showService, showExtraction].filter(Boolean).length === 2 ? 'grid-cols-2' :
+      {/* Unit Types - Grid layout adapts to visible columns and screen size */}
+      <div className={`grid gap-2 sm:gap-3 ${
+        [showRetail, showProduction, showService, showExtraction].filter(Boolean).length === 4
+          ? 'grid-cols-2 lg:grid-cols-4' :
+        [showRetail, showProduction, showService, showExtraction].filter(Boolean).length === 3
+          ? 'grid-cols-1 sm:grid-cols-3' :
+        [showRetail, showProduction, showService, showExtraction].filter(Boolean).length === 2
+          ? 'grid-cols-2' :
         'grid-cols-1'
       }`}>
         {/* Retail */}

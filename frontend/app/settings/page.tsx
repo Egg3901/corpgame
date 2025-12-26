@@ -183,7 +183,7 @@ export default function SettingsPage() {
                 {uploading && <p className="text-sm text-gray-500 mt-1">Uploading...</p>}
               </div>
             </div>
-            <div className="grid md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
               <div>
                 <p className="text-xs uppercase text-gray-500 dark:text-gray-400 font-semibold">Username</p>
                 <button

@@ -18,6 +18,194 @@ const router = express.Router();
 
 router.use(authenticateToken, requireAdmin);
 
+// GET /api/admin/users/search - Autocomplete for user names
+router.get('/users/search', async (req: AuthRequest, res: Response) => {
+  try {
+    const { q } = req.query;
+    const query = (q as string || '').trim();
+
+    if (!query) {
+      // Return all users if no query (limited)
+      const allUsers = await UserModel.getAllUsers();
+      const results = allUsers.slice(0, 50).map(user => ({
+        id: user.id,
+        username: user.username,
+        player_name: user.player_name || null,
+        profile_image_url: normalizeImageUrl(user.profile_image_url),
+      }));
+      return res.json(results);
+    }
+
+    // Search by username or player_name (case-insensitive)
+    const searchResults = await pool.query(
+      `SELECT id, username, player_name, profile_image_url
+       FROM users
+       WHERE username ILIKE $1 OR player_name ILIKE $1
+       ORDER BY username ASC
+       LIMIT 20`,
+      [`%${query}%`]
+    );
+
+    const results = searchResults.rows.map(user => ({
+      ...user,
+      profile_image_url: normalizeImageUrl(user.profile_image_url),
+    }));
+
+    res.json(results);
+  } catch (error) {
+    console.error('Search users error:', error);
+    res.status(500).json({ error: 'Failed to search users' });
+  }
+});
+
+// POST /api/admin/users/add-cash-all - Add cash to all users
+router.post('/users/add-cash-all', async (req: AuthRequest, res: Response) => {
+  try {
+    const { amount } = req.body;
+    const parsedAmount = parseFloat(amount);
+
+    if (isNaN(parsedAmount) || parsedAmount === 0) {
+      return res.status(400).json({ error: 'Amount must be a non-zero number' });
+    }
+
+    console.log(`[Admin] Adding $${parsedAmount.toLocaleString()} to all users by user:`, req.userId);
+
+    // Update all users' cash
+    const result = await pool.query(
+      `UPDATE users SET cash = GREATEST(0, COALESCE(cash, 0) + $1) RETURNING id`,
+      [parsedAmount]
+    );
+
+    res.json({
+      success: true,
+      users_updated: result.rowCount,
+      amount: parsedAmount,
+      message: `Added $${parsedAmount.toLocaleString()} to ${result.rowCount} users`,
+    });
+  } catch (error) {
+    console.error('Add cash to all users error:', error);
+    res.status(500).json({ error: 'Failed to add cash to all users' });
+  }
+});
+
+// POST /api/admin/users/:userId/add-cash - Add cash to a specific user
+router.post('/users/:userId/add-cash', async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = parseInt(req.params.userId, 10);
+    const { amount } = req.body;
+    const parsedAmount = parseFloat(amount);
+
+    if (isNaN(userId)) {
+      return res.status(400).json({ error: 'Invalid user ID' });
+    }
+
+    if (isNaN(parsedAmount) || parsedAmount === 0) {
+      return res.status(400).json({ error: 'Amount must be a non-zero number' });
+    }
+
+    const user = await UserModel.findById(userId);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    console.log(`[Admin] Adding $${parsedAmount.toLocaleString()} to user ${userId} by admin:`, req.userId);
+
+    const oldCash = user.cash || 0;
+    const updatedUser = await UserModel.updateCash(userId, parsedAmount);
+    const newCash = updatedUser.cash || 0;
+
+    res.json({
+      success: true,
+      user_id: userId,
+      username: user.username,
+      player_name: user.player_name,
+      old_cash: oldCash,
+      new_cash: newCash,
+      amount: parsedAmount,
+      message: `Added $${parsedAmount.toLocaleString()} to ${user.player_name || user.username}`,
+    });
+  } catch (error) {
+    console.error('Add cash to user error:', error);
+    res.status(500).json({ error: 'Failed to add cash to user' });
+  }
+});
+
+// POST /api/admin/corporations/add-capital-all - Add capital to all corporations
+router.post('/corporations/add-capital-all', async (req: AuthRequest, res: Response) => {
+  try {
+    const { amount } = req.body;
+    const parsedAmount = parseFloat(amount);
+
+    if (isNaN(parsedAmount) || parsedAmount === 0) {
+      return res.status(400).json({ error: 'Amount must be a non-zero number' });
+    }
+
+    console.log(`[Admin] Adding $${parsedAmount.toLocaleString()} capital to all corporations by user:`, req.userId);
+
+    // Update all corporations' capital
+    const result = await pool.query(
+      `UPDATE corporations SET capital = GREATEST(0, COALESCE(capital, 0) + $1) RETURNING id`,
+      [parsedAmount]
+    );
+
+    res.json({
+      success: true,
+      corporations_updated: result.rowCount,
+      amount: parsedAmount,
+      message: `Added $${parsedAmount.toLocaleString()} capital to ${result.rowCount} corporations`,
+    });
+  } catch (error) {
+    console.error('Add capital to all corporations error:', error);
+    res.status(500).json({ error: 'Failed to add capital to all corporations' });
+  }
+});
+
+// POST /api/admin/corporations/:corpId/add-capital - Add capital to a specific corporation
+router.post('/corporations/:corpId/add-capital', async (req: AuthRequest, res: Response) => {
+  try {
+    const corpId = parseInt(req.params.corpId, 10);
+    const { amount } = req.body;
+    const parsedAmount = parseFloat(amount);
+
+    if (isNaN(corpId)) {
+      return res.status(400).json({ error: 'Invalid corporation ID' });
+    }
+
+    if (isNaN(parsedAmount) || parsedAmount === 0) {
+      return res.status(400).json({ error: 'Amount must be a non-zero number' });
+    }
+
+    const corporation = await CorporationModel.findById(corpId);
+    if (!corporation) {
+      return res.status(404).json({ error: 'Corporation not found' });
+    }
+
+    console.log(`[Admin] Adding $${parsedAmount.toLocaleString()} capital to corporation ${corpId} by admin:`, req.userId);
+
+    const oldCapital = typeof corporation.capital === 'string' ? parseFloat(corporation.capital) : corporation.capital;
+    const newCapital = Math.max(0, oldCapital + parsedAmount);
+
+    await CorporationModel.update(corpId, { capital: newCapital });
+
+    // Recalculate stock price after capital change
+    const newPrice = await updateStockPrice(corpId);
+
+    res.json({
+      success: true,
+      corporation_id: corpId,
+      corporation_name: corporation.name,
+      old_capital: oldCapital,
+      new_capital: newCapital,
+      new_share_price: newPrice,
+      amount: parsedAmount,
+      message: `Added $${parsedAmount.toLocaleString()} capital to ${corporation.name}`,
+    });
+  } catch (error) {
+    console.error('Add capital to corporation error:', error);
+    res.status(500).json({ error: 'Failed to add capital to corporation' });
+  }
+});
+
 // GET /api/admin/corporations/search - Autocomplete for corporation names
 router.get('/corporations/search', async (req: AuthRequest, res: Response) => {
   try {

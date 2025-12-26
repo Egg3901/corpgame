@@ -213,7 +213,7 @@ export default function CommodityDetailPage() {
         {/* Production Chain Diagram */}
         <ProductionChainDiagram type="resource" name={resourceName} />
 
-        <div className="grid lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-6">
             {/* Price Chart */}

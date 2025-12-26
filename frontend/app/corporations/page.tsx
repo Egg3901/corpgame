@@ -91,30 +91,30 @@ function CorporationsList() {
   return (
     <AppNavigation>
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6">
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
           <div className="flex items-center gap-2">
             <Building2 className="w-6 h-6 text-gray-500" />
             <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">Corporations</h1>
           </div>
-          <div className="flex gap-2 w-full sm:w-auto">
-            <div className="flex-1 sm:flex-none relative">
+          <div className="grid grid-cols-2 sm:flex gap-2">
+            <div className="relative col-span-2 sm:col-span-1">
               <Search className="w-4 h-4 absolute left-2 top-2.5 text-gray-400" />
               <input
                 aria-label="Search corporation names"
-                placeholder="Search corporation name"
+                placeholder="Search corporation"
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
-                className="w-full sm:w-64 pl-8 pr-3 py-2 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm"
+                className="w-full sm:w-48 lg:w-64 pl-8 pr-3 py-2 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm"
               />
             </div>
-            <div className="flex-1 sm:flex-none relative">
+            <div className="relative col-span-2 sm:col-span-1">
               <Search className="w-4 h-4 absolute left-2 top-2.5 text-gray-400" />
               <input
                 aria-label="Search CEO names"
-                placeholder="Search CEO name"
+                placeholder="Search CEO"
                 value={ceo}
                 onChange={(e) => setCeo(e.target.value)}
-                className="w-full sm:w-48 pl-8 pr-3 py-2 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm"
+                className="w-full sm:w-36 lg:w-48 pl-8 pr-3 py-2 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm"
               />
             </div>
             <div className="relative">
@@ -123,7 +123,7 @@ function CorporationsList() {
                 aria-label="Filter by sector"
                 value={sector}
                 onChange={(e) => { setSector(e.target.value); setPage(1); }}
-                className="pl-8 pr-6 py-2 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm"
+                className="w-full pl-8 pr-6 py-2 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm"
               >
                 <option value="">All Sectors</option>
                 {availableSectors.map((s) => (
@@ -135,7 +135,7 @@ function CorporationsList() {
               aria-label="Items per page"
               value={limit}
               onChange={(e) => { setLimit(parseInt(e.target.value, 10)); setPage(1); }}
-              className="pr-6 py-2 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm"
+              className="w-full pr-6 py-2 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm"
             >
               {[10,25,50,100].map(n => <option key={n} value={n}>{n}/page</option>)}
             </select>
@@ -200,18 +200,18 @@ function CorporationsList() {
         </div>
 
         {/* Pagination */}
-        <div className="flex items-center justify-between mt-4">
-          <div className="text-xs text-gray-500 dark:text-gray-400">Page {page} of {totalPages} • {total.toLocaleString()} total</div>
-          <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-2 mt-4">
+          <div className="text-xs text-gray-500 dark:text-gray-400 order-2 sm:order-1">Page {page} of {totalPages} • {total.toLocaleString()} total</div>
+          <div className="flex gap-2 order-1 sm:order-2">
             <button
               onClick={() => setPage(Math.max(1, page - 1))}
               disabled={page <= 1}
-              className="px-3 py-1 rounded border border-gray-300 dark:border-gray-700 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-4 py-2 sm:px-3 sm:py-1 rounded border border-gray-300 dark:border-gray-700 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
             >Prev</button>
             <button
               onClick={() => setPage(Math.min(totalPages, page + 1))}
               disabled={page >= totalPages}
-              className="px-3 py-1 rounded border border-gray-300 dark:border-gray-700 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-4 py-2 sm:px-3 sm:py-1 rounded border border-gray-300 dark:border-gray-700 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
             >Next</button>
           </div>
         </div>

@@ -136,9 +136,9 @@ export default function SendCashModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
       <div
-        className="relative w-full max-w-md rounded-2xl border shadow-2xl dark:border-gray-700/50 bloomberg:border-bloomberg-green"
+        className="relative w-full max-w-md rounded-2xl border shadow-2xl dark:border-gray-700/50 bloomberg:border-bloomberg-green max-h-[90vh] overflow-y-auto"
         style={{
           backgroundColor: 'rgb(var(--background-start-rgb))',
           borderColor: 'rgba(var(--foreground-rgb), 0.2)'
@@ -224,19 +224,19 @@ export default function SendCashModal({
               </div>
             )}
 
-            <div className="flex gap-3 pt-2">
+            <div className="flex flex-col-reverse sm:flex-row gap-3 pt-2">
               <button
                 type="button"
                 onClick={onClose}
                 disabled={loading}
-                className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-semibold"
+                className="flex-1 px-4 py-3 sm:py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-semibold"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={loading || success || !amount || parseFloat(amount) <= 0}
-                className="flex-1 px-4 py-2 bg-corporate-blue text-white rounded-lg hover:bg-corporate-blue-dark disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-semibold flex items-center justify-center gap-2"
+                className="flex-1 px-4 py-3 sm:py-2 bg-corporate-blue text-white rounded-lg hover:bg-corporate-blue-dark disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-semibold flex items-center justify-center gap-2"
               >
                 {loading ? (
                   <>

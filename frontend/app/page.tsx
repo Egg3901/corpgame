@@ -166,10 +166,10 @@ export default function Home() {
               </p>
             </div>
 
-            <div className="grid md:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 sm:gap-8">
               {/* Mechanic 1 */}
-              <div className="bg-white p-8 rounded-2xl border border-gray-100 hover:border-corporate-blue/30 transition-colors group">
-                <div className="w-14 h-14 bg-corporate-blue/10 rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+              <div className="bg-white p-6 sm:p-8 rounded-2xl border border-gray-100 hover:border-corporate-blue/30 transition-colors group">
+                <div className="w-12 sm:w-14 h-12 sm:h-14 bg-corporate-blue/10 rounded-xl flex items-center justify-center mb-4 sm:mb-6 group-hover:scale-110 transition-transform">
                   <Layers className="w-7 h-7 text-corporate-blue" />
                 </div>
                 <h3 className="text-xl font-black text-gray-900 mb-4 uppercase tracking-tight">Focus Strategies</h3>
@@ -264,22 +264,22 @@ export default function Home() {
         {/* Real-time stats section */}
         <section className="bg-corporate-blue py-24">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="grid md:grid-cols-4 gap-12 text-center">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-6 sm:gap-8 md:gap-12 text-center">
               <div>
-                <div className="text-5xl font-black text-white mb-2 leading-none">19+</div>
-                <div className="text-blue-200 text-xs font-bold uppercase tracking-widest">Business Sectors</div>
+                <div className="text-3xl sm:text-4xl md:text-5xl font-black text-white mb-2 leading-none">19+</div>
+                <div className="text-blue-200 text-[10px] sm:text-xs font-bold uppercase tracking-widest">Business Sectors</div>
               </div>
               <div>
-                <div className="text-5xl font-black text-white mb-2 leading-none">24/7</div>
-                <div className="text-blue-200 text-xs font-bold uppercase tracking-widest">Live Stock Market</div>
+                <div className="text-3xl sm:text-4xl md:text-5xl font-black text-white mb-2 leading-none">24/7</div>
+                <div className="text-blue-200 text-[10px] sm:text-xs font-bold uppercase tracking-widest">Live Stock Market</div>
               </div>
               <div>
-                <div className="text-5xl font-black text-white mb-2 leading-none">1HR</div>
-                <div className="text-blue-200 text-xs font-bold uppercase tracking-widest">Turn Cycle</div>
+                <div className="text-3xl sm:text-4xl md:text-5xl font-black text-white mb-2 leading-none">1HR</div>
+                <div className="text-blue-200 text-[10px] sm:text-xs font-bold uppercase tracking-widest">Turn Cycle</div>
               </div>
               <div>
-                <div className="text-5xl font-black text-white mb-2 leading-none">100%</div>
-                <div className="text-blue-200 text-xs font-bold uppercase tracking-widest">Player-Driven Economy</div>
+                <div className="text-3xl sm:text-4xl md:text-5xl font-black text-white mb-2 leading-none">100%</div>
+                <div className="text-blue-200 text-[10px] sm:text-xs font-bold uppercase tracking-widest">Player-Driven</div>
               </div>
             </div>
           </div>

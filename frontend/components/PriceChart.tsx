@@ -254,12 +254,12 @@ export default function PriceChart({ currentPrice, fetchHistory, title = 'Price 
           </div>
 
           {/* Time Frame Selector */}
-          <div className="flex items-center gap-1 p-1 bg-gray-100 dark:bg-gray-800 rounded-lg">
+          <div className="flex items-center gap-0.5 sm:gap-1 p-1 bg-gray-100 dark:bg-gray-800 rounded-lg overflow-x-auto">
             {TIME_FRAMES.map((tf) => (
               <button
                 key={tf.value}
                 onClick={() => setTimeFrame(tf.value)}
-                className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all duration-200 ${
+                className={`px-2 sm:px-3 py-1.5 text-[10px] sm:text-xs font-semibold rounded-md transition-all duration-200 flex-shrink-0 ${
                   timeFrame === tf.value
                     ? 'bg-white dark:bg-gray-700 text-corporate-blue dark:text-corporate-blue-light shadow-sm'
                     : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
@@ -272,7 +272,7 @@ export default function PriceChart({ currentPrice, fetchHistory, title = 'Price 
         </div>
 
         {/* Stats Row */}
-        <div className="grid grid-cols-4 gap-3 mb-6">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mb-4 sm:mb-6">
           <div className="text-center p-2 rounded-lg bg-gray-50 dark:bg-gray-800/50">
             <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Open</p>
             <p className="text-sm font-bold text-gray-900 dark:text-white font-mono">

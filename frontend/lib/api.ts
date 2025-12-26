@@ -704,6 +704,60 @@ export const adminAPI = {
     });
     return response.data;
   },
+  searchUsers: async (query?: string): Promise<Array<{
+    id: number;
+    username: string;
+    player_name: string | null;
+    profile_image_url: string | null;
+  }>> => {
+    const params = query ? `?q=${encodeURIComponent(query)}` : '';
+    const response = await api.get(`/api/admin/users/search${params}`);
+    return response.data;
+  },
+  addCashToAllUsers: async (amount: number): Promise<{
+    success: boolean;
+    users_updated: number;
+    amount: number;
+    message: string;
+  }> => {
+    const response = await api.post('/api/admin/users/add-cash-all', { amount });
+    return response.data;
+  },
+  addCashToUser: async (userId: number, amount: number): Promise<{
+    success: boolean;
+    user_id: number;
+    username: string;
+    player_name: string | null;
+    old_cash: number;
+    new_cash: number;
+    amount: number;
+    message: string;
+  }> => {
+    const response = await api.post(`/api/admin/users/${userId}/add-cash`, { amount });
+    return response.data;
+  },
+  addCapitalToAllCorporations: async (amount: number): Promise<{
+    success: boolean;
+    corporations_updated: number;
+    amount: number;
+    message: string;
+  }> => {
+    const response = await api.post('/api/admin/corporations/add-capital-all', { amount });
+    return response.data;
+  },
+  addCapitalToCorporation: async (corpId: number, amount: number): Promise<{
+    success: boolean;
+    corporation_id: number;
+    corporation_name: string;
+    old_capital: number;
+    new_capital: number;
+    new_share_price: number;
+    amount: number;
+    message: string;
+  }> => {
+    const response = await api.post(`/api/admin/corporations/${corpId}/add-capital`, { amount });
+    return response.data;
+  },
 };
 
 export interface MessageResponse {

@@ -1121,13 +1121,19 @@ export function getDynamicUnitEconomics(
   if (unitType === 'retail') {
     const retailDemands = SECTOR_RETAIL_DEMANDS[sectorTyped];
     
-    // If sector cannot build retail units, return default with zero profitability
+    // If sector cannot build retail units, return zero economics (no contribution)
     if (!retailDemands || retailDemands.length === 0) {
-      const errorResult = { ...defaultResult, hourlyCost: 999999, hourlyProfit: -999999 };
+      const zeroResult: DynamicUnitEconomics = {
+        ...defaultResult,
+        hourlyRevenue: 0,
+        hourlyCost: 0,
+        hourlyProfit: 0,
+        isDynamic: false,
+      };
       if (canUseCache) {
-        _dynamicEconomicsCache.set(cacheKey, errorResult);
+        _dynamicEconomicsCache.set(cacheKey, zeroResult);
       }
-      return errorResult;
+      return zeroResult;
     }
 
     // Calculate product costs and revenue
@@ -1185,13 +1191,19 @@ export function getDynamicUnitEconomics(
   if (unitType === 'service') {
     const serviceDemands = SECTOR_SERVICE_DEMANDS[sectorTyped];
     
-    // If sector cannot build service units, return default with zero profitability
+    // If sector cannot build service units, return zero economics (no contribution)
     if (!serviceDemands || serviceDemands.length === 0) {
-      const errorResult = { ...defaultResult, hourlyCost: 999999, hourlyProfit: -999999 };
+      const zeroResult: DynamicUnitEconomics = {
+        ...defaultResult,
+        hourlyRevenue: 0,
+        hourlyCost: 0,
+        hourlyProfit: 0,
+        isDynamic: false,
+      };
       if (canUseCache) {
-        _dynamicEconomicsCache.set(cacheKey, errorResult);
+        _dynamicEconomicsCache.set(cacheKey, zeroResult);
       }
-      return errorResult;
+      return zeroResult;
     }
 
     // Calculate product costs and revenue
@@ -1457,6 +1469,20 @@ export function getDynamicUnitEconomics(
       additionalProductCost += techAmount * getProductUnitPrice('Technology Products');
       productsConsumed.push('Technology Products');
       productConsumedAmounts['Technology Products'] = techAmount;
+    }
+
+    // Process SECTOR_PRODUCT_DEMANDS (Steel consumption for production sectors)
+    const productDemands = SECTOR_PRODUCT_DEMANDS[sectorTyped];
+    if (productDemands) {
+      for (const product of productDemands) {
+        // Skip products already handled above (Electricity is always added, others by sector)
+        if (!productsConsumed.includes(product)) {
+          const amount = PRODUCTION_PRODUCT_CONSUMPTION;
+          additionalProductCost += amount * getProductUnitPrice(product);
+          productsConsumed.push(product);
+          productConsumedAmounts[product] = amount;
+        }
+      }
     }
 
     const productCost = electricityCost + additionalProductCost;

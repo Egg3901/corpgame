@@ -189,7 +189,7 @@ export default function StatesPage() {
         </div>
 
         {/* Info Banner & Sort Controls */}
-        <div className="grid md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="rounded-xl border border-corporate-blue/20 bg-corporate-blue/5 dark:bg-corporate-blue/10 p-4">
             <div className="flex items-start gap-3">
               <TrendingUp className="h-5 w-5 text-corporate-blue dark:text-corporate-blue-light mt-0.5" />
