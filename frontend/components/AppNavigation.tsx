@@ -8,8 +8,6 @@ import {
   Shield,
   ChevronDown,
   ChevronRight,
-  Sun,
-  Moon,
   AlertCircle,
   MessageSquare,
   User,
@@ -19,7 +17,6 @@ import {
   Bell,
 } from 'lucide-react';
 import { authAPI, profileAPI, ProfileResponse, corporationAPI, messagesAPI } from '@/lib/api';
-import { useTheme } from './ThemeProvider';
 import ServerTimeFooter from './ServerTimeFooter';
 import { formatCash } from '@/lib/utils';
 
@@ -38,7 +35,6 @@ const navSections = [
 export default function AppNavigation({ children }: AppNavigationProps) {
   const router = useRouter();
   const pathname = usePathname();
-  const { theme, toggleTheme } = useTheme();
   const [navOpen, setNavOpen] = useState(false);
   const [viewerProfileId, setViewerProfileId] = useState<number | null>(null);
   const [viewerProfile, setViewerProfile] = useState<ProfileResponse | null>(null);
@@ -305,19 +301,6 @@ export default function AppNavigation({ children }: AppNavigationProps) {
                   </div>
                 </>
               )}
-              {/* Theme Toggle Button */}
-              <button
-                type="button"
-                onClick={toggleTheme}
-                className="inline-flex items-center justify-center rounded-xl border border-gray-200 bg-white px-2 sm:px-3 py-2 text-gray-700 shadow-sm transition hover:-translate-y-0.5 hover:border-corporate-blue hover:text-corporate-blue dark:border-gray-800 dark:bg-gray-800 dark:text-gray-200 dark:hover:border-corporate-blue-light dark:hover:text-corporate-blue-light flex-shrink-0"
-                aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
-              >
-                {theme === 'light' ? (
-                  <Moon className="w-5 h-5" />
-                ) : (
-                  <Sun className="w-5 h-5" />
-                )}
-              </button>
               {viewerProfileId && (
                 <div className="relative flex-shrink-0" ref={profileDropdownRef}>
                   <button
@@ -425,22 +408,6 @@ export default function AppNavigation({ children }: AppNavigationProps) {
             </div>
 
             <div className="p-6 space-y-3">
-              {/* Theme Toggle in Menu */}
-              <button
-                type="button"
-                onClick={toggleTheme}
-                className="w-full flex items-center justify-between rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-800 shadow-sm transition hover:-translate-y-0.5 hover:border-corporate-blue hover:text-corporate-blue dark:border-gray-800 dark:bg-gray-800 dark:text-gray-100 dark:hover:border-corporate-blue-light dark:hover:text-corporate-blue-light"
-              >
-                <div className="flex items-center gap-3">
-                  {theme === 'light' ? (
-                    <Moon className="w-5 h-5" />
-                  ) : (
-                    <Sun className="w-5 h-5" />
-                  )}
-                  <span>Switch to {theme === 'light' ? 'Dark' : 'Light'} Mode</span>
-                </div>
-              </button>
-
               {/* Overview */}
               {navSections.slice(0, 1).map((item) => (
                 <button
@@ -489,7 +456,40 @@ export default function AppNavigation({ children }: AppNavigationProps) {
                           : 'border-gray-200 bg-white text-gray-700 hover:border-corporate-blue hover:text-corporate-blue dark:border-gray-800 dark:bg-gray-800 dark:text-gray-200'
                       }`}
                     >
-                      Stock Market
+                      Stocks
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleNavClick('/stock-market?tab=products&subtab=resources')}
+                      className={`w-full text-left rounded-lg border px-4 py-2 text-sm font-medium shadow-sm transition hover:-translate-y-0.5 ${
+                        pathname?.startsWith('/commodity/')
+                          ? 'border-corporate-blue bg-corporate-blue/10 text-corporate-blue dark:border-corporate-blue dark:bg-corporate-blue/20'
+                          : 'border-gray-200 bg-white text-gray-700 hover:border-corporate-blue hover:text-corporate-blue dark:border-gray-800 dark:bg-gray-800 dark:text-gray-200'
+                      }`}
+                    >
+                      Raw Resources
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleNavClick('/stock-market?tab=products&subtab=products')}
+                      className={`w-full text-left rounded-lg border px-4 py-2 text-sm font-medium shadow-sm transition hover:-translate-y-0.5 ${
+                        pathname?.startsWith('/product/')
+                          ? 'border-corporate-blue bg-corporate-blue/10 text-corporate-blue dark:border-corporate-blue dark:bg-corporate-blue/20'
+                          : 'border-gray-200 bg-white text-gray-700 hover:border-corporate-blue hover:text-corporate-blue dark:border-gray-800 dark:bg-gray-800 dark:text-gray-200'
+                      }`}
+                    >
+                      Products
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleNavClick('/stock-market?tab=bonds')}
+                      className={`w-full text-left rounded-lg border px-4 py-2 text-sm font-medium shadow-sm transition hover:-translate-y-0.5 ${
+                        pathname === '/bonds'
+                          ? 'border-corporate-blue bg-corporate-blue/10 text-corporate-blue dark:border-corporate-blue dark:bg-corporate-blue/20'
+                          : 'border-gray-200 bg-white text-gray-700 hover:border-corporate-blue hover:text-corporate-blue dark:border-gray-800 dark:bg-gray-800 dark:text-gray-200'
+                      }`}
+                    >
+                      Bonds
                     </button>
                     <button
                       type="button"
@@ -500,7 +500,7 @@ export default function AppNavigation({ children }: AppNavigationProps) {
                           : 'border-gray-200 bg-white text-gray-700 hover:border-corporate-blue hover:text-corporate-blue dark:border-gray-800 dark:bg-gray-800 dark:text-gray-200'
                       }`}
                     >
-                      Portfolio
+                      My Portfolio
                     </button>
                   </div>
                 )}

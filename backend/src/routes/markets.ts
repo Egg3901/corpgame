@@ -46,6 +46,8 @@ import {
   getSectorExtractableResources,
   canBuildMoreUnits,
   getStateSectorCapacity,
+  getStateCapacityTier,
+  getStateResources,
   getDynamicUnitEconomics,
 } from '../constants/sectors';
 import { SectorCalculator } from '../services/SectorCalculator';
@@ -802,6 +804,9 @@ router.get('/states', async (req: Request, res: Response) => {
       region: string;
       multiplier: number;
       growth_factor?: number;
+      capacity?: number;
+      capacity_tier?: string;
+      extractable_resources?: string[];
     }>> = {};
 
     for (const state of stateMeta) {
@@ -815,6 +820,9 @@ router.get('/states', async (req: Request, res: Response) => {
         region: state.region,
         multiplier: parseFloat(state.population_multiplier),
         growth_factor: growthFactorByState[state.state_code] || 1,
+        capacity: getStateSectorCapacity(state.state_code),
+        capacity_tier: getStateCapacityTier(state.state_code),
+        extractable_resources: Object.keys(getStateResources(state.state_code)),
       });
     }
 

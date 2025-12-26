@@ -14,6 +14,7 @@ export default function StatesPage() {
   const [error, setError] = useState('');
   const [expandedRegions, setExpandedRegions] = useState<Set<string>>(new Set());
   const [sortBy, setSortBy] = useState<SortOption>('region');
+  const [selectedResources, setSelectedResources] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const fetchStates = async () => {
@@ -112,7 +113,28 @@ export default function StatesPage() {
     }
   };
 
-  const sortedGroups = getSortedStates();
+  const getFilteredStates = (states: Record<string, StateInfo[]>) => {
+    if (selectedResources.size === 0) return states;
+
+    const filtered: Record<string, StateInfo[]> = {};
+
+    Object.entries(states).forEach(([group, stateList]) => {
+      const matchingStates = stateList.filter(state => {
+        const stateResources = state.extractable_resources || [];
+        return Array.from(selectedResources).some(resource =>
+          stateResources.includes(resource)
+        );
+      });
+
+      if (matchingStates.length > 0) {
+        filtered[group] = matchingStates;
+      }
+    });
+
+    return filtered;
+  };
+
+  const sortedGroups = getFilteredStates(getSortedStates());
   const groupNames = sortBy === 'region' ? statesData?.regions || [] : Object.keys(sortedGroups);
 
   if (loading) {
@@ -157,7 +179,9 @@ export default function StatesPage() {
               <div>
                 <h1 className="text-3xl font-bold text-gray-900 dark:text-white">United States Markets</h1>
                 <p className="text-gray-600 dark:text-gray-400">
-                  {statesData.total_states} states across {statesData.regions.length} regions
+                  {Object.values(sortedGroups).flat().length} states
+                  {selectedResources.size > 0 && ` (filtered from ${statesData.total_states})`}
+                  {' across '}{Object.keys(sortedGroups).length} {sortBy === 'region' ? 'regions' : 'groups'}
                 </p>
               </div>
             </div>
@@ -165,7 +189,7 @@ export default function StatesPage() {
         </div>
 
         {/* Info Banner & Sort Controls */}
-        <div className="grid md:grid-cols-2 gap-4">
+        <div className="grid md:grid-cols-3 gap-4">
           <div className="rounded-xl border border-corporate-blue/20 bg-corporate-blue/5 dark:bg-corporate-blue/10 p-4">
             <div className="flex items-start gap-3">
               <TrendingUp className="h-5 w-5 text-corporate-blue dark:text-corporate-blue-light mt-0.5" />
@@ -192,6 +216,42 @@ export default function StatesPage() {
               <option value="capacity">Capacity (High/Medium/Low)</option>
               <option value="resources">Resources Available</option>
             </select>
+          </div>
+
+          {/* Resource Filter */}
+          <div className="rounded-xl border border-gray-200/50 dark:border-gray-700/50 bg-white dark:bg-gray-900 p-4">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+              Filter by Resources
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              {['Oil', 'Steel', 'Rare Earth', 'Copper', 'Fertile Land', 'Lumber', 'Chemical Compounds'].map(resource => (
+                <label key={resource} className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={selectedResources.has(resource)}
+                    onChange={(e) => {
+                      const next = new Set(selectedResources);
+                      if (e.target.checked) {
+                        next.add(resource);
+                      } else {
+                        next.delete(resource);
+                      }
+                      setSelectedResources(next);
+                    }}
+                    className="rounded border-gray-300 dark:border-gray-600 text-corporate-blue focus:ring-corporate-blue"
+                  />
+                  <span className="text-sm text-gray-700 dark:text-gray-300">{resource}</span>
+                </label>
+              ))}
+            </div>
+            {selectedResources.size > 0 && (
+              <button
+                onClick={() => setSelectedResources(new Set())}
+                className="mt-3 text-sm text-corporate-blue hover:text-corporate-blue-dark underline"
+              >
+                Clear all filters
+              </button>
+            )}
           </div>
         </div>
 

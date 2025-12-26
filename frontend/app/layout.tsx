@@ -19,7 +19,7 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Oxygen:wght@300;400;700&display=swap" rel="stylesheet" />
       </head>
-      <body className="bg-white text-gray-900 transition-colors duration-200 dark:bg-gray-950 dark:text-gray-100 font-eurostile">
+      <body className="bg-white text-gray-900 transition-colors duration-200 dark:bg-gray-950 dark:text-gray-100 bloomberg:bg-black bloomberg:text-[#00ff41] font-eurostile">
         <ThemeProvider>{children}</ThemeProvider>
       </body>
     </html>

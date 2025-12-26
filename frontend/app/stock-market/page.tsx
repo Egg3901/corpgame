@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import AppNavigation from '@/components/AppNavigation';
 import TickerTape from '@/components/TickerTape';
-import { corporationAPI, CorporationResponse, marketsAPI, CommodityPrice, ProductMarketData, MarketMetadataResponse } from '@/lib/api';
+import { corporationAPI, CorporationResponse, marketsAPI, CommodityPrice, ProductMarketData, MarketMetadataResponse, sharesAPI, SharePriceHistoryResponse } from '@/lib/api';
 import { Building2, Plus, TrendingUp, TrendingDown, Clock, FileText, ChevronRight, ArrowUpRight, ArrowDownRight, Package, Droplets, Cpu, Zap, Wheat, Trees, FlaskConical, MapPin, Box, Lightbulb, Pill, Wrench, Truck, Shield, UtensilsCrossed } from 'lucide-react';
 
 // Resource icon mapping
@@ -56,7 +56,9 @@ const PRODUCT_COLORS: Record<string, { bg: string; text: string; border: string 
 
 export default function StockMarketPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [corporations, setCorporations] = useState<CorporationResponse[]>([]);
+  const [priceChanges, setPriceChanges] = useState<Record<number, number>>({});
   const [commodities, setCommodities] = useState<CommodityPrice[]>([]);
   const [products, setProducts] = useState<ProductMarketData[]>([]);
   const [commoditySupply, setCommoditySupply] = useState<Record<string, number>>({});
@@ -69,11 +71,68 @@ export default function StockMarketPage() {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [activeTab, setActiveTab] = useState<'stocks' | 'products' | 'bonds'>('stocks');
 
+  // Handle URL query parameters for tabs
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    const subtab = searchParams.get('subtab');
+
+    if (tab === 'products' || tab === 'bonds') {
+      setActiveTab(tab as 'products' | 'bonds');
+    }
+    if (subtab === 'resources' || subtab === 'products') {
+      setActiveSubTab(subtab as 'resources' | 'products');
+    }
+  }, [searchParams]);
+
+  // Calculate trailing 4-period average price change
+  const calculateTrailing4PeriodChange = (history: SharePriceHistoryResponse[]): number => {
+    if (history.length < 2) return 0;
+
+    // Need at least 2 data points to calculate 1 change, up to 5 points for 4 changes
+    const sortedHistory = [...history].sort((a, b) =>
+      new Date(a.recorded_at).getTime() - new Date(b.recorded_at).getTime()
+    );
+
+    const changes: number[] = [];
+    for (let i = 1; i < sortedHistory.length; i++) {
+      const oldPrice = sortedHistory[i - 1].share_price;
+      const newPrice = sortedHistory[i].share_price;
+      if (oldPrice > 0) {
+        const change = ((newPrice - oldPrice) / oldPrice) * 100;
+        changes.push(change);
+      }
+    }
+
+    // Take the last 4 changes (or fewer if we don't have 4)
+    const lastChanges = changes.slice(-4);
+    if (lastChanges.length === 0) return 0;
+
+    // Calculate average
+    const sum = lastChanges.reduce((acc, val) => acc + val, 0);
+    return sum / lastChanges.length;
+  };
+
   useEffect(() => {
     const fetchCorporations = async () => {
       try {
         const data = await corporationAPI.getAll();
         setCorporations(data);
+
+        // Fetch price history for each corporation to calculate trailing average
+        const priceChangeMap: Record<number, number> = {};
+        await Promise.all(
+          data.map(async (corp) => {
+            try {
+              const history = await sharesAPI.getPriceHistory(corp.id, undefined, 5);
+              const avgChange = calculateTrailing4PeriodChange(history);
+              priceChangeMap[corp.id] = avgChange;
+            } catch (err) {
+              console.error(`Failed to fetch price history for ${corp.name}:`, err);
+              priceChangeMap[corp.id] = 0;
+            }
+          })
+        );
+        setPriceChanges(priceChangeMap);
       } catch (err) {
         console.error('Failed to fetch corporations:', err);
         setError('Failed to load corporations');
@@ -165,11 +224,9 @@ export default function StockMarketPage() {
     return name.toUpperCase().slice(0, 4);
   };
 
-  // Calculate change percentage (placeholder - using share_price as baseline)
+  // Get trailing 4-period average change for a corporation
   const getChange = (corp: CorporationResponse) => {
-    const basePrice = 1.0;
-    const change = ((corp.share_price - basePrice) / basePrice) * 100;
-    return change;
+    return priceChanges[corp.id] || 0;
   };
 
   const formatTime = (date: Date) => {

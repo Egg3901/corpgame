@@ -628,13 +628,10 @@ export function getStateLabel(code: string): string | undefined {
 
 // US Regions mapping
 export const US_REGIONS: Record<string, string[]> = {
-  'West Coast': ['CA', 'OR', 'WA', 'NV', 'AZ'],
-  'Mountain': ['CO', 'UT', 'WY', 'MT', 'ID', 'NM'],
-  'Southwest': ['TX', 'OK', 'AR', 'LA'],
-  'Midwest': ['IL', 'IN', 'OH', 'MI', 'WI', 'MN', 'IA', 'MO', 'ND', 'SD', 'NE', 'KS'],
-  'Northeast': ['NY', 'PA', 'NJ', 'MA', 'CT', 'RI', 'VT', 'NH', 'ME', 'DE', 'MD'],
-  'Southeast': ['FL', 'GA', 'SC', 'NC', 'VA', 'WV', 'KY', 'TN', 'AL', 'MS'],
-  'Alaska & Hawaii': ['AK', 'HI'],
+  'Northeast': ['CT', 'ME', 'MA', 'NH', 'RI', 'VT', 'NJ', 'NY', 'PA'],
+  'Midwest': ['IL', 'IN', 'MI', 'OH', 'WI', 'IA', 'KS', 'MN', 'MO', 'NE', 'ND', 'SD'],
+  'South': ['DE', 'FL', 'GA', 'MD', 'NC', 'SC', 'VA', 'WV', 'KY', 'TN', 'AL', 'MS', 'AR', 'LA', 'OK', 'TX'],
+  'West': ['AZ', 'CO', 'ID', 'MT', 'NV', 'NM', 'UT', 'WY', 'AK', 'CA', 'HI', 'OR', 'WA'],
 };
 
 // Get region for a state code

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, ChangeEvent } from 'react';
 import { useRouter } from 'next/navigation';
-import { Moon, Sun, RefreshCw, Lock, Eye, EyeOff } from 'lucide-react';
+import { RefreshCw, Lock, Eye, EyeOff, Monitor } from 'lucide-react';
 import { authAPI, AuthResponse, profileAPI, normalizeImageUrl } from '@/lib/api';
 import { useTheme } from '@/components/ThemeProvider';
 
@@ -10,7 +10,7 @@ type CurrentUser = AuthResponse['user'] & { email: string };
 
 export default function SettingsPage() {
   const router = useRouter();
-  const { theme, toggleTheme, setTheme } = useTheme();
+  const { theme, setTheme } = useTheme();
   const [user, setUser] = useState<CurrentUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [resetting, setResetting] = useState(false);
@@ -52,7 +52,7 @@ export default function SettingsPage() {
     setResetting(false);
   };
 
-  const handleSelectTheme = (value: 'light' | 'dark') => {
+  const handleSelectTheme = (value: 'light' | 'dark' | 'bloomberg') => {
     if (value !== theme) {
       setTheme(value);
     }
@@ -239,45 +239,94 @@ export default function SettingsPage() {
           </div>
         </section>
 
-        <section className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700/50">
-          <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700/60 flex items-center justify-between">
+        <section className="bg-white dark:bg-gray-800 bloomberg:bg-black bloomberg:border-bloomberg-green rounded-xl shadow-sm border border-gray-100 dark:border-gray-700/50">
+          <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700/60 bloomberg:border-bloomberg-green">
             <div>
               <h2 className="text-lg font-semibold">Appearance</h2>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Switch between light and dark experiences.</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400 bloomberg:text-bloomberg-green-dim">
+                Choose your visual theme. Each theme provides a unique experience tailored to different preferences.
+              </p>
             </div>
-            <button
-              onClick={toggleTheme}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-100 dark:hover:bg-gray-600 text-sm font-medium"
-            >
-              {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-              Toggle
-            </button>
           </div>
           <div className="px-6 py-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-gray-700 dark:text-gray-200">Theme</span>
-              <div className="flex items-center gap-2">
+            <div className="space-y-3">
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-200 bloomberg:text-bloomberg-green-bright">
+                Select Theme
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <button
                   onClick={() => handleSelectTheme('light')}
-                  className={`px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
+                  className={`group relative px-4 py-6 rounded-lg border-2 text-sm font-medium transition-all ${
                     theme === 'light'
-                      ? 'border-corporate-blue text-corporate-blue'
-                      : 'border-gray-200 text-gray-600 dark:border-gray-700 dark:text-gray-400'
+                      ? 'border-corporate-blue bg-corporate-blue/5 text-corporate-blue'
+                      : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:border-gray-600 bloomberg:border-bloomberg-green-dim bloomberg:bg-black bloomberg:text-bloomberg-green bloomberg:hover:border-bloomberg-green'
                   }`}
                 >
-                  Light
+                  <div className="flex flex-col items-center gap-2">
+                    <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
+                      theme === 'light' ? 'bg-corporate-blue/10' : 'bg-gray-100 dark:bg-gray-700 bloomberg:bg-bloomberg-green/10'
+                    }`}>
+                      <Monitor className="w-6 h-6" />
+                    </div>
+                    <span className="font-semibold">Light</span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400 bloomberg:text-bloomberg-green-dim text-center">
+                      Clean, bright interface
+                    </span>
+                  </div>
                 </button>
+
                 <button
                   onClick={() => handleSelectTheme('dark')}
-                  className={`px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
+                  className={`group relative px-4 py-6 rounded-lg border-2 text-sm font-medium transition-all ${
                     theme === 'dark'
-                      ? 'border-corporate-blue text-corporate-blue'
-                      : 'border-gray-200 text-gray-600 dark:border-gray-700 dark:text-gray-400'
+                      ? 'border-corporate-blue bg-corporate-blue/5 text-corporate-blue'
+                      : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:border-gray-600 bloomberg:border-bloomberg-green-dim bloomberg:bg-black bloomberg:text-bloomberg-green bloomberg:hover:border-bloomberg-green'
                   }`}
                 >
-                  Dark
+                  <div className="flex flex-col items-center gap-2">
+                    <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
+                      theme === 'dark' ? 'bg-corporate-blue/10' : 'bg-gray-100 dark:bg-gray-700 bloomberg:bg-bloomberg-green/10'
+                    }`}>
+                      <Monitor className="w-6 h-6" />
+                    </div>
+                    <span className="font-semibold">Dark</span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400 bloomberg:text-bloomberg-green-dim text-center">
+                      Reduced eye strain
+                    </span>
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => handleSelectTheme('bloomberg')}
+                  className={`group relative px-4 py-6 rounded-lg border-2 text-sm font-medium transition-all ${
+                    theme === 'bloomberg'
+                      ? 'border-bloomberg-green-bright bg-bloomberg-green/5 text-bloomberg-green-bright shadow-[0_0_15px_rgba(0,255,65,0.3)]'
+                      : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:border-gray-600 bloomberg:border-bloomberg-green-dim bloomberg:bg-black bloomberg:text-bloomberg-green bloomberg:hover:border-bloomberg-green'
+                  }`}
+                >
+                  <div className="flex flex-col items-center gap-2">
+                    <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bloomberg ${
+                      theme === 'bloomberg' ? 'bg-bloomberg-green/10' : 'bg-gray-100 dark:bg-gray-700 bloomberg:bg-bloomberg-green/10'
+                    }`}>
+                      <Monitor className="w-6 h-6" />
+                    </div>
+                    <span className="font-semibold font-bloomberg">Bloomberg</span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400 bloomberg:text-bloomberg-green-dim text-center">
+                      Retro terminal aesthetic
+                    </span>
+                  </div>
                 </button>
               </div>
+            </div>
+
+            <div className="mt-6 p-4 rounded-lg bg-gray-50 dark:bg-gray-900 bloomberg:bg-black bloomberg:border bloomberg:border-bloomberg-green-dim">
+              <p className="text-xs text-gray-600 dark:text-gray-400 bloomberg:text-bloomberg-green-dim">
+                <strong className="font-semibold text-gray-800 dark:text-gray-200 bloomberg:text-bloomberg-green">
+                  Current Theme: {theme.charAt(0).toUpperCase() + theme.slice(1)}
+                </strong>
+                <br />
+                Your theme preference is saved automatically and will persist across sessions.
+              </p>
             </div>
           </div>
         </section>

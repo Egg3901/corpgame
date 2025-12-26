@@ -14,6 +14,17 @@
   --background-end-rgb: 15, 23, 42;
 }
 
+.bloomberg {
+  --foreground-rgb: 0, 255, 65;
+  --background-start-rgb: 0, 0, 0;
+  --background-end-rgb: 0, 10, 0;
+  --bloomberg-green: #00ff41;
+  --bloomberg-green-bright: #39ff14;
+  --bloomberg-green-dim: #00cc33;
+  --bloomberg-orange: #ff8800;
+  --bloomberg-blue: #0088ff;
+}
+
 body {
   color: rgb(var(--foreground-rgb));
   background: linear-gradient(
@@ -29,6 +40,13 @@ body {
 @layer base {
   * {
     font-family: 'Oxygen', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  }
+
+  /* Bloomberg theme uses monospace fonts throughout */
+  .bloomberg * {
+    font-family: 'Courier New', 'Courier', 'Liberation Mono', 'Consolas', monospace;
+    font-weight: 500;
+    letter-spacing: 0.025em;
   }
 }
 
@@ -59,6 +77,61 @@ body {
 
 .text-negative {
   color: #ef4444; /* red-500 */
+}
+
+/* Bloomberg theme overrides for positive/negative */
+.bloomberg .text-positive {
+  color: var(--bloomberg-green-bright);
+}
+
+.bloomberg .text-negative {
+  color: var(--bloomberg-orange);
+}
+
+/* Bloomberg terminal specific styles */
+.bloomberg {
+  /* Retro CRT scanline effect */
+  background-image:
+    repeating-linear-gradient(
+      0deg,
+      rgba(0, 255, 65, 0.03) 0px,
+      transparent 1px,
+      transparent 2px,
+      rgba(0, 255, 65, 0.03) 3px
+    );
+}
+
+/* Bloomberg card and border styles */
+.bloomberg .border,
+.bloomberg .border-gray-200,
+.bloomberg .border-gray-300,
+.bloomberg .border-gray-800 {
+  border-color: var(--bloomberg-green) !important;
+}
+
+/* Bloomberg hover effects */
+.bloomberg .hover\:bg-gray-100:hover,
+.bloomberg .hover\:bg-gray-800:hover {
+  background-color: rgba(0, 255, 65, 0.1) !important;
+}
+
+/* Bloomberg text glow effect for headers */
+.bloomberg h1,
+.bloomberg h2,
+.bloomberg h3,
+.bloomberg h4 {
+  text-shadow: 0 0 10px rgba(0, 255, 65, 0.5);
+}
+
+/* Bloomberg button styles */
+.bloomberg button {
+  border-color: var(--bloomberg-green);
+  transition: all 0.2s ease;
+}
+
+.bloomberg button:hover {
+  box-shadow: 0 0 15px rgba(0, 255, 65, 0.4);
+  border-color: var(--bloomberg-green-bright);
 }
 
 

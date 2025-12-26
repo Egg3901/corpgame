@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 
-type Theme = 'light' | 'dark';
+type Theme = 'light' | 'dark' | 'bloomberg';
 
 interface ThemeContextValue {
   theme: Theme;
@@ -24,7 +24,14 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     const storedTheme = typeof window !== 'undefined' ? localStorage.getItem('theme') : null;
     const prefersDark =
       typeof window !== 'undefined' ? window.matchMedia('(prefers-color-scheme: dark)').matches : false;
-    const initialTheme: Theme = storedTheme === 'dark' || (!storedTheme && prefersDark) ? 'dark' : 'light';
+
+    let initialTheme: Theme = 'light';
+    if (storedTheme === 'dark' || storedTheme === 'bloomberg') {
+      initialTheme = storedTheme as Theme;
+    } else if (!storedTheme && prefersDark) {
+      initialTheme = 'dark';
+    }
+
     setTheme(initialTheme);
     setMounted(true);
   }, []);
@@ -32,7 +39,17 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!mounted) return;
     const root = document.documentElement;
-    root.classList.toggle('dark', theme === 'dark');
+
+    // Remove all theme classes
+    root.classList.remove('dark', 'bloomberg');
+
+    // Add the appropriate theme class
+    if (theme === 'dark') {
+      root.classList.add('dark');
+    } else if (theme === 'bloomberg') {
+      root.classList.add('bloomberg');
+    }
+
     localStorage.setItem('theme', theme);
   }, [theme, mounted]);
 
@@ -40,7 +57,12 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     () => ({
       theme,
       setTheme,
-      toggleTheme: () => setTheme((prev) => (prev === 'light' ? 'dark' : 'light')),
+      toggleTheme: () =>
+        setTheme((prev) => {
+          if (prev === 'light') return 'dark';
+          if (prev === 'dark') return 'bloomberg';
+          return 'light';
+        }),
     }),
     [theme],
   );

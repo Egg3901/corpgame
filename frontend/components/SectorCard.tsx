@@ -96,6 +96,7 @@ export default function SectorCard({
     'Logistics Capacity': 1000,
   };
 
+  const BASE_SECTOR_CAPACITY = 15;
   const PRODUCTION_LABOR_COST = 400;
   const PRODUCTION_RESOURCE_CONSUMPTION = 0.5;
   const PRODUCTION_ELECTRICITY_CONSUMPTION = 0.5;
@@ -121,6 +122,10 @@ export default function SectorCard({
   const applyDemandFactorCost = (baseCost: number) => baseCost / Math.max(1, stateGrowthFactor);
 
   const totalUnits = units.retail + units.production + units.service + units.extraction;
+  const stateCapacity = Math.floor(BASE_SECTOR_CAPACITY * stateMultiplier);
+  const capacityPercentage = stateCapacity > 0 ? (totalUnits / stateCapacity) * 100 : 0;
+  const isNearCapacity = capacityPercentage >= 80;
+  const isAtCapacity = totalUnits >= stateCapacity;
 
   const buildProductionFlow = (): MarketUnitFlow | null => {
     if (unitFlows?.production) {
@@ -393,7 +398,18 @@ export default function SectorCard({
           <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400">
             <span>Entered {new Date(enteredDate).toLocaleDateString()}</span>
             <span>•</span>
-            <span>{totalUnits} units</span>
+            <span className={`font-mono ${
+              isAtCapacity ? 'text-red-600 dark:text-red-400' :
+              isNearCapacity ? 'text-amber-600 dark:text-amber-400' :
+              'text-gray-500 dark:text-gray-400'
+            }`}>
+              {totalUnits}/{stateCapacity} units
+            </span>
+            {isAtCapacity && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300">
+                AT CAPACITY
+              </span>
+            )}
             {corporation && (
               <>
                 <span>•</span>
@@ -497,10 +513,10 @@ export default function SectorCard({
             {showActions && onBuildUnit && (
               <button
                 onClick={() => onBuildUnit('retail')}
-                disabled={building === 'retail' || !canBuild}
+                disabled={building === 'retail' || !canBuild || isAtCapacity}
                 className="mt-2 w-full px-2 py-1 text-xs bg-pink-500 text-white rounded hover:bg-pink-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                {building === 'retail' ? '...' : `+1 (${formatCurrency(buildCost)})`}
+                {building === 'retail' ? '...' : isAtCapacity ? 'At Capacity' : `+1 (${formatCurrency(buildCost)})`}
               </button>
             )}
           </div>
@@ -542,10 +558,10 @@ export default function SectorCard({
             {showActions && onBuildUnit && (
               <button
                 onClick={() => onBuildUnit('production')}
-                disabled={building === 'production' || !canBuild}
+                disabled={building === 'production' || !canBuild || isAtCapacity}
                 className="mt-2 w-full px-2 py-1 text-xs bg-orange-500 text-white rounded hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                {building === 'production' ? '...' : `+1 (${formatCurrency(buildCost)})`}
+                {building === 'production' ? '...' : isAtCapacity ? 'At Capacity' : `+1 (${formatCurrency(buildCost)})`}
               </button>
             )}
           </div>
@@ -582,10 +598,10 @@ export default function SectorCard({
             {showActions && onBuildUnit && (
               <button
                 onClick={() => onBuildUnit('service')}
-                disabled={building === 'service' || !canBuild}
+                disabled={building === 'service' || !canBuild || isAtCapacity}
                 className="mt-2 w-full px-2 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                {building === 'service' ? '...' : `+1 (${formatCurrency(buildCost)})`}
+                {building === 'service' ? '...' : isAtCapacity ? 'At Capacity' : `+1 (${formatCurrency(buildCost)})`}
               </button>
             )}
           </div>
@@ -628,10 +644,10 @@ export default function SectorCard({
             {showActions && onBuildUnit && (
               <button
                 onClick={() => onBuildUnit('extraction')}
-                disabled={building === 'extraction' || !canBuild}
+                disabled={building === 'extraction' || !canBuild || isAtCapacity}
                 className="mt-2 w-full px-2 py-1 text-xs bg-amber-500 text-white rounded hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                {building === 'extraction' ? '...' : `+1 (${formatCurrency(buildCost)})`}
+                {building === 'extraction' ? '...' : isAtCapacity ? 'At Capacity' : `+1 (${formatCurrency(buildCost)})`}
               </button>
             )}
           </div>
