@@ -8,6 +8,21 @@
   --background-end-rgb: 249, 250, 251;
 }
 
+/* Midnight theme - dark blue-gray backgrounds */
+.dark.midnight {
+  --foreground-rgb: 243, 244, 246;
+  --background-start-rgb: 15, 23, 42;
+  --background-end-rgb: 15, 23, 42;
+}
+
+/* Black theme - pure black backgrounds */
+.dark.black {
+  --foreground-rgb: 243, 244, 246;
+  --background-start-rgb: 0, 0, 0;
+  --background-end-rgb: 0, 0, 0;
+}
+
+/* Generic dark mode fallback for dark: tailwind utilities */
 .dark {
   --foreground-rgb: 243, 244, 246;
   --background-start-rgb: 15, 23, 42;
@@ -86,6 +101,36 @@ body {
 
 .bloomberg .text-negative {
   color: var(--bloomberg-orange);
+}
+
+/* Black theme - pure black overrides for cards and panels */
+.dark.black .bg-gray-900,
+.dark.black .dark\:bg-gray-900 {
+  background-color: #000000 !important;
+}
+
+.dark.black .bg-gray-800,
+.dark.black .dark\:bg-gray-800,
+.dark.black .dark\:bg-gray-800\/60 {
+  background-color: #0a0a0a !important;
+}
+
+.dark.black .dark\:from-gray-900,
+.dark.black .dark\:via-gray-900,
+.dark.black .dark\:to-gray-800\/50 {
+  --tw-gradient-from: #000000 !important;
+  --tw-gradient-via: #000000 !important;
+  --tw-gradient-to: #0a0a0a !important;
+}
+
+.dark.black .border-gray-700,
+.dark.black .dark\:border-gray-700,
+.dark.black .dark\:border-gray-700\/50 {
+  border-color: #1a1a1a !important;
+}
+
+.dark.black .dark\:border-gray-800\/70 {
+  border-color: #111111 !important;
 }
 
 /* Bloomberg terminal specific styles */

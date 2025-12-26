@@ -33,14 +33,9 @@ export default function TickerTape({ corporations }: TickerTapeProps) {
     return name.toUpperCase().slice(0, 4);
   };
 
-  // Calculate change percentage (placeholder - using share_price as baseline)
-  // In real implementation, this would compare to previous price
+  // Get the 4-hour price change from API data
   const getChange = (corp: CorporationResponse) => {
-    // For now, simulate a small random change for visual interest
-    // In production, this would come from historical data
-    const basePrice = 1.0;
-    const change = ((corp.share_price - basePrice) / basePrice) * 100;
-    return change;
+    return corp.price_change_4h ?? 0;
   };
 
   // Create ticker items with change data

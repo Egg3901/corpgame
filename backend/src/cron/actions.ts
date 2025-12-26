@@ -817,12 +817,12 @@ async function recordMarketPrices(): Promise<void> {
     
     // Calculate and record commodity prices
     const commodities = calculateAllCommodityPrices(commoditySupply, commodityDemand);
-    for (const [resource, priceData] of Object.entries(commodities)) {
+    for (const priceData of commodities) {
       await CommodityPriceHistoryModel.create({
-        resource_name: resource,
+        resource_name: priceData.resource,
         price: priceData.currentPrice,
-        supply: commoditySupply[resource] || 0,
-        demand: commodityDemand[resource] || 0,
+        supply: priceData.totalSupply,
+        demand: commodityDemand[priceData.resource] || 0,
       });
     }
     

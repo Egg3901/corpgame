@@ -15,6 +15,7 @@ import {
   Zap,
   DollarSign,
   Bell,
+  Settings,
 } from 'lucide-react';
 import { authAPI, profileAPI, ProfileResponse, corporationAPI, messagesAPI } from '@/lib/api';
 import ServerTimeFooter from './ServerTimeFooter';
@@ -220,6 +221,11 @@ export default function AppNavigation({ children }: AppNavigationProps) {
     router.push('/messages');
   };
 
+  const handleSettings = () => {
+    setProfileDropdownOpen(false);
+    router.push('/settings');
+  };
+
   const handleNavClick = (path: string) => {
     if (path === '#') return; // Placeholder links
     setNavOpen(false);
@@ -335,11 +341,11 @@ export default function AppNavigation({ children }: AppNavigationProps) {
                   </button>
 
                   {profileDropdownOpen && (
-                    <div className="absolute right-0 mt-2 w-56 rounded-xl border border-gray-200/50 bg-white/95 shadow-2xl backdrop-blur dark:border-gray-700/50 dark:bg-gray-900/95 z-[9999] overflow-hidden">
+                    <div className="absolute right-0 mt-2 w-56 rounded-xl border border-gray-200/50 bg-white/95 shadow-2xl backdrop-blur dark:border-gray-700/50 dark:bg-gray-900/95 bloomberg:border-bloomberg-green bloomberg:bg-black/95 z-[9999] overflow-hidden">
                       <div className="py-1">
                         <button
                           onClick={handleViewMessages}
-                          className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                          className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 bloomberg:text-bloomberg-green hover:bg-gray-100 dark:hover:bg-gray-800 bloomberg:hover:bg-bloomberg-green/10 transition-colors"
                         >
                           <MessageSquare className="w-4 h-4" />
                           <span>View Messages</span>
@@ -351,15 +357,22 @@ export default function AppNavigation({ children }: AppNavigationProps) {
                         </button>
                         <button
                           onClick={handleOpenProfile}
-                          className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                          className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 bloomberg:text-bloomberg-green hover:bg-gray-100 dark:hover:bg-gray-800 bloomberg:hover:bg-bloomberg-green/10 transition-colors"
                         >
                           <User className="w-4 h-4" />
                           <span>View Profile</span>
                         </button>
-                        <div className="my-1 border-t border-gray-200 dark:border-gray-700" />
+                        <button
+                          onClick={handleSettings}
+                          className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 bloomberg:text-bloomberg-green hover:bg-gray-100 dark:hover:bg-gray-800 bloomberg:hover:bg-bloomberg-green/10 transition-colors"
+                        >
+                          <Settings className="w-4 h-4" />
+                          <span>Settings</span>
+                        </button>
+                        <div className="my-1 border-t border-gray-200 dark:border-gray-700 bloomberg:border-bloomberg-green-dim" />
                         <button
                           onClick={handleLogout}
-                          className="w-full flex items-center gap-3 px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                          className="w-full flex items-center gap-3 px-4 py-2 text-sm text-red-600 dark:text-red-400 bloomberg:text-bloomberg-orange hover:bg-red-50 dark:hover:bg-red-900/20 bloomberg:hover:bg-bloomberg-orange/10 transition-colors"
                         >
                           <LogOut className="w-4 h-4" />
                           <span>Logout</span>

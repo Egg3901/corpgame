@@ -30,6 +30,12 @@ module.exports = {
           black: '#000000',
         },
       },
+      backgroundColor: {
+        // Black mode overrides - pure black backgrounds
+        'black-bg': '#000000',
+        'black-card': '#0a0a0a',
+        'black-hover': '#111111',
+      },
     },
   },
   plugins: [],

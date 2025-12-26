@@ -59,15 +59,16 @@ async function isCeo(corporationId: number, userId: number): Promise<boolean> {
 router.get('/', async (req: Request, res: Response) => {
   try {
     const corporations = await CorporationModel.findAll();
-    
+
     // Get all unique CEO IDs
     const ceoIds = [...new Set(corporations.map(c => c.ceo_id))];
-    
+    const corpIds = corporations.map(c => c.id);
+
     // Batch fetch all CEOs in a single query
     let ceoMap = new Map<number, any>();
     if (ceoIds.length > 0) {
       const ceoResult = await pool.query(
-        `SELECT id, profile_id, username, player_name, profile_slug, profile_image_url 
+        `SELECT id, profile_id, username, player_name, profile_slug, profile_image_url
          FROM users WHERE id = ANY($1)`,
         [ceoIds]
       );
@@ -82,14 +83,41 @@ router.get('/', async (req: Request, res: Response) => {
         });
       }
     }
-    
-    // Build corporations with CEO details using pre-fetched data
-    const corporationsWithCeo = corporations.map((corp) => ({
-      ...corp,
-      logo: normalizeImageUrl(corp.logo),
-      ceo: ceoMap.get(corp.ceo_id) || null,
-    }));
-    
+
+    // Batch fetch 4-hour price change for all corporations
+    // Gets the oldest price within the last 4 hours for each corporation
+    let priceChangeMap = new Map<number, number>();
+    if (corpIds.length > 0) {
+      const priceResult = await pool.query(
+        `SELECT DISTINCT ON (corporation_id)
+           corporation_id, share_price
+         FROM share_price_history
+         WHERE corporation_id = ANY($1)
+           AND recorded_at >= NOW() - INTERVAL '4 hours'
+         ORDER BY corporation_id, recorded_at ASC`,
+        [corpIds]
+      );
+      for (const row of priceResult.rows) {
+        const oldPrice = parseFloat(row.share_price);
+        priceChangeMap.set(row.corporation_id, oldPrice);
+      }
+    }
+
+    // Build corporations with CEO details and price change using pre-fetched data
+    const corporationsWithCeo = corporations.map((corp) => {
+      const oldPrice = priceChangeMap.get(corp.id);
+      const priceChange4h = oldPrice && oldPrice > 0
+        ? ((corp.share_price - oldPrice) / oldPrice) * 100
+        : 0;
+
+      return {
+        ...corp,
+        logo: normalizeImageUrl(corp.logo),
+        ceo: ceoMap.get(corp.ceo_id) || null,
+        price_change_4h: priceChange4h,
+      };
+    });
+
     res.json(corporationsWithCeo);
   } catch (error) {
     console.error('List corporations error:', error);

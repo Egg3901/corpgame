@@ -52,7 +52,7 @@ export default function SettingsPage() {
     setResetting(false);
   };
 
-  const handleSelectTheme = (value: 'light' | 'dark' | 'bloomberg') => {
+  const handleSelectTheme = (value: 'light' | 'midnight' | 'black' | 'bloomberg') => {
     if (value !== theme) {
       setTheme(value);
     }
@@ -253,7 +253,7 @@ export default function SettingsPage() {
               <label className="text-sm font-medium text-gray-700 dark:text-gray-200 bloomberg:text-bloomberg-green-bright">
                 Select Theme
               </label>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <button
                   onClick={() => handleSelectTheme('light')}
                   className={`group relative px-4 py-6 rounded-lg border-2 text-sm font-medium transition-all ${
@@ -270,28 +270,49 @@ export default function SettingsPage() {
                     </div>
                     <span className="font-semibold">Light</span>
                     <span className="text-xs text-gray-500 dark:text-gray-400 bloomberg:text-bloomberg-green-dim text-center">
-                      Clean, bright interface
+                      Clean, bright
                     </span>
                   </div>
                 </button>
 
                 <button
-                  onClick={() => handleSelectTheme('dark')}
+                  onClick={() => handleSelectTheme('midnight')}
                   className={`group relative px-4 py-6 rounded-lg border-2 text-sm font-medium transition-all ${
-                    theme === 'dark'
+                    theme === 'midnight'
                       ? 'border-corporate-blue bg-corporate-blue/5 text-corporate-blue'
                       : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:border-gray-600 bloomberg:border-bloomberg-green-dim bloomberg:bg-black bloomberg:text-bloomberg-green bloomberg:hover:border-bloomberg-green'
                   }`}
                 >
                   <div className="flex flex-col items-center gap-2">
                     <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                      theme === 'dark' ? 'bg-corporate-blue/10' : 'bg-gray-100 dark:bg-gray-700 bloomberg:bg-bloomberg-green/10'
+                      theme === 'midnight' ? 'bg-corporate-blue/10' : 'bg-gray-100 dark:bg-gray-700 bloomberg:bg-bloomberg-green/10'
                     }`}>
                       <Monitor className="w-6 h-6" />
                     </div>
-                    <span className="font-semibold">Dark</span>
+                    <span className="font-semibold">Midnight</span>
                     <span className="text-xs text-gray-500 dark:text-gray-400 bloomberg:text-bloomberg-green-dim text-center">
-                      Reduced eye strain
+                      Dark blue-gray
+                    </span>
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => handleSelectTheme('black')}
+                  className={`group relative px-4 py-6 rounded-lg border-2 text-sm font-medium transition-all ${
+                    theme === 'black'
+                      ? 'border-corporate-blue bg-corporate-blue/5 text-corporate-blue'
+                      : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:border-gray-600 bloomberg:border-bloomberg-green-dim bloomberg:bg-black bloomberg:text-bloomberg-green bloomberg:hover:border-bloomberg-green'
+                  }`}
+                >
+                  <div className="flex flex-col items-center gap-2">
+                    <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
+                      theme === 'black' ? 'bg-corporate-blue/10' : 'bg-gray-100 dark:bg-gray-700 bloomberg:bg-bloomberg-green/10'
+                    }`}>
+                      <Monitor className="w-6 h-6" />
+                    </div>
+                    <span className="font-semibold">Black</span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400 bloomberg:text-bloomberg-green-dim text-center">
+                      Pure OLED black
                     </span>
                   </div>
                 </button>
@@ -312,7 +333,7 @@ export default function SettingsPage() {
                     </div>
                     <span className="font-semibold font-bloomberg">Bloomberg</span>
                     <span className="text-xs text-gray-500 dark:text-gray-400 bloomberg:text-bloomberg-green-dim text-center">
-                      Retro terminal aesthetic
+                      Retro terminal
                     </span>
                   </div>
                 </button>

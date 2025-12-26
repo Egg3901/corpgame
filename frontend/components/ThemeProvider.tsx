@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 
-type Theme = 'light' | 'dark' | 'bloomberg';
+type Theme = 'light' | 'midnight' | 'black' | 'bloomberg';
 
 interface ThemeContextValue {
   theme: Theme;
@@ -26,10 +26,13 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       typeof window !== 'undefined' ? window.matchMedia('(prefers-color-scheme: dark)').matches : false;
 
     let initialTheme: Theme = 'light';
-    if (storedTheme === 'dark' || storedTheme === 'bloomberg') {
+    // Migrate old 'dark' theme to 'midnight'
+    if (storedTheme === 'dark') {
+      initialTheme = 'midnight';
+    } else if (storedTheme === 'midnight' || storedTheme === 'black' || storedTheme === 'bloomberg') {
       initialTheme = storedTheme as Theme;
     } else if (!storedTheme && prefersDark) {
-      initialTheme = 'dark';
+      initialTheme = 'midnight';
     }
 
     setTheme(initialTheme);
@@ -41,11 +44,13 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     const root = document.documentElement;
 
     // Remove all theme classes
-    root.classList.remove('dark', 'bloomberg');
+    root.classList.remove('dark', 'midnight', 'black', 'bloomberg');
 
     // Add the appropriate theme class
-    if (theme === 'dark') {
-      root.classList.add('dark');
+    if (theme === 'midnight') {
+      root.classList.add('dark', 'midnight');
+    } else if (theme === 'black') {
+      root.classList.add('dark', 'black');
     } else if (theme === 'bloomberg') {
       root.classList.add('bloomberg');
     }
@@ -59,8 +64,9 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       setTheme,
       toggleTheme: () =>
         setTheme((prev) => {
-          if (prev === 'light') return 'dark';
-          if (prev === 'dark') return 'bloomberg';
+          if (prev === 'light') return 'midnight';
+          if (prev === 'midnight') return 'black';
+          if (prev === 'black') return 'bloomberg';
           return 'light';
         }),
     }),

@@ -168,6 +168,7 @@ export interface CorporationResponse {
   special_dividend_last_amount?: number | null;
   focus?: CorpFocus;
   created_at: string;
+  price_change_4h?: number;
   ceo?: {
     id: number;
     profile_id: number;
