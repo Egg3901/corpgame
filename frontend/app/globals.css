@@ -103,7 +103,75 @@ body {
   color: var(--bloomberg-orange);
 }
 
+/* Midnight theme - dark blue-gray overrides for all components */
+.dark.midnight .bg-white,
+.dark.midnight .bg-gray-50,
+.dark.midnight .bg-gray-100 {
+  background-color: #0f172a !important;
+}
+
+.dark.midnight .bg-gray-900,
+.dark.midnight .dark\:bg-gray-900 {
+  background-color: #0f172a !important;
+}
+
+.dark.midnight .bg-gray-800,
+.dark.midnight .dark\:bg-gray-800,
+.dark.midnight .dark\:bg-gray-800\/60 {
+  background-color: #1e293b !important;
+}
+
+.dark.midnight .dark\:from-gray-900,
+.dark.midnight .dark\:via-gray-900,
+.dark.midnight .dark\:to-gray-950 {
+  --tw-gradient-from: #0f172a !important;
+  --tw-gradient-via: #0f172a !important;
+  --tw-gradient-to: #0f172a !important;
+}
+
+.dark.midnight .dark\:from-gray-950,
+.dark.midnight .dark\:via-gray-900,
+.dark.midnight .dark\:to-gray-950 {
+  --tw-gradient-from: #0f172a !important;
+  --tw-gradient-via: #0f172a !important;
+  --tw-gradient-to: #0f172a !important;
+}
+
+.dark.midnight .border-gray-700,
+.dark.midnight .dark\:border-gray-700,
+.dark.midnight .dark\:border-gray-700\/50,
+.dark.midnight .dark\:border-gray-700\/60 {
+  border-color: #334155 !important;
+}
+
+.dark.midnight .border-gray-100,
+.dark.midnight .border-gray-200 {
+  border-color: #334155 !important;
+}
+
+/* Midnight theme - text color overrides for visibility */
+.dark.midnight .text-gray-900,
+.dark.midnight .dark\:text-white {
+  color: #f3f4f6 !important;
+}
+
+.dark.midnight .text-gray-600,
+.dark.midnight .dark\:text-gray-300 {
+  color: #cbd5e1 !important;
+}
+
+.dark.midnight .text-gray-500,
+.dark.midnight .dark\:text-gray-400 {
+  color: #94a3b8 !important;
+}
+
 /* Black theme - pure black overrides for cards and panels */
+.dark.black .bg-white,
+.dark.black .bg-gray-50,
+.dark.black .bg-gray-100 {
+  background-color: #000000 !important;
+}
+
 .dark.black .bg-gray-900,
 .dark.black .dark\:bg-gray-900 {
   background-color: #000000 !important;
@@ -117,20 +185,51 @@ body {
 
 .dark.black .dark\:from-gray-900,
 .dark.black .dark\:via-gray-900,
-.dark.black .dark\:to-gray-800\/50 {
+.dark.black .dark\:to-gray-800\/50,
+.dark.black .dark\:to-gray-950 {
   --tw-gradient-from: #000000 !important;
   --tw-gradient-via: #000000 !important;
   --tw-gradient-to: #0a0a0a !important;
 }
 
+.dark.black .dark\:from-gray-950,
+.dark.black .dark\:via-gray-900,
+.dark.black .dark\:to-gray-950 {
+  --tw-gradient-from: #000000 !important;
+  --tw-gradient-via: #000000 !important;
+  --tw-gradient-to: #000000 !important;
+}
+
 .dark.black .border-gray-700,
 .dark.black .dark\:border-gray-700,
-.dark.black .dark\:border-gray-700\/50 {
+.dark.black .dark\:border-gray-700\/50,
+.dark.black .dark\:border-gray-700\/60 {
+  border-color: #1a1a1a !important;
+}
+
+.dark.black .border-gray-100,
+.dark.black .border-gray-200 {
   border-color: #1a1a1a !important;
 }
 
 .dark.black .dark\:border-gray-800\/70 {
   border-color: #111111 !important;
+}
+
+/* Black theme - text color overrides for visibility */
+.dark.black .text-gray-900,
+.dark.black .dark\:text-white {
+  color: #f3f4f6 !important;
+}
+
+.dark.black .text-gray-600,
+.dark.black .dark\:text-gray-300 {
+  color: #e5e7eb !important;
+}
+
+.dark.black .text-gray-500,
+.dark.black .dark\:text-gray-400 {
+  color: #9ca3af !important;
 }
 
 /* Bloomberg terminal specific styles */
