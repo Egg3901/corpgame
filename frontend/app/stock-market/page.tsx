@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import AppNavigation from '@/components/AppNavigation';
@@ -54,7 +54,7 @@ const PRODUCT_COLORS: Record<string, { bg: string; text: string; border: string 
   'Logistics Capacity': { bg: 'bg-blue-600', text: 'text-blue-100', border: 'border-blue-500' },
 };
 
-export default function StockMarketPage() {
+function StockMarketPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [corporations, setCorporations] = useState<CorporationResponse[]>([]);
@@ -893,5 +893,22 @@ export default function StockMarketPage() {
         )}
       </div>
     </AppNavigation>
+  );
+}
+
+export default function StockMarketPage() {
+  return (
+    <Suspense fallback={
+      <AppNavigation>
+        <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center">
+          <div className="flex flex-col items-center gap-4">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-corporate-blue dark:border-corporate-blue-light bloomberg:border-bloomberg-green"></div>
+            <div className="text-lg text-gray-600 dark:text-gray-300 bloomberg:text-bloomberg-green font-medium">Loading market data...</div>
+          </div>
+        </div>
+      </AppNavigation>
+    }>
+      <StockMarketPageContent />
+    </Suspense>
   );
 }
