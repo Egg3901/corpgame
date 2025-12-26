@@ -94,6 +94,7 @@ export default function SectorCard({
     'Pharmaceutical Products': 8000,
     'Defense Equipment': 15000,
     'Logistics Capacity': 1000,
+    'Steel': 850,
   };
 
   const BASE_SECTOR_CAPACITY = 15;
@@ -109,10 +110,14 @@ export default function SectorCard({
   const SERVICE_WHOLESALE_DISCOUNT = 0.995;
 
   const isDefense = sectorType === 'Defense';
-  const isManufacturing = sectorType === 'Manufacturing';
+  const isLightIndustry = sectorType === 'Light Industry';
+  const isHeavyIndustry = sectorType === 'Heavy Industry';
+  const isMining = sectorType === 'Mining';
   const isRetailSector = sectorType === 'Retail';
 
-  const showRetail = !isManufacturing;
+  // Production-only sectors cannot build retail/service units
+  const isProductionOnly = isLightIndustry || isHeavyIndustry || isMining;
+  const showRetail = !isProductionOnly;
   const showProduction = !!producedProduct;
   const showService = true; // Always show service for now
   const showExtraction = canExtract;
@@ -208,8 +213,8 @@ export default function SectorCard({
       // Apply Defense wholesale discount for non-electricity products
       if (isDefenseSector && name !== 'Electricity') {
         mult *= DEFENSE_WHOLESALE_DISCOUNT;
-      } else if (sectorType === 'Manufacturing' && name !== 'Electricity') {
-        // Align Manufacturing service/retail (if applicable) with retail discount
+      } else if (sectorType === 'Light Industry' && name !== 'Electricity') {
+        // Align Light Industry service/retail (if applicable) with retail discount
         mult = RETAIL_WHOLESALE_DISCOUNT;
       }
       

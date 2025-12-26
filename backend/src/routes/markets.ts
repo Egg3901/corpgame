@@ -249,7 +249,7 @@ router.get('/metadata', async (req: Request, res: Response) => {
       if (sector === 'Energy') {
         productionInputsProducts['Logistics Capacity'] = ENERGY_LOGISTICS_CONSUMPTION;
       }
-      if (sector === 'Manufacturing') {
+      if (sector === 'Light Industry') {
         productionInputsProducts['Logistics Capacity'] = MANUFACTURING_LOGISTICS_CONSUMPTION;
       }
       if (sector === 'Agriculture') {
@@ -282,9 +282,8 @@ router.get('/metadata', async (req: Request, res: Response) => {
           let consumed = product === 'Electricity' ? SERVICE_ELECTRICITY_CONSUMPTION : SERVICE_PRODUCT_CONSUMPTION;
           if (sector === 'Defense' && product !== 'Electricity') {
             consumed = 1.0;
-          } else if (sector === 'Manufacturing' && product !== 'Electricity') {
-            consumed = 0.5; // Manufacturing service demands less
           }
+          // Note: Light Industry is production-only and cannot build service units
           serviceInputsProducts[product] = consumed;
         }
       }

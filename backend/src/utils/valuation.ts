@@ -250,8 +250,15 @@ export async function calculateStockPrice(corporationId: number): Promise<StockV
   // Cash per share (informational only - included in book value, not weighted separately)
   const cashPerShare = totalShares > 0 ? balanceSheet.cash / totalShares : 0;
 
+  // Get CEO salary (per 96h) and convert to period cost
+  const ceoSalaryPer96h = typeof corporation.ceo_salary === 'string'
+    ? parseFloat(corporation.ceo_salary)
+    : (corporation.ceo_salary || 0);
+
   // Period earnings calculation (96-hour period to match Income Statement)
-  const periodProfit = finances.hourly_profit * DISPLAY_PERIOD_HOURS;
+  // Must subtract CEO salary to match financial statement's Operating Income calculation
+  const grossPeriodProfit = finances.hourly_profit * DISPLAY_PERIOD_HOURS;
+  const periodProfit = grossPeriodProfit - ceoSalaryPer96h;
   const earningsPerShare = totalShares > 0 ? periodProfit / totalShares : 0;
 
   // Earnings value with P/E ratio

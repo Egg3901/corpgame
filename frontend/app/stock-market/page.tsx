@@ -6,31 +6,34 @@ import Link from 'next/link';
 import AppNavigation from '@/components/AppNavigation';
 import TickerTape from '@/components/TickerTape';
 import { corporationAPI, CorporationResponse, marketsAPI, CommodityPrice, ProductMarketData, MarketMetadataResponse, sharesAPI, SharePriceHistoryResponse } from '@/lib/api';
-import { Building2, Plus, TrendingUp, TrendingDown, Clock, FileText, ChevronRight, ArrowUpRight, ArrowDownRight, Package, Droplets, Cpu, Zap, Wheat, Trees, FlaskConical, MapPin, Box, Lightbulb, Pill, Wrench, Truck, Shield, UtensilsCrossed } from 'lucide-react';
+import { Building2, Plus, TrendingUp, TrendingDown, Clock, FileText, ChevronRight, ArrowUpRight, ArrowDownRight, Package, Droplets, Cpu, Zap, Wheat, Trees, FlaskConical, MapPin, Box, Lightbulb, Pill, Wrench, Truck, Shield, UtensilsCrossed, GitBranch, Mountain, Flame } from 'lucide-react';
+import CommodityRelationshipChart from '@/components/CommodityRelationshipChart';
 
-// Resource icon mapping
+// Resource icon mapping (raw materials extracted from nature)
 const RESOURCE_ICONS: Record<string, React.ReactNode> = {
   'Oil': <Droplets className="w-5 h-5" />,
-  'Steel': <Package className="w-5 h-5" />,
+  'Iron Ore': <Mountain className="w-5 h-5" />,
   'Rare Earth': <Cpu className="w-5 h-5" />,
   'Copper': <Zap className="w-5 h-5" />,
   'Fertile Land': <Wheat className="w-5 h-5" />,
   'Lumber': <Trees className="w-5 h-5" />,
   'Chemical Compounds': <FlaskConical className="w-5 h-5" />,
+  'Coal': <Flame className="w-5 h-5" />,
 };
 
-// Resource color mapping
+// Resource color mapping (raw materials extracted from nature)
 const RESOURCE_COLORS: Record<string, { bg: string; text: string; border: string }> = {
   'Oil': { bg: 'bg-slate-900', text: 'text-slate-100', border: 'border-slate-700' },
-  'Steel': { bg: 'bg-zinc-600', text: 'text-zinc-100', border: 'border-zinc-500' },
+  'Iron Ore': { bg: 'bg-red-800', text: 'text-red-100', border: 'border-red-700' },
   'Rare Earth': { bg: 'bg-violet-600', text: 'text-violet-100', border: 'border-violet-500' },
   'Copper': { bg: 'bg-orange-600', text: 'text-orange-100', border: 'border-orange-500' },
   'Fertile Land': { bg: 'bg-lime-600', text: 'text-lime-100', border: 'border-lime-500' },
   'Lumber': { bg: 'bg-amber-700', text: 'text-amber-100', border: 'border-amber-600' },
   'Chemical Compounds': { bg: 'bg-cyan-600', text: 'text-cyan-100', border: 'border-cyan-500' },
+  'Coal': { bg: 'bg-gray-800', text: 'text-gray-100', border: 'border-gray-700' },
 };
 
-// Product icon mapping
+// Product icon mapping (manufactured goods produced by production units)
 const PRODUCT_ICONS: Record<string, React.ReactNode> = {
   'Technology Products': <Cpu className="w-5 h-5" />,
   'Manufactured Goods': <Wrench className="w-5 h-5" />,
@@ -40,9 +43,10 @@ const PRODUCT_ICONS: Record<string, React.ReactNode> = {
   'Pharmaceutical Products': <Pill className="w-5 h-5" />,
   'Defense Equipment': <Shield className="w-5 h-5" />,
   'Logistics Capacity': <Truck className="w-5 h-5" />,
+  'Steel': <Package className="w-5 h-5" />,
 };
 
-// Product color mapping
+// Product color mapping (manufactured goods produced by production units)
 const PRODUCT_COLORS: Record<string, { bg: string; text: string; border: string }> = {
   'Technology Products': { bg: 'bg-indigo-600', text: 'text-indigo-100', border: 'border-indigo-500' },
   'Manufactured Goods': { bg: 'bg-gray-600', text: 'text-gray-100', border: 'border-gray-500' },
@@ -52,6 +56,7 @@ const PRODUCT_COLORS: Record<string, { bg: string; text: string; border: string 
   'Pharmaceutical Products': { bg: 'bg-rose-600', text: 'text-rose-100', border: 'border-rose-500' },
   'Defense Equipment': { bg: 'bg-red-700', text: 'text-red-100', border: 'border-red-600' },
   'Logistics Capacity': { bg: 'bg-blue-600', text: 'text-blue-100', border: 'border-blue-500' },
+  'Steel': { bg: 'bg-zinc-600', text: 'text-zinc-100', border: 'border-zinc-500' },
 };
 
 function StockMarketPageContent() {
@@ -66,7 +71,7 @@ function StockMarketPageContent() {
   const [marketMetadata, setMarketMetadata] = useState<MarketMetadataResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [commoditiesLoading, setCommoditiesLoading] = useState(false);
-  const [activeSubTab, setActiveSubTab] = useState<'resources' | 'products'>('resources');
+  const [activeSubTab, setActiveSubTab] = useState<'resources' | 'products' | 'charts'>('resources');
   const [error, setError] = useState('');
   const [currentTime, setCurrentTime] = useState(new Date());
   const [activeTab, setActiveTab] = useState<'stocks' | 'products' | 'bonds'>('stocks');
@@ -79,8 +84,8 @@ function StockMarketPageContent() {
     if (tab === 'products' || tab === 'bonds') {
       setActiveTab(tab as 'products' | 'bonds');
     }
-    if (subtab === 'resources' || subtab === 'products') {
-      setActiveSubTab(subtab as 'resources' | 'products');
+    if (subtab === 'resources' || subtab === 'products' || subtab === 'charts') {
+      setActiveSubTab(subtab as 'resources' | 'products' | 'charts');
     }
   }, [searchParams]);
 
@@ -544,8 +549,8 @@ function StockMarketPageContent() {
             </div>
           ) : (
             <div className="space-y-6">
-              {/* Sub-tabs for Resources vs Products */}
-              <div className="flex bg-gray-100 dark:bg-gray-800 rounded-lg p-1 max-w-md">
+              {/* Sub-tabs for Resources vs Products vs Charts */}
+              <div className="flex bg-gray-100 dark:bg-gray-800 rounded-lg p-1 max-w-xl">
                 <button
                   onClick={() => setActiveSubTab('resources')}
                   className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
@@ -567,6 +572,17 @@ function StockMarketPageContent() {
                 >
                   <Box className="w-4 h-4" />
                   Products
+                </button>
+                <button
+                  onClick={() => setActiveSubTab('charts')}
+                  className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                    activeSubTab === 'charts'
+                      ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                  }`}
+                >
+                  <GitBranch className="w-4 h-4" />
+                  Supply Chain
                 </button>
               </div>
 
@@ -755,14 +771,14 @@ function StockMarketPageContent() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                   {products.map((product) => {
                     const colors = PRODUCT_COLORS[product.product] || { bg: 'bg-gray-600', text: 'text-gray-100', border: 'border-gray-500' };
-                    const priceChange = product.referenceValue > 0 
-                      ? ((product.currentPrice - product.referenceValue) / product.referenceValue) * 100 
+                    const priceChange = product.referenceValue > 0
+                      ? ((product.currentPrice - product.referenceValue) / product.referenceValue) * 100
                       : 0;
                     const isPositive = priceChange >= 0;
 
                     const producingSectors = marketMetadata?.product_suppliers?.[product.product] || product.producingSectors || [];
                     const consumingSectors = marketMetadata?.product_consumers?.[product.product] || product.demandingSectors || [];
-                    
+
                     return (
                       <Link
                         key={product.product}
@@ -776,8 +792,8 @@ function StockMarketPageContent() {
                             <span className="font-semibold text-sm">{product.product}</span>
                           </div>
                           <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                            isPositive 
-                              ? 'bg-emerald-500/20 text-emerald-200' 
+                            isPositive
+                              ? 'bg-emerald-500/20 text-emerald-200'
                               : 'bg-red-500/20 text-red-200'
                           }`}>
                             {isPositive ? '+' : ''}{priceChange.toFixed(1)}%
@@ -821,7 +837,7 @@ function StockMarketPageContent() {
                           <div className="flex items-center justify-between text-sm">
                             <span className="text-gray-500 dark:text-gray-400">Market</span>
                             <span className={`font-medium ${
-                              product.scarcityFactor >= 1.5 
+                              product.scarcityFactor >= 1.5
                                 ? 'text-red-600 dark:text-red-400'
                                 : product.scarcityFactor >= 0.8
                                 ? 'text-amber-600 dark:text-amber-400'
@@ -875,6 +891,28 @@ function StockMarketPageContent() {
                       </Link>
                     );
                   })}
+                </div>
+              )}
+
+              {/* Supply Chain Chart */}
+              {activeSubTab === 'charts' && (
+                <div className="space-y-4">
+                  {/* Info Banner */}
+                  <div className="rounded-xl border border-purple-200 dark:border-purple-800 bg-purple-50 dark:bg-purple-900/20 p-4">
+                    <div className="flex items-start gap-3">
+                      <GitBranch className="h-5 w-5 text-purple-600 dark:text-purple-400 mt-0.5 flex-shrink-0" />
+                      <div>
+                        <p className="text-sm font-medium text-purple-800 dark:text-purple-200">Production Chain Overview</p>
+                        <p className="text-sm text-purple-700 dark:text-purple-300">
+                          Interactive visualization showing how raw resources flow through sectors to produce products.
+                          Drag to pan, scroll to zoom, and click any node to view details.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Chart Component */}
+                  <CommodityRelationshipChart />
                 </div>
               )}
             </div>

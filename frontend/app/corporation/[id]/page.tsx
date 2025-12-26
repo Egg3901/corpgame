@@ -13,22 +13,25 @@ import SectorCard from '@/components/SectorCard';
 import { computeFinancialStatements } from '@/lib/finance';
 
 // Sector to Resource mapping (must match backend)
+// Note: Steel is now a PRODUCT, not a resource
 const SECTOR_RESOURCES: Record<string, string | null> = {
   'Technology': 'Rare Earth',
   'Finance': null,
   'Healthcare': null,
-  'Manufacturing': 'Steel',
-  'Energy': 'Oil',
+  'Light Industry': null,        // Consumes Steel PRODUCT
+  'Energy': null,                // Special: consumes Oil + Coal via ENERGY_INPUTS
   'Retail': null,
   'Real Estate': null,
-  'Transportation': 'Steel',
+  'Transportation': null,        // Consumes Steel PRODUCT
   'Media': null,
   'Telecommunications': 'Copper',
   'Agriculture': 'Fertile Land',
-  'Defense': 'Steel',
+  'Defense': null,               // Consumes Steel PRODUCT
   'Hospitality': null,
-  'Construction': 'Lumber',
+  'Construction': null,          // Special: consumes Lumber + Steel product
   'Pharmaceuticals': 'Chemical Compounds',
+  'Mining': null,
+  'Heavy Industry': null,        // Special: consumes Iron Ore + Coal via HEAVY_INDUSTRY_INPUTS
 };
 
 // Sector to Product output mapping (what production units create)
@@ -36,7 +39,7 @@ const SECTOR_PRODUCTS: Record<string, string | null> = {
   'Technology': 'Technology Products',
   'Finance': null,
   'Healthcare': null,
-  'Manufacturing': 'Manufactured Goods',
+  'Light Industry': 'Manufactured Goods',
   'Energy': 'Electricity',
   'Retail': null,
   'Real Estate': null,
@@ -48,6 +51,8 @@ const SECTOR_PRODUCTS: Record<string, string | null> = {
   'Hospitality': null,
   'Construction': 'Construction Capacity',
   'Pharmaceuticals': 'Pharmaceutical Products',
+  'Mining': null,
+  'Heavy Industry': 'Steel',
 };
 
 // Sector product demands (what products sectors need to operate)
@@ -55,18 +60,20 @@ const SECTOR_PRODUCT_DEMANDS: Record<string, string[] | null> = {
   'Technology': null,
   'Finance': ['Technology Products'],
   'Healthcare': ['Pharmaceutical Products'],
-  'Manufacturing': null,
+  'Light Industry': ['Steel'],
   'Energy': null,
   'Retail': ['Manufactured Goods'],
   'Real Estate': ['Construction Capacity'],
-  'Transportation': null,
+  'Transportation': ['Steel'],
   'Media': ['Technology Products'],
   'Telecommunications': ['Technology Products'],
   'Agriculture': null,
-  'Defense': ['Technology Products', 'Logistics Capacity'],
+  'Defense': ['Steel'],
   'Hospitality': ['Food Products'],
-  'Construction': null,
+  'Construction': ['Steel'],
   'Pharmaceuticals': null,
+  'Mining': null,
+  'Heavy Industry': null,
 };
 
 // Retail/Service unit constants
@@ -84,26 +91,28 @@ const UNIT_LABOR_COSTS = {
   service: 150,
 };
 
-// Resource icon mapping
+// Resource icon mapping (raw materials)
 const RESOURCE_ICONS: Record<string, React.ReactNode> = {
   'Oil': <Droplets className="w-4 h-4" />,
-  'Steel': <Package className="w-4 h-4" />,
+  'Iron Ore': <Pickaxe className="w-4 h-4" />,
   'Rare Earth': <Cpu className="w-4 h-4" />,
   'Copper': <Zap className="w-4 h-4" />,
   'Fertile Land': <Wheat className="w-4 h-4" />,
   'Lumber': <Trees className="w-4 h-4" />,
   'Chemical Compounds': <FlaskConical className="w-4 h-4" />,
+  'Coal': <Layers className="w-4 h-4" />,
 };
 
-// Resource color classes
+// Resource color classes (raw materials)
 const RESOURCE_COLORS: Record<string, string> = {
   'Oil': 'text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800',
-  'Steel': 'text-zinc-700 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-800',
+  'Iron Ore': 'text-red-700 dark:text-red-300 bg-red-100 dark:bg-red-800',
   'Rare Earth': 'text-violet-700 dark:text-violet-300 bg-violet-100 dark:bg-violet-800',
   'Copper': 'text-orange-700 dark:text-orange-300 bg-orange-100 dark:bg-orange-800',
   'Fertile Land': 'text-lime-700 dark:text-lime-300 bg-lime-100 dark:bg-lime-800',
   'Lumber': 'text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-800',
   'Chemical Compounds': 'text-cyan-700 dark:text-cyan-300 bg-cyan-100 dark:bg-cyan-800',
+  'Coal': 'text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800',
 };
 
 // Product icon mapping
@@ -116,6 +125,7 @@ const PRODUCT_ICONS: Record<string, React.ReactNode> = {
   'Pharmaceutical Products': <Pill className="w-4 h-4" />,
   'Defense Equipment': <Shield className="w-4 h-4" />,
   'Logistics Capacity': <Truck className="w-4 h-4" />,
+  'Steel': <Package className="w-4 h-4" />,
 };
 
 // Product color classes
@@ -128,6 +138,7 @@ const PRODUCT_COLORS: Record<string, string> = {
   'Pharmaceutical Products': 'text-rose-700 dark:text-rose-300 bg-rose-100 dark:bg-rose-900/50',
   'Defense Equipment': 'text-red-700 dark:text-red-300 bg-red-100 dark:bg-red-900/50',
   'Logistics Capacity': 'text-blue-700 dark:text-blue-300 bg-blue-100 dark:bg-blue-900/50',
+  'Steel': 'text-zinc-700 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-800',
 };
 
 // Unit economics for revenue calculation (must match backend)
@@ -144,7 +155,7 @@ const SECTORS_CAN_EXTRACT: Record<string, string[] | null> = {
   'Technology': null,
   'Finance': null,
   'Healthcare': null,
-  'Manufacturing': ['Steel'],
+  'Light Industry': null,
   'Energy': ['Oil'],
   'Retail': null,
   'Real Estate': null,
@@ -156,7 +167,8 @@ const SECTORS_CAN_EXTRACT: Record<string, string[] | null> = {
   'Hospitality': null,
   'Construction': ['Lumber'],
   'Pharmaceuticals': ['Chemical Compounds'],
-  'Mining': ['Steel', 'Copper', 'Rare Earth'],
+  'Mining': ['Iron Ore', 'Coal', 'Copper', 'Rare Earth'],
+  'Heavy Industry': null,
 };
 
 // Check if a sector can extract
@@ -175,6 +187,7 @@ const PRODUCT_BASE_PRICES: Record<string, number> = {
   'Pharmaceutical Products': 8000,
   'Defense Equipment': 15000,
   'Logistics Capacity': 1000,
+  'Steel': 850,
 };
 
 // Production unit constants (must match backend)

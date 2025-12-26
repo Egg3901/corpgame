@@ -12,7 +12,7 @@ const SECTORS = [
   'Technology',
   'Finance',
   'Healthcare',
-  'Manufacturing',
+  'Light Industry',
   'Energy',
   'Retail',
   'Real Estate',
@@ -25,6 +25,7 @@ const SECTORS = [
   'Construction',
   'Pharmaceuticals',
   'Mining',
+  'Heavy Industry',
 ] as const;
 
 // Corporation focus types

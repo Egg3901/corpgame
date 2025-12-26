@@ -37,6 +37,8 @@ import {
   // Heavy Industry special constants
   HEAVY_INDUSTRY_INPUTS,
   HEAVY_INDUSTRY_ELECTRICITY_CONSUMPTION,
+  // Energy sector multi-resource consumption
+  ENERGY_INPUTS,
   type Sector,
   type Product,
   type Resource,
@@ -65,9 +67,7 @@ export const SECTOR_RULES: Record<string, {
     retailConsumption: 1.0,      // 1.0 instead of 2.0
     serviceConsumption: 1.0,    // 1.0 instead of 1.5
   },
-  'Manufacturing': {
-    serviceConsumption: 0.5,    // 0.5 instead of 1.5
-  },
+  // Note: Light Industry is production-only and cannot build service units
 };
 
 export class BusinessUnitCalculator {
@@ -144,7 +144,7 @@ export class BusinessUnitCalculator {
     if (unitType === 'production') {
       if (product === 'Logistics Capacity') {
         if (sector === 'Energy') return ENERGY_LOGISTICS_CONSUMPTION;
-        if (sector === 'Manufacturing') return MANUFACTURING_LOGISTICS_CONSUMPTION;
+        if (sector === 'Light Industry') return MANUFACTURING_LOGISTICS_CONSUMPTION;
       }
       if (product === 'Manufactured Goods') {
         if (sector === 'Agriculture') return AGRICULTURE_MANUFACTURED_GOODS_CONSUMPTION;
@@ -292,6 +292,15 @@ export class BusinessUnitCalculator {
       const heavyInput = HEAVY_INDUSTRY_INPUTS[resource as Resource];
       if (heavyInput !== undefined) {
         return unitCount * heavyInput;
+      }
+      return 0;
+    }
+
+    // SPECIAL CASE: Energy sector consumes Oil + Coal (multi-resource)
+    if (sector === 'Energy') {
+      const energyInput = ENERGY_INPUTS[resource as Resource];
+      if (energyInput !== undefined) {
+        return unitCount * energyInput;
       }
       return 0;
     }

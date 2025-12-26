@@ -286,7 +286,7 @@ export default function AppNavigation({ children }: AppNavigationProps) {
                 <Menu className="w-5 h-5" />
               </button>
               <div className="leading-tight min-w-0">
-                <p className="text-[11px] uppercase tracking-[0.2em] text-gray-500 dark:text-gray-400 hidden sm:block">Navigation</p>
+                <p className="text-[11px] uppercase tracking-[0.2em] text-gray-500 dark:text-slate-400 hidden sm:block">Navigation</p>
                 <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">Corporate Warfare</p>
               </div>
             </div>
@@ -317,7 +317,7 @@ export default function AppNavigation({ children }: AppNavigationProps) {
                   <button
                     type="button"
                     onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
-                    className="group relative inline-flex items-center gap-2 sm:gap-3 rounded-2xl border px-2 sm:px-3 py-2 text-left shadow-md transition hover:-translate-y-0.5 hover:shadow-lg border-white/70 bg-gradient-to-r from-white/90 to-white/60 dark:border-gray-600/70 dark:from-gray-800/90 dark:to-gray-900/80"
+                    className="group relative inline-flex items-center gap-2 sm:gap-3 rounded-2xl border px-2 sm:px-3 py-2 text-left shadow-md transition hover:-translate-y-0.5 hover:shadow-lg border-white/70 bg-gradient-to-r from-white/90 to-white/60 dark:border-gray-600/70 dark:bg-gray-800 dark:from-transparent dark:to-transparent"
                   >
                     <div className="relative flex h-10 w-10 items-center justify-center overflow-visible rounded-xl border flex-shrink-0 border-white/60 bg-corporate-blue/10 dark:border-gray-600 dark:bg-gray-700">
                       <img
@@ -336,13 +336,13 @@ export default function AppNavigation({ children }: AppNavigationProps) {
                       )}
                     </div>
                     <div className="leading-tight hidden sm:block min-w-0">
-                      <p className="text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-300">Profile</p>
+                      <p className="text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400">Profile</p>
                       <p className="text-sm font-semibold text-gray-900 dark:text-white truncate max-w-[120px]">
                         {viewerProfile?.player_name || viewerProfile?.username || 'Your Profile'}
                       </p>
-                      <p className="text-[11px] text-gray-500 dark:text-gray-300">#{viewerProfileId}</p>
+                      <p className="text-[11px] text-gray-500 dark:text-gray-400">#{viewerProfileId}</p>
                     </div>
-                    <ChevronDown className={`w-4 h-4 text-gray-500 dark:text-gray-300 transition-transform flex-shrink-0 hidden sm:block ${profileDropdownOpen ? 'rotate-180' : ''}`} />
+                    <ChevronDown className={`w-4 h-4 text-gray-500 dark:text-gray-400 transition-transform flex-shrink-0 hidden sm:block ${profileDropdownOpen ? 'rotate-180' : ''}`} />
                   </button>
 
                   {profileDropdownOpen && (
@@ -398,9 +398,9 @@ export default function AppNavigation({ children }: AppNavigationProps) {
       <ServerTimeFooter />
 
       {navOpen && (
-        <div className="fixed inset-0 z-40 bg-black/55 backdrop-blur-sm" onClick={() => setNavOpen(false)}>
+        <div className="fixed inset-0 z-[60] bg-black/55 backdrop-blur-sm" onClick={() => setNavOpen(false)}>
           <div
-            className="fixed left-0 top-0 bottom-0 w-80 sm:w-96 overflow-y-auto bg-white text-gray-900 shadow-2xl ring-1 ring-black/5 dark:bg-gray-900 dark:text-gray-100 dark:ring-white/10"
+            className="fixed left-0 top-0 bottom-0 w-80 sm:w-96 overflow-y-auto scrollbar-hide bg-white text-gray-900 shadow-2xl ring-1 ring-black/5 dark:bg-gray-900 dark:text-gray-100 dark:ring-white/10"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4 dark:border-gray-800">
@@ -497,6 +497,13 @@ export default function AppNavigation({ children }: AppNavigationProps) {
                       }`}
                     >
                       Products
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleNavClick('/stock-market?tab=products&subtab=charts')}
+                      className="w-full text-left rounded-lg border px-4 py-2 text-sm font-medium shadow-sm transition hover:-translate-y-0.5 border-gray-200 bg-white text-gray-700 hover:border-corporate-blue hover:text-corporate-blue dark:border-gray-800 dark:bg-gray-800 dark:text-gray-200"
+                    >
+                      Supply Chain
                     </button>
                     <button
                       type="button"

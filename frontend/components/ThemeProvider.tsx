@@ -1,6 +1,7 @@
 'use client';
 
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { usePathname } from 'next/navigation';
 
 type Theme = 'light' | 'midnight' | 'black' | 'bloomberg';
 
@@ -16,9 +17,17 @@ const ThemeContext = createContext<ThemeContextValue>({
   toggleTheme: () => undefined,
 });
 
+// Routes that should not have theme applied (use their own styles)
+const PUBLIC_ROUTES = ['/', '/login', '/register'];
+
+function isPublicRoute(pathname: string): boolean {
+  return PUBLIC_ROUTES.includes(pathname) || pathname.startsWith('/register/');
+}
+
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState<Theme>('light');
   const [mounted, setMounted] = useState(false);
+  const pathname = usePathname();
 
   useEffect(() => {
     const storedTheme = typeof window !== 'undefined' ? localStorage.getItem('theme') : null;
@@ -43,10 +52,15 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     if (!mounted) return;
     const root = document.documentElement;
 
-    // Remove all theme classes
+    // Remove all theme classes first
     root.classList.remove('dark', 'midnight', 'black', 'bloomberg');
 
-    // Add the appropriate theme class
+    // Don't apply theme classes on public routes - they have their own styles
+    if (isPublicRoute(pathname)) {
+      return;
+    }
+
+    // Add the appropriate theme class for authenticated routes
     if (theme === 'midnight') {
       root.classList.add('dark', 'midnight');
     } else if (theme === 'black') {
@@ -56,7 +70,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     }
 
     localStorage.setItem('theme', theme);
-  }, [theme, mounted]);
+  }, [theme, mounted, pathname]);
 
   const value = useMemo(
     () => ({

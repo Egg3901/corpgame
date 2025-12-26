@@ -8,29 +8,29 @@
   --background-end-rgb: 249, 250, 251;
 }
 
-/* Midnight theme - dark blue-gray backgrounds */
+/* Midnight theme - dark backgrounds with normal light-mode style colors */
 .dark.midnight {
   --foreground-rgb: 243, 244, 246;
   --background-start-rgb: 15, 23, 42;
   --background-end-rgb: 15, 23, 42;
 
-  /* Visual hierarchy - 4 background levels */
+  /* Visual hierarchy - 4 background levels (slate tones) */
   --bg-level-0: #0f172a;     /* slate-900 - page background (darkest) */
   --bg-level-1: #1e293b;     /* slate-800 - section containers */
   --bg-level-2: #334155;     /* slate-700 - cards/panels */
   --bg-level-3: #475569;     /* slate-600 - inputs/interactive (lightest) */
 
-  /* Border colors - subtle to emphasized */
+  /* Border colors - subtle slate borders */
   --border-subtle: #475569;      /* slate-600 - subtle borders */
   --border-emphasis: #64748b;    /* slate-500 - emphasized borders */
   --border-active: #94a3b8;      /* slate-400 - active/hover */
 
-  /* Text hierarchy */
+  /* Text hierarchy - light text on dark backgrounds */
   --text-primary: #f1f5f9;       /* slate-100 - headers */
   --text-secondary: #cbd5e1;     /* slate-300 - body text */
   --text-tertiary: #94a3b8;      /* slate-400 - muted text */
 
-  /* Accent colors for highlights */
+  /* Accent colors - corporate blue remains */
   --accent-color: #3b82f6;       /* blue-500 - accent color */
   --accent-bg-subtle: #1e40af;   /* blue-800 - subtle accent bg */
 }
@@ -485,6 +485,258 @@ body {
 .dark.black .bg-gradient-to-br.from-violet-600,
 .dark.black .bg-gradient-to-br.from-gray-600 {
   background: var(--bg-level-1) !important;
+}
+
+/* ============================================================================
+   MIDNIGHT THEME - DARK BACKGROUNDS WITH LIGHT-MODE STYLE COLORS
+   ============================================================================ */
+
+/* Navbar text - ensure readable on dark background */
+.dark.midnight .text-gray-500,
+.dark.midnight .text-gray-600 {
+  color: var(--text-secondary) !important;
+}
+
+/* Profile badge - solid dark style without gradient */
+.dark.midnight .bg-gradient-to-r.from-white\/90,
+.dark.midnight .dark\:from-gray-800\/90 {
+  background: var(--bg-level-2) !important;
+  border-color: var(--border-emphasis) !important;
+}
+
+/* Shareholders table - proper contrast */
+.dark.midnight table thead tr {
+  background: var(--bg-level-1) !important;
+}
+
+.dark.midnight table tbody tr {
+  background: transparent !important;
+}
+
+.dark.midnight table tbody tr:nth-child(even) {
+  background: rgba(255, 255, 255, 0.02) !important;
+}
+
+.dark.midnight table tbody tr:nth-child(odd) {
+  background: rgba(0, 0, 0, 0.1) !important;
+}
+
+.dark.midnight table tbody tr:hover {
+  background: rgba(59, 130, 246, 0.08) !important;
+}
+
+.dark.midnight .bg-white\/40,
+.dark.midnight .bg-gray-50\/30 {
+  background: transparent !important;
+}
+
+.dark.midnight .dark\:bg-gray-900\/30 {
+  background: rgba(15, 23, 42, 0.5) !important;
+}
+
+.dark.midnight .dark\:bg-gray-800\/20 {
+  background: rgba(30, 41, 59, 0.3) !important;
+}
+
+/* Public shares row */
+.dark.midnight .bg-gray-50\/50,
+.dark.midnight .dark\:bg-gray-700\/30 {
+  background: var(--bg-level-1) !important;
+}
+
+/* Colored badges - vibrant colors on dark backgrounds */
+.dark.midnight .bg-amber-50 {
+  background-color: rgba(180, 83, 9, 0.3) !important;
+}
+.dark.midnight .border-amber-200 {
+  border-color: rgba(245, 158, 11, 0.5) !important;
+}
+.dark.midnight .bg-emerald-50 {
+  background-color: rgba(6, 95, 70, 0.3) !important;
+}
+.dark.midnight .border-emerald-200 {
+  border-color: rgba(16, 185, 129, 0.5) !important;
+}
+
+/* Multiplier badges - keep their original colors but adjust for dark bg */
+.dark.midnight .bg-emerald-100 {
+  background-color: rgba(16, 185, 129, 0.25) !important;
+}
+.dark.midnight .bg-blue-100 {
+  background-color: rgba(59, 130, 246, 0.25) !important;
+}
+.dark.midnight .bg-amber-100 {
+  background-color: rgba(245, 158, 11, 0.25) !important;
+}
+.dark.midnight .bg-gray-100 {
+  background-color: rgba(148, 163, 184, 0.15) !important;
+}
+
+.dark.midnight .dark\:bg-emerald-900\/30 {
+  background-color: rgba(6, 95, 70, 0.35) !important;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+.dark.midnight .dark\:bg-blue-900\/30 {
+  background-color: rgba(30, 58, 138, 0.35) !important;
+}
+.dark.midnight .dark\:bg-amber-900\/30 {
+  background-color: rgba(180, 83, 9, 0.35) !important;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.dark.midnight .dark\:bg-amber-900\/10 {
+  background-color: rgba(180, 83, 9, 0.2) !important;
+}
+.dark.midnight .dark\:bg-emerald-900\/10 {
+  background-color: rgba(6, 95, 70, 0.2) !important;
+}
+
+/* Sidebar colored buttons */
+.dark.midnight .bg-purple-50 {
+  background-color: rgba(126, 34, 206, 0.25) !important;
+}
+.dark.midnight .border-purple-200 {
+  border-color: rgba(168, 85, 247, 0.5) !important;
+}
+.dark.midnight .text-purple-800 {
+  color: #c4b5fd !important;
+}
+.dark.midnight .bg-orange-50 {
+  background-color: rgba(194, 65, 12, 0.25) !important;
+}
+.dark.midnight .border-orange-200 {
+  border-color: rgba(251, 146, 60, 0.5) !important;
+}
+.dark.midnight .text-orange-800 {
+  color: #fed7aa !important;
+}
+
+/* Card depth - subtle shadows */
+.dark.midnight [class*="rounded-xl"][class*="shadow"],
+.dark.midnight [class*="rounded-2xl"][class*="shadow"] {
+  box-shadow:
+    0 4px 6px -1px rgba(0, 0, 0, 0.3),
+    0 2px 4px -1px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.05) !important;
+}
+
+.dark.midnight .shadow-2xl {
+  box-shadow:
+    0 25px 50px -12px rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(255, 255, 255, 0.05) !important;
+}
+
+/* Corporate blue accent with glow */
+.dark.midnight .bg-corporate-blue {
+  box-shadow: 0 0 12px rgba(59, 130, 246, 0.3);
+}
+
+.dark.midnight .text-corporate-blue {
+  text-shadow: 0 0 8px rgba(59, 130, 246, 0.2);
+}
+
+/* CEO highlight row */
+.dark.midnight .dark\:bg-corporate-blue\/20 {
+  background-color: rgba(30, 64, 175, 0.2) !important;
+  box-shadow: inset 4px 0 0 0 var(--accent-color);
+}
+
+/* Scrollbar hiding utility */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* ============================================================================
+   MIDNIGHT THEME - COMPREHENSIVE UI POLISH
+   ============================================================================ */
+
+/* Button and link hover states */
+.dark.midnight button:hover:not(:disabled),
+.dark.midnight a:hover {
+  transition: all 0.2s ease;
+}
+
+/* Primary buttons - corporate blue with glow */
+.dark.midnight .bg-corporate-blue:hover {
+  box-shadow: 0 0 16px rgba(59, 130, 246, 0.4), 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* Status badges hover effects */
+.dark.midnight .bg-red-500:hover,
+.dark.midnight .bg-red-600:hover {
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.4);
+}
+
+.dark.midnight .bg-emerald-500:hover,
+.dark.midnight .bg-emerald-600:hover,
+.dark.midnight .bg-green-500:hover,
+.dark.midnight .bg-green-600:hover {
+  box-shadow: 0 0 12px rgba(16, 185, 129, 0.4);
+}
+
+/* Dropdown menus */
+.dark.midnight .dark\:bg-gray-900\/95 {
+  background-color: var(--bg-level-2) !important;
+  border-color: var(--border-emphasis) !important;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05) !important;
+}
+
+/* Form inputs - focus states */
+.dark.midnight input:focus,
+.dark.midnight textarea:focus,
+.dark.midnight select:focus {
+  border-color: var(--accent-color) !important;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2) !important;
+  outline: none;
+}
+
+/* Placeholder text */
+.dark.midnight input::placeholder,
+.dark.midnight textarea::placeholder {
+  color: var(--text-tertiary) !important;
+  opacity: 0.7;
+}
+
+/* Chart backgrounds */
+.dark.midnight .dark\:fill-gray-700 {
+  fill: var(--bg-level-2) !important;
+}
+
+.dark.midnight .dark\:fill-gray-800 {
+  fill: var(--bg-level-1) !important;
+}
+
+/* Stat cards */
+.dark.midnight .dark\:border-gray-800\/70 {
+  border-color: var(--border-subtle) !important;
+}
+
+.dark.midnight .dark\:bg-gray-800\/60 {
+  background-color: var(--bg-level-1) !important;
+}
+
+/* Alert/notice styling */
+.dark.midnight .dark\:bg-red-900\/30,
+.dark.midnight .dark\:bg-red-900\/20 {
+  background-color: rgba(153, 27, 27, 0.25) !important;
+  border-color: rgba(239, 68, 68, 0.4) !important;
+}
+
+.dark.midnight .dark\:bg-green-900\/30,
+.dark.midnight .dark\:bg-emerald-900\/20 {
+  background-color: rgba(6, 95, 70, 0.25) !important;
+  border-color: rgba(16, 185, 129, 0.4) !important;
+}
+
+/* Tooltip styling */
+.dark.midnight .bg-gray-900.text-white {
+  background-color: var(--bg-level-2) !important;
+  border: 1px solid var(--border-emphasis);
 }
 
 /* Bloomberg terminal specific styles */

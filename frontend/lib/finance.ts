@@ -196,16 +196,12 @@ export function computeFinancialStatements(params: ComputeParams): ConsolidatedS
         
         if (sector === 'Defense' && product !== 'Electricity') {
           consumedAmount = 1.0;
-        } else if (sector === 'Manufacturing' && product !== 'Electricity') {
-          consumedAmount = 0.5;
         }
+        // Note: Light Industry is production-only and cannot build service units
 
         let discount = product === 'Electricity' ? 1.0 : SERVICE_WHOLESALE_DISCOUNT;
         if (sector === 'Defense' && product !== 'Electricity') {
           discount = DEFENSE_WHOLESALE_DISCOUNT;
-        } else if (sector === 'Manufacturing') {
-          // Align Manufacturing service with retail discount
-          discount = RETAIL_WHOLESALE_DISCOUNT;
         }
 
         const productCost = productPrice * consumedAmount * discount;

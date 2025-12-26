@@ -33,7 +33,8 @@ import {
 // Resource icon mapping
 const RESOURCE_ICONS: Record<string, React.ReactNode> = {
   'Oil': <Droplets className="w-4 h-4" />,
-  'Steel': <Package className="w-4 h-4" />,
+  'Iron Ore': <Pickaxe className="w-4 h-4" />,
+  'Coal': <Package className="w-4 h-4" />,
   'Rare Earth': <Cpu className="w-4 h-4" />,
   'Copper': <Zap className="w-4 h-4" />,
   'Fertile Land': <Wheat className="w-4 h-4" />,
@@ -44,7 +45,8 @@ const RESOURCE_ICONS: Record<string, React.ReactNode> = {
 // Resource color mapping for pie chart segments
 const RESOURCE_COLORS: Record<string, string> = {
   'Oil': '#1e293b',           // slate-800
-  'Steel': '#52525b',         // zinc-600
+  'Iron Ore': '#52525b',      // zinc-600
+  'Coal': '#374151',          // gray-700
   'Rare Earth': '#7c3aed',    // violet-600
   'Copper': '#ea580c',        // orange-600
   'Fertile Land': '#65a30d',  // lime-600
@@ -54,7 +56,8 @@ const RESOURCE_COLORS: Record<string, string> = {
 
 const RESOURCE_BG_COLORS: Record<string, string> = {
   'Oil': 'bg-slate-800',
-  'Steel': 'bg-zinc-600',
+  'Iron Ore': 'bg-zinc-600',
+  'Coal': 'bg-gray-700',
   'Rare Earth': 'bg-violet-600',
   'Copper': 'bg-orange-600',
   'Fertile Land': 'bg-lime-600',
@@ -75,19 +78,21 @@ const SECTOR_RESOURCES: Record<string, string | null> = {
   'Technology': 'Rare Earth',
   'Finance': null,
   'Healthcare': null,
-  'Manufacturing': null,
-  'Energy': 'Oil',
+  'Light Industry': null,
+  'Energy': null,  // Energy uses multi-resource (Oil + Coal) via ENERGY_INPUTS
   'Retail': null,
   'Real Estate': null,
-  'Transportation': 'Steel',
+  'Transportation': null,  // Transportation demands Steel as product, not resource
   'Media': null,
   'Telecommunications': 'Copper',
   'Agriculture': 'Fertile Land',
-  'Defense': 'Steel',
+  'Defense': null,  // Defense demands Steel as product, not resource
   'Hospitality': null,
   'Construction': 'Lumber',
   'Pharmaceuticals': 'Chemical Compounds',
   'Mining': null,
+  'Heavy Industry': null,  // Uses multi-resource (Iron Ore + Coal) via HEAVY_INDUSTRY_INPUTS
+  'Forestry': null,
 };
 
 // Sector to Product output mapping (what production units create)
@@ -95,7 +100,7 @@ const SECTOR_PRODUCTS: Record<string, string | null> = {
   'Technology': 'Technology Products',
   'Finance': null,
   'Healthcare': null,
-  'Manufacturing': 'Manufactured Goods',
+  'Light Industry': 'Manufactured Goods',
   'Energy': 'Electricity',
   'Retail': null,
   'Real Estate': null,
@@ -108,6 +113,8 @@ const SECTOR_PRODUCTS: Record<string, string | null> = {
   'Construction': 'Construction Capacity',
   'Pharmaceuticals': 'Pharmaceutical Products',
   'Mining': null,
+  'Heavy Industry': 'Steel',
+  'Forestry': null,
 };
 
 // Sector product demands (what products sectors need to operate)
@@ -115,19 +122,21 @@ const SECTOR_PRODUCT_DEMANDS: Record<string, string[] | null> = {
   'Technology': null,
   'Finance': ['Technology Products'],
   'Healthcare': ['Pharmaceutical Products'],
-  'Manufacturing': null,
+  'Light Industry': ['Steel'],
   'Energy': null,
   'Retail': ['Manufactured Goods'],
   'Real Estate': ['Construction Capacity'],
-  'Transportation': null,
+  'Transportation': ['Steel'],
   'Media': ['Technology Products'],
   'Telecommunications': ['Technology Products'],
   'Agriculture': null,
-  'Defense': null,
+  'Defense': ['Steel'],
   'Hospitality': ['Food Products'],
-  'Construction': null,
+  'Construction': ['Steel'],
   'Pharmaceuticals': null,
   'Mining': null,
+  'Heavy Industry': null,
+  'Forestry': null,
 };
 
 const PRODUCT_BASE_PRICES: Record<string, number> = {
@@ -139,6 +148,7 @@ const PRODUCT_BASE_PRICES: Record<string, number> = {
   'Pharmaceutical Products': 8000,
   'Defense Equipment': 15000,
   'Logistics Capacity': 1000,
+  'Steel': 850,
 };
 
 const PRODUCTION_LABOR_COST = 400;
@@ -170,19 +180,21 @@ const SECTORS_CAN_EXTRACT: Record<string, string[] | null> = {
   'Technology': null,
   'Finance': null,
   'Healthcare': null,
-  'Manufacturing': null,
+  'Light Industry': null,
   'Energy': ['Oil'],
   'Retail': null,
   'Real Estate': null,
   'Transportation': null,
   'Media': null,
   'Telecommunications': null,
-  'Agriculture': ['Fertile Land', 'Lumber'],
+  'Agriculture': ['Fertile Land'],
   'Defense': null,
   'Hospitality': null,
-  'Construction': ['Lumber'],
+  'Construction': null,
   'Pharmaceuticals': ['Chemical Compounds'],
-  'Mining': ['Steel', 'Copper', 'Rare Earth'],
+  'Mining': ['Iron Ore', 'Coal', 'Copper', 'Rare Earth'],
+  'Heavy Industry': null,
+  'Forestry': ['Lumber'],
 };
 
 // Check if a sector can extract
@@ -391,16 +403,16 @@ export default function StateDetailPage() {
         if (unitType === 'retail' || product !== 'Electricity') {
           consumedAmount = 1.0;
         }
-      } else if (sector === 'Manufacturing' && unitType === 'service' && product !== 'Electricity') {
-        consumedAmount = 0.5; // Manufacturing service demands less
+      } else if (sector === 'Light Industry' && unitType === 'service' && product !== 'Electricity') {
+        consumedAmount = 0.5; // Light Industry service demands less
       }
 
       let discount = unitType === 'retail' ? RETAIL_WHOLESALE_DISCOUNT : (product === 'Electricity' ? 1.0 : SERVICE_WHOLESALE_DISCOUNT);
       
       if (sector === 'Defense' && (unitType === 'retail' || product !== 'Electricity')) {
         discount = DEFENSE_WHOLESALE_DISCOUNT;
-      } else if (sector === 'Manufacturing' && unitType === 'service') {
-        // Align Manufacturing service with retail discount
+      } else if (sector === 'Light Industry' && unitType === 'service') {
+        // Align Light Industry service with retail discount
         discount = RETAIL_WHOLESALE_DISCOUNT;
       }
 
@@ -1204,7 +1216,7 @@ export default function StateDetailPage() {
                       </p>
                     </div>
                     <p className="text-xs text-amber-600 dark:text-amber-400 mt-2">
-                      Available in: Mining, Energy, Agriculture, Manufacturing, Construction, Pharmaceuticals
+                      Available in: Mining, Energy, Agriculture, Pharmaceuticals, Forestry
                     </p>
                   </div>
                 </div>

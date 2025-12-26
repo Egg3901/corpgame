@@ -17,7 +17,7 @@ export const SECTORS = [
   'Technology',
   'Finance',
   'Healthcare',
-  'Manufacturing',
+  'Light Industry',     // Production-only sector that makes Manufactured Goods
   'Energy',
   'Retail',
   'Real Estate',
@@ -27,10 +27,11 @@ export const SECTORS = [
   'Agriculture',
   'Defense',
   'Hospitality',
-  'Construction',
+  'Construction',       // Production-only sector that makes Construction Capacity from Lumber
   'Pharmaceuticals',
   'Mining',
-  'Heavy Industry',
+  'Heavy Industry',     // Production-only sector that converts Iron Ore + Coal → Steel
+  'Forestry',           // Extraction-only sector that harvests Lumber
 ] as const;
 
 export type Sector = typeof SECTORS[number];
@@ -44,6 +45,7 @@ export const PRODUCTS = [
   'Pharmaceutical Products',
   'Defense Equipment',
   'Logistics Capacity',
+  'Steel',              // Produced by Heavy Industry from Iron Ore + Coal
 ] as const;
 
 export type Product = typeof PRODUCTS[number];
@@ -57,7 +59,6 @@ export const RESOURCES = [
   'Lumber',
   'Chemical Compounds',
   'Coal',
-  'Steel',
 ] as const;
 
 export type Resource = typeof RESOURCES[number];
@@ -69,7 +70,7 @@ const SECTOR_PRODUCTS: Record<Sector, Product | null> = {
   'Technology': 'Technology Products',
   'Finance': null,
   'Healthcare': null,
-  'Manufacturing': 'Manufactured Goods',
+  'Light Industry': 'Manufactured Goods',
   'Energy': 'Electricity',
   'Retail': null,
   'Real Estate': null,
@@ -82,7 +83,8 @@ const SECTOR_PRODUCTS: Record<Sector, Product | null> = {
   'Construction': 'Construction Capacity',
   'Pharmaceuticals': 'Pharmaceutical Products',
   'Mining': null,
-  'Heavy Industry': null,
+  'Heavy Industry': 'Steel',
+  'Forestry': null,
 };
 
 // What resource each sector's production units consume
@@ -90,20 +92,21 @@ const SECTOR_RESOURCES: Record<Sector, Resource | null> = {
   'Technology': 'Rare Earth',
   'Finance': null,
   'Healthcare': null,
-  'Manufacturing': 'Steel',
-  'Energy': 'Oil',
+  'Light Industry': null,             // Consumes Steel PRODUCT
+  'Energy': null,                     // Special case: consumes Oil + Coal
   'Retail': null,
   'Real Estate': null,
-  'Transportation': 'Steel',
+  'Transportation': null,             // Consumes Steel PRODUCT
   'Media': null,
   'Telecommunications': 'Copper',
   'Agriculture': 'Fertile Land',
-  'Defense': 'Steel',
+  'Defense': null,                    // Consumes Steel PRODUCT
   'Hospitality': null,
-  'Construction': null,
+  'Construction': 'Lumber',           // Consumes Lumber resource + Steel product
   'Pharmaceuticals': 'Chemical Compounds',
   'Mining': null,
-  'Heavy Industry': null,
+  'Heavy Industry': null,             // Special case: consumes Iron Ore + Coal
+  'Forestry': null,                   // Extraction-only sector
 };
 
 // What resources each sector can extract
@@ -111,20 +114,21 @@ const SECTOR_EXTRACTION: Record<Sector, Resource[] | null> = {
   'Technology': null,
   'Finance': null,
   'Healthcare': null,
-  'Manufacturing': null,
+  'Light Industry': null,
   'Energy': ['Oil'],
   'Retail': null,
   'Real Estate': null,
   'Transportation': null,
   'Media': null,
   'Telecommunications': null,
-  'Agriculture': ['Fertile Land', 'Lumber'],
+  'Agriculture': ['Fertile Land'],
   'Defense': null,
   'Hospitality': null,
-  'Construction': ['Lumber'],
+  'Construction': null,               // Production-only (consumes Lumber)
   'Pharmaceuticals': ['Chemical Compounds'],
   'Mining': ['Iron Ore', 'Coal', 'Copper', 'Rare Earth'],
-  'Heavy Industry': ['Steel'],
+  'Heavy Industry': null,             // Production-only (makes Steel)
+  'Forestry': ['Lumber'],             // Extraction-only sector
 };
 
 // Heavy Industry special inputs
@@ -135,20 +139,21 @@ const SECTOR_PRODUCT_DEMANDS: Record<Sector, Product[] | null> = {
   'Technology': null,
   'Finance': ['Technology Products'],
   'Healthcare': ['Pharmaceutical Products'],
-  'Manufacturing': null,
+  'Light Industry': ['Steel'],                    // Consumes Steel to make Manufactured Goods
   'Energy': null,
   'Retail': ['Manufactured Goods'],
   'Real Estate': ['Construction Capacity'],
-  'Transportation': null,
+  'Transportation': ['Steel'],                    // Vehicles, rail need Steel
   'Media': ['Technology Products'],
   'Telecommunications': ['Technology Products'],
   'Agriculture': null,
-  'Defense': null,
+  'Defense': ['Steel'],                           // Military equipment needs Steel
   'Hospitality': ['Food Products'],
-  'Construction': null,
+  'Construction': ['Steel'],                      // Buildings need Steel (also consumes Lumber resource)
   'Pharmaceuticals': null,
   'Mining': null,
-  'Heavy Industry': null,
+  'Heavy Industry': null,                         // Produces Steel
+  'Forestry': null,                               // Extraction-only sector
 };
 
 // What products each sector's retail units demand
@@ -156,7 +161,7 @@ const SECTOR_RETAIL_DEMANDS: Record<Sector, Product[] | null> = {
   'Technology': null,
   'Finance': ['Technology Products'],
   'Healthcare': ['Pharmaceutical Products'],
-  'Manufacturing': null,
+  'Light Industry': null,
   'Energy': null,
   'Retail': ['Manufactured Goods'],
   'Real Estate': ['Construction Capacity'],
@@ -170,6 +175,7 @@ const SECTOR_RETAIL_DEMANDS: Record<Sector, Product[] | null> = {
   'Pharmaceuticals': ['Pharmaceutical Products'],
   'Mining': null,
   'Heavy Industry': null,
+  'Forestry': null,
 };
 
 // What products each sector's service units demand
@@ -177,7 +183,7 @@ const SECTOR_SERVICE_DEMANDS: Record<Sector, Product[] | null> = {
   'Technology': null,
   'Finance': ['Technology Products', 'Electricity'],
   'Healthcare': ['Pharmaceutical Products', 'Electricity'],
-  'Manufacturing': ['Manufactured Goods', 'Electricity'],
+  'Light Industry': null,
   'Energy': ['Electricity'],
   'Retail': ['Manufactured Goods', 'Electricity'],
   'Real Estate': ['Construction Capacity', 'Electricity'],
@@ -191,6 +197,7 @@ const SECTOR_SERVICE_DEMANDS: Record<Sector, Product[] | null> = {
   'Pharmaceuticals': ['Pharmaceutical Products', 'Electricity'],
   'Mining': null,
   'Heavy Industry': null,
+  'Forestry': null,
 };
 
 // ============================================================================
