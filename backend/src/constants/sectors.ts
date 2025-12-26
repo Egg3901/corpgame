@@ -1447,8 +1447,6 @@ export function calculateMarketEntryEconomics(
 export const STOCK_VALUATION = {
   // Minimum share price floor
   MIN_SHARE_PRICE: 0.01,
-  // P/E ratio for valuing business units (10x annual earnings)
-  UNIT_PE_RATIO: 10,
   // Hours per year for annualizing hourly profits
   HOURS_PER_YEAR: 8760,
   // Weight for fundamental value vs trade activity in price calculation
@@ -1460,26 +1458,43 @@ export const STOCK_VALUATION = {
   TRADE_LOOKBACK_HOURS: 168, // 1 week
   // Random hourly variation (±5%)
   HOURLY_VARIATION_PERCENT: 0.05,
+
+  // NPV-based unit valuation constants
+  // Initial basis cost for each business unit (what you paid to build it)
+  UNIT_BASIS_COST: 10000,  // $10k per unit
+  // Discount rate for NPV calculation (20% = aggressive/risky business)
+  NPV_DISCOUNT_RATE: 0.20,
 };
 
-// Calculate asset value per unit based on annual profit capitalization
-// For non-dynamic sectors, uses flat economics
-// For dynamic sectors, pass the sector to get commodity-based valuation
+// Calculate asset value per unit using NPV-based valuation
+// Formula: Unit Value = Basis Cost ($10k) + NPV of future earnings
+// NPV = Annual Profit / Discount Rate (perpetuity formula)
+// For negative earnings, NPV reduces value but never below $0
 export function getUnitAssetValue(unitType: UnitType, sector?: string): number {
+  const basisCost = STOCK_VALUATION.UNIT_BASIS_COST;
+  const discountRate = STOCK_VALUATION.NPV_DISCOUNT_RATE;
+
+  let hourlyProfit: number;
+
   // If sector provided, use dynamic economics
   if (sector && isValidSector(sector)) {
     const dynamicEcon = getDynamicUnitEconomics(unitType, sector);
-    const hourlyProfit = dynamicEcon.hourlyProfit;
-    const annualProfit = hourlyProfit * STOCK_VALUATION.HOURS_PER_YEAR;
-    // Value = Annual Profit * P/E Ratio (minimum floor of 0 to avoid negative asset values)
-    return Math.max(0, annualProfit * STOCK_VALUATION.UNIT_PE_RATIO);
+    hourlyProfit = dynamicEcon.hourlyProfit;
+  } else {
+    // Fallback to flat economics
+    const economics = UNIT_ECONOMICS[unitType];
+    hourlyProfit = economics.baseRevenue - economics.baseCost;
   }
-  
-  // Fallback to flat economics (no state multiplier on revenue anymore)
-  const economics = UNIT_ECONOMICS[unitType];
-  const hourlyProfit = economics.baseRevenue - economics.baseCost;
+
   const annualProfit = hourlyProfit * STOCK_VALUATION.HOURS_PER_YEAR;
-  return Math.max(0, annualProfit * STOCK_VALUATION.UNIT_PE_RATIO);
+
+  // NPV of perpetuity = Annual Profit / Discount Rate
+  // For positive profits: adds value above basis
+  // For negative profits: reduces value (can go below basis but not below 0)
+  const npv = annualProfit / discountRate;
+
+  // Unit value = basis + NPV, minimum $0
+  return Math.max(0, basisCost + npv);
 }
 
 // Get dynamic asset value for a market entry

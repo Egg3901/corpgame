@@ -2046,21 +2046,19 @@ export default function CorporationDetailPage() {
                             <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block z-[9999] pointer-events-none">
                               <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 shadow-xl whitespace-nowrap">
                                 <p className="font-medium">Fundamental Value</p>
-                                <p className="text-gray-300">40% Book: {formatCurrency(stockValuation.book_value * 0.40)}</p>
-                                <p className="text-gray-300">35% Earnings: {formatCurrency(stockValuation.earnings_value * 0.35)}</p>
-                                <p className="text-gray-300">5% Cash: {formatCurrency(stockValuation.cash_per_share * 0.05)}</p>
+                                <p className="text-gray-300">50% Book: {formatCurrency(stockValuation.book_value * 0.50)}</p>
+                                <p className={`${stockValuation.earnings_value < 0 ? 'text-red-400' : 'text-gray-300'}`}>
+                                  30% Earnings: {formatCurrency(stockValuation.earnings_value * 0.30)}
+                                </p>
                               </div>
                             </div>
                           </div>
                         </div>
                       </div>
                     )}
-                    
+
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
-                      <strong>Price Formula:</strong> {stockValuation ? 
-                        '40% Book Value + 35% Earnings Value + 5% Cash + 20% Trade History' :
-                        '40% Book Value + 35% Earnings (P/E) + 5% Cash + 20% Trade-Weighted Average'}
-                      {' '}(min $0.01)
+                      <strong>Price Formula:</strong> 50% Book Value (NPV-based) + 30% Earnings + 20% Trade History (min $0.01)
                     </p>
                   </div>
                 </div>

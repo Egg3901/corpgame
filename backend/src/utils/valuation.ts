@@ -8,10 +8,11 @@ import {
 } from '../constants/sectors';
 
 // Stock price calculation weights
+// Book Value includes Cash + Business Unit Assets (NPV-based)
+// Cash is NOT weighted separately - it's part of book value
 const STOCK_PRICE_WEIGHTS = {
-  BOOK_VALUE: 0.40,      // 40% weight on book value (assets)
-  EARNINGS: 0.35,        // 35% weight on earnings (P/E valuation)
-  CASH: 0.05,            // 5% weight on cash per share
+  BOOK_VALUE: 0.50,      // 50% weight on book value (cash + NPV-based unit assets)
+  EARNINGS: 0.30,        // 30% weight on earnings (P/E valuation)
   TRADE_HISTORY: 0.20,   // 20% weight on recent trade prices
 };
 
@@ -221,81 +222,88 @@ export async function calculateTradeWeightedPrice(corporationId: number): Promis
 
 /**
  * Calculate the fair stock price based on fundamentals and trade activity
- * Incorporates: book value, earnings (P/E), dividend yield, cash position, trade history
+ *
+ * Formula: Price = 50% Book Value + 30% Earnings Value + 20% Trade History
+ *
+ * Book Value = (Cash + NPV-based Business Unit Assets - Liabilities) / Shares
+ * Earnings Value = EPS × P/E Ratio (negative earnings apply a drag)
+ * Trade History = Recency-weighted average of recent trades
  */
 export async function calculateStockPrice(corporationId: number): Promise<StockValuation> {
   const balanceSheet = await calculateBalanceSheet(corporationId);
   const tradeData = await calculateTradeWeightedPrice(corporationId);
   const finances = await MarketEntryModel.calculateCorporationFinances(corporationId);
   const corporation = await CorporationModel.findById(corporationId);
-  
+
   if (!corporation) {
     throw new Error('Corporation not found');
   }
 
   const totalShares = corporation.shares || 1;
-  
+
   // Book value per share (assets - liabilities)
+  // Assets now include NPV-based business unit valuations
   const bookValue = balanceSheet.bookValuePerShare;
-  
-  // Cash per share
+
+  // Cash per share (informational only - included in book value, not weighted separately)
   const cashPerShare = totalShares > 0 ? balanceSheet.cash / totalShares : 0;
-  
+
   // Annual earnings calculation
   const annualProfit = finances.hourly_profit * STOCK_VALUATION.HOURS_PER_YEAR;
   const earningsPerShare = totalShares > 0 ? annualProfit / totalShares : 0;
-  const earningsValue = earningsPerShare * EARNINGS_PE_RATIO;  // P/E valuation
-  
+
+  // Earnings value with P/E ratio
+  // IMPORTANT: Negative earnings apply a drag (reduce price)
+  const earningsValue = earningsPerShare * EARNINGS_PE_RATIO;
+
   // Dividend calculations
-  const dividendPercentage = typeof corporation.dividend_percentage === 'string' 
-    ? parseFloat(corporation.dividend_percentage) 
+  const dividendPercentage = typeof corporation.dividend_percentage === 'string'
+    ? parseFloat(corporation.dividend_percentage)
     : (corporation.dividend_percentage || 0);
-  const annualDividendPerShare = totalShares > 0 && dividendPercentage > 0
+  const annualDividendPerShare = totalShares > 0 && dividendPercentage > 0 && annualProfit > 0
     ? (annualProfit * dividendPercentage / 100) / totalShares
     : 0;
-  const dividendYield = earningsPerShare > 0 
-    ? (annualDividendPerShare / earningsPerShare) * 100 
+  const dividendYield = bookValue > 0 && annualDividendPerShare > 0
+    ? (annualDividendPerShare / bookValue) * 100
     : 0;
-  
+
   // Trade-weighted price (use book value as fallback if no trades)
   const tradePrice = tradeData.hasHistory && tradeData.weightedPrice > 0
     ? tradeData.weightedPrice
     : bookValue;
-  
+
   // Calculate weighted fundamental value
-  // If earnings are negative, don't add earnings value (but still consider book value and cash)
-  const earningsComponent = earningsValue > 0 ? earningsValue : 0;
-  
+  // Negative earnings now DRAG the price down (not clamped to 0)
   let fundamentalValue = 0;
   if (totalShares > 0) {
-    fundamentalValue = 
+    fundamentalValue =
       (bookValue * STOCK_PRICE_WEIGHTS.BOOK_VALUE) +
-      (earningsComponent * STOCK_PRICE_WEIGHTS.EARNINGS) +
-      (cashPerShare * STOCK_PRICE_WEIGHTS.CASH);
+      (earningsValue * STOCK_PRICE_WEIGHTS.EARNINGS);
+    // Note: Cash is already in book value, not weighted separately
   } else {
     fundamentalValue = bookValue;
   }
-  
+
   // Final price: blend fundamental value with trade history
   let calculatedPrice: number;
   if (tradeData.hasHistory && tradeData.weightedPrice > 0) {
-    calculatedPrice = 
+    calculatedPrice =
       (fundamentalValue * (1 - STOCK_PRICE_WEIGHTS.TRADE_HISTORY)) +
       (tradePrice * STOCK_PRICE_WEIGHTS.TRADE_HISTORY);
   } else {
     // No trade history - use pure fundamental value
     calculatedPrice = fundamentalValue;
   }
-  
-  // Apply minimum floor
+
+  // Apply minimum floor (even unprofitable companies have some floor value)
   calculatedPrice = Math.max(STOCK_VALUATION.MIN_SHARE_PRICE, calculatedPrice);
-  
+
   // Round to 2 decimal places
   calculatedPrice = Math.round(calculatedPrice * 100) / 100;
-  
+
   return {
     bookValue,
-    earningsValue: earningsComponent,
+    earningsValue,  // Now can be negative
     dividendYield,
     cashPerShare,
     tradeWeightedPrice: tradeData.weightedPrice,
