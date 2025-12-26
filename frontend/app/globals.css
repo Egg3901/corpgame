@@ -119,6 +119,21 @@ body {
   animation: ticker-scroll 60s linear infinite;
 }
 
+/* Ticker tape container - maintain distinct background in all themes */
+.ticker-tape-container {
+  /* Light mode defaults handled by tailwind */
+}
+
+.dark.midnight .ticker-tape-container {
+  background-color: var(--bg-level-2) !important;
+  border-color: var(--border-emphasis) !important;
+}
+
+.dark.black .ticker-tape-container {
+  background-color: var(--bg-level-2) !important;
+  border-color: var(--border-emphasis) !important;
+}
+
 /* Monospace font utility for numeric data */
 .font-mono-numeric {
   font-family: 'Courier New', Courier, 'Liberation Mono', monospace;
@@ -274,6 +289,26 @@ body {
   border-color: rgba(16, 185, 129, 0.5) !important;
 }
 
+/* Sidebar colored buttons for midnight theme */
+.dark.midnight .bg-purple-50 {
+  background-color: rgba(126, 34, 206, 0.25) !important;
+}
+.dark.midnight .border-purple-200 {
+  border-color: rgba(168, 85, 247, 0.5) !important;
+}
+.dark.midnight .text-purple-800 {
+  color: #c4b5fd !important;
+}
+.dark.midnight .bg-orange-50 {
+  background-color: rgba(194, 65, 12, 0.25) !important;
+}
+.dark.midnight .border-orange-200 {
+  border-color: rgba(251, 146, 60, 0.5) !important;
+}
+.dark.midnight .text-orange-800 {
+  color: #fed7aa !important;
+}
+
 /* Colored gradients in cards - use level 1 instead of bright colors */
 .dark.midnight .bg-gradient-to-br.from-orange-600,
 .dark.midnight .bg-gradient-to-br.from-indigo-600,
@@ -417,6 +452,26 @@ body {
 }
 .dark.black .border-emerald-200 {
   border-color: rgba(16, 185, 129, 0.6) !important;
+}
+
+/* Sidebar colored buttons for black theme */
+.dark.black .bg-purple-50 {
+  background-color: rgba(126, 34, 206, 0.3) !important;
+}
+.dark.black .border-purple-200 {
+  border-color: rgba(168, 85, 247, 0.6) !important;
+}
+.dark.black .text-purple-800 {
+  color: #c4b5fd !important;
+}
+.dark.black .bg-orange-50 {
+  background-color: rgba(194, 65, 12, 0.3) !important;
+}
+.dark.black .border-orange-200 {
+  border-color: rgba(251, 146, 60, 0.6) !important;
+}
+.dark.black .text-orange-800 {
+  color: #fed7aa !important;
 }
 
 /* Colored gradients in cards - use level 1 instead of bright colors */

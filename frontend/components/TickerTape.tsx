@@ -60,15 +60,15 @@ export default function TickerTape({ corporations }: TickerTapeProps) {
   const duplicatedItems = activeItems.length > 0 ? [...activeItems, ...activeItems] : [];
 
   return (
-    <div className="rounded-xl border border-white/60 bg-white/80 backdrop-blur shadow-lg dark:border-gray-800/60 dark:bg-gray-900/80 overflow-hidden">
+    <div className="ticker-tape-container rounded-xl border shadow-lg overflow-hidden border-white/60 bg-white/80 backdrop-blur dark:border-gray-600/60 dark:bg-gray-800/90">
       {/* Tabs */}
-      <div className="flex border-b border-gray-200/60 dark:border-gray-700/60">
+      <div className="flex border-b border-gray-200/60 dark:border-gray-600/60">
         <button
           onClick={() => setActiveTab('gainers')}
           className={`flex-1 px-4 py-2 text-sm font-bold uppercase tracking-[0.1em] transition-colors flex items-center justify-center gap-2 ${
             activeTab === 'gainers'
               ? 'bg-corporate-blue/10 text-corporate-blue dark:bg-corporate-blue/20 dark:text-corporate-blue-light border-b-2 border-corporate-blue'
-              : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/50'
+              : 'text-gray-600 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50'
           }`}
         >
           <TrendingUp className="w-4 h-4" />
@@ -79,7 +79,7 @@ export default function TickerTape({ corporations }: TickerTapeProps) {
           className={`flex-1 px-4 py-2 text-sm font-bold uppercase tracking-[0.1em] transition-colors flex items-center justify-center gap-2 ${
             activeTab === 'losers'
               ? 'bg-red-500/10 text-red-600 dark:bg-red-500/20 dark:text-red-400 border-b-2 border-red-500'
-              : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/50'
+              : 'text-gray-600 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50'
           }`}
         >
           <TrendingDown className="w-4 h-4" />
@@ -97,7 +97,7 @@ export default function TickerTape({ corporations }: TickerTapeProps) {
                 className="inline-flex items-center gap-4 px-6 font-mono-numeric"
               >
                 <span className="font-semibold text-corporate-blue">{item.symbol}</span>
-                <span className="text-gray-700 dark:text-gray-300">{item.price}</span>
+                <span className="text-gray-700 dark:text-gray-100">{item.price}</span>
                 <span className={item.isPositive ? 'text-positive' : 'text-negative'}>
                   {item.changeFormatted}
                 </span>
@@ -107,7 +107,7 @@ export default function TickerTape({ corporations }: TickerTapeProps) {
           </div>
         </div>
       ) : (
-        <div className="h-16 flex items-center justify-center text-gray-500 dark:text-gray-400 text-sm">
+        <div className="h-16 flex items-center justify-center text-gray-500 dark:text-gray-300 text-sm">
           No {activeTab === 'gainers' ? 'gainers' : 'losers'} to display
         </div>
       )}

@@ -336,13 +336,13 @@ export default function AppNavigation({ children }: AppNavigationProps) {
                       )}
                     </div>
                     <div className="leading-tight hidden sm:block min-w-0">
-                      <p className="text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400">Profile</p>
+                      <p className="text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-300">Profile</p>
                       <p className="text-sm font-semibold text-gray-900 dark:text-white truncate max-w-[120px]">
                         {viewerProfile?.player_name || viewerProfile?.username || 'Your Profile'}
                       </p>
-                      <p className="text-[11px] text-gray-500 dark:text-gray-400">#{viewerProfileId}</p>
+                      <p className="text-[11px] text-gray-500 dark:text-gray-300">#{viewerProfileId}</p>
                     </div>
-                    <ChevronDown className={`w-4 h-4 text-gray-500 dark:text-gray-400 transition-transform flex-shrink-0 hidden sm:block ${profileDropdownOpen ? 'rotate-180' : ''}`} />
+                    <ChevronDown className={`w-4 h-4 text-gray-500 dark:text-gray-300 transition-transform flex-shrink-0 hidden sm:block ${profileDropdownOpen ? 'rotate-180' : ''}`} />
                   </button>
 
                   {profileDropdownOpen && (
