@@ -4,9 +4,10 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import AppNavigation from '@/components/AppNavigation';
-import { marketsAPI, ProductDetailResponse, MarketMetadataResponse } from '@/lib/api';
+import { marketsAPI, ProductDetailResponse, MarketMetadataResponse, ProductPieDataResponse } from '@/lib/api';
 import { formatPriceLocalized, formatNumberLocalized, categorizeDemandLevel } from '@/lib/marketUtils';
 import PriceChart from '@/components/PriceChart';
+import CommodityPieChart from '@/components/CommodityPieChart';
 import {
   ArrowLeft,
   Building2,
@@ -25,6 +26,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Users,
+  PieChart,
+  List,
 } from 'lucide-react';
 
 // Product icon mapping
@@ -59,11 +62,13 @@ export default function ProductDetailPage() {
 
   const [data, setData] = useState<ProductDetailResponse | null>(null);
   const [marketMetadata, setMarketMetadata] = useState<MarketMetadataResponse | null>(null);
+  const [pieData, setPieData] = useState<ProductPieDataResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState<Tab>('suppliers');
   const [page, setPage] = useState(1);
   const [refreshing, setRefreshing] = useState(false);
+  const [showPieCharts, setShowPieCharts] = useState(false);
   const locale = typeof navigator !== 'undefined' ? navigator.language : 'en-US';
 
   useEffect(() => {
@@ -90,13 +95,24 @@ export default function ProductDetailPage() {
         setRefreshing(true);
         const result = await marketsAPI.getProductDetail(productName, page, 10, activeTab);
         setData(result);
+        if (showPieCharts) {
+          const pie = await marketsAPI.getProductPieData(productName);
+          setPieData(pie);
+        }
       } catch {
       } finally {
         setRefreshing(false);
       }
     }, 30000);
     return () => clearInterval(interval);
-  }, []);
+  }, [showPieCharts]);
+
+  // Fetch pie data when showPieCharts is enabled
+  useEffect(() => {
+    if (showPieCharts && !pieData) {
+      marketsAPI.getProductPieData(productName).then(setPieData).catch(() => null);
+    }
+  }, [showPieCharts, productName, pieData]);
 
   const handleTabChange = (tab: Tab) => {
     setActiveTab(tab);
@@ -256,123 +272,183 @@ export default function ProductDetailPage() {
               </div>
             </div>
 
-            {/* Suppliers / Demanders Table */}
+            {/* View Toggle + Top Suppliers/Demanders */}
             <div className="relative rounded-2xl border border-gray-200/50 dark:border-gray-700/50 bg-gradient-to-br from-white via-white to-gray-50/50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800/50 shadow-xl overflow-hidden backdrop-blur-sm">
               <div className="relative p-6">
-                {/* Tabs */}
-                <div className="flex items-center gap-4 mb-6 border-b border-gray-200 dark:border-gray-700 pb-4">
-                  <button
-                    onClick={() => handleTabChange('suppliers')}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
-                      activeTab === 'suppliers'
-                        ? 'bg-corporate-blue text-white'
-                        : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
-                    }`}
-                  >
-                    <Factory className="w-4 h-4" />
-                    Top Suppliers
-                  </button>
-                  <button
-                    onClick={() => handleTabChange('demanders')}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
-                      activeTab === 'demanders'
-                        ? 'bg-orange-600 text-white'
-                        : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
-                    }`}
-                  >
-                    <Users className="w-4 h-4" />
-                    Top Demanders
-                  </button>
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                    <Factory className="w-5 h-5 text-corporate-blue" />
+                    {activeTab === 'suppliers' ? 'Top Suppliers' : 'Top Demanders'}
+                  </h2>
+                  <div className="flex items-center gap-3">
+                    {/* View Toggle */}
+                    <div className="flex items-center gap-1 p-1 bg-gray-100 dark:bg-gray-800 rounded-lg">
+                      <button
+                        onClick={() => setShowPieCharts(false)}
+                        className={`p-2 rounded-md transition-all duration-200 ${
+                          !showPieCharts
+                            ? 'bg-white dark:bg-gray-700 text-corporate-blue dark:text-corporate-blue-light shadow-sm'
+                            : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                        }`}
+                        title="Table View"
+                      >
+                        <List className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => setShowPieCharts(true)}
+                        className={`p-2 rounded-md transition-all duration-200 ${
+                          showPieCharts
+                            ? 'bg-white dark:bg-gray-700 text-corporate-blue dark:text-corporate-blue-light shadow-sm'
+                            : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                        }`}
+                        title="Chart View"
+                      >
+                        <PieChart className="w-4 h-4" />
+                      </button>
+                    </div>
+                    {/* Tab buttons - only visible in table view */}
+                    {!showPieCharts && (
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handleTabChange('suppliers')}
+                          className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                            activeTab === 'suppliers'
+                              ? 'bg-corporate-blue text-white'
+                              : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
+                          }`}
+                        >
+                          <Factory className="w-3 h-3" />
+                          Suppliers
+                        </button>
+                        <button
+                          onClick={() => handleTabChange('demanders')}
+                          className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                            activeTab === 'demanders'
+                              ? 'bg-orange-600 text-white'
+                              : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
+                          }`}
+                        >
+                          <Users className="w-3 h-3" />
+                          Demanders
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
-                {listData.length === 0 ? (
-                  <div className="text-center py-12">
-                    <Factory className="h-12 w-12 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
-                    <p className="text-gray-500 dark:text-gray-400">
-                      No corporations currently {activeTab === 'suppliers' ? 'producing' : 'demanding'} this product
-                    </p>
+                {/* Pie Charts View */}
+                {showPieCharts ? (
+                  <div className="grid md:grid-cols-2 gap-6">
+                    <CommodityPieChart
+                      title="Top Suppliers"
+                      data={pieData?.suppliers.data || []}
+                      others={pieData?.suppliers.others || 0}
+                      total={pieData?.suppliers.total || 0}
+                      type="producers"
+                      valueLabel="Production"
+                    />
+                    <CommodityPieChart
+                      title="Top Demanders"
+                      data={pieData?.demanders.data || []}
+                      others={pieData?.demanders.others || 0}
+                      total={pieData?.demanders.total || 0}
+                      type="demanders"
+                      valueLabel="Demand"
+                    />
                   </div>
                 ) : (
+                  /* Table View */
                   <>
-                    <div className="overflow-x-auto">
-                      <table className="w-full">
-                        <thead>
-                          <tr className="border-b border-gray-200 dark:border-gray-700">
-                            <th className="text-left py-3 px-4 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Corporation</th>
-                            <th className="text-left py-3 px-4 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Sector</th>
-                            <th className="text-left py-3 px-4 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Location</th>
-                            <th className="text-right py-3 px-4 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                              {activeTab === 'suppliers' ? 'Production' : 'Demand'}
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-100 dark:divide-gray-700/50">
-                          {listData.map((item, idx) => (
-                            <tr key={`${item.corporation_id}-${item.state_code}-${idx}`} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
-                              <td className="py-3 px-4">
-                                <Link
-                                  href={`/corporation/${item.corporation_id}`}
-                                  className="flex items-center gap-3 hover:text-corporate-blue dark:hover:text-corporate-blue-light transition-colors"
-                                >
-                                  {item.corporation_logo ? (
-                                    <img
-                                      src={item.corporation_logo}
-                                      alt={item.corporation_name}
-                                      className="w-8 h-8 rounded-lg object-cover"
-                                      onError={(e) => { e.currentTarget.src = '/defaultpfp.jpg'; }}
-                                    />
-                                  ) : (
-                                    <div className="w-8 h-8 rounded-lg bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
-                                      <Building2 className="w-4 h-4 text-gray-400" />
-                                    </div>
-                                  )}
-                                  <span className="font-medium text-gray-900 dark:text-white">{item.corporation_name}</span>
-                                </Link>
-                              </td>
-                              <td className="py-3 px-4 text-sm text-gray-600 dark:text-gray-400">{item.sector_type}</td>
-                              <td className="py-3 px-4">
-                                <Link
-                                  href={`/states/${item.state_code}`}
-                                  className="inline-flex items-center gap-1 text-sm text-gray-600 dark:text-gray-400 hover:text-corporate-blue dark:hover:text-corporate-blue-light transition-colors"
-                                >
-                                  <MapPin className="w-3 h-3" />
-                                  {item.state_name}
-                                </Link>
-                              </td>
-                              <td className="py-3 px-4 text-right font-mono font-semibold text-gray-900 dark:text-white">
-                                {item.units}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-
-                    {/* Pagination */}
-                    {data.pagination.total_pages > 1 && (
-                      <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                        <p className="text-sm text-gray-500 dark:text-gray-400">
-                          Page {data.pagination.page} of {data.pagination.total_pages} ({data.pagination.total} total)
+                    {listData.length === 0 ? (
+                      <div className="text-center py-12">
+                        <Factory className="h-12 w-12 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
+                        <p className="text-gray-500 dark:text-gray-400">
+                          No corporations currently {activeTab === 'suppliers' ? 'producing' : 'demanding'} this product
                         </p>
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => setPage(p => Math.max(1, p - 1))}
-                            disabled={page === 1}
-                            className="px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors flex items-center gap-1"
-                          >
-                            <ChevronLeft className="w-4 h-4" />
-                            Prev
-                          </button>
-                          <button
-                            onClick={() => setPage(p => Math.min(data.pagination.total_pages, p + 1))}
-                            disabled={page === data.pagination.total_pages}
-                            className="px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors flex items-center gap-1"
-                          >
-                            Next
-                            <ChevronRight className="w-4 h-4" />
-                          </button>
-                        </div>
                       </div>
+                    ) : (
+                      <>
+                        <div className="overflow-x-auto">
+                          <table className="w-full">
+                            <thead>
+                              <tr className="border-b border-gray-200 dark:border-gray-700">
+                                <th className="text-left py-3 px-4 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Corporation</th>
+                                <th className="text-left py-3 px-4 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Sector</th>
+                                <th className="text-left py-3 px-4 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Location</th>
+                                <th className="text-right py-3 px-4 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                  {activeTab === 'suppliers' ? 'Production' : 'Demand'}
+                                </th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-100 dark:divide-gray-700/50">
+                              {listData.map((item, idx) => (
+                                <tr key={`${item.corporation_id}-${item.state_code}-${idx}`} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                                  <td className="py-3 px-4">
+                                    <Link
+                                      href={`/corporation/${item.corporation_id}`}
+                                      className="flex items-center gap-3 hover:text-corporate-blue dark:hover:text-corporate-blue-light transition-colors"
+                                    >
+                                      {item.corporation_logo ? (
+                                        <img
+                                          src={item.corporation_logo}
+                                          alt={item.corporation_name}
+                                          className="w-8 h-8 rounded-lg object-cover"
+                                          onError={(e) => { e.currentTarget.src = '/defaultpfp.jpg'; }}
+                                        />
+                                      ) : (
+                                        <div className="w-8 h-8 rounded-lg bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
+                                          <Building2 className="w-4 h-4 text-gray-400" />
+                                        </div>
+                                      )}
+                                      <span className="font-medium text-gray-900 dark:text-white">{item.corporation_name}</span>
+                                    </Link>
+                                  </td>
+                                  <td className="py-3 px-4 text-sm text-gray-600 dark:text-gray-400">{item.sector_type}</td>
+                                  <td className="py-3 px-4">
+                                    <Link
+                                      href={`/states/${item.state_code}`}
+                                      className="inline-flex items-center gap-1 text-sm text-gray-600 dark:text-gray-400 hover:text-corporate-blue dark:hover:text-corporate-blue-light transition-colors"
+                                    >
+                                      <MapPin className="w-3 h-3" />
+                                      {item.state_name}
+                                    </Link>
+                                  </td>
+                                  <td className="py-3 px-4 text-right font-mono font-semibold text-gray-900 dark:text-white">
+                                    {item.units}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+
+                        {/* Pagination */}
+                        {data.pagination.total_pages > 1 && (
+                          <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                            <p className="text-sm text-gray-500 dark:text-gray-400">
+                              Page {data.pagination.page} of {data.pagination.total_pages} ({data.pagination.total} total)
+                            </p>
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => setPage(p => Math.max(1, p - 1))}
+                                disabled={page === 1}
+                                className="px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors flex items-center gap-1"
+                              >
+                                <ChevronLeft className="w-4 h-4" />
+                                Prev
+                              </button>
+                              <button
+                                onClick={() => setPage(p => Math.min(data.pagination.total_pages, p + 1))}
+                                disabled={page === data.pagination.total_pages}
+                                className="px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors flex items-center gap-1"
+                              >
+                                Next
+                                <ChevronRight className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </>
                     )}
                   </>
                 )}

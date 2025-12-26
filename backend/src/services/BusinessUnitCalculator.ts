@@ -23,6 +23,17 @@ import {
   RETAIL_PRODUCT_CONSUMPTION,
   SERVICE_PRODUCT_CONSUMPTION,
   SERVICE_ELECTRICITY_CONSUMPTION,
+  // Sector-specific additional consumption constants
+  ENERGY_LOGISTICS_CONSUMPTION,
+  MANUFACTURING_LOGISTICS_CONSUMPTION,
+  RETAIL_LOGISTICS_CONSUMPTION,
+  REAL_ESTATE_LOGISTICS_CONSUMPTION,
+  AGRICULTURE_MANUFACTURED_GOODS_CONSUMPTION,
+  PHARMACEUTICALS_TECHNOLOGY_CONSUMPTION,
+  DEFENSE_TECHNOLOGY_CONSUMPTION,
+  MINING_MANUFACTURED_GOODS_CONSUMPTION,
+  HEALTHCARE_TECHNOLOGY_CONSUMPTION,
+  CONSTRUCTION_MANUFACTURED_GOODS_CONSUMPTION,
   type Sector,
   type Product,
   type Resource,
@@ -118,6 +129,52 @@ export class BusinessUnitCalculator {
   }
 
   /**
+   * Get sector-specific additional product consumption that's not in the standard demand arrays
+   * These are special cases where sectors consume products outside their normal demand patterns
+   */
+  getSectorSpecificConsumption(
+    unitType: UnitType,
+    sector: string,
+    product: string
+  ): number | null {
+    // Production unit additional demands
+    if (unitType === 'production') {
+      if (product === 'Logistics Capacity') {
+        if (sector === 'Energy') return ENERGY_LOGISTICS_CONSUMPTION;
+        if (sector === 'Manufacturing') return MANUFACTURING_LOGISTICS_CONSUMPTION;
+      }
+      if (product === 'Manufactured Goods') {
+        if (sector === 'Agriculture') return AGRICULTURE_MANUFACTURED_GOODS_CONSUMPTION;
+        if (sector === 'Construction') return CONSTRUCTION_MANUFACTURED_GOODS_CONSUMPTION;
+      }
+      if (product === 'Technology Products') {
+        if (sector === 'Pharmaceuticals') return PHARMACEUTICALS_TECHNOLOGY_CONSUMPTION;
+        if (sector === 'Defense') return DEFENSE_TECHNOLOGY_CONSUMPTION;
+      }
+    }
+
+    // Service unit additional demands
+    if (unitType === 'service') {
+      if (product === 'Logistics Capacity') {
+        if (sector === 'Retail') return RETAIL_LOGISTICS_CONSUMPTION;
+        if (sector === 'Real Estate') return REAL_ESTATE_LOGISTICS_CONSUMPTION;
+      }
+      if (product === 'Technology Products') {
+        if (sector === 'Healthcare') return HEALTHCARE_TECHNOLOGY_CONSUMPTION;
+      }
+    }
+
+    // Extraction unit additional demands
+    if (unitType === 'extraction') {
+      if (product === 'Manufactured Goods') {
+        if (sector === 'Mining') return MINING_MANUFACTURED_GOODS_CONSUMPTION;
+      }
+    }
+
+    return null;
+  }
+
+  /**
    * Compute product demand for a specific unit type
    */
   computeProductDemandByUnitType(
@@ -154,13 +211,21 @@ export class BusinessUnitCalculator {
       }
     }
 
-    // For non-electricity products, check if this unit type demands it
+    let demand = 0;
+
+    // Check standard product demands first
     const demands = this.getProductDemands(unitType, sector);
-    if (!demands || !demands.includes(product)) {
-      return 0;
+    if (demands && demands.includes(product)) {
+      demand += unitCount * this.getConsumptionRate(unitType, sector);
     }
 
-    return unitCount * this.getConsumptionRate(unitType, sector);
+    // Check sector-specific additional consumption
+    const additionalConsumption = this.getSectorSpecificConsumption(unitType, sector, product);
+    if (additionalConsumption !== null) {
+      demand += unitCount * additionalConsumption;
+    }
+
+    return demand;
   }
 
   /**

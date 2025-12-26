@@ -1289,6 +1289,20 @@ export interface ProductDetailResponse {
   pagination: PaginationInfo;
 }
 
+export interface ProductPieDataResponse {
+  product: string;
+  suppliers: {
+    data: ResourcePieDataEntry[];
+    others: number;
+    total: number;
+  };
+  demanders: {
+    data: ResourcePieDataEntry[];
+    others: number;
+    total: number;
+  };
+}
+
 export const marketsAPI = {
   getCommodities: async (): Promise<CommoditiesResponse> => {
     const response = await api.get('/api/markets/commodities');
@@ -1338,6 +1352,10 @@ export const marketsAPI = {
     const response = await api.get(`/api/markets/product/${encodeURIComponent(productName)}/history`, {
       params: { hours, limit },
     });
+    return response.data;
+  },
+  getProductPieData: async (productName: string): Promise<ProductPieDataResponse> => {
+    const response = await api.get(`/api/markets/product/${encodeURIComponent(productName)}/pie-data`);
     return response.data;
   },
   getStates: async (): Promise<StatesListResponse> => {

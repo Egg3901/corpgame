@@ -918,6 +918,130 @@ router.get('/product/:name', async (req: Request, res: Response) => {
   }
 });
 
+// GET /api/markets/product/:name/pie-data - Get aggregated pie chart data for a product
+router.get('/product/:name/pie-data', async (req: Request, res: Response) => {
+  try {
+    const productName = decodeURIComponent(req.params.name) as Product;
+
+    // Validate product exists
+    if (!PRODUCTS.includes(productName)) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
+
+    const { PRODUCTION_OUTPUT_RATE } = await import('../constants/sectors');
+    const { businessUnitCalculator } = await import('../services/BusinessUnitCalculator');
+
+    // Get sectors that produce this product
+    const producingSectors: Sector[] = [];
+    for (const [sector, product] of Object.entries(SECTOR_PRODUCTS)) {
+      if (product === productName) {
+        producingSectors.push(sector as Sector);
+      }
+    }
+
+    // Get top 10 suppliers aggregated by corporation
+    const suppliersQuery = await pool.query(`
+      SELECT
+        c.id as corporation_id,
+        c.name as corporation_name,
+        c.logo as corporation_logo,
+        COALESCE(SUM(bu.count), 0)::int as production_units
+      FROM corporations c
+      JOIN market_entries me ON c.id = me.corporation_id
+      LEFT JOIN business_units bu ON me.id = bu.market_entry_id AND bu.unit_type = 'production'
+      WHERE me.sector_type = ANY($1::text[])
+      GROUP BY c.id, c.name, c.logo
+      HAVING COALESCE(SUM(bu.count), 0) > 0
+      ORDER BY production_units DESC
+      LIMIT 10
+    `, [producingSectors]);
+
+    // Get all corporations with their unit counts for demand calculation
+    const demandersQuery = await pool.query(`
+      SELECT
+        c.id as corporation_id,
+        c.name as corporation_name,
+        c.logo as corporation_logo,
+        me.sector_type,
+        COALESCE(SUM(CASE WHEN bu.unit_type = 'production' THEN bu.count ELSE 0 END), 0)::int as production_units,
+        COALESCE(SUM(CASE WHEN bu.unit_type = 'retail' THEN bu.count ELSE 0 END), 0)::int as retail_units,
+        COALESCE(SUM(CASE WHEN bu.unit_type = 'service' THEN bu.count ELSE 0 END), 0)::int as service_units,
+        COALESCE(SUM(CASE WHEN bu.unit_type = 'extraction' THEN bu.count ELSE 0 END), 0)::int as extraction_units
+      FROM corporations c
+      JOIN market_entries me ON c.id = me.corporation_id
+      LEFT JOIN business_units bu ON me.id = bu.market_entry_id
+      GROUP BY c.id, c.name, c.logo, me.sector_type
+    `);
+
+    // Calculate demand per corporation (aggregated across all their sectors)
+    const demandByCorp: Record<number, { corporation_id: number; corporation_name: string; corporation_logo: string | null; value: number }> = {};
+    for (const row of demandersQuery.rows) {
+      const counts = {
+        production: row.production_units,
+        retail: row.retail_units,
+        service: row.service_units,
+        extraction: row.extraction_units,
+      };
+      const demand = businessUnitCalculator.computeTotalProductDemand(row.sector_type, productName, counts);
+      if (demand > 0) {
+        if (!demandByCorp[row.corporation_id]) {
+          demandByCorp[row.corporation_id] = {
+            corporation_id: row.corporation_id,
+            corporation_name: row.corporation_name,
+            corporation_logo: row.corporation_logo,
+            value: 0,
+          };
+        }
+        demandByCorp[row.corporation_id].value += demand;
+      }
+    }
+
+    // Sort demanders by value and take top 10
+    const demanders = Object.values(demandByCorp)
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 10);
+
+    // Calculate supply values
+    const suppliers = suppliersQuery.rows.map(row => ({
+      corporation_id: row.corporation_id,
+      corporation_name: row.corporation_name,
+      corporation_logo: row.corporation_logo,
+      value: row.production_units * PRODUCTION_OUTPUT_RATE,
+    }));
+
+    // Calculate totals
+    const totalSuppliersQuery = await pool.query(`
+      SELECT COALESCE(SUM(bu.count), 0)::int as total_production
+      FROM market_entries me
+      LEFT JOIN business_units bu ON me.id = bu.market_entry_id AND bu.unit_type = 'production'
+      WHERE me.sector_type = ANY($1::text[])
+    `, [producingSectors]);
+
+    const totalSupply = (totalSuppliersQuery.rows[0]?.total_production || 0) * PRODUCTION_OUTPUT_RATE;
+    const totalDemand = Object.values(demandByCorp).reduce((sum, d) => sum + d.value, 0);
+
+    const top10SuppliersValue = suppliers.reduce((sum, s) => sum + s.value, 0);
+    const top10DemandersValue = demanders.reduce((sum, d) => sum + d.value, 0);
+
+    res.json({
+      product: productName,
+      suppliers: {
+        data: suppliers,
+        others: Math.max(0, totalSupply - top10SuppliersValue),
+        total: totalSupply,
+      },
+      demanders: {
+        data: demanders,
+        others: Math.max(0, totalDemand - top10DemandersValue),
+        total: totalDemand,
+      },
+    });
+  } catch (error) {
+    console.error('Get product pie data error:', error);
+    res.status(500).json({ error: 'Failed to fetch product pie data' });
+  }
+});
+
 // GET /api/markets/states - List all states with region grouping
 router.get('/states', async (req: Request, res: Response) => {
   try {
