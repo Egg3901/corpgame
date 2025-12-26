@@ -79,8 +79,8 @@ router.post('/register', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'User with this email already exists' });
     }
 
-    // Check if username already exists
-    const existingUsername = await pool.query('SELECT id FROM users WHERE username = $1', [trimmedUsername]);
+    // Check if username already exists (case-insensitive)
+    const existingUsername = await pool.query('SELECT id FROM users WHERE LOWER(username) = LOWER($1)', [trimmedUsername]);
     if (existingUsername.rows.length > 0) {
       return res.status(400).json({ error: 'Username already taken' });
     }

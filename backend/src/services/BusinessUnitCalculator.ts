@@ -34,6 +34,9 @@ import {
   MINING_MANUFACTURED_GOODS_CONSUMPTION,
   HEALTHCARE_TECHNOLOGY_CONSUMPTION,
   CONSTRUCTION_MANUFACTURED_GOODS_CONSUMPTION,
+  // Heavy Industry special constants
+  HEAVY_INDUSTRY_INPUTS,
+  HEAVY_INDUSTRY_ELECTRICITY_CONSUMPTION,
   type Sector,
   type Product,
   type Resource,
@@ -194,6 +197,10 @@ export class BusinessUnitCalculator {
           if (sector === 'Energy') {
             return 0;
           }
+          // Heavy Industry has higher electricity consumption
+          if (sector === 'Heavy Industry') {
+            return unitCount * HEAVY_INDUSTRY_ELECTRICITY_CONSUMPTION;
+          }
           return unitCount * PRODUCTION_ELECTRICITY_CONSUMPTION;
         case 'service':
           return unitCount * SERVICE_ELECTRICITY_CONSUMPTION;
@@ -280,6 +287,16 @@ export class BusinessUnitCalculator {
     // Only production units consume raw resources
     if (unitType !== 'production') return 0;
 
+    // SPECIAL CASE: Heavy Industry consumes Iron Ore + Coal (multi-resource)
+    if (sector === 'Heavy Industry') {
+      const heavyInput = HEAVY_INDUSTRY_INPUTS[resource as Resource];
+      if (heavyInput !== undefined) {
+        return unitCount * heavyInput;
+      }
+      return 0;
+    }
+
+    // Standard single resource consumption
     const requiredResource = (SECTOR_RESOURCES as Record<string, string | null>)[sector];
     if (requiredResource !== resource) return 0;
 

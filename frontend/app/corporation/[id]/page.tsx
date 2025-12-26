@@ -474,6 +474,7 @@ export default function CorporationDetailPage() {
       unitEconomics: UNIT_ECONOMICS,
       periodHours: DISPLAY_PERIOD_HOURS,
       fixedCosts: { ceoSalary: corporation?.ceo_salary || 0 },
+      dividendPercentage: corporation?.dividend_percentage || 0,
     });
   }, [marketEntries, marketMetadata, commodityPrices, productPrices, corporation]);
 
@@ -1820,139 +1821,174 @@ export default function CorporationDetailPage() {
                 </div>
               </div>
 
-              {/* Balance Sheet Section */}
+              {/* Financial Statement - Combined Balance Sheet & Income Statement */}
               <div className="relative rounded-2xl border border-gray-200/50 dark:border-gray-700/50 bg-gradient-to-br from-white via-white to-gray-50/50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800/50 shadow-2xl overflow-hidden backdrop-blur-sm mt-6">
                 <div className="absolute inset-0 bg-gradient-to-br from-corporate-blue/5 via-transparent to-corporate-blue-light/5 dark:from-corporate-blue/10 dark:via-transparent dark:to-corporate-blue-dark/10 pointer-events-none" />
                 <div className="absolute inset-0 ring-1 ring-inset ring-white/20 dark:ring-gray-700/30 pointer-events-none" />
                 <div className="relative p-6">
                   <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2 flex items-center gap-2">
                     <BarChart3 className="w-5 h-5 text-corporate-blue" />
-                    Balance Sheet
+                    Financial Statement
                   </h2>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-6">Asset values based on capitalized earnings (10x annual profit)</p>
-                  
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-6">96-hour projection based on market operations</p>
+
                   <div className="grid md:grid-cols-2 gap-6">
-                    {/* Assets */}
-                    <div className="rounded-xl border border-white/60 bg-white/70 dark:border-gray-800/70 dark:bg-gray-800/60 p-6 shadow-sm">
-                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Assets</h3>
-                      <div className="space-y-3">
-                        <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700">
-                          <span className="text-sm text-gray-600 dark:text-gray-400">Cash (Corporate Capital)</span>
-                          <span className="text-sm font-semibold text-gray-900 dark:text-white font-mono">
-                            {formatCash(balanceSheet?.cash ?? corporation.capital ?? 0)}
-                          </span>
-                        </div>
-                        <div className="py-2 border-b border-gray-200 dark:border-gray-700">
-                          <div className="flex justify-between items-center">
-                            <span className="text-sm text-gray-600 dark:text-gray-400">Business Unit Assets</span>
+                    {/* Balance Sheet */}
+                    <div className="space-y-4">
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                        <DollarSign className="w-4 h-4 text-corporate-blue" />
+                        Balance Sheet
+                      </h3>
+
+                      {/* Assets */}
+                      <div className="rounded-xl border border-white/60 bg-white/70 dark:border-gray-800/70 dark:bg-gray-800/60 p-4 shadow-sm">
+                        <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Assets</h4>
+                        <div className="space-y-2">
+                          <div className="flex justify-between items-center py-1 border-b border-gray-200 dark:border-gray-700">
+                            <span className="text-sm text-gray-600 dark:text-gray-400">Cash</span>
+                            <span className="text-sm font-semibold text-gray-900 dark:text-white font-mono">
+                              {formatCash(balanceSheet?.cash ?? corporation.capital ?? 0)}
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center py-1 border-b border-gray-200 dark:border-gray-700">
+                            <span className="text-sm text-gray-600 dark:text-gray-400">Business Units</span>
                             <span className="text-sm font-semibold text-gray-900 dark:text-white font-mono">
                               {formatCurrency(balanceSheet?.businessUnitAssets || 0)}
                             </span>
                           </div>
-                          {balanceSheet && balanceSheet.businessUnitAssets > 0 && (
-                            <div className="ml-4 mt-2 space-y-1">
-                              {balanceSheet.retailAssetValue > 0 && (
-                                <div className="flex justify-between items-center text-xs">
-                                  <span className="text-gray-500 dark:text-gray-500 flex items-center gap-1">
-                                    <Store className="w-3 h-3" />
-                                    Retail ({balanceSheet.totalRetailUnits} units)
-                                  </span>
-                                  <span className="text-gray-600 dark:text-gray-400 font-mono">
-                                    {formatCurrency(balanceSheet.retailAssetValue)}
-                                  </span>
-                                </div>
-                              )}
-                              {balanceSheet.productionAssetValue > 0 && (
-                                <div className="flex justify-between items-center text-xs">
-                                  <span className="text-gray-500 dark:text-gray-500 flex items-center gap-1">
-                                    <Factory className="w-3 h-3" />
-                                    Production ({balanceSheet.totalProductionUnits} units)
-                                  </span>
-                                  <span className="text-gray-600 dark:text-gray-400 font-mono">
-                                    {formatCurrency(balanceSheet.productionAssetValue)}
-                                  </span>
-                                </div>
-                              )}
-                              {balanceSheet.serviceAssetValue > 0 && (
-                                <div className="flex justify-between items-center text-xs">
-                                  <span className="text-gray-500 dark:text-gray-500 flex items-center gap-1">
-                                    <Briefcase className="w-3 h-3" />
-                                    Service ({balanceSheet.totalServiceUnits} units)
-                                  </span>
-                                  <span className="text-gray-600 dark:text-gray-400 font-mono">
-                                    {formatCurrency(balanceSheet.serviceAssetValue)}
-                                  </span>
-                                </div>
-                              )}
-                              {balanceSheet.extractionAssetValue > 0 && (
-                                <div className="flex justify-between items-center text-xs">
-                                  <span className="text-gray-500 dark:text-gray-500 flex items-center gap-1">
-                                    <Pickaxe className="w-3 h-3" />
-                                    Extraction ({balanceSheet.totalExtractionUnits} units)
-                                  </span>
-                                  <span className="text-gray-600 dark:text-gray-400 font-mono">
-                                    {formatCurrency(balanceSheet.extractionAssetValue)}
-                                  </span>
-                                </div>
-                              )}
-                            </div>
-                          )}
+                          <div className="flex justify-between items-center pt-2 border-t-2 border-gray-300 dark:border-gray-600">
+                            <span className="text-sm font-bold text-gray-900 dark:text-white">Total Assets</span>
+                            <span className="text-sm font-bold text-corporate-blue dark:text-corporate-blue-light font-mono">
+                              {formatCurrency(balanceSheet?.totalAssets || corporation.capital || 0)}
+                            </span>
+                          </div>
                         </div>
-                        <div className="flex justify-between items-center pt-3 border-t-2 border-gray-300 dark:border-gray-600">
-                          <span className="text-base font-bold text-gray-900 dark:text-white">Total Assets</span>
-                          <span className="text-base font-bold text-corporate-blue dark:text-corporate-blue-light font-mono">
-                            {formatCurrency(balanceSheet?.totalAssets || corporation.capital || 0)}
-                          </span>
+                      </div>
+
+                      {/* Liabilities & Equity */}
+                      <div className="rounded-xl border border-white/60 bg-white/70 dark:border-gray-800/70 dark:bg-gray-800/60 p-4 shadow-sm">
+                        <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Liabilities & Equity</h4>
+                        <div className="space-y-2">
+                          <div className="flex justify-between items-center py-1 border-b border-gray-200 dark:border-gray-700">
+                            <span className="text-sm text-gray-600 dark:text-gray-400">Total Liabilities</span>
+                            <span className="text-sm font-semibold text-gray-900 dark:text-white font-mono">
+                              {formatCurrency(balanceSheet?.totalLiabilities || 0)}
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center py-1 border-b border-gray-200 dark:border-gray-700">
+                            <span className="text-sm text-gray-600 dark:text-gray-400">Shareholders&apos; Equity</span>
+                            <span className="text-sm font-semibold text-gray-900 dark:text-white font-mono">
+                              {formatCurrency(balanceSheet?.shareholdersEquity || corporation.capital || 0)}
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center py-1 border-b border-gray-200 dark:border-gray-700">
+                            <span className="text-sm text-gray-600 dark:text-gray-400">Book Value/Share</span>
+                            <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400 font-mono">
+                              {formatCurrency(balanceSheet?.bookValuePerShare || 0)}
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center pt-2 border-t-2 border-gray-300 dark:border-gray-600">
+                            <span className="text-sm font-bold text-gray-900 dark:text-white">Total L&E</span>
+                            <span className="text-sm font-bold text-corporate-blue dark:text-corporate-blue-light font-mono">
+                              {formatCurrency(balanceSheet?.totalAssets || corporation.capital || 0)}
+                            </span>
+                          </div>
                         </div>
                       </div>
                     </div>
 
-                    {/* Liabilities & Equity */}
-                    <div className="rounded-xl border border-white/60 bg-white/70 dark:border-gray-800/70 dark:bg-gray-800/60 p-6 shadow-sm">
-                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Liabilities & Equity</h3>
-                      <div className="space-y-3">
-                        <div className="mb-4">
-                          <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Liabilities</h4>
-                          <div className="space-y-2 ml-4">
-                            <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700">
-                              <span className="text-sm text-gray-600 dark:text-gray-400">Total Liabilities</span>
-                              <span className="text-sm font-semibold text-gray-900 dark:text-white font-mono">
-                                {formatCurrency(balanceSheet?.totalLiabilities || 0)}
-                              </span>
-                            </div>
-                          </div>
+                    {/* Income Statement */}
+                    <div className="space-y-4">
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                        <TrendingUp className="w-4 h-4 text-corporate-blue" />
+                        Income Statement
+                      </h3>
+
+                      <div className="rounded-xl border border-white/60 bg-white/70 dark:border-gray-800/70 dark:bg-gray-800/60 p-4 shadow-sm">
+                        {/* Header */}
+                        <div className="grid grid-cols-[1fr,auto,auto] gap-2 pb-2 mb-2 border-b border-gray-200 dark:border-gray-700">
+                          <div className="text-xs font-semibold text-gray-500 dark:text-gray-400"></div>
+                          <div className="text-xs font-semibold text-gray-500 dark:text-gray-400 text-right min-w-[80px]">96hr</div>
+                          <div className="text-xs font-semibold text-gray-500 dark:text-gray-400 text-right min-w-[80px]">Hourly</div>
                         </div>
-                        <div>
-                          <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Shareholders&apos; Equity</h4>
-                          <div className="space-y-2 ml-4">
-                            <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700">
-                              <span className="text-sm text-gray-600 dark:text-gray-400">Total Equity</span>
-                              <span className="text-sm font-semibold text-gray-900 dark:text-white font-mono">
-                                {formatCurrency(balanceSheet?.shareholdersEquity || corporation.capital || 0)}
-                              </span>
-                            </div>
-                            <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700">
-                              <span className="text-sm text-gray-600 dark:text-gray-400">Book Value per Share</span>
-                              <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400 font-mono">
-                                {formatCurrency(balanceSheet?.bookValuePerShare || 0)}
-                              </span>
-                            </div>
+
+                        <div className="space-y-2">
+                          {/* Revenue */}
+                          <div className="grid grid-cols-[1fr,auto,auto] gap-2 items-center py-1 border-b border-gray-200 dark:border-gray-700">
+                            <span className="text-sm text-gray-600 dark:text-gray-400">Revenue</span>
+                            <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400 font-mono text-right min-w-[80px]">
+                              {formatCurrency(statements.revenue)}
+                            </span>
+                            <span className="text-xs text-emerald-600 dark:text-emerald-400 font-mono text-right min-w-[80px]">
+                              {formatCurrency(statements.revenue / 96)}
+                            </span>
                           </div>
-                        </div>
-                        <div className="flex justify-between items-center pt-3 border-t-2 border-gray-300 dark:border-gray-600 mt-4">
-                          <span className="text-base font-bold text-gray-900 dark:text-white">Total Liabilities & Equity</span>
-                          <span className="text-base font-bold text-corporate-blue dark:text-corporate-blue-light font-mono">
-                            {formatCurrency(balanceSheet?.totalAssets || corporation.capital || 0)}
-                          </span>
+
+                          {/* Operating Costs */}
+                          <div className="grid grid-cols-[1fr,auto,auto] gap-2 items-center py-1 border-b border-gray-200 dark:border-gray-700">
+                            <span className="text-sm text-gray-600 dark:text-gray-400">Operating Costs</span>
+                            <span className="text-sm font-semibold text-red-600 dark:text-red-400 font-mono text-right min-w-[80px]">
+                              {formatCurrency(statements.variableCosts)}
+                            </span>
+                            <span className="text-xs text-red-600 dark:text-red-400 font-mono text-right min-w-[80px]">
+                              {formatCurrency(statements.variableCosts / 96)}
+                            </span>
+                          </div>
+
+                          {/* CEO Salary */}
+                          <div className="grid grid-cols-[1fr,auto,auto] gap-2 items-center py-1 border-b border-gray-200 dark:border-gray-700">
+                            <span className="text-sm text-gray-600 dark:text-gray-400">CEO Salary</span>
+                            <span className={`text-sm font-semibold font-mono text-right min-w-[80px] ${(corporation.ceo_salary || 100000) > 0 ? 'text-purple-600 dark:text-purple-400' : 'text-gray-400 dark:text-gray-500'}`}>
+                              {formatCurrency(corporation.ceo_salary ?? 100000)}
+                            </span>
+                            <span className={`text-xs font-mono text-right min-w-[80px] ${(corporation.ceo_salary || 100000) > 0 ? 'text-purple-600 dark:text-purple-400' : 'text-gray-400 dark:text-gray-500'}`}>
+                              {formatCurrency((corporation.ceo_salary ?? 100000) / 96)}
+                            </span>
+                          </div>
+
+                          {/* Operating Income (Net Income before dividends) */}
+                          <div className="grid grid-cols-[1fr,auto,auto] gap-2 items-center py-1 border-b border-gray-200 dark:border-gray-700">
+                            <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Operating Income</span>
+                            <span className={`text-sm font-semibold font-mono text-right min-w-[80px] ${(statements.operatingIncome || 0) >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+                              {formatCurrency(statements.operatingIncome)}
+                            </span>
+                            <span className={`text-xs font-mono text-right min-w-[80px] ${(statements.operatingIncome || 0) >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+                              {formatCurrency(statements.operatingIncome / 96)}
+                            </span>
+                          </div>
+
+                          {/* Dividends */}
+                          <div className="grid grid-cols-[1fr,auto,auto] gap-2 items-center py-1 border-b border-gray-200 dark:border-gray-700">
+                            <span className="text-sm text-gray-600 dark:text-gray-400">
+                              Dividends ({(corporation.dividend_percentage || 0).toFixed(1)}%)
+                            </span>
+                            <span className={`text-sm font-semibold font-mono text-right min-w-[80px] ${statements.dividends > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-gray-400 dark:text-gray-500'}`}>
+                              {statements.dividends > 0 ? `-${formatCurrency(statements.dividends)}` : '$0.00'}
+                            </span>
+                            <span className={`text-xs font-mono text-right min-w-[80px] ${statements.dividends > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-gray-400 dark:text-gray-500'}`}>
+                              {statements.dividends > 0 ? `-${formatCurrency(statements.dividends / 96)}` : '$0.00'}
+                            </span>
+                          </div>
+
+                          {/* Retained Earnings */}
+                          <div className="grid grid-cols-[1fr,auto,auto] gap-2 items-center pt-2 border-t-2 border-gray-300 dark:border-gray-600">
+                            <span className="text-sm font-bold text-gray-900 dark:text-white">Retained Earnings</span>
+                            <span className={`text-sm font-bold font-mono text-right min-w-[80px] ${(statements.retainedEarnings || 0) >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+                              {formatCurrency(statements.retainedEarnings)}
+                            </span>
+                            <span className={`text-xs font-bold font-mono text-right min-w-[80px] ${(statements.retainedEarnings || 0) >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+                              {formatCurrency(statements.retainedEarnings / 96)}
+                            </span>
+                          </div>
                         </div>
                       </div>
                     </div>
                   </div>
 
-                  {/* Stock Valuation Info */}
+                  {/* Stock Valuation Section */}
                   <div className="mt-6 p-4 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700">
                     <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Stock Price Valuation</h4>
-                    
+
                     {/* Main Price Display */}
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mb-4">
                       <div>
@@ -1988,13 +2024,13 @@ export default function CorporationDetailPage() {
                         <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-xs">
                           <div className="group relative">
                             <span className="text-gray-500 dark:text-gray-400 block mb-1">Earnings Value</span>
-                            <span className="font-mono font-medium text-emerald-600 dark:text-emerald-400">
+                            <span className={`font-mono font-medium ${stockValuation.earnings_value >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
                               {formatCurrency(stockValuation.earnings_value)}
                             </span>
                             <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block z-[9999] pointer-events-none">
                               <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 shadow-xl whitespace-nowrap">
-                                <p className="font-medium">Earnings-Based Valuation</p>
-                                <p className="text-gray-300">Annual Profit: {formatCurrency(stockValuation.annual_profit)}</p>
+                                <p className="font-medium">Earnings-Based Valuation (96hr)</p>
+                                <p className="text-gray-300">Operating Profit: {formatCurrency(stockValuation.annual_profit)}</p>
                                 <p className="text-gray-300">EPS × P/E (15x) = {formatCurrency(stockValuation.annual_profit / (effectiveTotalShares || 1))} × 15</p>
                               </div>
                             </div>
@@ -2020,7 +2056,7 @@ export default function CorporationDetailPage() {
                             <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block z-[9999] pointer-events-none">
                               <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 shadow-xl whitespace-nowrap">
                                 <p className="font-medium">Dividend Information</p>
-                                <p className="text-gray-300">Annual Div/Share: {formatCurrency(stockValuation.annual_dividend_per_share)}</p>
+                                <p className="text-gray-300">Div/Share (96hr): {formatCurrency(stockValuation.annual_dividend_per_share)}</p>
                                 <p className="text-gray-300">Yield: {stockValuation.dividend_yield.toFixed(2)}%</p>
                               </div>
                             </div>
@@ -2046,9 +2082,12 @@ export default function CorporationDetailPage() {
                             <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block z-[9999] pointer-events-none">
                               <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 shadow-xl whitespace-nowrap">
                                 <p className="font-medium">Fundamental Value</p>
-                                <p className="text-gray-300">50% Book: {formatCurrency(stockValuation.book_value * 0.50)}</p>
+                                <p className="text-gray-300">45% Book: {formatCurrency(stockValuation.book_value * 0.45)}</p>
                                 <p className={`${stockValuation.earnings_value < 0 ? 'text-red-400' : 'text-gray-300'}`}>
-                                  30% Earnings: {formatCurrency(stockValuation.earnings_value * 0.30)}
+                                  25% Earnings: {formatCurrency(stockValuation.earnings_value * 0.25)}
+                                </p>
+                                <p className="text-amber-400">
+                                  10% Dividend: {formatCurrency((stockValuation.annual_dividend_per_share * 10) * 0.10)}
                                 </p>
                               </div>
                             </div>
@@ -2058,320 +2097,132 @@ export default function CorporationDetailPage() {
                     )}
 
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
-                      <strong>Price Formula:</strong> 50% Book Value (NPV-based) + 30% Earnings + 20% Trade History (min $0.01)
+                      <strong>Price Formula:</strong> 45% Book Value + 25% Earnings (96hr × PE 15) + 20% Trade History + 10% Dividend Yield (min $0.01)
                     </p>
                   </div>
                 </div>
               </div>
 
-              {/* Income Statement Section */}
-              <div className="relative rounded-2xl border border-gray-200/50 dark:border-gray-700/50 bg-gradient-to-br from-white via-white to-gray-50/50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800/50 shadow-2xl overflow-hidden backdrop-blur-sm mt-6">
-                <div className="absolute inset-0 bg-gradient-to-br from-corporate-blue/5 via-transparent to-corporate-blue-light/5 dark:from-corporate-blue/10 dark:via-transparent dark:to-corporate-blue-dark/10 pointer-events-none" />
-                <div className="absolute inset-0 ring-1 ring-inset ring-white/20 dark:ring-gray-700/30 pointer-events-none" />
-                <div className="relative p-6">
-                  <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2 flex items-center gap-2">
-                    <TrendingUp className="w-5 h-5 text-corporate-blue" />
-                    Income Statement
-                  </h2>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-6">96-hour projection based on market operations</p>
-                  
-                  <div className="rounded-xl border border-white/60 bg-white/70 dark:border-gray-800/70 dark:bg-gray-800/60 p-6 shadow-sm">
-                    {/* Header with column labels */}
-                    <div className="grid grid-cols-[1fr,auto,auto] gap-4 pb-3 mb-3 border-b-2 border-gray-300 dark:border-gray-600">
-                      <div className="text-sm font-semibold text-gray-700 dark:text-gray-300"></div>
-                      <div className="text-sm font-semibold text-gray-700 dark:text-gray-300 text-right min-w-[120px]">Yearly (96hr)</div>
-                      <div className="text-sm font-semibold text-gray-700 dark:text-gray-300 text-right min-w-[120px]">Hourly</div>
+              {/* Business Units Card */}
+              {corpFinances && corpFinances.markets_count > 0 && (
+                <div className="relative rounded-2xl border border-gray-200/50 dark:border-gray-700/50 bg-gradient-to-br from-white via-white to-gray-50/50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800/50 shadow-2xl overflow-hidden backdrop-blur-sm mt-6">
+                  <div className="absolute inset-0 bg-gradient-to-br from-corporate-blue/5 via-transparent to-corporate-blue-light/5 dark:from-corporate-blue/10 dark:via-transparent dark:to-corporate-blue-dark/10 pointer-events-none" />
+                  <div className="absolute inset-0 ring-1 ring-inset ring-white/20 dark:ring-gray-700/30 pointer-events-none" />
+                  <div className="relative p-6">
+                    <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                      <Factory className="w-5 h-5 text-corporate-blue" />
+                      Business Units
+                    </h2>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <div className="text-center p-4 rounded-xl bg-pink-50 dark:bg-pink-900/20 border border-pink-200 dark:border-pink-800/30">
+                        <Store className="h-8 w-8 text-pink-500 mx-auto mb-2" />
+                        <p className="text-3xl font-bold text-gray-900 dark:text-white">{corpFinances.total_retail_units}</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Retail Units</p>
+                      </div>
+                      <div className="text-center p-4 rounded-xl bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800/30">
+                        <Factory className="h-8 w-8 text-orange-500 mx-auto mb-2" />
+                        <p className="text-3xl font-bold text-gray-900 dark:text-white">{corpFinances.total_production_units}</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Production Units</p>
+                      </div>
+                      <div className="text-center p-4 rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800/30">
+                        <Briefcase className="h-8 w-8 text-blue-500 mx-auto mb-2" />
+                        <p className="text-3xl font-bold text-gray-900 dark:text-white">{corpFinances.total_service_units}</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Service Units</p>
+                      </div>
+                      <div className="text-center p-4 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/30">
+                        <Pickaxe className="h-8 w-8 text-amber-600 mx-auto mb-2" />
+                        <p className="text-3xl font-bold text-gray-900 dark:text-white">{corpFinances.total_extraction_units || 0}</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Extraction Units</p>
+                      </div>
                     </div>
-
-                    <div className="space-y-4">
-                      {/* Revenue Row */}
-                      <div className="grid grid-cols-[1fr,auto,auto] gap-4 items-center py-2 border-b border-gray-200 dark:border-gray-700 group relative">
-                        <span className="text-sm text-gray-600 dark:text-gray-400">Revenue</span>
-                        <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400 font-mono text-right min-w-[120px]">
-                          {formatCurrency(statements.revenue)}
-                        </span>
-                        <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400 font-mono text-right min-w-[120px]">
-                          {formatCurrency(statements.revenue / 96)}
-                        </span>
-                        {/* Tooltip */}
-                        <div className="absolute bottom-full right-0 mb-2 hidden group-hover:block z-[9999] pointer-events-none">
-                          <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 shadow-xl max-w-md">
-                            <p className="font-medium mb-2 text-emerald-400">Revenue Breakdown (96hr)</p>
-                            <div className="space-y-2 max-h-96 overflow-y-auto">
-                              {(() => {
-                                const sectors = statements.sectors.slice().sort((a, b) => a.sector.localeCompare(b.sector));
-                                return sectors.map(sectorData => {
-                                  if (sectorData.revenue === 0) return null;
-                                  return (
-                                    <div key={sectorData.sector} className="border-t border-gray-700 pt-2 first:border-t-0 first:pt-0">
-                                      <p className="font-semibold text-white mb-1">{sectorData.sector}</p>
-                                      <div className="ml-2 space-y-1 text-gray-300">
-                                        {sectorData.unitBreakdown.retail.units > 0 && (
-                                          <div className="flex justify-between">
-                                            <span>Retail ({sectorData.unitBreakdown.retail.units} units):</span>
-                                            <span className="font-mono text-emerald-300">{formatCurrency(sectorData.unitBreakdown.retail.revenue)}</span>
-                                          </div>
-                                        )}
-                                        {sectorData.unitBreakdown.production.units > 0 && (
-                                          <div className="flex justify-between">
-                                            <span>Production ({sectorData.unitBreakdown.production.units} units):</span>
-                                            <span className="font-mono text-emerald-300">{formatCurrency(sectorData.unitBreakdown.production.revenue)}</span>
-                                          </div>
-                                        )}
-                                        {sectorData.unitBreakdown.service.units > 0 && (
-                                          <div className="flex justify-between">
-                                            <span>Service ({sectorData.unitBreakdown.service.units} units):</span>
-                                            <span className="font-mono text-emerald-300">{formatCurrency(sectorData.unitBreakdown.service.revenue)}</span>
-                                          </div>
-                                        )}
-                                        {sectorData.unitBreakdown.extraction.units > 0 && (
-                                          <div className="flex justify-between">
-                                            <span>Extraction ({sectorData.unitBreakdown.extraction.units} units):</span>
-                                            <span className="font-mono text-emerald-300">{formatCurrency(sectorData.unitBreakdown.extraction.revenue)}</span>
-                                          </div>
-                                        )}
-                                        <div className="flex justify-between font-semibold text-white pt-1 border-t border-gray-700">
-                                          <span>Total:</span>
-                                          <span className="font-mono text-emerald-300">{formatCurrency(sectorData.revenue)}</span>
-                                        </div>
-                                      </div>
-                                    </div>
-                                  );
-                                });
-                              })()}
-                            </div>
-                            <div className="border-t border-gray-700 pt-2 mt-2 flex justify-between font-semibold text-white">
-                              <span>Grand Total:</span>
-                              <span className="font-mono text-emerald-300">{formatCurrency(statements.revenue)}</span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Operating Costs Row */}
-                      <div className="grid grid-cols-[1fr,auto,auto] gap-4 items-center py-2 border-b border-gray-200 dark:border-gray-700 group relative">
-                        <span className="text-sm text-gray-600 dark:text-gray-400">Operating Costs</span>
-                        <span className="text-sm font-semibold text-red-600 dark:text-red-400 font-mono text-right min-w-[120px]">
-                          {formatCurrency(statements.variableCosts)}
-                        </span>
-                        <span className="text-sm font-semibold text-red-600 dark:text-red-400 font-mono text-right min-w-[120px]">
-                          {formatCurrency(statements.variableCosts / 96)}
-                        </span>
-                        {/* Tooltip */}
-                        <div className="absolute bottom-full right-0 mb-2 hidden group-hover:block z-[9999] pointer-events-none">
-                          <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 shadow-xl max-w-md">
-                            <p className="font-medium mb-2 text-red-400">Operating Costs Breakdown (96hr)</p>
-                            <div className="space-y-2 max-h-96 overflow-y-auto">
-                              {(() => {
-                                const sectors = statements.sectors.slice().sort((a, b) => a.sector.localeCompare(b.sector));
-                                return sectors.map(sectorData => {
-                                  if (sectorData.variableCosts === 0) return null;
-                                  return (
-                                    <div key={sectorData.sector} className="border-t border-gray-700 pt-2 first:border-t-0 first:pt-0">
-                                      <p className="font-semibold text-white mb-1">{sectorData.sector}</p>
-                                      <div className="ml-2 space-y-1 text-gray-300">
-                                        {sectorData.unitBreakdown.retail.units > 0 && (
-                                          <div className="flex justify-between">
-                                            <span>Retail ({sectorData.unitBreakdown.retail.units} units):</span>
-                                            <span className="font-mono text-red-300">{formatCurrency(sectorData.unitBreakdown.retail.cost)}</span>
-                                          </div>
-                                        )}
-                                        {sectorData.unitBreakdown.production.units > 0 && (
-                                          <div className="flex justify-between">
-                                            <span>Production ({sectorData.unitBreakdown.production.units} units):</span>
-                                            <span className="font-mono text-red-300">{formatCurrency(sectorData.unitBreakdown.production.cost)}</span>
-                                          </div>
-                                        )}
-                                        {sectorData.unitBreakdown.service.units > 0 && (
-                                          <div className="flex justify-between">
-                                            <span>Service ({sectorData.unitBreakdown.service.units} units):</span>
-                                            <span className="font-mono text-red-300">{formatCurrency(sectorData.unitBreakdown.service.cost)}</span>
-                                          </div>
-                                        )}
-                                        {sectorData.unitBreakdown.extraction.units > 0 && (
-                                          <div className="flex justify-between">
-                                            <span>Extraction ({sectorData.unitBreakdown.extraction.units} units):</span>
-                                            <span className="font-mono text-red-300">{formatCurrency(sectorData.unitBreakdown.extraction.cost)}</span>
-                                          </div>
-                                        )}
-                                        <div className="flex justify-between font-semibold text-white pt-1 border-t border-gray-700">
-                                          <span>Total:</span>
-                                          <span className="font-mono text-red-300">{formatCurrency(sectorData.variableCosts)}</span>
-                                        </div>
-                                      </div>
-                                    </div>
-                                  );
-                                });
-                              })()}
-                            </div>
-                            <div className="border-t border-gray-700 pt-2 mt-2 flex justify-between font-semibold text-white">
-                              <span>Grand Total:</span>
-                              <span className="font-mono text-red-300">{formatCurrency(statements.variableCosts)}</span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* CEO Salary Row */}
-                      <div className="grid grid-cols-[1fr,auto,auto] gap-4 items-center py-2 border-b border-gray-200 dark:border-gray-700">
-                        <span className="text-sm text-gray-600 dark:text-gray-400">CEO Salary</span>
-                        <span className={`text-sm font-semibold font-mono text-right min-w-[120px] ${(corporation.ceo_salary || 100000) > 0 ? 'text-purple-600 dark:text-purple-400' : 'text-gray-400 dark:text-gray-500'}`}>
-                          {formatCurrency(corporation.ceo_salary ?? 100000)}
-                        </span>
-                        <span className={`text-sm font-semibold font-mono text-right min-w-[120px] ${(corporation.ceo_salary || 100000) > 0 ? 'text-purple-600 dark:text-purple-400' : 'text-gray-400 dark:text-gray-500'}`}>
-                          {formatCurrency((corporation.ceo_salary ?? 100000) / 96)}
-                        </span>
-                      </div>
-
-                      {/* Net Income Row */}
-                      <div className="grid grid-cols-[1fr,auto,auto] gap-4 items-center pt-3 border-t-2 border-gray-300 dark:border-gray-600">
-                        <span className="text-lg font-bold text-gray-900 dark:text-white">Net Income</span>
-                        <span className={`text-lg font-bold font-mono text-right min-w-[120px] ${(statements.netIncome || 0) >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
-                          {formatCurrency(statements.netIncome)}
-                        </span>
-                        <span className={`text-lg font-bold font-mono text-right min-w-[120px] ${(statements.netIncome || 0) >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
-                          {formatCurrency(statements.netIncome / 96)}
-                        </span>
-                      </div>
+                    <div className="mt-4 flex justify-between items-center text-sm">
+                      <span className="text-gray-500 dark:text-gray-400">
+                        Total: {(corpFinances.total_retail_units || 0) + (corpFinances.total_production_units || 0) + (corpFinances.total_service_units || 0) + (corpFinances.total_extraction_units || 0)} units
+                      </span>
+                      <span className="text-gray-500 dark:text-gray-400">
+                        {corpFinances.markets_count} market{corpFinances.markets_count !== 1 ? 's' : ''} active
+                      </span>
                     </div>
                   </div>
-
-                  {/* Dividends Section */}
-                  <div className="mt-6 rounded-xl border border-white/60 bg-white/70 dark:border-gray-800/70 dark:bg-gray-800/60 p-6 shadow-sm">
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Dividends</h3>
-                    <div className="space-y-4">
-                      <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700">
-                        <span className="text-sm text-gray-600 dark:text-gray-400">Current Dividend Rate</span>
-                        <span className="text-sm font-semibold text-gray-900 dark:text-white">
-                          {(corporation.dividend_percentage || 0).toFixed(2)}% of profit
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm text-gray-600 dark:text-gray-400">Dividend per Share (96hr)</span>
-                          <span className="text-xs text-gray-400 dark:text-gray-500">
-                            ({((corpFinances?.dividend_per_share_96h || 0) * 4).toLocaleString(undefined, { maximumFractionDigits: 4 })}/share annualized)
-                          </span>
-                        </div>
-                        <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400 font-mono">
-                          {formatCurrency(corpFinances?.dividend_per_share_96h || 0)}
-                        </span>
-                      </div>
-                      {corpFinances?.special_dividend_last_amount && (
-                        <>
-                          <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700">
-                            <span className="text-sm text-gray-600 dark:text-gray-400">Last Special Dividend</span>
-                            <span className="text-sm font-semibold text-purple-600 dark:text-purple-400 font-mono">
-                              {formatCurrency(corpFinances.special_dividend_last_amount)}
-                            </span>
-                          </div>
-                          <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700">
-                            <span className="text-sm text-gray-600 dark:text-gray-400">Per Share</span>
-                            <span className="text-sm font-semibold text-purple-600 dark:text-purple-400 font-mono">
-                              {formatCurrency(corpFinances.special_dividend_per_share_last || 0)}
-                            </span>
-                          </div>
-                          <div className="flex justify-between items-center py-2">
-                            <span className="text-sm text-gray-600 dark:text-gray-400">Time Since Last</span>
-                            <span className="text-sm font-semibold text-gray-900 dark:text-white">
-                              {corpFinances.special_dividend_last_paid_at ? (() => {
-                                const lastPaid = new Date(corpFinances.special_dividend_last_paid_at);
-                                const now = new Date();
-                                const hoursSince = (now.getTime() - lastPaid.getTime()) / (1000 * 60 * 60);
-                                const daysSince = Math.floor(hoursSince / 24);
-                                const hoursRemaining = Math.ceil(96 - (hoursSince % 96));
-                                if (hoursSince < 96) {
-                                  return `${hoursRemaining}h until next available`;
-                                }
-                                return `${daysSince}d ${Math.floor((hoursSince % 24))}h ago`;
-                              })() : 'Never'}
-                            </span>
-                          </div>
-                        </>
-                      )}
-                      {!corpFinances?.special_dividend_last_amount && (
-                        <div className="text-sm text-gray-500 dark:text-gray-400 py-2">
-                          No special dividend has been paid yet
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Unit Breakdown */}
-                  {corpFinances && corpFinances.markets_count > 0 && (
-                    <div className="mt-6 rounded-xl border border-white/60 bg-white/70 dark:border-gray-800/70 dark:bg-gray-800/60 p-6 shadow-sm">
-                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Business Units</h3>
-                      <div className="grid grid-cols-3 gap-4">
-                        <div className="text-center p-3 rounded-lg bg-pink-50 dark:bg-pink-900/20">
-                          <Store className="h-6 w-6 text-pink-500 mx-auto mb-2" />
-                          <p className="text-2xl font-bold text-gray-900 dark:text-white">{corpFinances.total_retail_units}</p>
-                          <p className="text-xs text-gray-500 dark:text-gray-400">Retail</p>
-                        </div>
-                        <div className="text-center p-3 rounded-lg bg-orange-50 dark:bg-orange-900/20">
-                          <Factory className="h-6 w-6 text-orange-500 mx-auto mb-2" />
-                          <p className="text-2xl font-bold text-gray-900 dark:text-white">{corpFinances.total_production_units}</p>
-                          <p className="text-xs text-gray-500 dark:text-gray-400">Production</p>
-                        </div>
-                        <div className="text-center p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20">
-                          <Briefcase className="h-6 w-6 text-blue-500 mx-auto mb-2" />
-                          <p className="text-2xl font-bold text-gray-900 dark:text-white">{corpFinances.total_service_units}</p>
-                          <p className="text-xs text-gray-500 dark:text-gray-400">Service</p>
-                        </div>
-                      </div>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-4 text-center">
-                        Operating in {corpFinances.markets_count} market{corpFinances.markets_count !== 1 ? 's' : ''}
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Market Entries List */}
-                  {marketEntries.length > 0 && (
-                    <div className="mt-6 rounded-xl border border-white/60 bg-white/70 dark:border-gray-800/70 dark:bg-gray-800/60 p-6 shadow-sm">
-                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Market Presence</h3>
-                      <div className="space-y-3">
-                        {marketEntries.map((entry) => (
-                          <Link
-                            key={entry.id}
-                            href={`/states/${entry.state_code}`}
-                            className="flex items-center justify-between p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-corporate-blue/30 dark:hover:border-corporate-blue/30 transition-colors"
-                          >
-                            <div>
-                              <p className="font-medium text-gray-900 dark:text-white">{entry.state_name || entry.state_code}</p>
-                              <p className="text-xs text-gray-500 dark:text-gray-400">{entry.sector_type}</p>
-                            </div>
-                            <div className="text-right">
-                              <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                                {entry.retail_count + entry.production_count + entry.service_count} units
-                              </p>
-                              <p className="text-xs text-gray-500 dark:text-gray-400">
-                                {entry.state_multiplier?.toFixed(1)}x multiplier
-                              </p>
-                            </div>
-                          </Link>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {(!corpFinances || corpFinances.markets_count === 0) && (
-                    <div className="mt-6 rounded-xl border border-dashed border-corporate-blue/30 bg-corporate-blue/5 dark:bg-corporate-blue/10 p-6 text-center">
-                      <MapPin className="h-8 w-8 text-corporate-blue/50 mx-auto mb-2" />
-                      <p className="text-sm text-corporate-blue dark:text-corporate-blue-light">
-                        No market operations yet
-                      </p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                        Enter markets via the States page to generate revenue
-                      </p>
-                      <Link
-                        href="/states"
-                        className="inline-block mt-3 px-4 py-2 bg-corporate-blue text-white text-sm rounded-lg hover:bg-corporate-blue-dark transition-colors"
-                      >
-                        View States
-                      </Link>
-                    </div>
-                  )}
                 </div>
-              </div>
+              )}
+
+              {/* Market Presence Card */}
+              {marketEntries.length > 0 && (
+                <div className="relative rounded-2xl border border-gray-200/50 dark:border-gray-700/50 bg-gradient-to-br from-white via-white to-gray-50/50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800/50 shadow-2xl overflow-hidden backdrop-blur-sm mt-6">
+                  <div className="absolute inset-0 bg-gradient-to-br from-corporate-blue/5 via-transparent to-corporate-blue-light/5 dark:from-corporate-blue/10 dark:via-transparent dark:to-corporate-blue-dark/10 pointer-events-none" />
+                  <div className="absolute inset-0 ring-1 ring-inset ring-white/20 dark:ring-gray-700/30 pointer-events-none" />
+                  <div className="relative p-6">
+                    <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                      <MapPin className="w-5 h-5 text-corporate-blue" />
+                      Market Presence
+                    </h2>
+                    <div className="grid gap-3 md:grid-cols-2">
+                      {marketEntries.map((entry) => (
+                        <Link
+                          key={entry.id}
+                          href={`/states/${entry.state_code}`}
+                          className="flex items-center justify-between p-4 rounded-xl border border-gray-200 dark:border-gray-700 bg-white/50 dark:bg-gray-800/50 hover:border-corporate-blue/50 dark:hover:border-corporate-blue/50 hover:shadow-lg transition-all group"
+                        >
+                          <div className="flex-1">
+                            <p className="font-semibold text-gray-900 dark:text-white group-hover:text-corporate-blue transition-colors">
+                              {entry.state_name || entry.state_code}
+                            </p>
+                            <p className="text-sm text-gray-500 dark:text-gray-400">{entry.sector_type}</p>
+                            <div className="flex gap-2 mt-2 text-xs">
+                              {(entry.retail_count || 0) > 0 && (
+                                <span className="px-2 py-0.5 rounded-full bg-pink-100 dark:bg-pink-900/30 text-pink-700 dark:text-pink-300">
+                                  {entry.retail_count} retail
+                                </span>
+                              )}
+                              {(entry.production_count || 0) > 0 && (
+                                <span className="px-2 py-0.5 rounded-full bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300">
+                                  {entry.production_count} prod
+                                </span>
+                              )}
+                              {(entry.service_count || 0) > 0 && (
+                                <span className="px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300">
+                                  {entry.service_count} svc
+                                </span>
+                              )}
+                              {(entry.extraction_count || 0) > 0 && (
+                                <span className="px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300">
+                                  {entry.extraction_count} ext
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="text-right ml-4">
+                            <p className="text-lg font-bold text-corporate-blue dark:text-corporate-blue-light">
+                              {entry.state_multiplier?.toFixed(1)}x
+                            </p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">multiplier</p>
+                          </div>
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* No Market Operations CTA */}
+              {(!corpFinances || corpFinances.markets_count === 0) && (
+                <div className="relative rounded-2xl border border-dashed border-corporate-blue/30 bg-corporate-blue/5 dark:bg-corporate-blue/10 mt-6 p-8 text-center">
+                  <MapPin className="h-12 w-12 text-corporate-blue/50 mx-auto mb-3" />
+                  <p className="text-lg font-semibold text-corporate-blue dark:text-corporate-blue-light">
+                    No market operations yet
+                  </p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 mb-4">
+                    Enter markets via the States page to generate revenue
+                  </p>
+                  <Link
+                    href="/states"
+                    className="inline-block px-6 py-2 bg-corporate-blue text-white text-sm font-medium rounded-lg hover:bg-corporate-blue-dark transition-colors"
+                  >
+                    View States
+                  </Link>
+                </div>
+              )}
               </>
             )}
 

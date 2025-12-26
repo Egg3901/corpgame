@@ -89,7 +89,7 @@ export class UserModel {
         profile_slug, bio, registration_ip, last_login_ip, last_login_at, cash, created_at`,
       [
         email.trim(),
-        username.trim(),
+        username.trim().toLowerCase(),
         password_hash,
         cleanPlayerName,
         cleanGender,
@@ -121,11 +121,12 @@ export class UserModel {
   }
 
   static async findByUsername(username: string): Promise<User | null> {
+    // Case-insensitive username lookup
     const result = await pool.query(
-      'SELECT * FROM users WHERE username = $1',
+      'SELECT * FROM users WHERE LOWER(username) = LOWER($1)',
       [username]
     );
-    
+
     return result.rows[0] || null;
   }
 

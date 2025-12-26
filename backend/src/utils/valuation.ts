@@ -5,15 +5,17 @@ import {
   getUnitAssetValue,
   getMarketEntryAssetValue,
   STOCK_VALUATION,
+  DISPLAY_PERIOD_HOURS,
 } from '../constants/sectors';
 
 // Stock price calculation weights
 // Book Value includes Cash + Business Unit Assets (NPV-based)
 // Cash is NOT weighted separately - it's part of book value
 const STOCK_PRICE_WEIGHTS = {
-  BOOK_VALUE: 0.50,      // 50% weight on book value (cash + NPV-based unit assets)
-  EARNINGS: 0.30,        // 30% weight on earnings (P/E valuation)
+  BOOK_VALUE: 0.45,      // 45% weight on book value (cash + NPV-based unit assets)
+  EARNINGS: 0.25,        // 25% weight on earnings (P/E valuation)
   TRADE_HISTORY: 0.20,   // 20% weight on recent trade prices
+  DIVIDEND_YIELD: 0.10,  // 10% weight on dividend yield (rewards income investors)
 };
 
 const EARNINGS_PE_RATIO = 15;  // P/E ratio for earnings-based valuation
@@ -50,22 +52,22 @@ export interface BalanceSheet {
 export interface StockValuation {
   // Components
   bookValue: number;           // Book value per share (assets - liabilities)
-  earningsValue: number;       // Earnings-based value (annual profit / shares * P/E)
-  dividendYield: number;       // Annual dividend yield percentage
+  earningsValue: number;       // Earnings-based value (96hr profit / shares * P/E)
+  dividendYield: number;       // 96hr dividend yield percentage
   cashPerShare: number;        // Cash (capital) per share
   tradeWeightedPrice: number;  // Weighted average of recent trades
-  
+
   // Combined fundamental value
   fundamentalValue: number;    // Weighted combination of book value, earnings, and cash
-  
+
   // Final price
   calculatedPrice: number;
-  
+
   // Metadata
   recentTradeCount: number;
   hasTradeHistory: boolean;
-  annualProfit: number;
-  annualDividendPerShare: number;
+  annualProfit: number;        // Now 96hr period profit (matches Income Statement)
+  annualDividendPerShare: number;  // Now 96hr period dividend
 }
 
 /**
@@ -248,23 +250,23 @@ export async function calculateStockPrice(corporationId: number): Promise<StockV
   // Cash per share (informational only - included in book value, not weighted separately)
   const cashPerShare = totalShares > 0 ? balanceSheet.cash / totalShares : 0;
 
-  // Annual earnings calculation
-  const annualProfit = finances.hourly_profit * STOCK_VALUATION.HOURS_PER_YEAR;
-  const earningsPerShare = totalShares > 0 ? annualProfit / totalShares : 0;
+  // Period earnings calculation (96-hour period to match Income Statement)
+  const periodProfit = finances.hourly_profit * DISPLAY_PERIOD_HOURS;
+  const earningsPerShare = totalShares > 0 ? periodProfit / totalShares : 0;
 
   // Earnings value with P/E ratio
   // IMPORTANT: Negative earnings apply a drag (reduce price)
   const earningsValue = earningsPerShare * EARNINGS_PE_RATIO;
 
-  // Dividend calculations
+  // Dividend calculations (based on 96-hour period)
   const dividendPercentage = typeof corporation.dividend_percentage === 'string'
     ? parseFloat(corporation.dividend_percentage)
     : (corporation.dividend_percentage || 0);
-  const annualDividendPerShare = totalShares > 0 && dividendPercentage > 0 && annualProfit > 0
-    ? (annualProfit * dividendPercentage / 100) / totalShares
+  const periodDividendPerShare = totalShares > 0 && dividendPercentage > 0 && periodProfit > 0
+    ? (periodProfit * dividendPercentage / 100) / totalShares
     : 0;
-  const dividendYield = bookValue > 0 && annualDividendPerShare > 0
-    ? (annualDividendPerShare / bookValue) * 100
+  const dividendYield = bookValue > 0 && periodDividendPerShare > 0
+    ? (periodDividendPerShare / bookValue) * 100
     : 0;
 
   // Trade-weighted price (use book value as fallback if no trades)
@@ -272,13 +274,20 @@ export async function calculateStockPrice(corporationId: number): Promise<StockV
     ? tradeData.weightedPrice
     : bookValue;
 
+  // Dividend value component: converts yield % to a price contribution
+  // A 5% yield on a $1 stock = $0.05 dividend = contributes $0.50 value at 10x multiple
+  // This rewards companies that pay dividends to shareholders
+  const DIVIDEND_MULTIPLE = 10; // How much to value dividends (similar to earnings PE)
+  const dividendValue = periodDividendPerShare * DIVIDEND_MULTIPLE;
+
   // Calculate weighted fundamental value
   // Negative earnings now DRAG the price down (not clamped to 0)
   let fundamentalValue = 0;
   if (totalShares > 0) {
     fundamentalValue =
       (bookValue * STOCK_PRICE_WEIGHTS.BOOK_VALUE) +
-      (earningsValue * STOCK_PRICE_WEIGHTS.EARNINGS);
+      (earningsValue * STOCK_PRICE_WEIGHTS.EARNINGS) +
+      (dividendValue * STOCK_PRICE_WEIGHTS.DIVIDEND_YIELD);
     // Note: Cash is already in book value, not weighted separately
   } else {
     fundamentalValue = bookValue;
@@ -311,8 +320,8 @@ export async function calculateStockPrice(corporationId: number): Promise<StockV
     calculatedPrice,
     recentTradeCount: tradeData.tradeCount,
     hasTradeHistory: tradeData.hasHistory,
-    annualProfit,
-    annualDividendPerShare,
+    annualProfit: periodProfit,  // Now 96hr period profit (matches Income Statement)
+    annualDividendPerShare: periodDividendPerShare,  // Now 96hr period dividend
   };
 }
 

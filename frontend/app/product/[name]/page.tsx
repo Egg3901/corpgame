@@ -8,6 +8,7 @@ import { marketsAPI, ProductDetailResponse, MarketMetadataResponse, ProductPieDa
 import { formatPriceLocalized, formatNumberLocalized, categorizeDemandLevel } from '@/lib/marketUtils';
 import PriceChart from '@/components/PriceChart';
 import CommodityPieChart from '@/components/CommodityPieChart';
+import ProductionChainDiagram from '@/components/ProductionChainDiagram';
 import {
   ArrowLeft,
   Building2,
@@ -213,6 +214,9 @@ export default function ProductDetailPage() {
             </div>
           </div>
         </div>
+
+        {/* Production Chain Diagram */}
+        <ProductionChainDiagram type="product" name={productName} />
 
         <div className="grid lg:grid-cols-3 gap-6">
           {/* Main Content */}

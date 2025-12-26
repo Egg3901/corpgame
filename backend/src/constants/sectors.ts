@@ -16,6 +16,7 @@ export const SECTORS = [
   'Construction',
   'Pharmaceuticals',
   'Mining',
+  'Heavy Industry',     // NEW: Production-only sector that converts Iron Ore + Coal → Steel
 ] as const;
 
 export type Sector = typeof SECTORS[number];
@@ -74,36 +75,42 @@ export function isValidSector(value: string): value is Sector {
 // ============================================================================
 
 // Resource types that production units can demand
+// Note: Steel is now a PRODUCED resource (by Heavy Industry), not naturally occurring
+// Iron Ore and Coal are the raw inputs for Steel production
 export const RESOURCES = [
   'Oil',
-  'Steel',
+  'Iron Ore',           // Raw material - extracted by Mining, used by Heavy Industry
   'Rare Earth',
   'Copper',
   'Fertile Land',
   'Lumber',
   'Chemical Compounds',
+  'Coal',               // Raw material - extracted by Mining, used by Heavy Industry
+  'Steel',              // Produced resource - output by Heavy Industry extraction units
 ] as const;
 
 export type Resource = typeof RESOURCES[number];
 
 // Mapping of sectors to their required resource (null = no resource required)
+// Note: Steel is now produced by Heavy Industry sector, consumed by Manufacturing, Transportation, Defense, Construction
 export const SECTOR_RESOURCES: Record<Sector, Resource | null> = {
   'Technology': 'Rare Earth',
   'Finance': null,
   'Healthcare': null,
-  'Manufacturing': 'Steel',
+  'Manufacturing': 'Steel',           // Consumes Steel (produced by Heavy Industry)
   'Energy': 'Oil',
   'Retail': null,
   'Real Estate': null,
-  'Transportation': 'Steel',
+  'Transportation': 'Steel',          // Consumes Steel (produced by Heavy Industry)
   'Media': null,
   'Telecommunications': 'Copper',
   'Agriculture': 'Fertile Land',
-  'Defense': 'Steel',
+  'Defense': 'Steel',                 // Consumes Steel (produced by Heavy Industry)
   'Hospitality': null,
-  'Construction': null,  // Special case: consumes both Lumber and Steel via custom logic
+  'Construction': null,               // Special case: consumes both Lumber and Steel via custom logic
   'Pharmaceuticals': 'Chemical Compounds',
-  'Mining': null,  // Mining extracts resources, doesn't consume them for production
+  'Mining': null,                     // Mining extracts resources, doesn't consume them for production
+  'Heavy Industry': null,             // Special case: consumes Iron Ore + Coal (handled separately)
 };
 
 // ============================================================================
@@ -112,11 +119,12 @@ export const SECTOR_RESOURCES: Record<Sector, Resource | null> = {
 // ============================================================================
 
 // Mapping of sectors to resources they can extract (null = cannot extract)
+// Note: Heavy Industry "extracts" Steel by converting Iron Ore + Coal → Steel
 export const SECTOR_EXTRACTION: Record<Sector, Resource[] | null> = {
   'Technology': null,           // Cannot extract
   'Finance': null,              // Cannot extract
   'Healthcare': null,           // Cannot extract
-  'Manufacturing': ['Steel'],   // Only production and service, now extracts Steel
+  'Manufacturing': null,        // CHANGED: No longer extracts - consumes Steel from Heavy Industry
   'Energy': ['Oil'],            // Oil extraction
   'Retail': null,               // Cannot extract
   'Real Estate': null,          // Cannot extract
@@ -128,7 +136,8 @@ export const SECTOR_EXTRACTION: Record<Sector, Resource[] | null> = {
   'Hospitality': null,          // Cannot extract
   'Construction': ['Lumber'],   // Can harvest lumber
   'Pharmaceuticals': ['Chemical Compounds'],  // Chemical extraction/synthesis
-  'Mining': ['Steel', 'Copper', 'Rare Earth'],  // Primary extraction sector
+  'Mining': ['Iron Ore', 'Coal', 'Copper', 'Rare Earth'],  // CHANGED: Extracts raw materials (not Steel)
+  'Heavy Industry': ['Steel'],  // NEW: Produces Steel from Iron Ore + Coal + Electricity
 };
 
 // Check if a sector can build extraction units
@@ -201,6 +210,7 @@ export const STATE_RESOURCES: Record<string, StateResourcePool> = {
   'CO': {
     'Oil': 700,              // DJ Basin
     'Fertile Land': 800,
+    'Coal': 500,             // Western coal deposits
   },
   'NM': {
     'Oil': 1200,             // Permian Basin extends here
@@ -225,12 +235,14 @@ export const STATE_RESOURCES: Record<string, StateResourcePool> = {
     'Oil': 80,
     'Rare Earth': 150,
     'Fertile Land': 1000,
+    'Coal': 1500,            // Significant coal deposits
   },
   'WY': {
     'Oil': 500,
     'Chemical Compounds': 2000,  // Trona/soda ash - world's largest
     'Rare Earth': 500,
     'Fertile Land': 400,
+    'Coal': 8000,            // #1 US coal producer (Powder River Basin)
   },
 
   // ---- SOUTHWEST ----
@@ -239,7 +251,8 @@ export const STATE_RESOURCES: Record<string, StateResourcePool> = {
     'Chemical Compounds': 8000, // Gulf Coast petrochemical hub
     'Fertile Land': 3500,
     'Rare Earth': 300,
-    'Steel': 100,            // Some iron ore
+    'Iron Ore': 100,         // Some iron ore deposits
+    'Coal': 600,             // Lignite coal deposits
   },
   'OK': {
     'Oil': 800,
@@ -251,32 +264,34 @@ export const STATE_RESOURCES: Record<string, StateResourcePool> = {
   'IL': {
     'Fertile Land': 7000,    // Corn Belt powerhouse
     'Chemical Compounds': 500,
-    'Steel': 50,
+    'Iron Ore': 50,          // Minor deposits
+    'Coal': 2500,            // Major coal producer
   },
   'OH': {
-    'Steel': 50,             // Historical steel industry
+    'Iron Ore': 50,          // Historical iron ore deposits
     'Fertile Land': 3000,
     'Chemical Compounds': 800,
     'Oil': 50,
   },
   'MI': {
-    'Steel': 2000,           // Iron Range extends here
+    'Iron Ore': 2000,        // Iron Range extends here
     'Copper': 500,           // Keweenaw Peninsula (historical)
     'Lumber': 600,
     'Fertile Land': 1200,
   },
   'IN': {
     'Fertile Land': 4000,
-    'Steel': 30,
+    'Iron Ore': 30,          // Minor deposits
     'Chemical Compounds': 200,
+    'Coal': 1000,            // Indiana coal production
   },
   'WI': {
-    'Steel': 500,            // Iron ore deposits
+    'Iron Ore': 500,         // Iron ore deposits
     'Lumber': 800,
     'Fertile Land': 1500,
   },
   'MN': {
-    'Steel': 5000,           // Iron Range - dominant US source
+    'Iron Ore': 5000,        // Iron Range - dominant US source (~75% of US production)
     'Fertile Land': 5000,
     'Lumber': 400,
   },
@@ -302,6 +317,7 @@ export const STATE_RESOURCES: Record<string, StateResourcePool> = {
   'ND': {
     'Oil': 1500,             // Bakken Formation
     'Fertile Land': 2000,
+    'Coal': 800,             // Lignite coal deposits
   },
 
   // ---- SOUTHEAST ----
@@ -333,7 +349,7 @@ export const STATE_RESOURCES: Record<string, StateResourcePool> = {
     'Fertile Land': 300,
   },
   'AL': {
-    'Steel': 300,            // Birmingham iron/steel history
+    'Iron Ore': 300,         // Birmingham iron ore history
     'Lumber': 3500,
     'Chemical Compounds': 200,
   },
@@ -341,6 +357,7 @@ export const STATE_RESOURCES: Record<string, StateResourcePool> = {
     'Fertile Land': 600,
     'Lumber': 400,
     'Chemical Compounds': 150,
+    'Coal': 2000,            // Major coal producer
   },
   'LA': {
     'Oil': 400,
@@ -360,6 +377,7 @@ export const STATE_RESOURCES: Record<string, StateResourcePool> = {
   'WV': {
     'Lumber': 500,
     'Chemical Compounds': 300,
+    'Coal': 4000,            // #2 coal producer (after Wyoming)
   },
 
   // ---- NORTHEAST ----
@@ -368,10 +386,11 @@ export const STATE_RESOURCES: Record<string, StateResourcePool> = {
     'Lumber': 300,
   },
   'PA': {
-    'Steel': 200,            // Historical steel industry
+    'Iron Ore': 200,         // Historical iron ore deposits
     'Lumber': 400,
     'Chemical Compounds': 600,
     'Oil': 20,               // First US oil well was here
+    'Coal': 3000,            // Anthracite coal region
   },
   'NJ': {
     'Chemical Compounds': 1000, // Major chemical industry
@@ -459,6 +478,81 @@ export function getStatesWithResource(resource: Resource): Array<{ stateCode: st
   const result = states.sort((a, b) => b.amount - a.amount);
   _statesWithResourceCache.set(resource, result);
   return result;
+}
+
+// ============================================================================
+// EXTRACTION VALIDATION
+// Enforces that sectors can only extract resources that exist in the state
+// ============================================================================
+
+export interface ExtractionValidationResult {
+  allowed: boolean;
+  reason?: string;
+  available: number;
+}
+
+/**
+ * Validate if extraction is allowed based on state resources
+ * ALL sectors must have the resource available in the state to extract it
+ * Special case: Heavy Industry can always "extract" Steel (it produces it from Iron Ore + Coal)
+ */
+export function canExtractInState(
+  sector: string,
+  stateCode: string,
+  resource: Resource
+): ExtractionValidationResult {
+  // Check if sector can extract this resource type at all
+  const extractable = SECTOR_EXTRACTION[sector as Sector];
+  if (!extractable || !extractable.includes(resource)) {
+    return {
+      allowed: false,
+      reason: `${sector} sector cannot extract ${resource}`,
+      available: 0
+    };
+  }
+
+  // Special case: Heavy Industry produces Steel, doesn't need it in ground
+  if (sector === 'Heavy Industry' && resource === 'Steel') {
+    return { allowed: true, available: Infinity };
+  }
+
+  // Check if state has this resource
+  const stateAmount = getStateResourceAmount(stateCode, resource);
+  if (stateAmount <= 0) {
+    const stateName = getStateLabel(stateCode) || stateCode;
+    return {
+      allowed: false,
+      reason: `${stateName} does not have ${resource} deposits`,
+      available: 0
+    };
+  }
+
+  return { allowed: true, available: stateAmount };
+}
+
+/**
+ * Get all extractable resources for a sector in a specific state
+ * Only returns resources that the state actually has
+ */
+export function getStateExtractableResources(
+  sector: string,
+  stateCode: string
+): Resource[] {
+  const sectorExtractable = SECTOR_EXTRACTION[sector as Sector];
+  if (!sectorExtractable) return [];
+
+  return sectorExtractable.filter(resource => {
+    // Heavy Industry always can "extract" Steel (it produces it)
+    if (sector === 'Heavy Industry' && resource === 'Steel') return true;
+    return getStateResourceAmount(stateCode, resource as Resource) > 0;
+  }) as Resource[];
+}
+
+/**
+ * Check if a sector is production-only (cannot build retail/service units)
+ */
+export function isProductionOnlySector(sector: string): boolean {
+  return PRODUCTION_ONLY_SECTORS.includes(sector as Sector);
 }
 
 // ============================================================================
@@ -802,6 +896,23 @@ export const DEFENSE_TECHNOLOGY_CONSUMPTION = 0.4;        // Electronics, guidan
 
 // Extraction unit additional demands
 export const MINING_MANUFACTURED_GOODS_CONSUMPTION = 0.35;  // Drills, conveyors, trucks, equipment
+
+// ============================================================================
+// HEAVY INDUSTRY SPECIAL CONSTANTS
+// Heavy Industry is a production-only sector that converts Iron Ore + Coal → Steel
+// ============================================================================
+
+// Heavy Industry multi-resource consumption rates (per production unit per hour)
+export const HEAVY_INDUSTRY_INPUTS: Partial<Record<Resource, number>> = {
+  'Iron Ore': 0.5,     // Units consumed per production unit per hour
+  'Coal': 0.3,         // Units consumed per production unit per hour
+};
+
+// Heavy Industry has higher electricity consumption than normal production
+export const HEAVY_INDUSTRY_ELECTRICITY_CONSUMPTION = 0.75;
+
+// Sectors that can ONLY build production/extraction units (no retail/service)
+export const PRODUCTION_ONLY_SECTORS: Sector[] = ['Heavy Industry', 'Mining'];
 
 // Service unit additional demands
 export const HEALTHCARE_TECHNOLOGY_CONSUMPTION = 0.4;     // Medical devices, diagnostic equipment
@@ -1579,23 +1690,27 @@ export function getResourceInfo(resource: Resource): {
 // Base prices for each resource (in dollars per unit)
 export const RESOURCE_BASE_PRICES: Record<Resource, number> = {
   'Oil': 75,                    // Per barrel equivalent
-  'Steel': 850,                 // Per ton equivalent
+  'Iron Ore': 120,              // Per ton - raw material for steel
   'Rare Earth': 9000,           // Adjusted base price
   'Copper': 8500,               // Per ton
   'Fertile Land': 3500,         // Per acre equivalent
   'Lumber': 450,                // Per thousand board feet
   'Chemical Compounds': 2200,   // Per ton
+  'Coal': 65,                   // Per ton - coking coal for steel production
+  'Steel': 850,                 // Per ton equivalent (produced by Heavy Industry)
 };
 
 // Reference pool sizes for "normal" pricing (prices adjust based on deviation from these)
 const REFERENCE_POOL_SIZES: Record<Resource, number> = {
   'Oil': 12000,
-  'Steel': 10000,
+  'Iron Ore': 12000,          // Based on total Iron Ore in STATE_RESOURCES
   'Rare Earth': 4000,
   'Copper': 20000,
   'Fertile Land': 60000,
   'Lumber': 40000,
   'Chemical Compounds': 25000,
+  'Coal': 25000,              // Based on total Coal in STATE_RESOURCES
+  'Steel': 10000,             // Produced by Heavy Industry
 };
 
 export interface CommodityPrice {
@@ -1879,6 +1994,7 @@ export const SECTOR_PRODUCTS: Record<Sector, Product | null> = {
   'Construction': 'Construction Capacity',
   'Pharmaceuticals': 'Pharmaceutical Products',
   'Mining': null,                     // Extraction sector (extracts resources, doesn't produce products)
+  'Heavy Industry': null,             // Produces Steel resource via extraction, not a product
 };
 
 // What each sector's production units demand (products they need to operate)
@@ -1900,6 +2016,7 @@ export const SECTOR_PRODUCT_DEMANDS: Record<Sector, Product[] | null> = {
   'Construction': null,                            // Produces, doesn't consume products
   'Pharmaceuticals': null,                         // Produces, doesn't consume products
   'Mining': null,                                  // Extraction sector, doesn't consume products
+  'Heavy Industry': null,                          // Consumes resources (Iron Ore + Coal), not products
 };
 
 // What each sector's retail units demand (products they need to sell/operate)
@@ -1921,6 +2038,7 @@ export const SECTOR_RETAIL_DEMANDS: Record<Sector, Product[] | null> = {
   'Construction': ['Construction Capacity'],       // Construction retail/showrooms
   'Pharmaceuticals': ['Pharmaceutical Products'],  // Pharmacies
   'Mining': null,                                  // Cannot build retail units
+  'Heavy Industry': null,                          // Production-only sector - cannot build retail units
 };
 
 // What each sector's service units demand (products they need to provide services)
@@ -1942,6 +2060,7 @@ export const SECTOR_SERVICE_DEMANDS: Record<Sector, Product[] | null> = {
   'Construction': ['Construction Capacity', 'Electricity'],       // Construction services
   'Pharmaceuticals': ['Pharmaceutical Products', 'Electricity'],  // Pharmaceutical services
   'Mining': null,                                  // Cannot build service units
+  'Heavy Industry': null,                          // Production-only sector - cannot build service units
 };
 
 // Get what product a sector produces

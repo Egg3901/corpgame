@@ -8,6 +8,7 @@ import { marketsAPI, ResourceDetailResponse, MarketMetadataResponse, ResourcePie
 import { formatPriceLocalized, formatNumberLocalized, categorizeDemandLevel } from '@/lib/marketUtils';
 import PriceChart from '@/components/PriceChart';
 import CommodityPieChart from '@/components/CommodityPieChart';
+import ProductionChainDiagram from '@/components/ProductionChainDiagram';
 import {
   ArrowLeft,
   Building2,
@@ -31,23 +32,27 @@ import {
 // Resource icon mapping
 const RESOURCE_ICONS: Record<string, React.ReactNode> = {
   'Oil': <Droplets className="w-6 h-6" />,
+  'Iron Ore': <Factory className="w-6 h-6" />,
   'Steel': <Package className="w-6 h-6" />,
   'Rare Earth': <Cpu className="w-6 h-6" />,
   'Copper': <Zap className="w-6 h-6" />,
   'Fertile Land': <Wheat className="w-6 h-6" />,
   'Lumber': <Trees className="w-6 h-6" />,
   'Chemical Compounds': <FlaskConical className="w-6 h-6" />,
+  'Coal': <Factory className="w-6 h-6" />,
 };
 
 // Resource color mapping
 const RESOURCE_COLORS: Record<string, { bg: string; text: string; headerBg: string }> = {
   'Oil': { bg: 'bg-slate-100 dark:bg-slate-900/50', text: 'text-slate-700 dark:text-slate-300', headerBg: 'bg-slate-900' },
+  'Iron Ore': { bg: 'bg-red-100 dark:bg-red-900/50', text: 'text-red-700 dark:text-red-300', headerBg: 'bg-red-700' },
   'Steel': { bg: 'bg-zinc-100 dark:bg-zinc-900/50', text: 'text-zinc-700 dark:text-zinc-300', headerBg: 'bg-zinc-600' },
   'Rare Earth': { bg: 'bg-violet-100 dark:bg-violet-900/50', text: 'text-violet-700 dark:text-violet-300', headerBg: 'bg-violet-600' },
   'Copper': { bg: 'bg-orange-100 dark:bg-orange-900/50', text: 'text-orange-700 dark:text-orange-300', headerBg: 'bg-orange-600' },
   'Fertile Land': { bg: 'bg-lime-100 dark:bg-lime-900/50', text: 'text-lime-700 dark:text-lime-300', headerBg: 'bg-lime-600' },
   'Lumber': { bg: 'bg-amber-100 dark:bg-amber-900/50', text: 'text-amber-700 dark:text-amber-300', headerBg: 'bg-amber-700' },
   'Chemical Compounds': { bg: 'bg-cyan-100 dark:bg-cyan-900/50', text: 'text-cyan-700 dark:text-cyan-300', headerBg: 'bg-cyan-600' },
+  'Coal': { bg: 'bg-stone-100 dark:bg-stone-900/50', text: 'text-stone-700 dark:text-stone-300', headerBg: 'bg-stone-800' },
 };
 
 export default function CommodityDetailPage() {
@@ -204,6 +209,9 @@ export default function CommodityDetailPage() {
             </div>
           </div>
         </div>
+
+        {/* Production Chain Diagram */}
+        <ProductionChainDiagram type="resource" name={resourceName} />
 
         <div className="grid lg:grid-cols-3 gap-6">
           {/* Main Content */}

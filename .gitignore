@@ -6,3 +6,6 @@ logs/
 backend/uploads/
 INSTRUCTIONS.md
 instructions.md
+
+# Claude Code local settings
+.claude/settings.local.json

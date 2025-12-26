@@ -35,7 +35,10 @@ export type ConsolidatedStatement = {
   revenue: number;
   variableCosts: number;
   fixedCosts: number;
-  netIncome: number;
+  operatingIncome: number;  // Revenue - Variable Costs - Fixed Costs (before dividends)
+  dividends: number;        // Operating Income * dividend_percentage
+  retainedEarnings: number; // Operating Income - Dividends
+  netIncome: number;        // Same as retainedEarnings for compatibility
   sectors: SectorStatement[];
   periodHours: number;
   errors: string[];
@@ -49,6 +52,7 @@ type ComputeParams = {
   unitEconomics: UnitEconomics;
   periodHours?: number;
   fixedCosts?: FixedCosts;
+  dividendPercentage?: number;  // 0-100, percentage of operating income paid as dividends
 };
 
 const clampNonNegative = (n: number) => (isFinite(n) && n > 0 ? n : 0);
@@ -265,13 +269,25 @@ export function computeFinancialStatements(params: ComputeParams): ConsolidatedS
   const consolidatedVariable = sectors.reduce((s, x) => s + x.variableCosts, 0);
   const corporateFixed = clampNonNegative((fixedCosts.ceoSalary || 0) + (fixedCosts.overhead || 0));
   const consolidatedFixed = sectors.reduce((s, x) => s + x.fixedCosts, 0) + corporateFixed;
-  const consolidatedNet = consolidatedRevenue - (consolidatedVariable + consolidatedFixed);
+
+  // Operating Income = Revenue - Variable Costs - Fixed Costs (before dividends)
+  const operatingIncome = consolidatedRevenue - (consolidatedVariable + consolidatedFixed);
+
+  // Calculate dividends (only on positive operating income)
+  const divPercent = clampNonNegative(params.dividendPercentage || 0);
+  const dividends = operatingIncome > 0 ? operatingIncome * (divPercent / 100) : 0;
+
+  // Retained Earnings = Operating Income - Dividends
+  const retainedEarnings = operatingIncome - dividends;
 
   return {
     revenue: consolidatedRevenue,
     variableCosts: consolidatedVariable,
     fixedCosts: consolidatedFixed,
-    netIncome: consolidatedNet,
+    operatingIncome,
+    dividends,
+    retainedEarnings,
+    netIncome: retainedEarnings,  // For backwards compatibility
     sectors,
     periodHours,
     errors,
