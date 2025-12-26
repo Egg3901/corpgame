@@ -13,6 +13,26 @@
   --foreground-rgb: 243, 244, 246;
   --background-start-rgb: 15, 23, 42;
   --background-end-rgb: 15, 23, 42;
+
+  /* Visual hierarchy - 4 background levels */
+  --bg-level-0: #0f172a;     /* slate-900 - page background (darkest) */
+  --bg-level-1: #1e293b;     /* slate-800 - section containers */
+  --bg-level-2: #334155;     /* slate-700 - cards/panels */
+  --bg-level-3: #475569;     /* slate-600 - inputs/interactive (lightest) */
+
+  /* Border colors - subtle to emphasized */
+  --border-subtle: #475569;      /* slate-600 - subtle borders */
+  --border-emphasis: #64748b;    /* slate-500 - emphasized borders */
+  --border-active: #94a3b8;      /* slate-400 - active/hover */
+
+  /* Text hierarchy */
+  --text-primary: #f1f5f9;       /* slate-100 - headers */
+  --text-secondary: #cbd5e1;     /* slate-300 - body text */
+  --text-tertiary: #94a3b8;      /* slate-400 - muted text */
+
+  /* Accent colors for highlights */
+  --accent-color: #3b82f6;       /* blue-500 - accent color */
+  --accent-bg-subtle: #1e40af;   /* blue-800 - subtle accent bg */
 }
 
 /* Black theme - pure black backgrounds */
@@ -20,6 +40,26 @@
   --foreground-rgb: 243, 244, 246;
   --background-start-rgb: 0, 0, 0;
   --background-end-rgb: 0, 0, 0;
+
+  /* Visual hierarchy - 4 background levels */
+  --bg-level-0: #000000;     /* pure black - page background (darkest) */
+  --bg-level-1: #0a0a0a;     /* very dark - section containers */
+  --bg-level-2: #1a1a1a;     /* dark gray - cards/panels */
+  --bg-level-3: #2a2a2a;     /* gray - inputs/interactive (lightest) */
+
+  /* Border colors - subtle to emphasized */
+  --border-subtle: #2a2a2a;       /* dark gray - subtle borders */
+  --border-emphasis: #404040;     /* medium gray - emphasized borders */
+  --border-active: #525252;       /* light gray - active/hover */
+
+  /* Text hierarchy */
+  --text-primary: #fafafa;        /* almost white - headers */
+  --text-secondary: #e5e7eb;      /* light gray - body text */
+  --text-tertiary: #9ca3af;       /* medium gray - muted text */
+
+  /* Accent colors for highlights */
+  --accent-color: #3b82f6;        /* blue-500 - accent color */
+  --accent-bg-subtle: #1e3a8a;    /* blue-900 - subtle accent bg */
 }
 
 /* Generic dark mode fallback for dark: tailwind utilities */
@@ -103,85 +143,124 @@ body {
   color: var(--bloomberg-orange);
 }
 
-/* Midnight theme - dark blue-gray overrides for all components */
+/* ============================================================================
+   MIDNIGHT THEME - SMART VISUAL HIERARCHY
+   Using CSS variables for 4-level background hierarchy
+   ============================================================================ */
+
+/* Level 0: Page Background (darkest) */
+.dark.midnight body {
+  background-color: var(--bg-level-0);
+}
+
+/* Level 1: Section Containers - slightly lighter than background */
+.dark.midnight .bg-white\/90,
+.dark.midnight .dark\:bg-gray-900\/90,
+.dark.midnight .bg-white\/95,
+.dark.midnight .dark\:bg-gray-900\/95 {
+  background-color: var(--bg-level-1) !important;
+  backdrop-filter: blur(12px);
+}
+
+/* Level 2: Cards, Panels, Modals - clearly distinguishable */
 .dark.midnight .bg-white,
 .dark.midnight .bg-gray-50,
-.dark.midnight .bg-gray-100 {
-  background-color: #0f172a !important;
+.dark.midnight .bg-gray-100,
+.dark.midnight .dark\:bg-gray-900,
+.dark.midnight .bg-gray-900 {
+  background-color: var(--bg-level-2) !important;
 }
 
-.dark.midnight .bg-gray-900,
-.dark.midnight .dark\:bg-gray-900 {
-  background-color: #0f172a !important;
+/* Cards with gradients - use subtle gradient between level 1 and 2 */
+.dark.midnight .bg-gradient-to-br.from-white,
+.dark.midnight .dark\:from-gray-900 {
+  background: linear-gradient(135deg, var(--bg-level-1), var(--bg-level-2)) !important;
+  --tw-gradient-from: var(--bg-level-1) !important;
+  --tw-gradient-to: var(--bg-level-2) !important;
 }
 
+/* Nested surfaces within cards */
 .dark.midnight .bg-gray-800,
 .dark.midnight .dark\:bg-gray-800,
-.dark.midnight .dark\:bg-gray-800\/60 {
-  background-color: #1e293b !important;
+.dark.midnight .dark\:bg-gray-800\/60,
+.dark.midnight .dark\:bg-gray-800\/50 {
+  background-color: var(--bg-level-1) !important;
 }
 
-.dark.midnight .dark\:from-gray-900,
-.dark.midnight .dark\:via-gray-900,
-.dark.midnight .dark\:to-gray-950 {
-  --tw-gradient-from: #0f172a !important;
-  --tw-gradient-via: #0f172a !important;
-  --tw-gradient-to: #0f172a !important;
+/* Level 3: Interactive Elements - inputs, buttons (lightest) */
+.dark.midnight input,
+.dark.midnight textarea,
+.dark.midnight select {
+  background-color: var(--bg-level-3) !important;
+  border-color: var(--border-emphasis) !important;
 }
 
-.dark.midnight .dark\:from-gray-950,
-.dark.midnight .dark\:via-gray-900,
-.dark.midnight .dark\:to-gray-950 {
-  --tw-gradient-from: #0f172a !important;
-  --tw-gradient-via: #0f172a !important;
-  --tw-gradient-to: #0f172a !important;
-}
-
+/* Border hierarchy */
 .dark.midnight .border-gray-700,
 .dark.midnight .dark\:border-gray-700,
 .dark.midnight .dark\:border-gray-700\/50,
-.dark.midnight .dark\:border-gray-700\/60 {
-  border-color: #334155 !important;
-}
-
+.dark.midnight .dark\:border-gray-700\/60,
 .dark.midnight .border-gray-100,
 .dark.midnight .border-gray-200 {
-  border-color: #334155 !important;
+  border-color: var(--border-subtle) !important;
 }
 
-/* Midnight theme - text color overrides for visibility */
+.dark.midnight .border-white\/60,
+.dark.midnight .border-white\/70,
+.dark.midnight .border-white\/80,
+.dark.midnight .dark\:border-gray-800\/60,
+.dark.midnight .dark\:border-gray-700\/80 {
+  border-color: var(--border-emphasis) !important;
+}
+
+/* Text hierarchy */
 .dark.midnight .text-gray-900,
-.dark.midnight .dark\:text-white {
-  color: #f3f4f6 !important;
+.dark.midnight .dark\:text-white,
+.dark.midnight h1,
+.dark.midnight h2,
+.dark.midnight h3 {
+  color: var(--text-primary) !important;
 }
 
 .dark.midnight .text-gray-600,
 .dark.midnight .dark\:text-gray-300 {
-  color: #cbd5e1 !important;
+  color: var(--text-secondary) !important;
 }
 
 .dark.midnight .text-gray-500,
 .dark.midnight .dark\:text-gray-400 {
-  color: #94a3b8 !important;
+  color: var(--text-tertiary) !important;
 }
 
-/* Midnight theme - navigation bar overrides */
-.dark.midnight .bg-white\/90,
-.dark.midnight .dark\:bg-gray-900\/90 {
-  background-color: rgba(15, 23, 42, 0.95) !important;
+/* Table styling - clear row separation */
+.dark.midnight tbody tr {
+  border-bottom: 1px solid var(--border-subtle);
+  transition: background-color 0.15s ease, border-color 0.15s ease;
 }
 
-.dark.midnight .bg-white\/95,
-.dark.midnight .dark\:bg-gray-900\/95 {
-  background-color: rgba(15, 23, 42, 0.98) !important;
+.dark.midnight tbody tr:hover {
+  background-color: var(--bg-level-1) !important;
+  border-bottom-color: var(--border-active);
 }
 
-.dark.midnight .bg-white,
-.dark.midnight .dark\:bg-gray-900 {
-  background-color: #0f172a !important;
+/* Accent highlights for active states */
+.dark.midnight [class*="border-corporate-blue"] {
+  border-color: var(--accent-color) !important;
+  border-left-width: 3px;
 }
 
-/* Midnight theme - override hardcoded gradients to use solid muted colors */
+.dark.midnight [class*="bg-corporate-blue"] {
+  background-color: var(--accent-bg-subtle) !important;
+}
+
+/* Card hover states with accent glow */
+.dark.midnight [class*="rounded-xl"][class*="border"]:hover,
+.dark.midnight [class*="rounded-2xl"][class*="border"]:hover {
+  border-color: var(--border-active);
+  box-shadow: 0 0 0 1px var(--accent-bg-subtle), 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* Colored gradients in cards - use level 1 instead of bright colors */
 .dark.midnight .bg-gradient-to-br.from-orange-600,
 .dark.midnight .bg-gradient-to-br.from-indigo-600,
 .dark.midnight .bg-gradient-to-br.from-yellow-500,
@@ -191,114 +270,128 @@ body {
 .dark.midnight .bg-gradient-to-br.from-blue-600,
 .dark.midnight .bg-gradient-to-br.from-violet-600,
 .dark.midnight .bg-gradient-to-br.from-gray-600 {
-  background: #1e293b !important;
+  background: var(--bg-level-1) !important;
 }
 
-/* Midnight theme - override card backgrounds with transparency */
-.dark.midnight .bg-gradient-to-br.from-white,
-.dark.midnight .dark\:from-gray-900 {
-  --tw-gradient-from: #0f172a !important;
-  --tw-gradient-to: #0f172a !important;
-  --tw-gradient-via: #0f172a !important;
-  background: #0f172a !important;
+/* ============================================================================
+   BLACK THEME - SMART VISUAL HIERARCHY
+   Using CSS variables for 4-level background hierarchy
+   ============================================================================ */
+
+/* Level 0: Page Background (pure black) */
+.dark.black body {
+  background-color: var(--bg-level-0);
 }
 
-/* Midnight theme - border overrides for nav */
-.dark.midnight .border-white\/60,
-.dark.midnight .border-white\/70,
-.dark.midnight .border-white\/80 {
-  border-color: rgba(51, 65, 85, 0.6) !important;
+/* Level 1: Section Containers - very dark gray */
+.dark.black .bg-white\/90,
+.dark.black .dark\:bg-gray-900\/90,
+.dark.black .bg-white\/95,
+.dark.black .dark\:bg-gray-900\/95 {
+  background-color: var(--bg-level-1) !important;
+  backdrop-filter: blur(12px);
 }
 
-.dark.midnight .dark\:border-gray-800\/60,
-.dark.midnight .dark\:border-gray-700\/80 {
-  border-color: rgba(51, 65, 85, 0.7) !important;
-}
-
-/* Black theme - pure black overrides for cards and panels */
+/* Level 2: Cards, Panels, Modals - dark gray, clearly visible */
 .dark.black .bg-white,
 .dark.black .bg-gray-50,
-.dark.black .bg-gray-100 {
-  background-color: #000000 !important;
+.dark.black .bg-gray-100,
+.dark.black .dark\:bg-gray-900,
+.dark.black .bg-gray-900 {
+  background-color: var(--bg-level-2) !important;
 }
 
-.dark.black .bg-gray-900,
-.dark.black .dark\:bg-gray-900 {
-  background-color: #000000 !important;
+/* Cards with gradients - use subtle gradient between level 1 and 2 */
+.dark.black .bg-gradient-to-br.from-white,
+.dark.black .dark\:from-gray-900 {
+  background: linear-gradient(135deg, var(--bg-level-1), var(--bg-level-2)) !important;
+  --tw-gradient-from: var(--bg-level-1) !important;
+  --tw-gradient-to: var(--bg-level-2) !important;
 }
 
+/* Nested surfaces within cards */
 .dark.black .bg-gray-800,
 .dark.black .dark\:bg-gray-800,
-.dark.black .dark\:bg-gray-800\/60 {
-  background-color: #0a0a0a !important;
+.dark.black .dark\:bg-gray-800\/60,
+.dark.black .dark\:bg-gray-800\/50 {
+  background-color: var(--bg-level-1) !important;
 }
 
-.dark.black .dark\:from-gray-900,
-.dark.black .dark\:via-gray-900,
-.dark.black .dark\:to-gray-800\/50,
-.dark.black .dark\:to-gray-950 {
-  --tw-gradient-from: #000000 !important;
-  --tw-gradient-via: #000000 !important;
-  --tw-gradient-to: #0a0a0a !important;
+/* Level 3: Interactive Elements - inputs, buttons (lightest gray) */
+.dark.black input,
+.dark.black textarea,
+.dark.black select {
+  background-color: var(--bg-level-3) !important;
+  border-color: var(--border-emphasis) !important;
 }
 
-.dark.black .dark\:from-gray-950,
-.dark.black .dark\:via-gray-900,
-.dark.black .dark\:to-gray-950 {
-  --tw-gradient-from: #000000 !important;
-  --tw-gradient-via: #000000 !important;
-  --tw-gradient-to: #000000 !important;
-}
-
+/* Border hierarchy */
 .dark.black .border-gray-700,
 .dark.black .dark\:border-gray-700,
 .dark.black .dark\:border-gray-700\/50,
-.dark.black .dark\:border-gray-700\/60 {
-  border-color: #1a1a1a !important;
-}
-
+.dark.black .dark\:border-gray-700\/60,
 .dark.black .border-gray-100,
 .dark.black .border-gray-200 {
-  border-color: #1a1a1a !important;
+  border-color: var(--border-subtle) !important;
 }
 
+.dark.black .border-white\/60,
+.dark.black .border-white\/70,
+.dark.black .border-white\/80,
+.dark.black .dark\:border-gray-800\/60,
+.dark.black .dark\:border-gray-700\/80,
 .dark.black .dark\:border-gray-800\/70 {
-  border-color: #111111 !important;
+  border-color: var(--border-emphasis) !important;
 }
 
-/* Black theme - text color overrides for visibility */
+/* Text hierarchy */
 .dark.black .text-gray-900,
-.dark.black .dark\:text-white {
-  color: #f3f4f6 !important;
+.dark.black .dark\:text-white,
+.dark.black h1,
+.dark.black h2,
+.dark.black h3 {
+  color: var(--text-primary) !important;
 }
 
 .dark.black .text-gray-600,
 .dark.black .dark\:text-gray-300 {
-  color: #e5e7eb !important;
+  color: var(--text-secondary) !important;
 }
 
 .dark.black .text-gray-500,
 .dark.black .dark\:text-gray-400 {
-  color: #9ca3af !important;
+  color: var(--text-tertiary) !important;
 }
 
-/* Black theme - navigation bar overrides */
-.dark.black .bg-white\/90,
-.dark.black .dark\:bg-gray-900\/90 {
-  background-color: rgba(0, 0, 0, 0.95) !important;
+/* Table styling - clear row separation */
+.dark.black tbody tr {
+  border-bottom: 1px solid var(--border-subtle);
+  transition: background-color 0.15s ease, border-color 0.15s ease;
 }
 
-.dark.black .bg-white\/95,
-.dark.black .dark\:bg-gray-900\/95 {
-  background-color: rgba(0, 0, 0, 0.98) !important;
+.dark.black tbody tr:hover {
+  background-color: var(--bg-level-1) !important;
+  border-bottom-color: var(--border-active);
 }
 
-.dark.black .bg-white,
-.dark.black .dark\:bg-gray-900 {
-  background-color: #000000 !important;
+/* Accent highlights for active states */
+.dark.black [class*="border-corporate-blue"] {
+  border-color: var(--accent-color) !important;
+  border-left-width: 3px;
 }
 
-/* Black theme - override hardcoded gradients to use solid dark colors */
+.dark.black [class*="bg-corporate-blue"] {
+  background-color: var(--accent-bg-subtle) !important;
+}
+
+/* Card hover states with accent glow */
+.dark.black [class*="rounded-xl"][class*="border"]:hover,
+.dark.black [class*="rounded-2xl"][class*="border"]:hover {
+  border-color: var(--border-active);
+  box-shadow: 0 0 0 1px var(--accent-bg-subtle), 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+/* Colored gradients in cards - use level 1 instead of bright colors */
 .dark.black .bg-gradient-to-br.from-orange-600,
 .dark.black .bg-gradient-to-br.from-indigo-600,
 .dark.black .bg-gradient-to-br.from-yellow-500,
@@ -308,28 +401,7 @@ body {
 .dark.black .bg-gradient-to-br.from-blue-600,
 .dark.black .bg-gradient-to-br.from-violet-600,
 .dark.black .bg-gradient-to-br.from-gray-600 {
-  background: #0a0a0a !important;
-}
-
-/* Black theme - override card backgrounds */
-.dark.black .bg-gradient-to-br.from-white,
-.dark.black .dark\:from-gray-900 {
-  --tw-gradient-from: #000000 !important;
-  --tw-gradient-to: #000000 !important;
-  --tw-gradient-via: #000000 !important;
-  background: #000000 !important;
-}
-
-/* Black theme - border overrides for nav */
-.dark.black .border-white\/60,
-.dark.black .border-white\/70,
-.dark.black .border-white\/80 {
-  border-color: rgba(26, 26, 26, 0.8) !important;
-}
-
-.dark.black .dark\:border-gray-800\/60,
-.dark.black .dark\:border-gray-700\/80 {
-  border-color: rgba(26, 26, 26, 0.8) !important;
+  background: var(--bg-level-1) !important;
 }
 
 /* Bloomberg terminal specific styles */

@@ -788,6 +788,26 @@ export const CONSTRUCTION_LUMBER_CONSUMPTION = 0.5;  // Units per hour
 export const CONSTRUCTION_STEEL_CONSUMPTION = 0.5;   // Units per hour
 export const CONSTRUCTION_MANUFACTURED_GOODS_CONSUMPTION = 0.3;  // Units per hour
 
+// ============================================================================
+// ADDITIONAL SECTOR INPUT REQUIREMENTS
+// Various sectors require additional products beyond their primary inputs
+// ============================================================================
+
+// Production unit additional demands (products consumed during production)
+export const ENERGY_LOGISTICS_CONSUMPTION = 0.3;          // Fuel delivery, equipment transport
+export const MANUFACTURING_LOGISTICS_CONSUMPTION = 0.4;   // Raw material delivery, finished goods shipping
+export const AGRICULTURE_MANUFACTURED_GOODS_CONSUMPTION = 0.3;  // Tractors, harvesters, irrigation equipment
+export const PHARMACEUTICALS_TECHNOLOGY_CONSUMPTION = 0.25;     // Lab equipment, R&D systems
+export const DEFENSE_TECHNOLOGY_CONSUMPTION = 0.4;        // Electronics, guidance systems, comms
+
+// Extraction unit additional demands
+export const MINING_MANUFACTURED_GOODS_CONSUMPTION = 0.35;  // Drills, conveyors, trucks, equipment
+
+// Service unit additional demands
+export const HEALTHCARE_TECHNOLOGY_CONSUMPTION = 0.4;     // Medical devices, diagnostic equipment
+export const RETAIL_LOGISTICS_CONSUMPTION = 0.3;          // Supply chain, deliveries
+export const REAL_ESTATE_LOGISTICS_CONSUMPTION = 0.25;    // Moving services, maintenance logistics
+
 export const RETAIL_WHOLESALE_DISCOUNT = 0.995;
 export const SERVICE_WHOLESALE_DISCOUNT = 0.995;
 export const DEFENSE_WHOLESALE_DISCOUNT = 0.8;
@@ -1068,10 +1088,13 @@ export function getDynamicUnitEconomics(
     let revenueRaw = 0;
     const productConsumedAmounts: Record<Product, number> = {} as Record<Product, number>;
     
+    // Track products consumed for the result (will be augmented with additional demands)
+    const productsConsumedSet = new Set<Product>(serviceDemands);
+
     for (const product of serviceDemands) {
       const productPrice = getProductUnitPrice(product);
       let consumedAmount = product === 'Electricity' ? SERVICE_ELECTRICITY_CONSUMPTION : SERVICE_PRODUCT_CONSUMPTION;
-      
+
       // Defense sector rule: 1.0 consumption for products (excluding electricity)
       if (sectorTyped === 'Defense' && product !== 'Electricity') {
         consumedAmount = 1.0;
@@ -1092,8 +1115,42 @@ export function getDynamicUnitEconomics(
       } else {
         revenueRaw += productPrice * consumedAmount;
       }
-      
+
       productConsumedAmounts[product] = consumedAmount;
+    }
+
+    // Additional service unit demands for specific sectors
+    // Healthcare services require Technology Products (medical devices, diagnostics)
+    if (sectorTyped === 'Healthcare') {
+      const techAmount = HEALTHCARE_TECHNOLOGY_CONSUMPTION;
+      const techPrice = getProductUnitPrice('Technology Products');
+      const techCost = techPrice * techAmount * SERVICE_WHOLESALE_DISCOUNT;
+      totalProductCost += techCost;
+      revenueRaw += techPrice * techAmount;
+      productsConsumedSet.add('Technology Products');
+      productConsumedAmounts['Technology Products'] = techAmount;
+    }
+
+    // Retail services require Logistics Capacity (supply chain, deliveries)
+    if (sectorTyped === 'Retail') {
+      const logisticsAmount = RETAIL_LOGISTICS_CONSUMPTION;
+      const logisticsPrice = getProductUnitPrice('Logistics Capacity');
+      const logisticsCost = logisticsPrice * logisticsAmount * SERVICE_WHOLESALE_DISCOUNT;
+      totalProductCost += logisticsCost;
+      revenueRaw += logisticsPrice * logisticsAmount;
+      productsConsumedSet.add('Logistics Capacity');
+      productConsumedAmounts['Logistics Capacity'] = logisticsAmount;
+    }
+
+    // Real Estate services require Logistics Capacity (moving, maintenance)
+    if (sectorTyped === 'Real Estate') {
+      const logisticsAmount = REAL_ESTATE_LOGISTICS_CONSUMPTION;
+      const logisticsPrice = getProductUnitPrice('Logistics Capacity');
+      const logisticsCost = logisticsPrice * logisticsAmount * SERVICE_WHOLESALE_DISCOUNT;
+      totalProductCost += logisticsCost;
+      revenueRaw += logisticsPrice * logisticsAmount;
+      productsConsumedSet.add('Logistics Capacity');
+      productConsumedAmounts['Logistics Capacity'] = logisticsAmount;
     }
 
     const minRevenue = totalProductCost * (1 + SERVICE_MIN_GROSS_MARGIN_PCT);
@@ -1115,7 +1172,7 @@ export function getDynamicUnitEconomics(
       productProduced: null,
       productProducedAmount: 0,
       productCost: totalProductCost,
-      productsConsumed: serviceDemands,
+      productsConsumed: Array.from(productsConsumedSet),
       productConsumedAmounts,
       isDynamic: true,
     };
@@ -1145,12 +1202,23 @@ export function getDynamicUnitEconomics(
     const electricityCost = electricityConsumedAmount * getProductUnitPrice('Electricity');
     const productConsumedAmounts: Record<Product, number> = {} as Record<Product, number>;
     const productsConsumed: Product[] = [];
+    let additionalProductCost = 0;
+
     if (electricityConsumedAmount > 0) {
       productsConsumed.push('Electricity');
       productConsumedAmounts['Electricity'] = electricityConsumedAmount;
     }
 
-    const totalCost = laborCost + electricityCost;
+    // Mining extraction units require Manufactured Goods (equipment, drills, trucks)
+    if (sectorTyped === 'Mining') {
+      const manufacturedGoodsAmount = MINING_MANUFACTURED_GOODS_CONSUMPTION;
+      additionalProductCost += manufacturedGoodsAmount * getProductUnitPrice('Manufactured Goods');
+      productsConsumed.push('Manufactured Goods');
+      productConsumedAmounts['Manufactured Goods'] = manufacturedGoodsAmount;
+    }
+
+    const totalProductCost = electricityCost + additionalProductCost;
+    const totalCost = laborCost + totalProductCost;
 
     const result: DynamicUnitEconomics = {
       hourlyRevenue: extractionRevenue,
@@ -1165,7 +1233,7 @@ export function getDynamicUnitEconomics(
       productRevenue: extractionRevenue,
       productProduced: null,  // Produces a resource, not a product
       productProducedAmount: extractionAmount,
-      productCost: electricityCost,
+      productCost: totalProductCost,
       productsConsumed,
       productConsumedAmounts,
       isDynamic: true,
@@ -1235,16 +1303,58 @@ export function getDynamicUnitEconomics(
       productConsumedAmounts['Electricity'] = electricityConsumedAmount;
     }
 
-    // Construction sector also consumes Manufactured Goods
-    let manufacturedGoodsCost = 0;
+    // Additional product consumption for specific sectors
+    let additionalProductCost = 0;
+
+    // Construction sector consumes Manufactured Goods
     if (sectorTyped === 'Construction') {
       const manufacturedGoodsAmount = CONSTRUCTION_MANUFACTURED_GOODS_CONSUMPTION;
-      manufacturedGoodsCost = manufacturedGoodsAmount * getProductUnitPrice('Manufactured Goods');
+      additionalProductCost += manufacturedGoodsAmount * getProductUnitPrice('Manufactured Goods');
       productsConsumed.push('Manufactured Goods');
       productConsumedAmounts['Manufactured Goods'] = manufacturedGoodsAmount;
     }
 
-    const productCost = electricityCost + manufacturedGoodsCost;
+    // Energy production requires Logistics Capacity (fuel delivery, equipment transport)
+    if (sectorTyped === 'Energy') {
+      const logisticsAmount = ENERGY_LOGISTICS_CONSUMPTION;
+      additionalProductCost += logisticsAmount * getProductUnitPrice('Logistics Capacity');
+      productsConsumed.push('Logistics Capacity');
+      productConsumedAmounts['Logistics Capacity'] = logisticsAmount;
+    }
+
+    // Manufacturing production requires Logistics Capacity (raw materials in, finished goods out)
+    if (sectorTyped === 'Manufacturing') {
+      const logisticsAmount = MANUFACTURING_LOGISTICS_CONSUMPTION;
+      additionalProductCost += logisticsAmount * getProductUnitPrice('Logistics Capacity');
+      productsConsumed.push('Logistics Capacity');
+      productConsumedAmounts['Logistics Capacity'] = logisticsAmount;
+    }
+
+    // Agriculture production requires Manufactured Goods (tractors, harvesters, equipment)
+    if (sectorTyped === 'Agriculture') {
+      const manufacturedGoodsAmount = AGRICULTURE_MANUFACTURED_GOODS_CONSUMPTION;
+      additionalProductCost += manufacturedGoodsAmount * getProductUnitPrice('Manufactured Goods');
+      productsConsumed.push('Manufactured Goods');
+      productConsumedAmounts['Manufactured Goods'] = manufacturedGoodsAmount;
+    }
+
+    // Pharmaceuticals production requires Technology Products (lab equipment, R&D systems)
+    if (sectorTyped === 'Pharmaceuticals') {
+      const techAmount = PHARMACEUTICALS_TECHNOLOGY_CONSUMPTION;
+      additionalProductCost += techAmount * getProductUnitPrice('Technology Products');
+      productsConsumed.push('Technology Products');
+      productConsumedAmounts['Technology Products'] = techAmount;
+    }
+
+    // Defense production requires Technology Products (electronics, guidance, comms)
+    if (sectorTyped === 'Defense') {
+      const techAmount = DEFENSE_TECHNOLOGY_CONSUMPTION;
+      additionalProductCost += techAmount * getProductUnitPrice('Technology Products');
+      productsConsumed.push('Technology Products');
+      productConsumedAmounts['Technology Products'] = techAmount;
+    }
+
+    const productCost = electricityCost + additionalProductCost;
     const totalCost = laborCost + resourceCost + productCost;
     const hourlyProfit = productRevenue - totalCost;
 
