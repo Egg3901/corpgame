@@ -165,6 +165,56 @@ body {
   color: #94a3b8 !important;
 }
 
+/* Midnight theme - navigation bar overrides */
+.dark.midnight .bg-white\/90,
+.dark.midnight .dark\:bg-gray-900\/90 {
+  background-color: rgba(15, 23, 42, 0.95) !important;
+}
+
+.dark.midnight .bg-white\/95,
+.dark.midnight .dark\:bg-gray-900\/95 {
+  background-color: rgba(15, 23, 42, 0.98) !important;
+}
+
+.dark.midnight .bg-white,
+.dark.midnight .dark\:bg-gray-900 {
+  background-color: #0f172a !important;
+}
+
+/* Midnight theme - override hardcoded gradients to use solid muted colors */
+.dark.midnight .bg-gradient-to-br.from-orange-600,
+.dark.midnight .bg-gradient-to-br.from-indigo-600,
+.dark.midnight .bg-gradient-to-br.from-yellow-500,
+.dark.midnight .bg-gradient-to-br.from-green-600,
+.dark.midnight .bg-gradient-to-br.from-rose-600,
+.dark.midnight .bg-gradient-to-br.from-slate-700,
+.dark.midnight .bg-gradient-to-br.from-blue-600,
+.dark.midnight .bg-gradient-to-br.from-violet-600,
+.dark.midnight .bg-gradient-to-br.from-gray-600 {
+  background: #1e293b !important;
+}
+
+/* Midnight theme - override card backgrounds with transparency */
+.dark.midnight .bg-gradient-to-br.from-white,
+.dark.midnight .dark\:from-gray-900 {
+  --tw-gradient-from: #0f172a !important;
+  --tw-gradient-to: #0f172a !important;
+  --tw-gradient-via: #0f172a !important;
+  background: #0f172a !important;
+}
+
+/* Midnight theme - border overrides for nav */
+.dark.midnight .border-white\/60,
+.dark.midnight .border-white\/70,
+.dark.midnight .border-white\/80 {
+  border-color: rgba(51, 65, 85, 0.6) !important;
+}
+
+.dark.midnight .dark\:border-gray-800\/60,
+.dark.midnight .dark\:border-gray-700\/80 {
+  border-color: rgba(51, 65, 85, 0.7) !important;
+}
+
 /* Black theme - pure black overrides for cards and panels */
 .dark.black .bg-white,
 .dark.black .bg-gray-50,
@@ -230,6 +280,56 @@ body {
 .dark.black .text-gray-500,
 .dark.black .dark\:text-gray-400 {
   color: #9ca3af !important;
+}
+
+/* Black theme - navigation bar overrides */
+.dark.black .bg-white\/90,
+.dark.black .dark\:bg-gray-900\/90 {
+  background-color: rgba(0, 0, 0, 0.95) !important;
+}
+
+.dark.black .bg-white\/95,
+.dark.black .dark\:bg-gray-900\/95 {
+  background-color: rgba(0, 0, 0, 0.98) !important;
+}
+
+.dark.black .bg-white,
+.dark.black .dark\:bg-gray-900 {
+  background-color: #000000 !important;
+}
+
+/* Black theme - override hardcoded gradients to use solid dark colors */
+.dark.black .bg-gradient-to-br.from-orange-600,
+.dark.black .bg-gradient-to-br.from-indigo-600,
+.dark.black .bg-gradient-to-br.from-yellow-500,
+.dark.black .bg-gradient-to-br.from-green-600,
+.dark.black .bg-gradient-to-br.from-rose-600,
+.dark.black .bg-gradient-to-br.from-slate-700,
+.dark.black .bg-gradient-to-br.from-blue-600,
+.dark.black .bg-gradient-to-br.from-violet-600,
+.dark.black .bg-gradient-to-br.from-gray-600 {
+  background: #0a0a0a !important;
+}
+
+/* Black theme - override card backgrounds */
+.dark.black .bg-gradient-to-br.from-white,
+.dark.black .dark\:from-gray-900 {
+  --tw-gradient-from: #000000 !important;
+  --tw-gradient-to: #000000 !important;
+  --tw-gradient-via: #000000 !important;
+  background: #000000 !important;
+}
+
+/* Black theme - border overrides for nav */
+.dark.black .border-white\/60,
+.dark.black .border-white\/70,
+.dark.black .border-white\/80 {
+  border-color: rgba(26, 26, 26, 0.8) !important;
+}
+
+.dark.black .dark\:border-gray-800\/60,
+.dark.black .dark\:border-gray-700\/80 {
+  border-color: rgba(26, 26, 26, 0.8) !important;
 }
 
 /* Bloomberg terminal specific styles */

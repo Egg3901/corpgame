@@ -101,7 +101,7 @@ export const SECTOR_RESOURCES: Record<Sector, Resource | null> = {
   'Agriculture': 'Fertile Land',
   'Defense': 'Steel',
   'Hospitality': null,
-  'Construction': 'Lumber',
+  'Construction': null,  // Special case: consumes both Lumber and Steel via custom logic
   'Pharmaceuticals': 'Chemical Compounds',
   'Mining': null,  // Mining extracts resources, doesn't consume them for production
 };
@@ -782,6 +782,12 @@ export const SERVICE_ELECTRICITY_CONSUMPTION = 0.5;
 export const PRODUCTION_ELECTRICITY_CONSUMPTION = 0.5;
 export const EXTRACTION_ELECTRICITY_CONSUMPTION = 0.25;
 
+// Construction sector special input requirements
+// Construction production units consume multiple resources and products
+export const CONSTRUCTION_LUMBER_CONSUMPTION = 0.5;  // Units per hour
+export const CONSTRUCTION_STEEL_CONSUMPTION = 0.5;   // Units per hour
+export const CONSTRUCTION_MANUFACTURED_GOODS_CONSUMPTION = 0.3;  // Units per hour
+
 export const RETAIL_WHOLESALE_DISCOUNT = 0.995;
 export const SERVICE_WHOLESALE_DISCOUNT = 0.995;
 export const DEFENSE_WHOLESALE_DISCOUNT = 0.8;
@@ -898,8 +904,10 @@ export interface DynamicUnitEconomics {
   hourlyProfit: number;
   laborCost: number;
   resourceCost: number;          // Cost of input resources (for production)
-  resourceConsumed: Resource | null;
-  resourceConsumedAmount: number;
+  resourceConsumed: Resource | null;  // Deprecated: use resourcesConsumed instead
+  resourceConsumedAmount: number;     // Deprecated: use resourceConsumedAmounts instead
+  resourcesConsumed: Resource[];      // Resources consumed (for production units with multiple inputs)
+  resourceConsumedAmounts: Record<Resource, number>;  // Amount of each resource consumed
   productRevenue: number;        // Revenue from output products
   productProduced: Product | null;
   productProducedAmount: number;
@@ -948,6 +956,8 @@ export function getDynamicUnitEconomics(
     resourceCost: 0,
     resourceConsumed: null,
     resourceConsumedAmount: 0,
+    resourcesConsumed: [],
+    resourceConsumedAmounts: {} as Record<Resource, number>,
     productRevenue: 0,
     productProduced: null,
     productProducedAmount: 0,
@@ -1024,6 +1034,8 @@ export function getDynamicUnitEconomics(
       resourceCost: 0,
       resourceConsumed: null,
       resourceConsumedAmount: 0,
+      resourcesConsumed: [],
+      resourceConsumedAmounts: {} as Record<Resource, number>,
       productRevenue: revenue,
       productProduced: null,
       productProducedAmount: 0,
@@ -1097,6 +1109,8 @@ export function getDynamicUnitEconomics(
       resourceCost: 0,
       resourceConsumed: null,
       resourceConsumedAmount: 0,
+      resourcesConsumed: [],
+      resourceConsumedAmounts: {} as Record<Resource, number>,
       productRevenue: revenue,
       productProduced: null,
       productProducedAmount: 0,
@@ -1146,6 +1160,8 @@ export function getDynamicUnitEconomics(
       resourceCost: 0,
       resourceConsumed: null,
       resourceConsumedAmount: 0,
+      resourcesConsumed: [],
+      resourceConsumedAmounts: {} as Record<Resource, number>,
       productRevenue: extractionRevenue,
       productProduced: null,  // Produces a resource, not a product
       productProducedAmount: extractionAmount,
@@ -1165,12 +1181,35 @@ export function getDynamicUnitEconomics(
     let resourceCost = 0;
     let resourceConsumedAmount = 0;
     let resourceConsumed: Resource | null = null;
-    
-    // Calculate input cost from required resource
-    if (requiredResource) {
+    const resourcesConsumed: Resource[] = [];
+    const resourceConsumedAmounts: Record<Resource, number> = {} as Record<Resource, number>;
+
+    // Construction sector consumes both Lumber and Steel
+    if (sectorTyped === 'Construction') {
+      // Lumber consumption
+      const lumberAmount = CONSTRUCTION_LUMBER_CONSUMPTION;
+      const lumberCost = lumberAmount * getCommodityUnitPrice('Lumber');
+      resourcesConsumed.push('Lumber');
+      resourceConsumedAmounts['Lumber'] = lumberAmount;
+      resourceCost += lumberCost;
+
+      // Steel consumption
+      const steelAmount = CONSTRUCTION_STEEL_CONSUMPTION;
+      const steelCost = steelAmount * getCommodityUnitPrice('Steel');
+      resourcesConsumed.push('Steel');
+      resourceConsumedAmounts['Steel'] = steelAmount;
+      resourceCost += steelCost;
+
+      // Set deprecated fields for backward compatibility (use first resource)
+      resourceConsumed = 'Lumber';
+      resourceConsumedAmount = lumberAmount + steelAmount;
+    } else if (requiredResource) {
+      // Standard single resource consumption for other sectors
       resourceConsumedAmount = PRODUCTION_RESOURCE_CONSUMPTION;
       resourceCost = resourceConsumedAmount * getCommodityUnitPrice(requiredResource);
       resourceConsumed = requiredResource;
+      resourcesConsumed.push(requiredResource);
+      resourceConsumedAmounts[requiredResource] = resourceConsumedAmount;
     }
 
     let productRevenue = 0;
@@ -1196,7 +1235,16 @@ export function getDynamicUnitEconomics(
       productConsumedAmounts['Electricity'] = electricityConsumedAmount;
     }
 
-    const productCost = electricityCost;
+    // Construction sector also consumes Manufactured Goods
+    let manufacturedGoodsCost = 0;
+    if (sectorTyped === 'Construction') {
+      const manufacturedGoodsAmount = CONSTRUCTION_MANUFACTURED_GOODS_CONSUMPTION;
+      manufacturedGoodsCost = manufacturedGoodsAmount * getProductUnitPrice('Manufactured Goods');
+      productsConsumed.push('Manufactured Goods');
+      productConsumedAmounts['Manufactured Goods'] = manufacturedGoodsAmount;
+    }
+
+    const productCost = electricityCost + manufacturedGoodsCost;
     const totalCost = laborCost + resourceCost + productCost;
     const hourlyProfit = productRevenue - totalCost;
 
@@ -1208,13 +1256,15 @@ export function getDynamicUnitEconomics(
       resourceCost,
       resourceConsumed,
       resourceConsumedAmount,
+      resourcesConsumed,
+      resourceConsumedAmounts,
       productRevenue,
       productProduced,
       productProducedAmount,
       productCost,
       productsConsumed,
       productConsumedAmounts,
-      isDynamic: requiredResource !== null || producedProduct !== null || electricityConsumedAmount > 0,
+      isDynamic: requiredResource !== null || producedProduct !== null || electricityConsumedAmount > 0 || sectorTyped === 'Construction',
     };
     if (canUseCache) {
       _dynamicEconomicsCache.set(cacheKey, result);
