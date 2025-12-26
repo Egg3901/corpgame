@@ -49,6 +49,19 @@ import {
   getStateCapacityTier,
   getStateResources,
   getDynamicUnitEconomics,
+  // Sector-specific consumption constants
+  ENERGY_LOGISTICS_CONSUMPTION,
+  MANUFACTURING_LOGISTICS_CONSUMPTION,
+  AGRICULTURE_MANUFACTURED_GOODS_CONSUMPTION,
+  PHARMACEUTICALS_TECHNOLOGY_CONSUMPTION,
+  DEFENSE_TECHNOLOGY_CONSUMPTION,
+  MINING_MANUFACTURED_GOODS_CONSUMPTION,
+  HEALTHCARE_TECHNOLOGY_CONSUMPTION,
+  RETAIL_LOGISTICS_CONSUMPTION,
+  REAL_ESTATE_LOGISTICS_CONSUMPTION,
+  CONSTRUCTION_MANUFACTURED_GOODS_CONSUMPTION,
+  CONSTRUCTION_LUMBER_CONSUMPTION,
+  CONSTRUCTION_STEEL_CONSUMPTION,
 } from '../constants/sectors';
 import { SectorCalculator } from '../services/SectorCalculator';
 import { marketDataService } from '../services/MarketDataService';
@@ -211,7 +224,11 @@ router.get('/metadata', async (req: Request, res: Response) => {
       const extractableResources = SECTOR_EXTRACTION[sector] ?? null;
 
       const productionInputsResources: Record<string, number> = {};
-      if (requiredResource) {
+      // Construction sector consumes multiple resources (Lumber + Steel)
+      if (sector === 'Construction') {
+        productionInputsResources['Lumber'] = CONSTRUCTION_LUMBER_CONSUMPTION;
+        productionInputsResources['Steel'] = CONSTRUCTION_STEEL_CONSUMPTION;
+      } else if (requiredResource) {
         productionInputsResources[requiredResource] = PRODUCTION_RESOURCE_CONSUMPTION;
       }
 
@@ -223,6 +240,26 @@ router.get('/metadata', async (req: Request, res: Response) => {
         for (const product of productionProductDemands) {
           productionInputsProducts[product] = PRODUCTION_PRODUCT_CONSUMPTION;
         }
+      }
+
+      // Sector-specific production product demands
+      if (sector === 'Construction') {
+        productionInputsProducts['Manufactured Goods'] = CONSTRUCTION_MANUFACTURED_GOODS_CONSUMPTION;
+      }
+      if (sector === 'Energy') {
+        productionInputsProducts['Logistics Capacity'] = ENERGY_LOGISTICS_CONSUMPTION;
+      }
+      if (sector === 'Manufacturing') {
+        productionInputsProducts['Logistics Capacity'] = MANUFACTURING_LOGISTICS_CONSUMPTION;
+      }
+      if (sector === 'Agriculture') {
+        productionInputsProducts['Manufactured Goods'] = AGRICULTURE_MANUFACTURED_GOODS_CONSUMPTION;
+      }
+      if (sector === 'Pharmaceuticals') {
+        productionInputsProducts['Technology Products'] = PHARMACEUTICALS_TECHNOLOGY_CONSUMPTION;
+      }
+      if (sector === 'Defense') {
+        productionInputsProducts['Technology Products'] = DEFENSE_TECHNOLOGY_CONSUMPTION;
       }
 
       const productionOutputsProducts: Record<string, number> = {};
@@ -252,9 +289,25 @@ router.get('/metadata', async (req: Request, res: Response) => {
         }
       }
 
+      // Sector-specific service product demands
+      if (sector === 'Healthcare') {
+        serviceInputsProducts['Technology Products'] = HEALTHCARE_TECHNOLOGY_CONSUMPTION;
+      }
+      if (sector === 'Retail') {
+        serviceInputsProducts['Logistics Capacity'] = RETAIL_LOGISTICS_CONSUMPTION;
+      }
+      if (sector === 'Real Estate') {
+        serviceInputsProducts['Logistics Capacity'] = REAL_ESTATE_LOGISTICS_CONSUMPTION;
+      }
+
       const extractionInputsProducts: Record<string, number> = {};
       if (EXTRACTION_ELECTRICITY_CONSUMPTION > 0) {
         extractionInputsProducts['Electricity'] = EXTRACTION_ELECTRICITY_CONSUMPTION;
+      }
+
+      // Sector-specific extraction product demands
+      if (sector === 'Mining') {
+        extractionInputsProducts['Manufactured Goods'] = MINING_MANUFACTURED_GOODS_CONSUMPTION;
       }
 
       const extractionOutputsResources: Record<string, number> = {};
