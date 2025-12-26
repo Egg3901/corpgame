@@ -260,6 +260,20 @@ body {
   box-shadow: 0 0 0 1px var(--accent-bg-subtle), 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
+/* Navbar badge overrides for midnight theme - colored badges remain visible */
+.dark.midnight .bg-amber-50 {
+  background-color: rgba(180, 83, 9, 0.3) !important;
+}
+.dark.midnight .border-amber-200 {
+  border-color: rgba(245, 158, 11, 0.5) !important;
+}
+.dark.midnight .bg-emerald-50 {
+  background-color: rgba(6, 95, 70, 0.3) !important;
+}
+.dark.midnight .border-emerald-200 {
+  border-color: rgba(16, 185, 129, 0.5) !important;
+}
+
 /* Colored gradients in cards - use level 1 instead of bright colors */
 .dark.midnight .bg-gradient-to-br.from-orange-600,
 .dark.midnight .bg-gradient-to-br.from-indigo-600,
@@ -389,6 +403,20 @@ body {
 .dark.black [class*="rounded-2xl"][class*="border"]:hover {
   border-color: var(--border-active);
   box-shadow: 0 0 0 1px var(--accent-bg-subtle), 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+/* Navbar badge overrides for black theme - colored badges remain visible */
+.dark.black .bg-amber-50 {
+  background-color: rgba(180, 83, 9, 0.35) !important;
+}
+.dark.black .border-amber-200 {
+  border-color: rgba(245, 158, 11, 0.6) !important;
+}
+.dark.black .bg-emerald-50 {
+  background-color: rgba(6, 95, 70, 0.35) !important;
+}
+.dark.black .border-emerald-200 {
+  border-color: rgba(16, 185, 129, 0.6) !important;
 }
 
 /* Colored gradients in cards - use level 1 instead of bright colors */

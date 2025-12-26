@@ -640,6 +640,121 @@ router.get('/resource/:name', async (req: Request, res: Response) => {
   }
 });
 
+// GET /api/markets/resource/:name/pie-data - Get aggregated pie chart data for a commodity
+router.get('/resource/:name/pie-data', async (req: Request, res: Response) => {
+  try {
+    const resourceName = decodeURIComponent(req.params.name) as Resource;
+
+    // Validate resource exists
+    if (!RESOURCES.includes(resourceName)) {
+      return res.status(404).json({ error: 'Resource not found' });
+    }
+
+    const { EXTRACTION_OUTPUT_RATE, PRODUCTION_RESOURCE_CONSUMPTION } = await import('../constants/sectors');
+
+    // Get sectors that extract this resource
+    const extractingSectors = Object.keys(SECTOR_EXTRACTION).filter(s => {
+      const extractable = SECTOR_EXTRACTION[s as Sector];
+      return extractable && extractable.includes(resourceName);
+    });
+
+    // Get sectors that demand this resource
+    const demandingSectors: Sector[] = [];
+    for (const [sector, resource] of Object.entries(SECTOR_RESOURCES)) {
+      if (resource === resourceName) {
+        demandingSectors.push(sector as Sector);
+      }
+    }
+
+    // Get top 10 producers aggregated by corporation
+    const producersQuery = await pool.query(`
+      SELECT
+        c.id as corporation_id,
+        c.name as corporation_name,
+        c.logo as corporation_logo,
+        COALESCE(SUM(bu.count), 0)::int as extraction_units
+      FROM corporations c
+      JOIN market_entries me ON c.id = me.corporation_id
+      LEFT JOIN business_units bu ON me.id = bu.market_entry_id AND bu.unit_type = 'extraction'
+      WHERE me.sector_type = ANY($1::text[])
+      GROUP BY c.id, c.name, c.logo
+      HAVING COALESCE(SUM(bu.count), 0) > 0
+      ORDER BY extraction_units DESC
+      LIMIT 10
+    `, [extractingSectors]);
+
+    // Get top 10 demanders aggregated by corporation
+    const demandersQuery = await pool.query(`
+      SELECT
+        c.id as corporation_id,
+        c.name as corporation_name,
+        c.logo as corporation_logo,
+        COALESCE(SUM(bu.count), 0)::int as production_units
+      FROM corporations c
+      JOIN market_entries me ON c.id = me.corporation_id
+      LEFT JOIN business_units bu ON me.id = bu.market_entry_id AND bu.unit_type = 'production'
+      WHERE me.sector_type = ANY($1::text[])
+      GROUP BY c.id, c.name, c.logo
+      HAVING COALESCE(SUM(bu.count), 0) > 0
+      ORDER BY production_units DESC
+      LIMIT 10
+    `, [demandingSectors]);
+
+    // Calculate production levels and demand amounts
+    const producers = producersQuery.rows.map(row => ({
+      corporation_id: row.corporation_id,
+      corporation_name: row.corporation_name,
+      corporation_logo: row.corporation_logo,
+      value: row.extraction_units * EXTRACTION_OUTPUT_RATE,
+    }));
+
+    const demanders = demandersQuery.rows.map(row => ({
+      corporation_id: row.corporation_id,
+      corporation_name: row.corporation_name,
+      corporation_logo: row.corporation_logo,
+      value: row.production_units * PRODUCTION_RESOURCE_CONSUMPTION,
+    }));
+
+    // Calculate totals for "Others" slice
+    const totalProducersQuery = await pool.query(`
+      SELECT COALESCE(SUM(bu.count), 0)::int as total_extraction
+      FROM market_entries me
+      LEFT JOIN business_units bu ON me.id = bu.market_entry_id AND bu.unit_type = 'extraction'
+      WHERE me.sector_type = ANY($1::text[])
+    `, [extractingSectors]);
+
+    const totalDemandersQuery = await pool.query(`
+      SELECT COALESCE(SUM(bu.count), 0)::int as total_production
+      FROM market_entries me
+      LEFT JOIN business_units bu ON me.id = bu.market_entry_id AND bu.unit_type = 'production'
+      WHERE me.sector_type = ANY($1::text[])
+    `, [demandingSectors]);
+
+    const totalProduction = (totalProducersQuery.rows[0]?.total_extraction || 0) * EXTRACTION_OUTPUT_RATE;
+    const totalDemand = (totalDemandersQuery.rows[0]?.total_production || 0) * PRODUCTION_RESOURCE_CONSUMPTION;
+
+    const top10ProducersValue = producers.reduce((sum, p) => sum + p.value, 0);
+    const top10DemandersValue = demanders.reduce((sum, d) => sum + d.value, 0);
+
+    res.json({
+      resource: resourceName,
+      producers: {
+        data: producers,
+        others: Math.max(0, totalProduction - top10ProducersValue),
+        total: totalProduction,
+      },
+      demanders: {
+        data: demanders,
+        others: Math.max(0, totalDemand - top10DemandersValue),
+        total: totalDemand,
+      },
+    });
+  } catch (error) {
+    console.error('Get resource pie data error:', error);
+    res.status(500).json({ error: 'Failed to fetch resource pie data' });
+  }
+});
+
 // GET /api/markets/product/:name - Get detailed product info
 router.get('/product/:name', async (req: Request, res: Response) => {
   try {
@@ -729,51 +844,56 @@ router.get('/product/:name', async (req: Request, res: Response) => {
       totalCount = countQuery.rows[0]?.total || 0;
       
     } else {
-      // Get demanders
+      // Get demanders - query ALL unit types and compute actual demand per corporation
       const productDemandersQuery = await pool.query(`
-        SELECT 
+        SELECT
           c.id as corporation_id,
           c.name as corporation_name,
           c.logo as corporation_logo,
           me.sector_type,
           me.state_code,
           sm.name as state_name,
-          COALESCE(SUM(bu.count), 0)::int as production_units
+          COALESCE(SUM(CASE WHEN bu.unit_type = 'production' THEN bu.count ELSE 0 END), 0)::int as production_units,
+          COALESCE(SUM(CASE WHEN bu.unit_type = 'retail' THEN bu.count ELSE 0 END), 0)::int as retail_units,
+          COALESCE(SUM(CASE WHEN bu.unit_type = 'service' THEN bu.count ELSE 0 END), 0)::int as service_units,
+          COALESCE(SUM(CASE WHEN bu.unit_type = 'extraction' THEN bu.count ELSE 0 END), 0)::int as extraction_units
         FROM corporations c
         JOIN market_entries me ON c.id = me.corporation_id
-        LEFT JOIN business_units bu ON me.id = bu.market_entry_id AND bu.unit_type = 'production'
+        LEFT JOIN business_units bu ON me.id = bu.market_entry_id
         LEFT JOIN state_metadata sm ON me.state_code = sm.state_code
-        WHERE me.sector_type = ANY($1::text[])
         GROUP BY c.id, c.name, c.logo, me.sector_type, me.state_code, sm.name
-        HAVING COALESCE(SUM(bu.count), 0) > 0
-        ORDER BY production_units DESC
-        LIMIT $2 OFFSET $3
-      `, [demandingSectors, limit, offset]);
-      
-      listData = productDemandersQuery.rows.map(row => ({
-        corporation_id: row.corporation_id,
-        corporation_name: row.corporation_name,
-        corporation_logo: row.corporation_logo,
-        sector_type: row.sector_type,
-        state_code: row.state_code,
-        state_name: row.state_name,
-        units: row.production_units,
-        type: 'demander',
-      }));
-      
-      // Count total demanders
-      const countQuery = await pool.query(`
-        SELECT COUNT(*)::int as total FROM (
-          SELECT c.id, me.sector_type, me.state_code
-          FROM corporations c
-          JOIN market_entries me ON c.id = me.corporation_id
-          LEFT JOIN business_units bu ON me.id = bu.market_entry_id AND bu.unit_type = 'production'
-          WHERE me.sector_type = ANY($1::text[])
-          GROUP BY c.id, me.sector_type, me.state_code
-          HAVING COALESCE(SUM(bu.count), 0) > 0
-        ) sub
-      `, [demandingSectors]);
-      totalCount = countQuery.rows[0]?.total || 0;
+      `);
+
+      // Import the BusinessUnitCalculator for proper demand computation
+      const { businessUnitCalculator } = await import('../services/BusinessUnitCalculator');
+
+      // Calculate actual demand per entry
+      const entriesWithDemand = productDemandersQuery.rows.map(row => {
+        const counts = {
+          production: row.production_units,
+          retail: row.retail_units,
+          service: row.service_units,
+          extraction: row.extraction_units,
+        };
+        const demand = businessUnitCalculator.computeTotalProductDemand(row.sector_type, productName, counts);
+        return {
+          corporation_id: row.corporation_id,
+          corporation_name: row.corporation_name,
+          corporation_logo: row.corporation_logo,
+          sector_type: row.sector_type,
+          state_code: row.state_code,
+          state_name: row.state_name,
+          units: demand,
+          type: 'demander',
+        };
+      }).filter(entry => entry.units > 0);
+
+      // Sort by demand descending
+      entriesWithDemand.sort((a, b) => b.units - a.units);
+
+      // Apply pagination
+      totalCount = entriesWithDemand.length;
+      listData = entriesWithDemand.slice(offset, offset + limit);
     }
     
     res.json({

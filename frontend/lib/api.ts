@@ -1249,6 +1249,27 @@ export interface ResourceDetailResponse {
   pagination: PaginationInfo;
 }
 
+export interface ResourcePieDataEntry {
+  corporation_id: number;
+  corporation_name: string;
+  corporation_logo: string | null;
+  value: number;
+}
+
+export interface ResourcePieDataResponse {
+  resource: string;
+  producers: {
+    data: ResourcePieDataEntry[];
+    others: number;
+    total: number;
+  };
+  demanders: {
+    data: ResourcePieDataEntry[];
+    others: number;
+    total: number;
+  };
+}
+
 export interface ProductDetailResponse {
   product: string;
   price: ProductMarketData;
@@ -1294,6 +1315,10 @@ export const marketsAPI = {
     const response = await api.get(`/api/markets/resource/${encodeURIComponent(resourceName)}/history`, {
       params: { hours, limit },
     });
+    return response.data;
+  },
+  getResourcePieData: async (resourceName: string): Promise<ResourcePieDataResponse> => {
+    const response = await api.get(`/api/markets/resource/${encodeURIComponent(resourceName)}/pie-data`);
     return response.data;
   },
   getProductDetail: async (productName: string, page: number = 1, limit: number = 10, tab: 'suppliers' | 'demanders' = 'suppliers'): Promise<ProductDetailResponse> => {

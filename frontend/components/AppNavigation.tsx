@@ -294,19 +294,19 @@ export default function AppNavigation({ children }: AppNavigationProps) {
               {/* Actions Display */}
               {viewerProfileId && (
                 <>
-                  <div className="inline-flex items-center gap-1 sm:gap-2 rounded-xl border border-amber-200 bg-amber-50 px-2 sm:px-3 py-2 text-amber-700 shadow-sm dark:border-amber-800 dark:bg-amber-900/30 dark:text-amber-300 flex-shrink-0">
+                  <div className="inline-flex items-center gap-1 sm:gap-2 rounded-xl border px-2 sm:px-3 py-2 shadow-sm flex-shrink-0 border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/50 dark:bg-amber-900/40 dark:text-amber-300">
                     <Zap className="w-4 h-4" />
                     <span className="text-sm font-semibold">{userActions}</span>
-                    <span className="text-xs text-amber-600 dark:text-amber-400 hidden sm:inline">Actions</span>
+                    <span className="text-xs hidden sm:inline text-amber-600 dark:text-amber-400">Actions</span>
                   </div>
                   {/* Cash Display */}
-                  <div className="inline-flex items-center gap-1 sm:gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-2 sm:px-3 py-2 text-emerald-700 shadow-sm dark:border-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300 flex-shrink-0">
+                  <div className="inline-flex items-center gap-1 sm:gap-2 rounded-xl border px-2 sm:px-3 py-2 shadow-sm flex-shrink-0 border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/50 dark:bg-emerald-900/40 dark:text-emerald-300">
                     <DollarSign className="w-4 h-4" />
                     <span className="text-sm font-semibold">{formatCash(userCash)}</span>
                     {corpCash !== null && (
                       <>
-                        <span className="text-xs text-emerald-600 dark:text-emerald-400 hidden sm:inline">/</span>
-                        <span className="text-xs text-emerald-600 dark:text-emerald-400 hidden sm:inline">{formatCash(corpCash)}</span>
+                        <span className="text-xs hidden sm:inline text-emerald-600 dark:text-emerald-400">/</span>
+                        <span className="text-xs hidden sm:inline text-emerald-600 dark:text-emerald-400">{formatCash(corpCash)}</span>
                       </>
                     )}
                   </div>
@@ -317,9 +317,9 @@ export default function AppNavigation({ children }: AppNavigationProps) {
                   <button
                     type="button"
                     onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
-                    className="group relative inline-flex items-center gap-2 sm:gap-3 rounded-2xl border border-white/70 bg-gradient-to-r from-white/90 to-white/60 px-2 sm:px-3 py-2 text-left shadow-md transition hover:-translate-y-0.5 hover:shadow-lg dark:border-gray-800 dark:from-gray-800/90 dark:to-gray-900/80"
+                    className="group relative inline-flex items-center gap-2 sm:gap-3 rounded-2xl border px-2 sm:px-3 py-2 text-left shadow-md transition hover:-translate-y-0.5 hover:shadow-lg border-white/70 bg-gradient-to-r from-white/90 to-white/60 dark:border-gray-600/70 dark:from-gray-800/90 dark:to-gray-900/80"
                   >
-                    <div className="relative flex h-10 w-10 items-center justify-center overflow-visible rounded-xl border border-white/60 bg-corporate-blue/10 dark:border-gray-700 dark:bg-gray-800 flex-shrink-0">
+                    <div className="relative flex h-10 w-10 items-center justify-center overflow-visible rounded-xl border flex-shrink-0 border-white/60 bg-corporate-blue/10 dark:border-gray-600 dark:bg-gray-700">
                       <img
                         src={viewerProfile?.profile_image_url || "/defaultpfp.jpg"}
                         alt="Your profile avatar"
@@ -330,7 +330,7 @@ export default function AppNavigation({ children }: AppNavigationProps) {
                       />
                       {/* Notification badge - always visible on profile picture */}
                       {unreadCount > 0 && (
-                        <div className="absolute -top-1 -right-1 z-[100] flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-red-500 text-white text-xs font-bold shadow-lg animate-pulse border-2 border-white dark:border-gray-900">
+                        <div className="absolute -top-1 -right-1 z-[100] flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-red-500 text-white text-xs font-bold shadow-lg animate-pulse border-2 border-white dark:border-gray-800">
                           {unreadCount > 9 ? '9+' : unreadCount}
                         </div>
                       )}
