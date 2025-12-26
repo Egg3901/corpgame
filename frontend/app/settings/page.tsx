@@ -123,22 +123,34 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 py-10 px-4">
+    <div
+      className="min-h-screen text-[rgb(var(--foreground-rgb))] py-10 px-4 bloomberg:bg-black bloomberg:text-[#00ff41]"
+      style={{
+        background: `linear-gradient(to bottom, transparent, rgb(var(--background-end-rgb))) rgb(var(--background-start-rgb))`
+      }}
+    >
       <div className="max-w-3xl mx-auto space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm uppercase tracking-wide text-gray-500 dark:text-gray-400">Account</p>
-            <h1 className="text-3xl font-semibold">Settings</h1>
+            <p className="text-sm uppercase tracking-wide text-gray-500 dark:text-gray-400 bloomberg:text-bloomberg-green-dim">Account</p>
+            <h1 className="text-3xl font-semibold text-gray-900 dark:text-white bloomberg:text-bloomberg-green">Settings</h1>
           </div>
           <button
             onClick={() => router.back()}
-            className="px-4 py-2 text-sm font-medium rounded-md border border-gray-200 text-gray-700 hover:bg-gray-100 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
+            className="px-4 py-2 text-sm font-medium rounded-md border text-gray-700 hover:bg-gray-100 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800 bloomberg:border-bloomberg-green bloomberg:text-bloomberg-green bloomberg:hover:bg-bloomberg-green/10"
+            style={{ borderColor: 'rgba(var(--foreground-rgb), 0.2)' }}
           >
             Go Back
           </button>
         </div>
 
-        <section className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700/50">
+        <section
+          className="rounded-xl shadow-sm border"
+          style={{
+            backgroundColor: 'rgb(var(--background-start-rgb))',
+            borderColor: 'rgba(var(--foreground-rgb), 0.15)'
+          }}
+        >
           <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700/60">
             <h2 className="text-lg font-semibold">Account Details</h2>
             <p className="text-sm text-gray-500 dark:text-gray-400">This information comes from your profile.</p>
@@ -239,7 +251,13 @@ export default function SettingsPage() {
           </div>
         </section>
 
-        <section className="bg-white dark:bg-gray-800 bloomberg:bg-black bloomberg:border-bloomberg-green rounded-xl shadow-sm border border-gray-100 dark:border-gray-700/50">
+        <section
+          className="rounded-xl shadow-sm border bloomberg:border-bloomberg-green"
+          style={{
+            backgroundColor: 'rgb(var(--background-start-rgb))',
+            borderColor: 'rgba(var(--foreground-rgb), 0.15)'
+          }}
+        >
           <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700/60 bloomberg:border-bloomberg-green">
             <div>
               <h2 className="text-lg font-semibold">Appearance</h2>

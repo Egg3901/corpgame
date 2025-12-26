@@ -137,8 +137,14 @@ export default function SendCashModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div className="relative w-full max-w-md rounded-2xl border border-gray-200/50 bg-white shadow-2xl dark:border-gray-700/50 dark:bg-gray-900">
-        <div className="absolute inset-0 bg-gradient-to-br from-corporate-blue/5 via-transparent to-corporate-blue-light/5 dark:from-corporate-blue/10 dark:via-transparent dark:to-corporate-blue-dark/10 pointer-events-none" />
+      <div
+        className="relative w-full max-w-md rounded-2xl border shadow-2xl dark:border-gray-700/50 bloomberg:border-bloomberg-green"
+        style={{
+          backgroundColor: 'rgb(var(--background-start-rgb))',
+          borderColor: 'rgba(var(--foreground-rgb), 0.2)'
+        }}
+      >
+        <div className="absolute inset-0 bg-gradient-to-br from-corporate-blue/5 via-transparent to-corporate-blue-light/5 dark:from-corporate-blue/10 dark:via-transparent dark:to-corporate-blue-dark/10 bloomberg:from-bloomberg-green/5 bloomberg:via-transparent bloomberg:to-bloomberg-green/5 pointer-events-none rounded-2xl" />
         <div className="relative p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-bold text-gray-900 dark:text-white">Send Cash</h2>

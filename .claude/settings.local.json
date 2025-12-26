@@ -5,7 +5,8 @@
       "Bash(grep:*)",
       "Bash(node check_demands.js:*)",
       "Bash(node tests/defense-demand-test.js:*)",
-      "Bash(mkdir:*)"
+      "Bash(mkdir:*)",
+      "Bash(ls:*)"
     ]
   }
 }
