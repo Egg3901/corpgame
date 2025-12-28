@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  
+
   // Proxy /uploads requests to the backend server
   // This allows images stored on the backend to be served through the frontend origin
   async rewrites() {
