@@ -905,7 +905,7 @@ export interface BoardProposal {
   id: number;
   corporation_id: number;
   proposer_id: number;
-  proposal_type: 'ceo_nomination' | 'sector_change' | 'hq_change' | 'board_size' | 'appoint_member' | 'ceo_salary_change' | 'dividend_change' | 'special_dividend' | 'stock_split';
+  proposal_type: 'ceo_nomination' | 'sector_change' | 'hq_change' | 'board_size' | 'appoint_member' | 'ceo_salary_change' | 'dividend_change' | 'special_dividend' | 'stock_split' | 'focus_change';
   proposal_data: {
     nominee_id?: number;
     nominee_name?: string;
@@ -915,6 +915,7 @@ export interface BoardProposal {
     appointee_id?: number;
     appointee_name?: string;
     new_salary?: number;
+    new_focus?: CorpFocus;
   };
   status: 'active' | 'passed' | 'failed';
   created_at: string;
@@ -951,6 +952,7 @@ export interface BoardResponse {
     dividend_percentage?: number;
     special_dividend_last_paid_at?: string | null;
     special_dividend_last_amount?: number | null;
+    focus?: CorpFocus;
   };
   board_members: BoardMember[];
   effective_ceo: { userId: number; isActing: boolean } | null;
@@ -969,7 +971,7 @@ export interface BoardResponse {
 }
 
 export interface CreateProposalData {
-  proposal_type: 'ceo_nomination' | 'sector_change' | 'hq_change' | 'board_size' | 'appoint_member' | 'ceo_salary_change' | 'dividend_change' | 'special_dividend' | 'stock_split';
+  proposal_type: 'ceo_nomination' | 'sector_change' | 'hq_change' | 'board_size' | 'appoint_member' | 'ceo_salary_change' | 'dividend_change' | 'special_dividend' | 'stock_split' | 'focus_change';
   proposal_data: {
     nominee_id?: number;
     new_sector?: string;
@@ -979,6 +981,7 @@ export interface CreateProposalData {
     new_salary?: number;
     new_percentage?: number;
     capital_percentage?: number;
+    new_focus?: CorpFocus;
   };
 }
 

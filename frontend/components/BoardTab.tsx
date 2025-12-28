@@ -2,11 +2,11 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { boardAPI, BoardResponse, BoardProposal, CreateProposalData, adminAPI } from '@/lib/api';
-import { 
-  Users, Crown, Clock, CheckCircle, XCircle, 
+import { boardAPI, BoardResponse, BoardProposal, CreateProposalData, adminAPI, CorpFocus } from '@/lib/api';
+import {
+  Users, Crown, Clock, CheckCircle, XCircle,
   ThumbsUp, ThumbsDown, Plus, ChevronDown, ChevronUp,
-  Building2, MapPin, UsersRound, UserPlus, DollarSign, Percent, Gift, Split
+  Building2, MapPin, UsersRound, UserPlus, DollarSign, Percent, Gift, Split, Target
 } from 'lucide-react';
 
 // US States for display
@@ -54,6 +54,7 @@ export default function BoardTab({ corporationId, corporationName, viewerUserId,
   const [newSalary, setNewSalary] = useState<number>(100000);
   const [newDividendPercentage, setNewDividendPercentage] = useState<number>(0);
   const [specialDividendCapitalPercentage, setSpecialDividendCapitalPercentage] = useState<number>(0);
+  const [newFocus, setNewFocus] = useState<CorpFocus>('diversified');
 
   const fetchBoardData = useCallback(async () => {
     try {
@@ -151,6 +152,14 @@ export default function BoardTab({ corporationId, corporationName, viewerUserId,
         case 'stock_split':
           data = { proposal_type: 'stock_split', proposal_data: {} };
           break;
+        case 'focus_change':
+          if (!newFocus) {
+            alert('Please select a focus');
+            setSubmitting(false);
+            return;
+          }
+          data = { proposal_type: 'focus_change', proposal_data: { new_focus: newFocus } };
+          break;
         default:
           return;
       }
@@ -218,6 +227,7 @@ export default function BoardTab({ corporationId, corporationName, viewerUserId,
     setNewSalary(boardData?.corporation.ceo_salary || 100000);
     setNewDividendPercentage(0);
     setSpecialDividendCapitalPercentage(0);
+    setNewFocus(boardData?.corporation.focus || 'diversified');
   };
 
   const formatTimeRemaining = (expiresAt: string) => {
@@ -256,6 +266,15 @@ export default function BoardTab({ corporationId, corporationName, viewerUserId,
         return `Pay special dividend of ${((proposal.proposal_data as any).capital_percentage || 0).toFixed(2)}% of capital`;
       case 'stock_split':
         return `Execute 2:1 stock split (double shares, halve price)`;
+      case 'focus_change':
+        const focusLabels: Record<string, string> = {
+          extraction: 'Extraction',
+          production: 'Production',
+          retail: 'Retail',
+          service: 'Service',
+          diversified: 'Diversified',
+        };
+        return `Change corporate focus to ${focusLabels[proposal.proposal_data.new_focus || ''] || proposal.proposal_data.new_focus}`;
       default:
         return 'Unknown proposal';
     }
@@ -272,6 +291,7 @@ export default function BoardTab({ corporationId, corporationName, viewerUserId,
       case 'dividend_change': return <Percent className="w-4 h-4" />;
       case 'special_dividend': return <Gift className="w-4 h-4" />;
       case 'stock_split': return <Split className="w-4 h-4" />;
+      case 'focus_change': return <Target className="w-4 h-4" />;
       default: return <Users className="w-4 h-4" />;
     }
   };
@@ -439,6 +459,7 @@ export default function BoardTab({ corporationId, corporationName, viewerUserId,
                     <option value="dividend_change">Change Dividend Percentage</option>
                     <option value="special_dividend">Pay Special Dividend</option>
                     <option value="stock_split">Stock Split (2:1)</option>
+                    <option value="focus_change">Change Corporate Focus</option>
                   </select>
                 </div>
 
@@ -652,12 +673,48 @@ export default function BoardTab({ corporationId, corporationName, viewerUserId,
                       <span className="font-semibold text-amber-800 dark:text-amber-200">2:1 Stock Split</span>
                     </div>
                     <p className="text-sm text-amber-700 dark:text-amber-300">
-                      This will double all outstanding shares and halve the share price. 
+                      This will double all outstanding shares and halve the share price.
                       For example: 500,000 shares at $10 each becomes 1,000,000 shares at $5 each.
                     </p>
                     <p className="text-xs text-amber-600 dark:text-amber-400 mt-2">
                       Total market capitalization remains unchanged.
                     </p>
+                  </div>
+                )}
+
+                {proposalType === 'focus_change' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      New Corporate Focus
+                    </label>
+                    <select
+                      value={newFocus}
+                      onChange={(e) => setNewFocus(e.target.value as CorpFocus)}
+                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    >
+                      <option value="diversified">Diversified (All unit types)</option>
+                      <option value="production">Production (Production + Extraction)</option>
+                      <option value="retail">Retail (Retail only)</option>
+                      <option value="service">Service (Service only)</option>
+                      <option value="extraction">Extraction (Extraction only)</option>
+                    </select>
+                    <div className="mt-3 p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
+                      <p className="text-sm text-blue-700 dark:text-blue-300 mb-2">
+                        <strong>Focus determines what units the corporation can build:</strong>
+                      </p>
+                      <ul className="text-xs text-blue-600 dark:text-blue-400 space-y-1 ml-4 list-disc">
+                        <li><strong>Diversified:</strong> Retail, Production, Service, Extraction</li>
+                        <li><strong>Production:</strong> Production, Extraction</li>
+                        <li><strong>Retail:</strong> Retail only</li>
+                        <li><strong>Service:</strong> Service only</li>
+                        <li><strong>Extraction:</strong> Extraction only</li>
+                      </ul>
+                    </div>
+                    {boardData?.corporation.focus && (
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                        Current focus: <span className="font-semibold capitalize">{boardData.corporation.focus}</span>
+                      </p>
+                    )}
                   </div>
                 )}
 

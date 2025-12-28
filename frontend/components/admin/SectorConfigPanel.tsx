@@ -60,6 +60,7 @@ export default function SectorConfigPanel({ onError }: SectorConfigPanelProps) {
   const [editingProduct, setEditingProduct] = useState<{ name: string; field: 'reference_value' | 'min_price'; value: string } | null>(null);
   const [editingResource, setEditingResource] = useState<{ name: string; value: string } | null>(null);
   const [editingUnitConfig, setEditingUnitConfig] = useState<{ sector: string; unitType: UnitType; field: string; value: string } | null>(null);
+  const [togglingUnit, setTogglingUnit] = useState<string | null>(null);
 
   // FID-20251228-003: Modal states for add/delete operations
   const [addInputModal, setAddInputModal] = useState<{
@@ -231,6 +232,22 @@ export default function SectorConfigPanel({ onError }: SectorConfigPanelProps) {
       onError?.('Failed to update unit configuration');
     } finally {
       setSaving(null);
+    }
+  };
+
+  const handleToggleUnitEnabled = async (config: SectorUnitConfig, newEnabledState: boolean) => {
+    const toggleKey = `${config.sector_name}-${config.unit_type}`;
+    setTogglingUnit(toggleKey);
+
+    try {
+      await sectorConfigAPI.updateUnitConfig(config.sector_name, config.unit_type, { is_enabled: newEnabledState });
+      await loadData();
+      showSuccess(`${config.unit_type} ${newEnabledState ? 'enabled' : 'disabled'} for ${config.sector_name}`);
+    } catch (err) {
+      console.error('Failed to toggle unit:', err);
+      onError?.('Failed to update unit status');
+    } finally {
+      setTogglingUnit(null);
     }
   };
 
@@ -458,12 +475,26 @@ export default function SectorConfigPanel({ onError }: SectorConfigPanelProps) {
                                 : 'border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 opacity-60'
                             }`}
                           >
-                            <div className="flex items-center gap-2 mb-3">
-                              <Icon className={`w-4 h-4 ${colorClass}`} />
-                              <span className="font-medium capitalize">{unitType}</span>
-                              {!config.is_enabled && (
-                                <span className="text-xs text-gray-400">Disabled</span>
-                              )}
+                            <div className="flex items-center justify-between mb-3">
+                              <div className="flex items-center gap-2">
+                                <Icon className={`w-4 h-4 ${colorClass}`} />
+                                <span className="font-medium capitalize">{unitType}</span>
+                                {!config.is_enabled && (
+                                  <span className="text-xs text-gray-400">Disabled</span>
+                                )}
+                              </div>
+
+                              {/* Toggle switch for enable/disable */}
+                              <label className="relative inline-flex items-center cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={config.is_enabled}
+                                  onChange={(e) => handleToggleUnitEnabled(config, e.target.checked)}
+                                  disabled={togglingUnit === `${config.sector_name}-${config.unit_type}`}
+                                  className="sr-only peer"
+                                />
+                                <div className="w-11 h-6 bg-gray-200 dark:bg-gray-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+                              </label>
                             </div>
 
                             {config.is_enabled && (

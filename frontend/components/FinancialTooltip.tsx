@@ -98,12 +98,18 @@ export default function FinancialTooltip({
           {itemsWithPct.length === 0 ? (
             <p className="text-[11px] text-gray-500">No input cost components</p>
           ) : (
-            itemsWithPct.map((it) => (
-              <div key={it.name} className="flex items-center justify-between">
-                <span className="text-[11px] text-gray-300">{it.name}</span>
-                <span className="font-mono text-[11px]">{formatCurrency(it.costHr)} ({formatNumber(it.pct)}%)</span>
+            <>
+              {itemsWithPct.map((it) => (
+                <div key={it.name} className="flex items-center justify-between">
+                  <span className="text-[11px] text-gray-300">{it.name}</span>
+                  <span className="font-mono text-[11px]">{formatCurrency(it.costHr)} ({formatNumber(it.pct)}%)</span>
+                </div>
+              ))}
+              <div className="flex items-center justify-between border-t border-gray-700 pt-1 mt-1">
+                <span className="text-[11px] text-gray-400">Total</span>
+                <span className="font-mono text-[11px]">{formatCurrency(totalCost)}</span>
               </div>
-            ))
+            </>
           )}
         </div>
       </div>

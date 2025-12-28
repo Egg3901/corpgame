@@ -942,6 +942,20 @@ export default function CorporationDetailPage() {
                       </span>
                     </div>
                   )}
+                  {/* Corporation Focus Badge */}
+                  <div className="flex items-center gap-2">
+                    <Briefcase className="w-4 h-4" />
+                    <span className={`text-xs font-bold uppercase tracking-[0.1em] px-2 py-0.5 rounded-full ${
+                      corporation.focus === 'diversified' ? 'bg-gradient-to-r from-purple-500 to-indigo-500 text-white' :
+                      corporation.focus === 'production' ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300' :
+                      corporation.focus === 'retail' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300' :
+                      corporation.focus === 'service' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300' :
+                      corporation.focus === 'extraction' ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300' :
+                      'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
+                    }`}>
+                      {corporation.focus ? corporation.focus.charAt(0).toUpperCase() + corporation.focus.slice(1) : 'Diversified'}
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>

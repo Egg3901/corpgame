@@ -79,6 +79,7 @@ router.get('/:corpId', optionalAuth, async (req: AuthRequest, res: Response) => 
         dividend_percentage: corporation.dividend_percentage || 0,
         special_dividend_last_paid_at: corporation.special_dividend_last_paid_at,
         special_dividend_last_amount: corporation.special_dividend_last_amount,
+        focus: corporation.focus || 'diversified',
       },
       board_members: boardMembers.map(m => ({
         ...m,
@@ -140,7 +141,7 @@ router.post('/:corpId/proposals', authenticateToken, async (req: AuthRequest, re
     }
 
     // Validate proposal type
-    const validTypes: ProposalType[] = ['ceo_nomination', 'sector_change', 'hq_change', 'board_size', 'appoint_member', 'ceo_salary_change', 'dividend_change', 'special_dividend', 'stock_split'];
+    const validTypes: ProposalType[] = ['ceo_nomination', 'sector_change', 'hq_change', 'board_size', 'appoint_member', 'ceo_salary_change', 'dividend_change', 'special_dividend', 'stock_split', 'focus_change'];
     if (!validTypes.includes(proposal_type)) {
       return res.status(400).json({ error: 'Invalid proposal type' });
     }
@@ -262,6 +263,16 @@ router.post('/:corpId/proposals', authenticateToken, async (req: AuthRequest, re
         // Stock split doubles all shares (2:1 split)
         // No additional data needed
         validatedData = {};
+        break;
+      }
+
+      case 'focus_change': {
+        const newFocus = proposal_data.new_focus;
+        const validFocuses = ['extraction', 'production', 'retail', 'service', 'diversified'];
+        if (!newFocus || !validFocuses.includes(newFocus)) {
+          return res.status(400).json({ error: 'Invalid focus type. Must be extraction, production, retail, service, or diversified.' });
+        }
+        validatedData = { new_focus: newFocus };
         break;
       }
 
@@ -540,28 +551,28 @@ async function applyProposalChanges(proposal: any): Promise<void> {
       if (splitCorp) {
         // Get all shareholders BEFORE updating
         const shareholdersBeforeSplit = await ShareholderModel.findByCorporationId(corpId);
-        
+
         // Calculate new values
         const newSharePrice = splitCorp.share_price / 2;
-        
+
         // Calculate total shares from actual shareholder positions + public shares
         const totalHeldByPlayers = shareholdersBeforeSplit.reduce((sum, sh) => sum + sh.shares, 0);
         const actualTotalShares = totalHeldByPlayers + splitCorp.public_shares;
-        
+
         // Double everything
         const newTotalShares = actualTotalShares * 2;
         const newPublicShares = splitCorp.public_shares * 2;
-        
+
         console.log(`[Stock Split] Corp ${corpId}: Before split - Total: ${actualTotalShares}, Public: ${splitCorp.public_shares}, Held: ${totalHeldByPlayers}`);
         console.log(`[Stock Split] Corp ${corpId}: After split - Total: ${newTotalShares}, Public: ${newPublicShares}, Price: ${newSharePrice}`);
-        
+
         // First, double all shareholder positions
         for (const sh of shareholdersBeforeSplit) {
           const newShares = sh.shares * 2;
           console.log(`[Stock Split] Corp ${corpId}: User ${sh.user_id}: ${sh.shares} -> ${newShares}`);
           await ShareholderModel.updateShares(corpId, sh.user_id, newShares);
         }
-        
+
         // Then update corporation (total shares should match doubled held + doubled public)
         await CorporationModel.update(corpId, {
           shares: newTotalShares,
@@ -569,6 +580,10 @@ async function applyProposalChanges(proposal: any): Promise<void> {
           share_price: newSharePrice,
         });
       }
+      break;
+
+    case 'focus_change':
+      await CorporationModel.update(corpId, { focus: data.new_focus });
       break;
   }
 }
@@ -594,6 +609,15 @@ function getProposalDescription(type: string, data: any): string {
       return `Pay special dividend of ${data.capital_percentage?.toFixed(2) || 0}% of capital`;
     case 'stock_split':
       return `Execute 2:1 stock split (double shares, halve price)`;
+    case 'focus_change':
+      const focusLabels: Record<string, string> = {
+        extraction: 'Extraction',
+        production: 'Production',
+        retail: 'Retail',
+        service: 'Service',
+        diversified: 'Diversified',
+      };
+      return `Change corporate focus to ${focusLabels[data.new_focus] || data.new_focus}`;
     default:
       return 'Unknown proposal';
   }

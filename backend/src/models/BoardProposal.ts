@@ -3,7 +3,7 @@ import { ShareholderModel } from './Shareholder';
 import { CorporationModel } from './Corporation';
 
 // Proposal types
-export type ProposalType = 'ceo_nomination' | 'sector_change' | 'hq_change' | 'board_size' | 'appoint_member' | 'ceo_salary_change' | 'dividend_change' | 'special_dividend' | 'stock_split';
+export type ProposalType = 'ceo_nomination' | 'sector_change' | 'hq_change' | 'board_size' | 'appoint_member' | 'ceo_salary_change' | 'dividend_change' | 'special_dividend' | 'stock_split' | 'focus_change';
 
 // Proposal data structures
 export interface CeoNominationData {
@@ -44,7 +44,11 @@ export interface StockSplitData {
   // 2:1 split - doubles shares, halves price
 }
 
-export type ProposalData = CeoNominationData | SectorChangeData | HqChangeData | BoardSizeData | AppointMemberData | CeoSalaryChangeData | DividendChangeData | SpecialDividendData | StockSplitData;
+export interface FocusChangeData {
+  new_focus: 'extraction' | 'production' | 'retail' | 'service' | 'diversified';
+}
+
+export type ProposalData = CeoNominationData | SectorChangeData | HqChangeData | BoardSizeData | AppointMemberData | CeoSalaryChangeData | DividendChangeData | SpecialDividendData | StockSplitData | FocusChangeData;
 
 export interface BoardProposal {
   id: number;
