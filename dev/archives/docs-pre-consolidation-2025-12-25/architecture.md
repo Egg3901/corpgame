@@ -1,8 +1,8 @@
-# Corporate Sim Game - System Architecture
+# Corporate Warfare Game - System Architecture
 
 ## Overview
 
-Corporate Sim is a multiplayer corporate simulation game built as a full-stack web application. Players engage in hourly turn-based gameplay, building production, retail, and service units while choosing integration strategies, labor policies, and sector focuses.
+Corporate Warfare is a multiplayer corporate simulation game built as a full-stack web application. Players engage in hourly turn-based gameplay, building production, retail, and service units while choosing integration strategies, labor policies, and sector focuses.
 
 ## System Architecture Diagram
 
@@ -14,17 +14,20 @@ graph TB
     
     subgraph Frontend["Frontend Server"]
         NextJS[Next.js App Router]
-        Pages[Pages: Landing, Login, Register, Overview]
-        Components[Components: Layout, AuthForm]
-        API_Client[API Client Library]
+        Pages[Pages: Overview, States, Stock Market, Commodity/Product, Corporation]
+        Components[Components: SectorCard, PriceChart, BoardTab]
+        API_Client[API Client Library (lib/api.ts)]
+        MarketUtils[Market Utils (formatting, rounding, demand)]
     end
     
     subgraph Backend["Backend API Server"]
         Express[Express Server]
         AuthRoutes[Auth Routes]
-        GameRoutes[Game Routes]
+    MarketRoutes[Markets Routes]
+    SectorCalc[Sector Calculator Service]
+    MarketData[Market Data Service]
         AuthMiddleware[JWT Auth Middleware]
-        UserModel[User Model]
+        Models[Models: MarketEntry, BusinessUnit, Corporation, PriceHistory]
     end
     
     subgraph Database["PostgreSQL Database"]
@@ -37,11 +40,12 @@ graph TB
     Components --> API_Client
     API_Client -->|API Calls| Express
     Express --> AuthRoutes
-    Express --> GameRoutes
+    Express --> MarketRoutes
+    MarketRoutes --> SectorCalc
+    MarketRoutes --> MarketData
+    MarketRoutes --> Models
     AuthRoutes --> AuthMiddleware
-    AuthRoutes --> UserModel
-    GameRoutes --> AuthMiddleware
-    UserModel --> UsersTable
+    Models --> UsersTable
 ```
 
 ## Technology Stack
@@ -87,11 +91,14 @@ corporate-sim/
 │   │   │   └── page.tsx        # Game overview (protected)
 │   │   ├── layout.tsx          # Root layout
 │   │   └── globals.css         # Global styles
-│   ├── components/             # Reusable React components
-│   │   ├── Layout.tsx          # Main layout wrapper with navigation
-│   │   └── AuthForm.tsx        # Shared authentication form
+│   │   ├── components/             # Reusable React components
+│   │   │   ├── Layout.tsx          # Main layout wrapper with navigation
+│   │   │   ├── SectorCard.tsx      # Market unit economics + flow badges
+│   │   │   ├── PriceChart.tsx      # Commodity/product price history
+│   │   │   └── BoardTab.tsx        # Corporation board and actions
 │   ├── lib/                    # Utility libraries
-│   │   └── api.ts              # API client with axios
+│   │   └── api.ts              # API client with axios (markets, metadata, history)
+│   │   └── marketUtils.ts      # Shared formatting, rounding, demand categorization
 │   ├── package.json            # Frontend dependencies
 │   ├── tsconfig.json           # TypeScript configuration
 │   ├── tailwind.config.js      # Tailwind CSS configuration
@@ -101,11 +108,26 @@ corporate-sim/
 │   ├── src/
 │   │   ├── routes/             # API route handlers
 │   │   │   ├── auth.ts         # Authentication endpoints
-│   │   │   └── game.ts         # Game endpoints (placeholder)
+│   │   │   └── markets.ts      # Market data, prices, metadata, detail pages (uses MarketDataService)
+│   │   ├── services/
+│   │   │   ├── SectorCalculator.ts  # Aggregates supply/demand using sector classes and config
+│   │   │   └── MarketDataService.ts # Single source of truth + caching + validation/audit
+│   │   ├── domain/
+│   │   │   └── sectors/
+│   │   │       ├── BaseSector.ts            # Base class common logic
+│   │   │       ├── ProductionSector.ts      # Production-specific formulas
+│   │   │       ├── ExtractionSector.ts      # Extraction-specific formulas
+│   │   │       └── RetailServiceSector.ts   # Retail/Service-specific formulas
+│   │   ├── config/
+│   │   │   └── sector_rules.json            # Configurable rulesets (override without code changes)
 │   │   ├── middleware/         # Express middleware
 │   │   │   └── auth.ts         # JWT authentication middleware
 │   │   ├── models/             # Data models
-│   │   │   └── User.ts         # User model with database operations
+│   │   │   ├── User.ts         # User model with database operations
+│   │   │   ├── MarketEntry.ts  # Corporation entries per state/sector
+│   │   │   ├── BusinessUnit.ts # Units per market entry (retail, production, service, extraction)
+│   │   │   ├── CommodityPriceHistory.ts
+│   │   │   └── ProductPriceHistory.ts
 │   │   ├── db/                 # Database configuration
 │   │   │   └── connection.ts   # PostgreSQL connection pool
 │   │   └── server.ts           # Express server setup
@@ -142,6 +164,18 @@ CREATE INDEX idx_users_username ON users(username);
 - `username`: Display name, unique and indexed
 - `password_hash`: Bcrypt-hashed password (never store plaintext)
 - `created_at`: Timestamp for account creation tracking
+
+## Sector Calculation & Market Data Model
+
+- BaseSector encapsulates shared helpers and config access.
+- Specialized classes implement category-specific supply/demand computations:
+  - ProductionSector: product supply, required resource demand, product demand incl. electricity.
+  - ExtractionSector: commodity supply, electricity demand.
+  - RetailServiceSector: product demand for retail/service including electricity.
+- SectorCalculator loads `config/sector_rules.json`, chooses class per sector, aggregates national supply/demand.
+- MarketDataService provides unified commodity/product supply/demand + price with TTL cache; both overview and detail endpoints consume it.
+- Validation endpoint `/api/markets/validate` logs summary/detail parity to `logs/market_audit.log`.
+- Config overrides allow tuning rates per sector/category without code changes; validations ensure non-negative results.
 
 ## API Endpoints
 
@@ -227,10 +261,28 @@ Authorization: Bearer <jwt_token>
 - `404`: User not found
 - `500`: Internal server error
 
-### Game Endpoints
+### Markets Endpoints
 
-#### GET `/api/game/status`
-Placeholder endpoint for game status (protected).
+#### GET `/api/markets/commodities`
+Returns calculated commodity prices and product prices using actual supply/demand.
+
+#### GET `/api/markets/metadata`
+Returns `sector_unit_flows` for each sector and consumers/suppliers for products/resources. Used by `SectorCard` to render per-unit input/output badges.
+
+#### GET `/api/markets/states/:code`
+Returns state details, market entries, capacity, and resource breakdown. Frontend derives unit economics and passes `unitFlows` to `SectorCard`.
+
+#### GET `/api/markets/resource/:name`
+Returns detailed resource view (price, supply/demand, top producers, demanders).
+
+#### GET `/api/markets/product/:name`
+Returns detailed product view (price, supply/demand, suppliers/demanders, input resource).
+
+#### POST `/api/markets/entries/:id/build`
+Builds a new business unit on a market entry; returns updated counts.
+
+#### DELETE `/api/markets/entries/:id/abandon`
+Abandons a sector entry; removes units and updates valuation.
 
 **Headers**:
 ```
@@ -243,6 +295,28 @@ Authorization: Bearer <jwt_token>
   "message": "Game API - Coming soon"
 }
 ```
+
+## Sector Economics and Hybrid Sectors
+
+The system uses three primary sector classes to handle economic calculations: `ProductionSector`, `ExtractionSector`, and `RetailServiceSector`.
+
+### Hybrid Sector Support
+Many sectors in the game have "hybrid" characteristics (e.g., the Energy sector extracts Oil and produces Electricity). To support this:
+- **`ProductionSector`**: Handles sectors that produce a Product. It has been enhanced to also calculate Commodity supply from `extraction` units and include extraction-related electricity consumption.
+- **`ExtractionSector`**: Handles sectors that primarily extract Resources. It has been enhanced to also calculate Product supply and Commodity demand from `production` units if configured.
+- **`SectorCalculator`**: Uses a prioritization logic (`production` > `extraction` > `retail_service`) to assign a class, but because the classes are now multi-functional, hybrid sectors calculate all flows correctly regardless of their primary categorization.
+
+### Commodity Pricing
+Commodity prices are calculated dynamically based on global supply (actual extraction units × output rate) and demand (production units × consumption rate).
+- **Price Floor**: All commodities have a minimum price floor (shared with `PRODUCT_MIN_PRICE`, currently 10) to prevent total market collapse when demand is zero.
+- **Scarcity Factor**: Price = `BasePrice` × `(Demand / Max(0.01, Supply))`.
+
+## Frontend Data Flow
+
+- `lib/api.ts` provides typed calls for commodities, metadata, states, resource/product detail, histories.
+- Commodity and product pages poll every 30s to refresh supply/demand and pricing, showing a subtle “Refreshing data…” indicator.
+- `marketUtils.ts` enforces rounding to 2 decimals, locale-aware number/currency formatting, and demand-level categorization used across pages.
+- `SectorCard.tsx` displays per-unit input/output badges using `sector_unit_flows` (market metadata) plus dynamic unit economics tied to current prices.
 
 ## Authentication Flow
 
@@ -427,4 +501,7 @@ Future tables to consider:
 ## Conclusion
 
 This architecture provides a solid foundation for a multiplayer corporate simulation game. The separation of concerns between frontend and backend, along with JWT-based authentication, enables scalable development. As the game grows, the architecture can be extended with real-time features, caching layers, and optimized database schemas for game entities.
+
+
+
 

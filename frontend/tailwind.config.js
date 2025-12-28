@@ -1,5 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
+  darkMode: ['class', '[class~="dark"], [class~="bloomberg"]'],
   content: [
     './pages/**/*.{js,ts,jsx,tsx,mdx}',
     './components/**/*.{js,ts,jsx,tsx,mdx}',
@@ -7,6 +8,10 @@ module.exports = {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        eurostile: ['Oxygen', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+        bloomberg: ['Courier New', 'Courier', 'Liberation Mono', 'Consolas', 'monospace'],
+      },
       colors: {
         corporate: {
           blue: '#1e40af',
@@ -16,9 +21,26 @@ module.exports = {
           'gray-light': '#f3f4f6',
           'gray-dark': '#374151',
         },
+        bloomberg: {
+          green: '#00ff41',
+          'green-bright': '#39ff14',
+          'green-dim': '#00cc33',
+          orange: '#ff8800',
+          blue: '#0088ff',
+          black: '#000000',
+        },
+      },
+      backgroundColor: {
+        // Black mode overrides - pure black backgrounds
+        'black-bg': '#000000',
+        'black-card': '#0a0a0a',
+        'black-hover': '#111111',
       },
     },
   },
   plugins: [],
 }
+
+
+
 

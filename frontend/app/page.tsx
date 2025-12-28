@@ -1,268 +1,317 @@
+'use client';
+
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Layout from '@/components/Layout';
 import { 
-  Clock, 
+  ArrowRight, 
+  BarChart3, 
   Building2, 
-  Target, 
-  Users, 
+  Clock, 
+  Factory, 
+  Globe, 
+  Layers, 
+  PieChart, 
+  Sparkles, 
+  Store, 
   TrendingUp, 
-  Settings,
-  ArrowRight,
-  Sparkles
+  Users, 
+  Zap,
+  Target,
+  DollarSign,
+  Gavel
 } from 'lucide-react';
+import { marketsAPI, CommoditiesResponse } from '@/lib/api';
 
 export default function Home() {
+  const [marketData, setMarketData] = useState<CommoditiesResponse | null>(null);
+
+  useEffect(() => {
+    const fetchMarkets = async () => {
+      try {
+        const data = await marketsAPI.getCommodities();
+        setMarketData(data);
+      } catch (err) {
+        console.error('Failed to fetch market data for landing page');
+      }
+    };
+    fetchMarkets();
+  }, []);
+
   return (
     <Layout>
-      <div className="min-h-screen">
-        {/* Hero Section with Background Image */}
-        <div className="relative overflow-hidden bg-gradient-to-br from-corporate-blue via-blue-600 to-indigo-700">
-          {/* Background Image Overlay */}
-          <div 
-            className="absolute inset-0 bg-cover bg-center opacity-20"
-            style={{
-              backgroundImage: 'url(https://images.unsplash.com/photo-1551434678-e076c223a692?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80)'
-            }}
-          />
-          
-          {/* Animated Gradient Overlay */}
-          <div className="absolute inset-0 bg-gradient-to-r from-blue-900/50 via-transparent to-indigo-900/50" />
-          
-          {/* Floating Elements */}
-          <div className="absolute top-20 left-10 w-72 h-72 bg-blue-400 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob" />
-          <div className="absolute top-40 right-10 w-72 h-72 bg-indigo-400 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob animation-delay-2000" />
-          <div className="absolute -bottom-8 left-1/2 w-72 h-72 bg-purple-400 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob animation-delay-4000" />
-          
-          <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-32">
-            <div className="text-center">
-              {/* Icon Badge */}
-              <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-md rounded-full mb-8 border border-white/20">
-                <Sparkles className="w-4 h-4 text-yellow-300 animate-pulse" />
-                <span className="text-white text-sm font-medium">Strategic Business Simulation</span>
+      <div className="min-h-screen bg-white selection:bg-corporate-blue selection:text-white">
+        {/* Live Market Ticker */}
+        <div className="bg-gray-900 text-white overflow-hidden h-12 flex items-center border-b border-white/10">
+          <div className="flex items-center whitespace-nowrap ticker-scroll px-4">
+            {marketData?.commodities.map((c, i) => (
+              <div key={i} className="flex items-center gap-4 px-8 border-r border-white/10 last:border-0">
+                <span className="text-xs font-bold tracking-widest text-gray-400 uppercase">{c.resource}</span>
+                <span className="font-mono-numeric font-bold text-sm">${c.currentPrice.toFixed(2)}</span>
+                <span className={`text-xs font-bold ${c.priceChange >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                  {c.priceChange >= 0 ? '▲' : '▼'} {Math.abs(c.priceChange).toFixed(1)}%
+                </span>
               </div>
-              
-              <h1 className="text-6xl md:text-7xl font-extrabold text-white mb-6 tracking-tight">
-                Corporate Sim
-              </h1>
-              <p className="text-xl md:text-2xl text-blue-100 mb-10 max-w-3xl mx-auto leading-relaxed">
-                Build your corporate empire in this strategic multiplayer simulation game.
-                Make critical business decisions and compete with other players.
-              </p>
-              
-              <div className="flex flex-col sm:flex-row justify-center gap-4">
-                <Link
-                  href="/register"
-                  className="group inline-flex items-center justify-center gap-2 bg-white text-corporate-blue px-8 py-4 rounded-xl text-lg font-semibold hover:bg-blue-50 transition-all duration-300 shadow-2xl hover:shadow-blue-500/50 hover:scale-105 transform"
-                >
-                  Get Started
-                  <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                </Link>
-                <Link
-                  href="/login"
-                  className="inline-flex items-center justify-center gap-2 bg-white/10 backdrop-blur-md text-white px-8 py-4 rounded-xl text-lg font-semibold border-2 border-white/30 hover:bg-white/20 transition-all duration-300 hover:scale-105 transform"
-                >
-                  Sign In
-                </Link>
+            ))}
+            {/* Duplicate for seamless scroll */}
+            {marketData?.commodities.map((c, i) => (
+              <div key={`dup-${i}`} className="flex items-center gap-4 px-8 border-r border-white/10 last:border-0">
+                <span className="text-xs font-bold tracking-widest text-gray-400 uppercase">{c.resource}</span>
+                <span className="font-mono-numeric font-bold text-sm">${c.currentPrice.toFixed(2)}</span>
+                <span className={`text-xs font-bold ${c.priceChange >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                  {c.priceChange >= 0 ? '▲' : '▼'} {Math.abs(c.priceChange).toFixed(1)}%
+                </span>
               </div>
-            </div>
-          </div>
-          
-          {/* Wave Divider */}
-          <div className="absolute bottom-0 left-0 right-0">
-            <svg className="w-full h-20 fill-white" viewBox="0 0 1200 120" preserveAspectRatio="none">
-              <path d="M0,0V46.29c47.79,22.2,103.59,32.17,158,28,70.36-5.37,136.33-33.31,206.8-37.5C438.64,32.43,512.34,53.67,583,72.05c69.27,18,138.3,24.88,209.4,13.08,36.15-6,69.85-17.84,104.45-29.34C989.49,25,1113-14.29,1200,52.47V0Z" opacity=".25" />
-              <path d="M0,0V15.81C13,36.92,27.64,56.86,47.69,72.05,99.41,111.27,165,111,224.58,91.58c31.15-10.15,60.09-26.07,89.67-39.8,40.92-19,84.73-46,130.83-49.67,36.26-2.85,70.9,9.42,98.6,31.56,31.77,25.39,62.32,62,103.63,73,40.44,10.79,81.35-6.69,119.13-24.28s75.16-39,116.92-43.05c59.73-5.85,113.28,22.88,168.9,38.84,30.2,8.66,59,6.17,87.09-7.5,22.43-10.89,48-26.93,60.65-49.24V0Z" opacity=".5" />
-              <path d="M0,0V5.63C149.93,59,314.09,71.32,475.83,42.57c43-7.64,84.23-20.12,127.61-26.46,59-8.63,112.48,12.24,165.56,35.4C827.93,77.22,886,95.24,951.2,90c86.53-7,172.46-45.71,248.8-84.81V0Z" />
-            </svg>
+            ))}
+            {!marketData && (
+              <div className="flex items-center gap-4 px-8">
+                <span className="text-xs text-gray-400 animate-pulse">CONNECTING TO GLOBAL MARKET TERMINALS...</span>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Features Section */}
-        <div className="py-24 bg-gradient-to-b from-white to-gray-50">
+        {/* Hero Section */}
+        <section className="relative pt-24 pb-32 overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-br from-blue-50/50 to-white -z-10" />
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center mb-16">
-              <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-                Game Features
-              </h2>
-              <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-                Everything you need to build and manage your corporate empire
-              </p>
-            </div>
-
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {/* Feature Card 1 */}
-              <div className="group relative bg-white p-8 rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 border border-gray-100 hover:border-corporate-blue/50 hover:-translate-y-2">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-blue-100 to-blue-50 rounded-bl-full opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                <div className="relative">
-                  <div className="inline-flex items-center justify-center w-14 h-14 bg-gradient-to-br from-corporate-blue to-blue-600 rounded-xl mb-6 group-hover:scale-110 transition-transform duration-300 shadow-lg">
-                    <Clock className="w-7 h-7 text-white" />
-                  </div>
-                  <h3 className="text-2xl font-bold text-gray-900 mb-3">
-                    Hourly Turn-Based
-                  </h3>
-                  <p className="text-gray-600 leading-relaxed">
-                    Make strategic decisions every hour. Plan your moves carefully as time ticks away.
-                  </p>
+            <div className="lg:grid lg:grid-cols-2 lg:gap-16 items-center">
+              <div>
+                <div className="inline-flex items-center gap-2 px-3 py-1 bg-corporate-blue/10 text-corporate-blue rounded-full text-xs font-bold uppercase tracking-wider mb-6">
+                  <Sparkles className="w-3 h-3" />
+                  Season 1: Industrial Dawn
                 </div>
-              </div>
-
-              {/* Feature Card 2 */}
-              <div className="group relative bg-white p-8 rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 border border-gray-100 hover:border-corporate-blue/50 hover:-translate-y-2">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-indigo-100 to-indigo-50 rounded-bl-full opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                <div className="relative">
-                  <div className="inline-flex items-center justify-center w-14 h-14 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-xl mb-6 group-hover:scale-110 transition-transform duration-300 shadow-lg">
-                    <Building2 className="w-7 h-7 text-white" />
-                  </div>
-                  <h3 className="text-2xl font-bold text-gray-900 mb-3">
-                    Build Your Empire
-                  </h3>
-                  <p className="text-gray-600 leading-relaxed">
-                    Construct production, retail, and service units to expand your business operations.
-                  </p>
-                </div>
-              </div>
-
-              {/* Feature Card 3 */}
-              <div className="group relative bg-white p-8 rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 border border-gray-100 hover:border-corporate-blue/50 hover:-translate-y-2">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-purple-100 to-purple-50 rounded-bl-full opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                <div className="relative">
-                  <div className="inline-flex items-center justify-center w-14 h-14 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl mb-6 group-hover:scale-110 transition-transform duration-300 shadow-lg">
-                    <Target className="w-7 h-7 text-white" />
-                  </div>
-                  <h3 className="text-2xl font-bold text-gray-900 mb-3">
-                    Strategic Choices
-                  </h3>
-                  <p className="text-gray-600 leading-relaxed">
-                    Choose between vertical or horizontal integration. Customize labor policies and sector focus.
-                  </p>
-                </div>
-              </div>
-
-              {/* Feature Card 4 */}
-              <div className="group relative bg-white p-8 rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 border border-gray-100 hover:border-corporate-blue/50 hover:-translate-y-2">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-green-100 to-green-50 rounded-bl-full opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                <div className="relative">
-                  <div className="inline-flex items-center justify-center w-14 h-14 bg-gradient-to-br from-green-500 to-green-600 rounded-xl mb-6 group-hover:scale-110 transition-transform duration-300 shadow-lg">
-                    <Users className="w-7 h-7 text-white" />
-                  </div>
-                  <h3 className="text-2xl font-bold text-gray-900 mb-3">
-                    Multiplayer Competition
-                  </h3>
-                  <p className="text-gray-600 leading-relaxed">
-                    Compete with other players in strategic corporate battles.
-                  </p>
-                </div>
-              </div>
-
-              {/* Feature Card 5 */}
-              <div className="group relative bg-white p-8 rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 border border-gray-100 hover:border-corporate-blue/50 hover:-translate-y-2">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-orange-100 to-orange-50 rounded-bl-full opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                <div className="relative">
-                  <div className="inline-flex items-center justify-center w-14 h-14 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl mb-6 group-hover:scale-110 transition-transform duration-300 shadow-lg">
-                    <TrendingUp className="w-7 h-7 text-white" />
-                  </div>
-                  <h3 className="text-2xl font-bold text-gray-900 mb-3">
-                    Integration Strategies
-                  </h3>
-                  <p className="text-gray-600 leading-relaxed">
-                    Master vertical or horizontal integration to optimize your supply chain and market position.
-                  </p>
-                </div>
-              </div>
-
-              {/* Feature Card 6 */}
-              <div className="group relative bg-white p-8 rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 border border-gray-100 hover:border-corporate-blue/50 hover:-translate-y-2">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-red-100 to-red-50 rounded-bl-full opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                <div className="relative">
-                  <div className="inline-flex items-center justify-center w-14 h-14 bg-gradient-to-br from-red-500 to-red-600 rounded-xl mb-6 group-hover:scale-110 transition-transform duration-300 shadow-lg">
-                    <Settings className="w-7 h-7 text-white" />
-                  </div>
-                  <h3 className="text-2xl font-bold text-gray-900 mb-3">
-                    Labor & Sector Focus
-                  </h3>
-                  <p className="text-gray-600 leading-relaxed">
-                    Develop custom labor policies and specialize in sectors that match your strategy.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Image Showcase Section */}
-        <div className="py-24 bg-white">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="grid md:grid-cols-2 gap-12 items-center">
-              <div className="space-y-6">
-                <h2 className="text-4xl md:text-5xl font-bold text-gray-900">
-                  Strategic Business Management
-                </h2>
-                <p className="text-xl text-gray-600 leading-relaxed">
-                  Take control of your corporate empire with intuitive tools and strategic decision-making. 
-                  Every choice matters in building your business success.
+                <h1 className="text-6xl md:text-7xl font-black text-gray-900 leading-[1.1] tracking-tight mb-8">
+                  Build your <span className="text-corporate-blue">Legacy</span> in the Boardroom.
+                </h1>
+                <p className="text-xl text-gray-600 leading-relaxed mb-10 max-w-xl">
+                  A high-fidelity corporate warfare simulation where players manage extraction, 
+                  supply chains, and stock governance in a persistent 24/7 global economy.
                 </p>
-                <ul className="space-y-4">
-                  <li className="flex items-start gap-3">
-                    <div className="flex-shrink-0 w-6 h-6 bg-corporate-blue rounded-full flex items-center justify-center mt-0.5">
-                      <div className="w-2 h-2 bg-white rounded-full" />
-                    </div>
-                    <span className="text-gray-700">Real-time business analytics</span>
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <div className="flex-shrink-0 w-6 h-6 bg-corporate-blue rounded-full flex items-center justify-center mt-0.5">
-                      <div className="w-2 h-2 bg-white rounded-full" />
-                    </div>
-                    <span className="text-gray-700">Strategic resource management</span>
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <div className="flex-shrink-0 w-6 h-6 bg-corporate-blue rounded-full flex items-center justify-center mt-0.5">
-                      <div className="w-2 h-2 bg-white rounded-full" />
-                    </div>
-                    <span className="text-gray-700">Competitive multiplayer gameplay</span>
-                  </li>
-                </ul>
+                <div className="flex flex-wrap gap-4">
+                  <Link
+                    href="/register"
+                    className="px-8 py-4 bg-corporate-blue text-white rounded-xl font-bold text-lg hover:bg-corporate-blue-dark transition-all shadow-xl shadow-corporate-blue/20 flex items-center gap-3 group"
+                  >
+                    Found Corporation
+                    <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                  </Link>
+                  <Link
+                    href="/login"
+                    className="px-8 py-4 bg-white text-gray-700 border border-gray-200 rounded-xl font-bold text-lg hover:bg-gray-50 transition-all flex items-center gap-3"
+                  >
+                    Executive Login
+                  </Link>
+                </div>
               </div>
-              <div className="relative rounded-2xl overflow-hidden shadow-2xl group">
-                <div className="aspect-[4/3] relative">
-                  <img 
-                    src="https://images.unsplash.com/photo-1460925895917-afdab827c52f?ixlib=rb-4.0.3&auto=format&fit=crop&w=2015&q=80"
-                    alt="Business strategy"
-                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
+
+              <div className="mt-16 lg:mt-0 relative">
+                <div className="bg-white rounded-2xl shadow-2xl border border-gray-100 p-8 transform rotate-2 hover:rotate-0 transition-transform duration-500">
+                  <div className="flex items-center justify-between mb-8">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 bg-corporate-blue rounded-lg flex items-center justify-center text-white font-bold text-xl">
+                        M
+                      </div>
+                      <div>
+                        <h3 className="font-black text-gray-900 uppercase tracking-tight">Metacorp Systems</h3>
+                        <span className="text-xs text-gray-400 font-bold uppercase tracking-widest">NYSE: META</span>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-2xl font-mono-numeric font-bold text-green-500">$1,242.40</div>
+                      <div className="text-xs font-bold text-green-500">+12.4% THIS TURN</div>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden">
+                      <div className="h-full bg-corporate-blue w-2/3" />
+                    </div>
+                    <div className="flex justify-between text-xs font-bold text-gray-500 uppercase">
+                      <span>Market Share</span>
+                      <span>68%</span>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4 mt-8">
+                      <div className="p-4 bg-blue-50 rounded-xl">
+                        <div className="text-xs text-corporate-blue font-bold uppercase mb-1">HQ Location</div>
+                        <div className="font-bold text-gray-900">Texas, US</div>
+                      </div>
+                      <div className="p-4 bg-green-50 rounded-xl">
+                        <div className="text-xs text-green-600 font-bold uppercase mb-1">CEO Salary</div>
+                        <div className="font-bold text-gray-900">$250k / hr</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Decorative Elements */}
+                <div className="absolute -top-4 -right-4 w-24 h-24 bg-yellow-400 rounded-full opacity-10 blur-2xl" />
+                <div className="absolute -bottom-8 -left-8 w-32 h-32 bg-blue-400 rounded-full opacity-10 blur-3xl" />
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* The Engine Section */}
+        <section className="py-32 bg-gray-50">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center mb-20">
+              <h2 className="text-4xl font-black text-gray-900 mb-6 uppercase tracking-tight">
+                Core Mechanics
+              </h2>
+              <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+                Start with <span className="text-corporate-blue font-bold">$500,000</span> initial capital 
+                and build your corporation through strategic production, market expansion, and shareholder governance.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 sm:gap-8">
+              {/* Mechanic 1 */}
+              <div className="bg-white p-6 sm:p-8 rounded-2xl border border-gray-100 hover:border-corporate-blue/30 transition-colors group">
+                <div className="w-12 sm:w-14 h-12 sm:h-14 bg-corporate-blue/10 rounded-xl flex items-center justify-center mb-4 sm:mb-6 group-hover:scale-110 transition-transform">
+                  <Layers className="w-7 h-7 text-corporate-blue" />
+                </div>
+                <h3 className="text-xl font-black text-gray-900 mb-4 uppercase tracking-tight">Focus Strategies</h3>
+                <p className="text-gray-600 leading-relaxed mb-6">
+                  Choose from 5 operational focuses: <span className="font-bold text-gray-900">Extraction</span> for raw materials, 
+                  <span className="font-bold text-gray-900">Production</span> for manufacturing, 
+                  <span className="font-bold text-gray-900">Retail</span> for consumer sales, 
+                  <span className="font-bold text-gray-900">Service</span> for high-margin operations, 
+                  or go <span className="font-bold text-gray-900">Diversified</span> for total flexibility.
+                </p>
+              </div>
+
+              {/* Mechanic 2 */}
+              <div className="bg-white p-8 rounded-2xl border border-gray-100 hover:border-corporate-blue/30 transition-colors group">
+                <div className="w-14 h-14 bg-orange-100 rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                  <Factory className="w-7 h-7 text-orange-600" />
+                </div>
+                <h3 className="text-xl font-black text-gray-900 mb-4 uppercase tracking-tight">Resource Markets</h3>
+                <p className="text-gray-600 leading-relaxed mb-6">
+                  Manage supply chains across 19 sectors. Secure <span className="font-bold text-gray-900">Rare Earth</span> for Tech, 
+                  <span className="font-bold text-gray-900">Steel</span> for Manufacturing, or <span className="font-bold text-gray-900">Oil</span> for Energy. 
+                  Market prices react to real player supply and demand.
+                </p>
+              </div>
+
+              {/* Mechanic 3 */}
+              <div className="bg-white p-8 rounded-2xl border border-gray-100 hover:border-corporate-blue/30 transition-colors group">
+                <div className="w-14 h-14 bg-green-100 rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                  <Gavel className="w-7 h-7 text-green-600" />
+                </div>
+                <h3 className="text-xl font-black text-gray-900 mb-4 uppercase tracking-tight">Board Governance</h3>
+                <p className="text-gray-600 leading-relaxed mb-6">
+                  Player corporations are democratic entities. Propose <span className="font-bold text-gray-900">Stock Splits</span>, 
+                  nominate new <span className="font-bold text-gray-900">CEOs</span>, adjust <span className="font-bold text-gray-900">Dividend Yields</span>, 
+                  or change company <span className="font-bold text-gray-900">Sectors</span> through shareholder voting.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Global Markets Section */}
+        <section className="py-32 bg-white overflow-hidden">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="lg:grid lg:grid-cols-2 lg:gap-16 items-center">
+              <div className="relative">
+                <div className="grid grid-cols-2 gap-4">
+                  {['NY', 'TX', 'CA', 'FL', 'IL', 'WA'].map((state) => (
+                    <div key={state} className="p-6 bg-gray-50 rounded-2xl border border-gray-100">
+                      <div className="text-2xl font-black text-corporate-blue mb-1">{state}</div>
+                      <div className="text-xs text-gray-400 font-bold uppercase tracking-widest">Market Status</div>
+                      <div className="mt-4 flex items-center gap-2">
+                        <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                        <span className="text-sm font-bold text-gray-700">ACTIVE TRADING</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="absolute -inset-4 bg-gradient-to-tr from-corporate-blue/5 to-transparent -z-10 rounded-3xl" />
+              </div>
+
+              <div className="mt-16 lg:mt-0">
+                <h2 className="text-4xl font-black text-gray-900 mb-8 uppercase tracking-tight leading-none">
+                  Expand Across <br />
+                  <span className="text-corporate-blue">50 US Markets</span>
+                </h2>
+                <p className="text-lg text-gray-600 leading-relaxed mb-8">
+                  Every state has unique population multipliers and natural resource pools. 
+                  Strategically enter markets that align with your industrial focus. 
+                  Control the production of <span className="font-bold text-gray-900">Copper in Arizona</span> or 
+                  dominate <span className="font-bold text-gray-900">Finance in New York</span>.
+                </p>
+                <div className="space-y-4">
+                  {[
+                    { icon: Globe, text: "Region-based market multipliers" },
+                    { icon: Target, text: "Sector-specific state extraction" },
+                    { icon: Clock, text: "Hourly turn-based revenue cycles" }
+                  ].map((item, i) => (
+                    <div key={i} className="flex items-center gap-4">
+                      <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
+                        <item.icon className="w-5 h-5 text-corporate-blue" />
+                      </div>
+                      <span className="font-bold text-gray-700 uppercase tracking-tight text-sm">{item.text}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
           </div>
-        </div>
+        </section>
 
-        {/* CTA Section */}
-        <div className="relative py-24 overflow-hidden">
-          {/* Background Image */}
-          <div 
-            className="absolute inset-0 bg-cover bg-center"
-            style={{
-              backgroundImage: 'url(https://images.unsplash.com/photo-1552664730-d307ca884978?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80)'
-            }}
-          />
-          <div className="absolute inset-0 bg-gradient-to-r from-corporate-blue/95 via-blue-700/95 to-indigo-800/95" />
-          
-          <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-            <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
-              Ready to Build Your Empire?
-            </h2>
-            <p className="text-xl text-blue-100 mb-10 max-w-2xl mx-auto">
-              Start your journey in corporate simulation and compete with other players.
-            </p>
-            <Link
-              href="/register"
-              className="group inline-flex items-center gap-3 bg-white text-corporate-blue px-10 py-5 rounded-xl text-lg font-semibold hover:bg-blue-50 transition-all duration-300 shadow-2xl hover:shadow-blue-500/50 hover:scale-105 transform"
-            >
-              Start Playing Now
-              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-            </Link>
+        {/* Real-time stats section */}
+        <section className="bg-corporate-blue py-24">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-6 sm:gap-8 md:gap-12 text-center">
+              <div>
+                <div className="text-3xl sm:text-4xl md:text-5xl font-black text-white mb-2 leading-none">19+</div>
+                <div className="text-blue-200 text-[10px] sm:text-xs font-bold uppercase tracking-widest">Business Sectors</div>
+              </div>
+              <div>
+                <div className="text-3xl sm:text-4xl md:text-5xl font-black text-white mb-2 leading-none">24/7</div>
+                <div className="text-blue-200 text-[10px] sm:text-xs font-bold uppercase tracking-widest">Live Stock Market</div>
+              </div>
+              <div>
+                <div className="text-3xl sm:text-4xl md:text-5xl font-black text-white mb-2 leading-none">1HR</div>
+                <div className="text-blue-200 text-[10px] sm:text-xs font-bold uppercase tracking-widest">Turn Cycle</div>
+              </div>
+              <div>
+                <div className="text-3xl sm:text-4xl md:text-5xl font-black text-white mb-2 leading-none">100%</div>
+                <div className="text-blue-200 text-[10px] sm:text-xs font-bold uppercase tracking-widest">Player-Driven</div>
+              </div>
+            </div>
           </div>
-        </div>
+        </section>
+
+        {/* Final CTA */}
+        <section className="py-32 relative overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-b from-white to-gray-50 -z-10" />
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <h2 className="text-5xl font-black text-gray-900 mb-8 uppercase tracking-tight leading-none">
+              The Desk is <span className="text-corporate-blue">Open</span>.
+            </h2>
+            <p className="text-xl text-gray-600 mb-12">
+              Join thousands of other executives in the most detailed corporate strategy game on the web. 
+              Found your empire today.
+            </p>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+              <Link
+                href="/register"
+                className="w-full sm:w-auto px-12 py-5 bg-corporate-blue text-white rounded-xl font-bold text-xl hover:bg-corporate-blue-dark transition-all shadow-2xl shadow-corporate-blue/20"
+              >
+                Start Your Empire
+              </Link>
+              <Link
+                href="/login"
+                className="w-full sm:w-auto px-12 py-5 bg-white text-gray-700 border border-gray-200 rounded-xl font-bold text-xl hover:bg-gray-50 transition-all"
+              >
+                Existing User
+              </Link>
+            </div>
+          </div>
+        </section>
       </div>
     </Layout>
   );

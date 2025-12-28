@@ -2,6 +2,11 @@ import express, { Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { UserModel, UserInput } from '../models/User';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
+import pool from '../db/connection';
+import { BannedIpModel } from '../models/BannedIp';
+import { getClientIp } from '../utils/requestIp';
+import { normalizeImageUrl } from '../utils/imageUrl';
+import { MessageModel } from '../models/Message';
 
 const router = express.Router();
 
@@ -9,48 +14,111 @@ const router = express.Router();
 router.post('/register', async (req: Request, res: Response) => {
   try {
     const { email, username, password, player_name, gender, age, starting_state }: UserInput = req.body;
+    const registrationSecret = (req.body?.registration_secret as string | undefined)?.trim();
+    const adminSecretAttempt = (req.body?.admin_secret as string | undefined)?.trim();
+    const clientIp = getClientIp(req);
 
+    // Validate required fields
     if (!email || !username || !password) {
       return res.status(400).json({ error: 'Email, username, and password are required' });
+    }
+
+    // Trim and validate email
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail || !trimmedEmail.includes('@')) {
+      return res.status(400).json({ error: 'Valid email is required' });
+    }
+
+    // Trim and validate username
+    const trimmedUsername = username.trim();
+    if (!trimmedUsername || trimmedUsername.length < 3) {
+      return res.status(400).json({ error: 'Username must be at least 3 characters' });
     }
 
     if (password.length < 6) {
       return res.status(400).json({ error: 'Password must be at least 6 characters' });
     }
 
-    // Validate gender if provided
-    if (gender && !['m', 'f', 'nonbinary'].includes(gender)) {
+    // Validate required registration fields
+    if (!player_name || player_name.trim() === '') {
+      return res.status(400).json({ error: 'Player name is required' });
+    }
+
+    if (!gender || !['m', 'f', 'nonbinary'].includes(gender)) {
       return res.status(400).json({ error: 'Gender must be m, f, or nonbinary' });
     }
 
-    // Validate age if provided
-    if (age !== undefined && (age < 18 || age > 80)) {
+    if (!age || age < 18 || age > 80) {
       return res.status(400).json({ error: 'Age must be between 18 and 80' });
     }
 
+    if (!starting_state || starting_state.trim() === '') {
+      return res.status(400).json({ error: 'Starting state is required' });
+    }
+
+    if (await BannedIpModel.isIpBanned(clientIp)) {
+      return res.status(403).json({ error: 'Registrations from this IP are blocked' });
+    }
+
+    const requiredRegistrationSecret = (process.env.REGISTRATION_SECRET || '').trim();
+    if (requiredRegistrationSecret && requiredRegistrationSecret.length > 0) {
+      if (!registrationSecret) {
+        return res.status(403).json({ error: 'Registration secret is required' });
+      }
+      if (registrationSecret !== requiredRegistrationSecret) {
+        return res.status(403).json({ error: 'Invalid registration secret' });
+      }
+    }
+
+    const adminSecretEnv = (process.env.ADMIN_SECRET || '').trim();
+    const isAdmin = !!(adminSecretEnv && adminSecretEnv.length > 0 && adminSecretAttempt === adminSecretEnv);
+
     // Check if user already exists
-    const existingUser = await UserModel.findByEmail(email);
+    const existingUser = await UserModel.findByEmail(trimmedEmail);
     if (existingUser) {
       return res.status(400).json({ error: 'User with this email already exists' });
     }
 
+    // Check if username already exists (case-insensitive)
+    const existingUsername = await pool.query('SELECT id FROM users WHERE LOWER(username) = LOWER($1)', [trimmedUsername]);
+    if (existingUsername.rows.length > 0) {
+      return res.status(400).json({ error: 'Username already taken' });
+    }
+
     // Create new user
     const user = await UserModel.create({ 
-      email, 
-      username, 
+      email: trimmedEmail, 
+      username: trimmedUsername, 
       password,
-      player_name,
+      player_name: player_name.trim(),
       gender,
       age,
-      starting_state
+      starting_state: starting_state.trim(),
+      is_admin: isAdmin,
+      registration_ip: clientIp,
+      last_login_ip: clientIp,
+      last_login_at: new Date()
     });
 
     // Generate JWT token
     const token = jwt.sign(
-      { userId: user.id, email: user.email },
+      { userId: user.id, email: user.email, username: user.username },
       process.env.JWT_SECRET || 'fallback-secret',
       { expiresIn: '24h' }
     );
+
+    // Send welcome message to new user
+    try {
+      await MessageModel.create({
+        sender_id: user.id,
+        recipient_id: user.id,
+        subject: '🎉 Welcome to Corporate Warfare!',
+        body: `Hello ${user.player_name || user.username}!\n\nWelcome to Corporate Warfare! We're thrilled to have you join our community of aspiring business moguls.\n\nHere are some tips to get started:\n\n• Visit your Profile to customize your avatar and bio\n• Check out the Stock Market to start investing in corporations\n• Create your own Corporation and become a CEO\n• Explore different States & Markets to expand your business empire\n• Use the Portfolio page to track your investments\n\nGood luck on your journey to corporate success!\n\n— The Corporate Warfare Team`,
+      });
+    } catch (msgError) {
+      // Don't fail registration if welcome message fails
+      console.error('Failed to send welcome message:', msgError);
+    }
 
     res.status(201).json({
       token,
@@ -62,41 +130,127 @@ router.post('/register', async (req: Request, res: Response) => {
         gender: user.gender,
         age: user.age,
         starting_state: user.starting_state,
+        is_admin: user.is_admin,
+        profile_id: user.profile_id,
+        profile_slug: user.profile_slug,
+        profile_image_url: normalizeImageUrl(user.profile_image_url),
+        registration_ip: user.registration_ip,
+        last_login_ip: user.last_login_ip,
+        last_login_at: user.last_login_at,
+        is_banned: user.is_banned,
       },
     });
   } catch (error: any) {
     console.error('Registration error:', error);
+    console.error('Error stack:', error.stack);
+    console.error('Error details:', {
+      message: error.message,
+      code: error.code,
+      detail: error.detail,
+      constraint: error.constraint,
+      table: error.table,
+      column: error.column
+    });
+    
     if (error.code === '23505') {
       return res.status(400).json({ error: 'Username or email already exists' });
     }
-    res.status(500).json({ error: 'Internal server error' });
+    
+    // Provide more helpful error messages
+    if (error.code === '42P01') {
+      return res.status(500).json({ error: 'Database table does not exist. Please run migrations.' });
+    }
+    if (error.code === '42703') {
+      return res.status(500).json({ error: 'Database column does not exist. Please run migration 002.' });
+    }
+    if (error.code === '28P01' || error.code === '3D000') {
+      return res.status(500).json({ error: 'Database connection failed. Check DATABASE_URL in .env' });
+    }
+    
+    // Log full error for debugging
+    const errorMessage = error.message || 'Unknown error';
+    res.status(500).json({ 
+      error: 'Internal server error',
+      details: process.env.NODE_ENV !== 'production' ? errorMessage : undefined
+    });
   }
 });
 
 // Login user
 router.post('/login', async (req: Request, res: Response) => {
   try {
-    const { email, password } = req.body;
+    const { username, email, password } = req.body;
+    const clientIp = getClientIp(req);
 
-    if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password are required' });
+    if (!password) {
+      return res.status(400).json({ error: 'Password is required' });
     }
 
-    // Find user by email
-    const user = await UserModel.findByEmail(email);
+    if (await BannedIpModel.isIpBanned(clientIp)) {
+      return res.status(403).json({ error: 'This IP is banned' });
+    }
+
+    const identifier = (email || username || '').trim();
+    if (!identifier) {
+      return res.status(400).json({ error: 'Email or username is required' });
+    }
+
+    // Find user by email first, fallback to username
+    let user: any = null;
+    try {
+      if (email) {
+        user = await UserModel.findByEmail(identifier);
+      }
+      if (!user) {
+        user = await UserModel.findByUsername(identifier);
+      }
+    } catch (dbError: any) {
+      console.error('Database error during user lookup:', dbError);
+      console.error('Database error details:', {
+        message: dbError?.message,
+        code: dbError?.code,
+        detail: dbError?.detail,
+      });
+      return res.status(500).json({ 
+        error: 'Database error during login',
+        details: process.env.NODE_ENV !== 'production' ? dbError?.message : undefined
+      });
+    }
+
     if (!user) {
-      return res.status(401).json({ error: 'Invalid email or password' });
+      return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    // Verify password
+    // Ensure user has required fields
+    if (!user || !user.id) {
+      console.error('Invalid user object returned from database');
+      return res.status(500).json({ error: 'Database error: Invalid user data' });
+    }
+
+    if (!user.password_hash) {
+      console.error('User found but password_hash is missing:', { 
+        userId: user.id, 
+        email: user.email, 
+        username: user.username,
+        hasPasswordHash: !!user.password_hash,
+        userKeys: Object.keys(user || {})
+      });
+      return res.status(500).json({ error: 'User data is corrupted. Please contact support.' });
+    }
+
+    if (user.is_banned) {
+      return res.status(403).json({ error: user.banned_reason || 'Account is banned' });
+    }
+
     const isValidPassword = await UserModel.verifyPassword(password, user.password_hash);
     if (!isValidPassword) {
-      return res.status(401).json({ error: 'Invalid email or password' });
+      return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    // Generate JWT token
+    await UserModel.updateLastLogin(user.id, clientIp);
+
     const token = jwt.sign(
-      { userId: user.id, email: user.email },
+      { userId: user.id, email: user.email, username: user.username },
       process.env.JWT_SECRET || 'fallback-secret',
       { expiresIn: '24h' }
     );
@@ -111,11 +265,36 @@ router.post('/login', async (req: Request, res: Response) => {
         gender: user.gender,
         age: user.age,
         starting_state: user.starting_state,
+        is_admin: user.is_admin,
+        profile_id: user.profile_id,
+        profile_slug: user.profile_slug,
+        profile_image_url: normalizeImageUrl(user.profile_image_url),
+        is_banned: user.is_banned,
       },
     });
-  } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+  } catch (error: any) {
+    // Safely extract error information
+    const errorMessage = error?.message || 'Unknown error';
+    const errorCode = error?.code;
+    const errorDetail = error?.detail;
+    const errorConstraint = error?.constraint;
+    
+    console.error('Login error:', errorMessage);
+    if (error?.stack) {
+      console.error('Login error stack:', error.stack);
+    }
+    console.error('Login error details:', {
+      message: errorMessage,
+      code: errorCode,
+      detail: errorDetail,
+      constraint: errorConstraint,
+    });
+    
+    // Return a safe error response
+    res.status(500).json({ 
+      error: 'Internal server error',
+      details: process.env.NODE_ENV !== 'production' ? errorMessage : undefined
+    });
   }
 });
 
@@ -135,6 +314,18 @@ router.get('/me', authenticateToken, async (req: AuthRequest, res: Response) => 
       gender: user.gender,
       age: user.age,
       starting_state: user.starting_state,
+      is_admin: user.is_admin,
+      profile_id: user.profile_id,
+      profile_slug: user.profile_slug,
+      profile_image_url: normalizeImageUrl(user.profile_image_url),
+      cash: user.cash || 0,
+      actions: user.actions || 0,
+      registration_ip: user.registration_ip,
+      last_login_ip: user.last_login_ip,
+      last_login_at: user.last_login_at,
+      is_banned: user.is_banned,
+      banned_at: user.banned_at,
+      banned_reason: user.banned_reason,
       created_at: user.created_at,
     });
   } catch (error) {
@@ -144,4 +335,3 @@ router.get('/me', authenticateToken, async (req: AuthRequest, res: Response) => 
 });
 
 export default router;
-

@@ -2,24 +2,32 @@
   "name": "corporate-sim-frontend",
   "version": "1.0.0",
   "private": true,
+  "eslintConfig": {
+    "extends": "next/core-web-vitals"
+  },
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -H 0.0.0.0",
     "build": "next build",
-    "start": "next start",
-    "lint": "next lint"
+    "start": "next start -H 0.0.0.0",
+    "lint": "next lint",
+    "test": "node tests/run-tests.js && node tests/finance-tests.js && node tests/revenue-breakdown-tests.js"
   },
   "dependencies": {
     "axios": "^1.6.2",
     "lucide-react": "^0.561.0",
     "next": "^14.0.4",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+    "reactflow": "^11.11.4",
+    "recharts": "^3.6.0"
   },
   "devDependencies": {
     "@types/node": "^20.10.5",
     "@types/react": "^18.2.45",
     "@types/react-dom": "^18.2.18",
     "autoprefixer": "^10.4.16",
+    "eslint": "8.57.1",
+    "eslint-config-next": "14.0.4",
     "postcss": "^8.4.32",
     "tailwindcss": "^3.4.0",
     "typescript": "^5.3.3"
