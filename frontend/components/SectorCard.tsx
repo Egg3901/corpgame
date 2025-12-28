@@ -32,9 +32,9 @@ interface SectorCardProps {
   revenue?: number;
   profit?: number;
   showActions?: boolean;
-  onAbandon?: () => void;
+  onAbandonUnit?: (unitType: 'retail' | 'production' | 'service' | 'extraction') => void;
   onBuildUnit?: (unitType: 'retail' | 'production' | 'service' | 'extraction') => void;
-  abandoning?: boolean;
+  abandoningUnit?: string | null;
   building?: string | null;
   canBuild?: boolean;
   buildCost?: number;
@@ -70,9 +70,9 @@ export default function SectorCard({
   revenue,
   profit,
   showActions = false,
-  onAbandon,
+  onAbandonUnit,
   onBuildUnit,
-  abandoning = false,
+  abandoningUnit = null,
   building = null,
   canBuild = true,
   buildCost = 10000,
@@ -446,22 +446,6 @@ export default function SectorCard({
             </Link>
           </div>
         </div>
-        {showActions && onAbandon && (
-          <button
-            onClick={onAbandon}
-            disabled={abandoning}
-            className="px-3 py-1.5 text-xs bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1 flex-shrink-0"
-          >
-            {abandoning ? (
-              'Abandoning...'
-            ) : (
-              <>
-                <Trash2 className="w-3 h-3" />
-                Abandon
-              </>
-            )}
-          </button>
-        )}
         {revenue !== undefined && profit !== undefined && (
           <div className="flex items-center gap-3 sm:gap-4 flex-shrink-0">
             <div className="text-right group relative">
@@ -518,14 +502,28 @@ export default function SectorCard({
                 />
               </TooltipPanel>
             </div>
-            {showActions && onBuildUnit && (
-              <button
-                onClick={() => onBuildUnit('retail')}
-                disabled={building === 'retail' || !canBuild || isAtCapacity}
-                className="mt-2 w-full px-2 py-1 text-xs bg-pink-500 text-white rounded hover:bg-pink-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                {building === 'retail' ? '...' : isAtCapacity ? 'At Capacity' : `+1 (${formatCurrency(buildCost)})`}
-              </button>
+            {showActions && (
+              <div className="mt-2 flex gap-1">
+                {onBuildUnit && (
+                  <button
+                    onClick={() => onBuildUnit('retail')}
+                    disabled={building === 'retail' || !canBuild || isAtCapacity}
+                    className="flex-1 px-2 py-1 text-xs bg-pink-500 text-white rounded hover:bg-pink-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {building === 'retail' ? '...' : isAtCapacity ? 'At Capacity' : `+1 (${formatCurrency(buildCost)})`}
+                  </button>
+                )}
+                {onAbandonUnit && units.retail > 0 && (
+                  <button
+                    onClick={() => onAbandonUnit('retail')}
+                    disabled={abandoningUnit === 'retail'}
+                    className="px-2 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    title="Abandon 1 retail unit"
+                  >
+                    {abandoningUnit === 'retail' ? '...' : <Trash2 className="w-3 h-3" />}
+                  </button>
+                )}
+              </div>
             )}
           </div>
         )}
@@ -563,14 +561,28 @@ export default function SectorCard({
                 />
               </TooltipPanel>
             </div>
-            {showActions && onBuildUnit && (
-              <button
-                onClick={() => onBuildUnit('production')}
-                disabled={building === 'production' || !canBuild || isAtCapacity}
-                className="mt-2 w-full px-2 py-1 text-xs bg-orange-500 text-white rounded hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                {building === 'production' ? '...' : isAtCapacity ? 'At Capacity' : `+1 (${formatCurrency(buildCost)})`}
-              </button>
+            {showActions && (
+              <div className="mt-2 flex gap-1">
+                {onBuildUnit && (
+                  <button
+                    onClick={() => onBuildUnit('production')}
+                    disabled={building === 'production' || !canBuild || isAtCapacity}
+                    className="flex-1 px-2 py-1 text-xs bg-orange-500 text-white rounded hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {building === 'production' ? '...' : isAtCapacity ? 'At Capacity' : `+1 (${formatCurrency(buildCost)})`}
+                  </button>
+                )}
+                {onAbandonUnit && units.production > 0 && (
+                  <button
+                    onClick={() => onAbandonUnit('production')}
+                    disabled={abandoningUnit === 'production'}
+                    className="px-2 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    title="Abandon 1 production unit"
+                  >
+                    {abandoningUnit === 'production' ? '...' : <Trash2 className="w-3 h-3" />}
+                  </button>
+                )}
+              </div>
             )}
           </div>
         )}
@@ -603,14 +615,28 @@ export default function SectorCard({
                 />
               </TooltipPanel>
             </div>
-            {showActions && onBuildUnit && (
-              <button
-                onClick={() => onBuildUnit('service')}
-                disabled={building === 'service' || !canBuild || isAtCapacity}
-                className="mt-2 w-full px-2 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                {building === 'service' ? '...' : isAtCapacity ? 'At Capacity' : `+1 (${formatCurrency(buildCost)})`}
-              </button>
+            {showActions && (
+              <div className="mt-2 flex gap-1">
+                {onBuildUnit && (
+                  <button
+                    onClick={() => onBuildUnit('service')}
+                    disabled={building === 'service' || !canBuild || isAtCapacity}
+                    className="flex-1 px-2 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {building === 'service' ? '...' : isAtCapacity ? 'At Capacity' : `+1 (${formatCurrency(buildCost)})`}
+                  </button>
+                )}
+                {onAbandonUnit && units.service > 0 && (
+                  <button
+                    onClick={() => onAbandonUnit('service')}
+                    disabled={abandoningUnit === 'service'}
+                    className="px-2 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    title="Abandon 1 service unit"
+                  >
+                    {abandoningUnit === 'service' ? '...' : <Trash2 className="w-3 h-3" />}
+                  </button>
+                )}
+              </div>
             )}
           </div>
         )}
@@ -649,14 +675,28 @@ export default function SectorCard({
                 />
               </TooltipPanel>
             </div>
-            {showActions && onBuildUnit && (
-              <button
-                onClick={() => onBuildUnit('extraction')}
-                disabled={building === 'extraction' || !canBuild || isAtCapacity}
-                className="mt-2 w-full px-2 py-1 text-xs bg-amber-500 text-white rounded hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                {building === 'extraction' ? '...' : isAtCapacity ? 'At Capacity' : `+1 (${formatCurrency(buildCost)})`}
-              </button>
+            {showActions && (
+              <div className="mt-2 flex gap-1">
+                {onBuildUnit && (
+                  <button
+                    onClick={() => onBuildUnit('extraction')}
+                    disabled={building === 'extraction' || !canBuild || isAtCapacity}
+                    className="flex-1 px-2 py-1 text-xs bg-amber-500 text-white rounded hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {building === 'extraction' ? '...' : isAtCapacity ? 'At Capacity' : `+1 (${formatCurrency(buildCost)})`}
+                  </button>
+                )}
+                {onAbandonUnit && (units.extraction || 0) > 0 && (
+                  <button
+                    onClick={() => onAbandonUnit('extraction')}
+                    disabled={abandoningUnit === 'extraction'}
+                    className="px-2 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    title="Abandon 1 extraction unit"
+                  >
+                    {abandoningUnit === 'extraction' ? '...' : <Trash2 className="w-3 h-3" />}
+                  </button>
+                )}
+              </div>
             )}
           </div>
         )}

@@ -231,7 +231,7 @@ export default function CorporationDetailPage() {
   const [trading, setTrading] = useState(false);
   const [userOwnedShares, setUserOwnedShares] = useState(0);
   const [activeTab, setActiveTab] = useState<'overview' | 'sectors' | 'finance' | 'board'>('overview');
-  const [abandoning, setAbandoning] = useState<number | null>(null);
+  const [abandoningUnit, setAbandoningUnit] = useState<string | null>(null);
   const [building, setBuilding] = useState<string | null>(null);
   const [corpFinances, setCorpFinances] = useState<CorporationFinances | null>(null);
   const [balanceSheet, setBalanceSheet] = useState<BalanceSheet | null>(null);
@@ -464,7 +464,26 @@ export default function CorporationDetailPage() {
     }).format(value);
   };
 
+  // Use backend-provided income statement values (source of truth)
+  // The backend calculates: sector revenue/costs → gross profit → CEO salary → operating income → dividends → net income
   const statements = useMemo(() => {
+    // If we have corpFinances from backend, use those values (they are the source of truth)
+    if (corpFinances) {
+      return {
+        revenue: corpFinances.display_revenue,
+        variableCosts: corpFinances.display_costs,
+        fixedCosts: corpFinances.ceo_salary_96h,
+        operatingIncome: corpFinances.operating_income_96h,
+        dividends: corpFinances.dividend_payout_96h,
+        retainedEarnings: corpFinances.net_income_96h,
+        netIncome: corpFinances.net_income_96h,
+        sectors: [], // Sector breakdown still uses local calculation for detailed display
+        periodHours: DISPLAY_PERIOD_HOURS,
+        errors: [],
+      };
+    }
+
+    // Fallback to local calculation if backend data not yet loaded
     const entries = marketEntries.map(e => ({
       sector_type: e.sector_type,
       retail_count: e.retail_count,
@@ -489,7 +508,7 @@ export default function CorporationDetailPage() {
       fixedCosts: { ceoSalary: corporation?.ceo_salary || 0 },
       dividendPercentage: corporation?.dividend_percentage || 0,
     });
-  }, [marketEntries, marketMetadata, commodityPrices, productPrices, corporation]);
+  }, [corpFinances, marketEntries, marketMetadata, commodityPrices, productPrices, corporation]);
 
   // Calculate revenue and cost breakdown by sector and unit type
   const calculateRevenueCostBreakdown = () => {
@@ -704,16 +723,16 @@ export default function CorporationDetailPage() {
     }
   };
 
-  const handleAbandonSector = async (entryId: number, sectorType: string, stateName: string, totalUnits: number) => {
+  const handleAbandonUnit = async (entryId: number, unitType: 'retail' | 'production' | 'service' | 'extraction', sectorType: string) => {
     if (!corporation) return;
-    
-    if (!confirm(`Are you sure you want to abandon the ${sectorType} sector in ${stateName}? This will delete all ${totalUnits} business units in this sector. This action cannot be undone.`)) {
+
+    if (!confirm(`Are you sure you want to abandon 1 ${unitType} unit in ${sectorType}? This action cannot be undone.`)) {
       return;
     }
 
-    setAbandoning(entryId);
+    setAbandoningUnit(`${entryId}-${unitType}`);
     try {
-      const result = await marketsAPI.abandonSector(entryId);
+      const result = await marketsAPI.abandonUnit(entryId, unitType);
       // Refresh data
       const [corpData, financesData] = await Promise.all([
         corporationAPI.getById(corpId),
@@ -725,11 +744,10 @@ export default function CorporationDetailPage() {
         setBalanceSheet(financesData.balance_sheet || null);
         setMarketEntries(financesData.market_entries || []);
       }
-      alert(`Successfully abandoned ${sectorType} sector in ${stateName}. ${result.units_removed} units removed.`);
     } catch (err: any) {
-      alert(err.response?.data?.error || 'Failed to abandon sector');
+      alert(err.response?.data?.error || 'Failed to abandon unit');
     } finally {
-      setAbandoning(null);
+      setAbandoningUnit(null);
     }
   };
 
@@ -1464,9 +1482,9 @@ export default function CorporationDetailPage() {
                                       revenue={entryRevenue}
                                       profit={entryProfit}
                                       showActions={corporation && viewerUserId === corporation.ceo_id}
-                                      onAbandon={() => handleAbandonSector(entry.id, entry.sector_type, stateName, totalUnits)}
+                                      onAbandonUnit={(unitType) => handleAbandonUnit(entry.id, unitType, entry.sector_type)}
                                       onBuildUnit={(unitType) => handleBuildUnit(entry.id, unitType)}
-                                      abandoning={abandoning === entry.id}
+                                      abandoningUnit={abandoningUnit?.startsWith(`${entry.id}-`) ? abandoningUnit.split('-')[1] : null}
                                       building={building?.startsWith(`${entry.id}-`) ? building.split('-')[1] : null}
                                       canBuild={corporation && viewerUserId === corporation.ceo_id && (corporation.capital ?? 0) >= 10000}
                                       buildCost={10000}

@@ -306,7 +306,7 @@ export default function StateDetailPage() {
   const [entering, setEntering] = useState(false);
   const [building, setBuilding] = useState<string | null>(null);
   const [userActions, setUserActions] = useState<number>(0);
-  const [abandoning, setAbandoning] = useState<number | null>(null);
+  const [abandoningUnit, setAbandoningUnit] = useState<string | null>(null);
   const [commodityPrices, setCommodityPrices] = useState<Record<string, { currentPrice: number }>>({});
   const [productPrices, setProductPrices] = useState<Record<string, { currentPrice: number }>>({});
   const [marketMetadata, setMarketMetadata] = useState<MarketMetadataResponse | null>(null);
@@ -523,31 +523,23 @@ export default function StateDetailPage() {
     }
   };
 
-  const handleAbandonSector = async (entryId: number, sectorType: string) => {
+  const handleAbandonUnit = async (entryId: number, unitType: 'retail' | 'production' | 'service' | 'extraction', sectorType: string) => {
     if (!stateData?.user_corporation) return;
-    
-    const totalUnits = stateData.user_market_entries?.find(e => e.id === entryId)?.units 
-      ? (stateData.user_market_entries.find(e => e.id === entryId)!.units.retail + 
-         stateData.user_market_entries.find(e => e.id === entryId)!.units.production + 
-         stateData.user_market_entries.find(e => e.id === entryId)!.units.service + 
-         (stateData.user_market_entries.find(e => e.id === entryId)!.units.extraction || 0))
-      : 0;
 
-    if (!confirm(`Are you sure you want to abandon the ${sectorType} sector in ${state.name}? This will delete all ${totalUnits} business units in this sector. This action cannot be undone.`)) {
+    if (!confirm(`Are you sure you want to abandon 1 ${unitType} unit in ${sectorType}? This action cannot be undone.`)) {
       return;
     }
 
-    setAbandoning(entryId);
+    setAbandoningUnit(`${entryId}-${unitType}`);
     try {
-      const result = await marketsAPI.abandonSector(entryId);
+      await marketsAPI.abandonUnit(entryId, unitType);
       // Refresh data
       const newData = await marketsAPI.getState(stateCode);
       setStateData(newData);
-      alert(`Successfully abandoned ${sectorType} sector. ${result.units_removed} units removed.`);
     } catch (err: any) {
-      alert(err.response?.data?.error || 'Failed to abandon sector');
+      alert(err.response?.data?.error || 'Failed to abandon unit');
     } finally {
-      setAbandoning(null);
+      setAbandoningUnit(null);
     }
   };
 
@@ -898,9 +890,9 @@ export default function StateDetailPage() {
                         producedProduct={SECTOR_PRODUCTS[entry.sector_type] || null}
                         productDemands={SECTOR_PRODUCT_DEMANDS[entry.sector_type] || null}
                         showActions={true}
-                        onAbandon={() => handleAbandonSector(entry.id, entry.sector_type)}
+                        onAbandonUnit={(unitType) => handleAbandonUnit(entry.id, unitType, entry.sector_type)}
                         onBuildUnit={(unitType) => handleBuildUnit(entry.id, unitType)}
-                        abandoning={abandoning === entry.id}
+                        abandoningUnit={abandoningUnit?.startsWith(`${entry.id}-`) ? abandoningUnit.split('-')[1] : null}
                         building={building?.startsWith(`${entry.id}-`) ? building.split('-')[1] : null}
                         canBuild={user_corporation.capital >= BUILD_UNIT_COST && userActions >= 1 && getTotalUnits(entry.units) < getStateCapacity(state.multiplier)}
                         buildCost={BUILD_UNIT_COST}

@@ -758,6 +758,17 @@ export const adminAPI = {
     const response = await api.post(`/api/admin/corporations/${corpId}/add-capital`, { amount });
     return response.data;
   },
+  migrateManufacturingToLightIndustry: async (): Promise<{
+    success: boolean;
+    corporations_updated: number;
+    corporations: Array<{ id: number; name: string }>;
+    market_entries_updated: number;
+    market_entries: Array<{ id: number; state_code: string; corporation_id: number }>;
+    message: string;
+  }> => {
+    const response = await api.post('/api/admin/migrate-manufacturing-to-light-industry');
+    return response.data;
+  },
 };
 
 export interface MessageResponse {
@@ -1111,14 +1122,22 @@ export interface CorporationFinances {
   hourly_revenue: number;
   hourly_costs: number;
   hourly_profit: number;
-  display_revenue: number;
-  display_costs: number;
-  display_profit: number;
+  display_revenue: number;  // 96-hour sector revenue
+  display_costs: number;    // 96-hour sector costs
+  display_profit: number;   // 96-hour sector profit (gross profit)
+  // Full income statement (96-hour period)
+  gross_profit_96h: number;      // Sector Revenue - Sector Costs (THE SOURCE OF TRUTH)
+  ceo_salary_96h: number;        // CEO Salary for the period
+  operating_income_96h: number;  // Gross Profit - CEO Salary
+  dividend_payout_96h: number;   // Operating Income * dividend % (only if positive)
+  net_income_96h: number;        // Operating Income - Dividends (retained earnings)
+  // Unit counts
   total_retail_units: number;
   total_production_units: number;
   total_service_units: number;
   total_extraction_units: number;
   markets_count: number;
+  // Per-share metrics
   dividend_per_share_96h?: number;
   special_dividend_last_paid_at?: string | null;
   special_dividend_last_amount?: number | null;
@@ -1452,8 +1471,8 @@ export const marketsAPI = {
     const response = await api.delete(`/api/markets/entries/${entryId}/abandon`);
     return response.data;
   },
-  abandonUnit: async (entryId: number, unitType: 'retail' | 'production' | 'service' | 'extraction'): Promise<{ success: boolean; message: string; new_stock_price: number }> => {
-    const response = await api.delete(`/api/markets/entries/${entryId}/abandon-unit/${unitType}`);
+  abandonUnit: async (entryId: number, unitType: 'retail' | 'production' | 'service' | 'extraction'): Promise<{ success: boolean; message: string; unit_type: string; units_remaining: number; new_stock_price: number }> => {
+    const response = await api.delete(`/api/markets/entries/${entryId}/units/${unitType}`);
     return response.data;
   },
   getSectorRules: async (): Promise<any> => {

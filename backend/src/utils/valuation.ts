@@ -232,16 +232,31 @@ export async function calculateTradeWeightedPrice(corporationId: number): Promis
  * Trade History = Recency-weighted average of recent trades
  */
 export async function calculateStockPrice(corporationId: number): Promise<StockValuation> {
-  const balanceSheet = await calculateBalanceSheet(corporationId);
-  const tradeData = await calculateTradeWeightedPrice(corporationId);
-  const finances = await MarketEntryModel.calculateCorporationFinances(corporationId);
   const corporation = await CorporationModel.findById(corporationId);
 
   if (!corporation) {
     throw new Error('Corporation not found');
   }
 
+  // Parse corporation data for unified income statement calculation
+  const ceoSalary = typeof corporation.ceo_salary === 'string'
+    ? parseFloat(corporation.ceo_salary)
+    : (corporation.ceo_salary || 0);
+  const dividendPercentage = typeof corporation.dividend_percentage === 'string'
+    ? parseFloat(corporation.dividend_percentage)
+    : (corporation.dividend_percentage || 0);
   const totalShares = corporation.shares || 1;
+
+  // Get all financial data with unified income statement calculation
+  const [balanceSheet, tradeData, finances] = await Promise.all([
+    calculateBalanceSheet(corporationId),
+    calculateTradeWeightedPrice(corporationId),
+    MarketEntryModel.calculateCorporationFinances(corporationId, undefined, {
+      ceo_salary: ceoSalary,
+      dividend_percentage: dividendPercentage,
+      shares: totalShares,
+    }),
+  ]);
 
   // Book value per share (assets - liabilities)
   // Assets now include NPV-based business unit valuations
@@ -250,28 +265,17 @@ export async function calculateStockPrice(corporationId: number): Promise<StockV
   // Cash per share (informational only - included in book value, not weighted separately)
   const cashPerShare = totalShares > 0 ? balanceSheet.cash / totalShares : 0;
 
-  // Get CEO salary (per 96h) and convert to period cost
-  const ceoSalaryPer96h = typeof corporation.ceo_salary === 'string'
-    ? parseFloat(corporation.ceo_salary)
-    : (corporation.ceo_salary || 0);
-
-  // Period earnings calculation (96-hour period to match Income Statement)
-  // Must subtract CEO salary to match financial statement's Operating Income calculation
-  const grossPeriodProfit = finances.hourly_profit * DISPLAY_PERIOD_HOURS;
-  const periodProfit = grossPeriodProfit - ceoSalaryPer96h;
+  // Use unified income statement values (CEO salary already subtracted)
+  // operating_income_96h = gross_profit_96h - ceo_salary_96h
+  const periodProfit = finances.operating_income_96h;
   const earningsPerShare = totalShares > 0 ? periodProfit / totalShares : 0;
 
   // Earnings value with P/E ratio
   // IMPORTANT: Negative earnings apply a drag (reduce price)
   const earningsValue = earningsPerShare * EARNINGS_PE_RATIO;
 
-  // Dividend calculations (based on 96-hour period)
-  const dividendPercentage = typeof corporation.dividend_percentage === 'string'
-    ? parseFloat(corporation.dividend_percentage)
-    : (corporation.dividend_percentage || 0);
-  const periodDividendPerShare = totalShares > 0 && dividendPercentage > 0 && periodProfit > 0
-    ? (periodProfit * dividendPercentage / 100) / totalShares
-    : 0;
+  // Use unified dividend calculation (only paid from positive operating income)
+  const periodDividendPerShare = finances.dividend_per_share_96h || 0;
   const dividendYield = bookValue > 0 && periodDividendPerShare > 0
     ? (periodDividendPerShare / bookValue) * 100
     : 0;

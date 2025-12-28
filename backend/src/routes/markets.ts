@@ -1494,7 +1494,7 @@ router.post('/entries/:entryId/build', authenticateToken, async (req: AuthReques
 router.get('/corporation/:corpId/finances', async (req: Request, res: Response) => {
   try {
     const corpId = parseInt(req.params.corpId, 10);
-    
+
     if (isNaN(corpId)) {
       return res.status(400).json({ error: 'Invalid corporation ID' });
     }
@@ -1504,34 +1504,28 @@ router.get('/corporation/:corpId/finances', async (req: Request, res: Response) 
       return res.status(404).json({ error: 'Corporation not found' });
     }
 
+    // Parse corporation data for income statement calculation
+    const ceoSalary = typeof corporation.ceo_salary === 'string'
+      ? parseFloat(corporation.ceo_salary)
+      : (corporation.ceo_salary || 0);
+    const dividendPercentage = typeof corporation.dividend_percentage === 'string'
+      ? parseFloat(corporation.dividend_percentage)
+      : (corporation.dividend_percentage || 0);
+    const specialDividendLastAmount = typeof corporation.special_dividend_last_amount === 'string'
+      ? parseFloat(corporation.special_dividend_last_amount)
+      : (corporation.special_dividend_last_amount || null);
+
+    // Calculate finances with full income statement (CEO salary subtracted before dividends)
     const [finances, balanceSheet] = await Promise.all([
-      MarketEntryModel.calculateCorporationFinances(corpId),
+      MarketEntryModel.calculateCorporationFinances(corpId, undefined, {
+        ceo_salary: ceoSalary,
+        dividend_percentage: dividendPercentage,
+        shares: corporation.shares || 1,
+        special_dividend_last_paid_at: corporation.special_dividend_last_paid_at,
+        special_dividend_last_amount: specialDividendLastAmount,
+      }),
       calculateBalanceSheet(corpId),
     ]);
-
-    const dividendPercentage = typeof corporation.dividend_percentage === 'string' ? parseFloat(corporation.dividend_percentage) : (corporation.dividend_percentage || 0);
-    const totalShares = corporation.shares || 1;
-    const totalProfit96h = finances.display_profit;
-    
-    const dividendPerShare96h = totalShares > 0 && dividendPercentage > 0 
-      ? (totalProfit96h * dividendPercentage / 100) / totalShares 
-      : 0;
-
-    const specialDividendLastPaidAt = corporation.special_dividend_last_paid_at;
-    const specialDividendLastAmount = typeof corporation.special_dividend_last_amount === 'string' 
-      ? parseFloat(corporation.special_dividend_last_amount) 
-      : (corporation.special_dividend_last_amount || null);
-    const specialDividendPerShareLast = specialDividendLastAmount && totalShares > 0
-      ? specialDividendLastAmount / totalShares
-      : null;
-
-    const financesWithDividends = {
-      ...finances,
-      dividend_per_share_96h: dividendPerShare96h,
-      special_dividend_last_paid_at: specialDividendLastPaidAt,
-      special_dividend_last_amount: specialDividendLastAmount,
-      special_dividend_per_share_last: specialDividendPerShareLast,
-    };
 
     const entries = await MarketEntryModel.findByCorporationIdWithUnits(corpId);
     
@@ -1562,7 +1556,7 @@ router.get('/corporation/:corpId/finances', async (req: Request, res: Response) 
 
     res.json({
       corporation_id: corpId,
-      finances: financesWithDividends,
+      finances,
       balance_sheet: balanceSheet,
       market_entries: marketsWithDetails,
     });
@@ -1668,6 +1662,78 @@ router.delete('/entries/:entryId/abandon', authenticateToken, async (req: AuthRe
   } catch (error) {
     console.error('Abandon sector error:', error);
     res.status(500).json({ error: 'Failed to abandon sector' });
+  }
+});
+
+// DELETE /api/markets/entries/:entryId/units/:unitType - Abandon a single business unit
+router.delete('/entries/:entryId/units/:unitType', authenticateToken, async (req: AuthRequest, res: Response) => {
+  try {
+    const entryId = parseInt(req.params.entryId, 10);
+    const unitType = req.params.unitType as 'retail' | 'production' | 'service' | 'extraction';
+    const userId = req.userId!;
+
+    if (isNaN(entryId)) {
+      return res.status(400).json({ error: 'Invalid entry ID' });
+    }
+
+    const validUnitTypes = ['retail', 'production', 'service', 'extraction'];
+    if (!validUnitTypes.includes(unitType)) {
+      return res.status(400).json({ error: 'Invalid unit type' });
+    }
+
+    const marketEntry = await MarketEntryModel.findById(entryId);
+    if (!marketEntry) {
+      return res.status(404).json({ error: 'Market entry not found' });
+    }
+
+    const corporation = await CorporationModel.findById(marketEntry.corporation_id);
+    if (!corporation) {
+      return res.status(404).json({ error: 'Corporation not found' });
+    }
+
+    if (corporation.ceo_id !== userId) {
+      return res.status(403).json({ error: 'Only the CEO can abandon units' });
+    }
+
+    // Get current unit count
+    const unitCounts = await BusinessUnitModel.getUnitCounts(entryId);
+    const currentCount = unitCounts[unitType];
+
+    if (currentCount <= 0) {
+      return res.status(400).json({ error: `No ${unitType} units to abandon` });
+    }
+
+    // Remove one unit
+    await BusinessUnitModel.removeUnit(entryId, unitType, 1);
+
+    // Record transaction
+    await TransactionModel.create({
+      transaction_type: 'unit_abandon',
+      amount: 0,
+      from_user_id: userId,
+      corporation_id: marketEntry.corporation_id,
+      description: `Abandoned 1 ${unitType} unit in ${marketEntry.sector_type} sector (${getStateLabel(marketEntry.state_code) || marketEntry.state_code})`,
+      reference_id: entryId,
+      reference_type: 'market_entry',
+    });
+
+    // Recalculate stock price
+    const newStockPrice = await updateStockPrice(marketEntry.corporation_id);
+
+    // Get updated unit counts
+    const updatedCounts = await BusinessUnitModel.getUnitCounts(entryId);
+
+    res.json({
+      success: true,
+      message: `Abandoned 1 ${unitType} unit`,
+      market_entry_id: entryId,
+      unit_type: unitType,
+      units_remaining: updatedCounts[unitType],
+      new_stock_price: newStockPrice,
+    });
+  } catch (error) {
+    console.error('Abandon unit error:', error);
+    res.status(500).json({ error: 'Failed to abandon unit' });
   }
 });
 

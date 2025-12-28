@@ -362,7 +362,14 @@ body {
 .dark.black .bg-gray-800,
 .dark.black .dark\:bg-gray-800,
 .dark.black .dark\:bg-gray-800\/60,
+.dark.black .dark\:bg-gray-800\/70,
 .dark.black .dark\:bg-gray-800\/50 {
+  background-color: var(--bg-level-1) !important;
+}
+
+/* Additional gray-900 variants with different opacities */
+.dark.black .dark\:bg-gray-900\/70,
+.dark.black .dark\:bg-gray-900\/60 {
   background-color: var(--bg-level-1) !important;
 }
 
@@ -447,11 +454,47 @@ body {
 .dark.black .border-amber-200 {
   border-color: rgba(245, 158, 11, 0.6) !important;
 }
+.dark.black .dark\:bg-amber-900\/40 {
+  background-color: rgba(180, 83, 9, 0.5) !important;
+}
+.dark.black .dark\:border-amber-500\/50 {
+  border-color: rgba(245, 158, 11, 0.6) !important;
+}
 .dark.black .bg-emerald-50 {
   background-color: rgba(6, 95, 70, 0.35) !important;
 }
 .dark.black .border-emerald-200 {
   border-color: rgba(16, 185, 129, 0.6) !important;
+}
+.dark.black .dark\:bg-emerald-900\/40 {
+  background-color: rgba(6, 95, 70, 0.5) !important;
+}
+.dark.black .dark\:border-emerald-500\/50 {
+  border-color: rgba(16, 185, 129, 0.6) !important;
+}
+
+/* Profile button and dropdown for black theme */
+.dark.black .dark\:bg-gray-800 {
+  background-color: var(--bg-level-1) !important;
+}
+
+.dark.black .dark\:from-transparent {
+  --tw-gradient-from: transparent !important;
+}
+
+/* Profile dropdown menu background */
+.dark.black .dark\:bg-gray-900\/95 {
+  background-color: var(--bg-level-1) !important;
+}
+
+/* Sidebar navigation background */
+.dark.black .dark\:bg-gray-900 {
+  background-color: var(--bg-level-1) !important;
+}
+
+/* Mobile nav and dropdowns */
+.dark.black .dark\:ring-white\/10 {
+  --tw-ring-color: rgba(0, 0, 0, 0.2) !important;
 }
 
 /* Sidebar colored buttons for black theme */

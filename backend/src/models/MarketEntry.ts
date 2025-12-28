@@ -53,14 +53,22 @@ export interface CorporationFinances {
   hourly_revenue: number;
   hourly_costs: number;
   hourly_profit: number;
-  display_revenue: number;  // 96-hour projection
-  display_costs: number;    // 96-hour projection
-  display_profit: number;   // 96-hour projection
+  display_revenue: number;  // 96-hour projection (sector revenue)
+  display_costs: number;    // 96-hour projection (sector costs)
+  display_profit: number;   // 96-hour projection (sector profit = gross profit)
+  // Full income statement (96-hour period)
+  gross_profit_96h: number;      // Sector Revenue - Sector Costs (THE SOURCE OF TRUTH)
+  ceo_salary_96h: number;        // CEO Salary for the period
+  operating_income_96h: number;  // Gross Profit - CEO Salary
+  dividend_payout_96h: number;   // Operating Income * dividend % (only if positive)
+  net_income_96h: number;        // Operating Income - Dividends (retained earnings)
+  // Unit counts
   total_retail_units: number;
   total_production_units: number;
   total_service_units: number;
   total_extraction_units: number;
   markets_count: number;
+  // Per-share metrics
   dividend_per_share_96h?: number;
   special_dividend_last_paid_at?: Date | string | null;
   special_dividend_last_amount?: number | null;
@@ -275,9 +283,17 @@ export class MarketEntryModel {
 
   // Calculate corporation finances from all market entries
   // Uses dynamic economics based on sector, commodity prices, and product prices
+  // When corporationData is provided, calculates full income statement with CEO salary and dividends
   static async calculateCorporationFinances(
     corporationId: number,
-    marketPrices?: MarketPriceOverrides
+    marketPrices?: MarketPriceOverrides,
+    corporationData?: {
+      ceo_salary: number;
+      dividend_percentage: number;
+      shares: number;
+      special_dividend_last_paid_at?: Date | string | null;
+      special_dividend_last_amount?: number | null;
+    }
   ): Promise<CorporationFinances> {
     // Get all market entries with their units
     const entries = await this.findByCorporationIdWithUnits(corporationId);
@@ -314,6 +330,38 @@ export class MarketEntryModel {
 
     const hourlyProfit = hourlyRevenue - hourlyCosts;
 
+    // Calculate 96-hour income statement
+    // Sector profit is the SOURCE OF TRUTH - everything flows from this
+    const grossProfit96h = hourlyProfit * DISPLAY_PERIOD_HOURS;
+
+    // CEO Salary is an operating expense (per 96h period)
+    const ceoSalary96h = corporationData?.ceo_salary ?? 0;
+
+    // Operating Income = Gross Profit - CEO Salary
+    const operatingIncome96h = grossProfit96h - ceoSalary96h;
+
+    // Dividends: only paid from POSITIVE operating income
+    const dividendPercentage = corporationData?.dividend_percentage ?? 0;
+    const dividendPayout96h = operatingIncome96h > 0
+      ? operatingIncome96h * (dividendPercentage / 100)
+      : 0;
+
+    // Net Income (Retained Earnings) = Operating Income - Dividends
+    const netIncome96h = operatingIncome96h - dividendPayout96h;
+
+    // Per-share calculations
+    const totalShares = corporationData?.shares ?? 1;
+    const dividendPerShare96h = totalShares > 0 && dividendPayout96h > 0
+      ? dividendPayout96h / totalShares
+      : 0;
+
+    // Special dividend info
+    const specialDividendLastPaidAt = corporationData?.special_dividend_last_paid_at ?? null;
+    const specialDividendLastAmount = corporationData?.special_dividend_last_amount ?? null;
+    const specialDividendPerShareLast = specialDividendLastAmount && totalShares > 0
+      ? specialDividendLastAmount / totalShares
+      : null;
+
     return {
       corporation_id: corporationId,
       hourly_revenue: hourlyRevenue,
@@ -321,12 +369,24 @@ export class MarketEntryModel {
       hourly_profit: hourlyProfit,
       display_revenue: hourlyRevenue * DISPLAY_PERIOD_HOURS,
       display_costs: hourlyCosts * DISPLAY_PERIOD_HOURS,
-      display_profit: hourlyProfit * DISPLAY_PERIOD_HOURS,
+      display_profit: grossProfit96h, // This is gross profit (sector profit)
+      // Full income statement
+      gross_profit_96h: grossProfit96h,
+      ceo_salary_96h: ceoSalary96h,
+      operating_income_96h: operatingIncome96h,
+      dividend_payout_96h: dividendPayout96h,
+      net_income_96h: netIncome96h,
+      // Unit counts
       total_retail_units: totalRetail,
       total_production_units: totalProduction,
       total_service_units: totalService,
       total_extraction_units: totalExtraction,
       markets_count: entries.length,
+      // Per-share metrics
+      dividend_per_share_96h: dividendPerShare96h,
+      special_dividend_last_paid_at: specialDividendLastPaidAt,
+      special_dividend_last_amount: specialDividendLastAmount,
+      special_dividend_per_share_last: specialDividendPerShareLast,
     };
   }
 

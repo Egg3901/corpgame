@@ -1129,4 +1129,39 @@ router.delete('/corporation/:corpId/public-shares', async (req: AuthRequest, res
   }
 });
 
+// POST /api/admin/migrate-manufacturing-to-light-industry - Migrate all manufacturing sectors to light industry
+router.post('/migrate-manufacturing-to-light-industry', async (req: AuthRequest, res: Response) => {
+  try {
+    console.log(`[Admin] Migrating manufacturing to light industry by user:`, req.userId);
+
+    // Update corporations with sector 'Manufacturing' to 'Light Industry'
+    const corpResult = await pool.query(
+      `UPDATE corporations
+       SET sector = 'Light Industry'
+       WHERE LOWER(sector) = 'manufacturing'
+       RETURNING id, name`
+    );
+
+    // Update market_entries with sector_type 'Manufacturing' to 'Light Industry'
+    const entryResult = await pool.query(
+      `UPDATE market_entries
+       SET sector_type = 'Light Industry'
+       WHERE LOWER(sector_type) = 'manufacturing'
+       RETURNING id, state_code, corporation_id`
+    );
+
+    res.json({
+      success: true,
+      corporations_updated: corpResult.rowCount,
+      corporations: corpResult.rows,
+      market_entries_updated: entryResult.rowCount,
+      market_entries: entryResult.rows,
+      message: `Migrated ${corpResult.rowCount} corporations and ${entryResult.rowCount} market entries from Manufacturing to Light Industry`,
+    });
+  } catch (error) {
+    console.error('Migrate manufacturing to light industry error:', error);
+    res.status(500).json({ error: 'Failed to migrate manufacturing to light industry' });
+  }
+});
+
 export default router;

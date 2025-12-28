@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Trash2, Shield, ShieldOff, Eye, EyeOff, AlertTriangle, Flag, CheckCircle2, X, ChevronDown, ChevronUp, MessageSquare, Play, RefreshCw, DollarSign, Clock, Receipt, Search, ArrowUpRight, ArrowDownLeft, Scissors, CalendarClock } from 'lucide-react';
+import { Trash2, Shield, ShieldOff, Eye, EyeOff, AlertTriangle, Flag, CheckCircle2, X, ChevronDown, ChevronUp, MessageSquare, Play, RefreshCw, DollarSign, Clock, Receipt, Search, ArrowUpRight, ArrowDownLeft, Scissors, CalendarClock, Database, ArrowRight } from 'lucide-react';
 import AppNavigation from '@/components/AppNavigation';
 import { authAPI, adminAPI, AdminUser, ReportedChat, Transaction, TransactionType, normalizeImageUrl, gameAPI, AdminGameTimeResetResponse } from '@/lib/api';
 import Link from 'next/link';
@@ -92,6 +92,9 @@ export default function AdminPage() {
   const [corpCapitalAmount, setCorpCapitalAmount] = useState('');
   const [addingCapitalToCorp, setAddingCapitalToCorp] = useState(false);
   const [corpCapitalResult, setCorpCapitalResult] = useState<{ corporation_name: string; old_capital: number; new_capital: number; new_share_price: number; amount: number } | null>(null);
+  // Migration state
+  const [migratingManufacturing, setMigratingManufacturing] = useState(false);
+  const [migrationResult, setMigrationResult] = useState<{ corporations_updated: number; market_entries_updated: number; message: string } | null>(null);
 
   useEffect(() => {
     const loadData = async () => {
@@ -537,6 +540,28 @@ export default function AdminPage() {
       alert(err?.response?.data?.error || 'Failed to add capital to corporation');
     } finally {
       setAddingCapitalToCorp(false);
+    }
+  };
+
+  const handleMigrateManufacturing = async () => {
+    if (!confirm('Are you sure you want to migrate all Manufacturing corporations and market entries to Light Industry? This cannot be undone.')) {
+      return;
+    }
+
+    try {
+      setMigratingManufacturing(true);
+      setMigrationResult(null);
+      const result = await adminAPI.migrateManufacturingToLightIndustry();
+      setMigrationResult({
+        corporations_updated: result.corporations_updated,
+        market_entries_updated: result.market_entries_updated,
+        message: result.message,
+      });
+    } catch (err: any) {
+      console.error('Migrate manufacturing error:', err);
+      alert(err?.response?.data?.error || 'Failed to migrate manufacturing');
+    } finally {
+      setMigratingManufacturing(false);
     }
   };
 
@@ -1322,6 +1347,47 @@ export default function AdminPage() {
               <p className="text-xs text-gray-500 dark:text-gray-400">
                 <strong>Note:</strong> Enter positive amounts to add cash/capital, or negative amounts to subtract. Cash/capital cannot go below $0.
               </p>
+            </div>
+          </div>
+
+          {/* Data Migrations Section */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700/50 mb-6">
+            <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700/60">
+              <h2 className="text-lg font-semibold flex items-center gap-2">
+                <Database className="w-5 h-5 text-purple-500" />
+                Data Migrations
+              </h2>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                One-time data migrations for fixing legacy data
+              </p>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="p-4 rounded-lg bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700">
+                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2 uppercase">Migrate Manufacturing to Light Industry</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                  Updates all corporations and market entries with sector "Manufacturing" to "Light Industry"
+                </p>
+                <button
+                  onClick={handleMigrateManufacturing}
+                  disabled={migratingManufacturing}
+                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {migratingManufacturing ? (
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <ArrowRight className="w-4 h-4" />
+                  )}
+                  Run Migration
+                </button>
+                {migrationResult && (
+                  <div className="mt-3 p-2 rounded bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800">
+                    <p className="text-sm text-emerald-700 dark:text-emerald-300">{migrationResult.message}</p>
+                    <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-1">
+                      Corporations updated: {migrationResult.corporations_updated} | Market entries updated: {migrationResult.market_entries_updated}
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
