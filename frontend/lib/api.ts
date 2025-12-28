@@ -769,6 +769,16 @@ export const adminAPI = {
     const response = await api.post('/api/admin/migrate-manufacturing-to-light-industry');
     return response.data;
   },
+  resetUser: async (userId: number): Promise<{
+    success: boolean;
+    message: string;
+    corporations_deleted: number;
+    corporation_names: string[];
+    shareholder_positions_cleared: number;
+  }> => {
+    const response = await api.post(`/api/admin/users/${userId}/reset`);
+    return response.data;
+  },
 };
 
 export interface MessageResponse {

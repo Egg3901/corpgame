@@ -1129,6 +1129,134 @@ router.delete('/corporation/:corpId/public-shares', async (req: AuthRequest, res
   }
 });
 
+// POST /api/admin/users/:id/reset - Reset user and delete their corporations
+router.post('/users/:id/reset', async (req: AuthRequest, res: Response) => {
+  const client = await pool.connect();
+
+  try {
+    const userId = parseInt(req.params.id, 10);
+    if (isNaN(userId)) {
+      return res.status(400).json({ error: 'Invalid user ID' });
+    }
+
+    if (req.userId === userId) {
+      return res.status(400).json({ error: 'You cannot reset yourself' });
+    }
+
+    const adminUserId = req.userId!;
+
+    // Get user to verify they exist
+    const user = await UserModel.findById(userId);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    console.log(`[Admin] Resetting user ${userId} (${user.username}) by admin ${adminUserId}`);
+
+    // Begin transaction
+    await client.query('BEGIN');
+
+    // Find all corporations where this user is the CEO
+    const corporationsResult = await client.query(
+      'SELECT id, name FROM corporations WHERE ceo_id = $1',
+      [userId]
+    );
+    const corporations = corporationsResult.rows;
+
+    // Delete each corporation and its related data
+    for (const corp of corporations) {
+      console.log(`[Admin Reset] Deleting corporation ${corp.id} (${corp.name})`);
+
+      // Delete market entries for this corporation
+      await client.query('DELETE FROM market_entries WHERE corporation_id = $1', [corp.id]);
+
+      // Delete board appointments
+      await client.query('DELETE FROM board_appointments WHERE corporation_id = $1', [corp.id]);
+
+      // Delete board proposal votes
+      await client.query(
+        'DELETE FROM board_proposal_votes WHERE proposal_id IN (SELECT id FROM board_proposals WHERE corporation_id = $1)',
+        [corp.id]
+      );
+
+      // Delete board proposals
+      await client.query('DELETE FROM board_proposals WHERE corporation_id = $1', [corp.id]);
+
+      // Delete shareholder records for this corporation
+      await client.query('DELETE FROM shareholders WHERE corporation_id = $1', [corp.id]);
+
+      // Delete the corporation
+      await client.query('DELETE FROM corporations WHERE id = $1', [corp.id]);
+    }
+
+    // Delete any remaining shareholder records where this user holds shares in OTHER corps
+    const shareholdersResult = await client.query(
+      'SELECT corporation_id, shares FROM shareholders WHERE user_id = $1',
+      [userId]
+    );
+    const shareholderRecords = shareholdersResult.rows;
+
+    for (const record of shareholderRecords) {
+      // Reduce the corporation's total shares
+      await client.query(
+        'UPDATE corporations SET shares = shares - $1 WHERE id = $2',
+        [record.shares, record.corporation_id]
+      );
+    }
+
+    // Delete all shareholder records for this user
+    await client.query('DELETE FROM shareholders WHERE user_id = $1', [userId]);
+
+    // Reset user profile fields and cash (keeping login info)
+    // Clear player_name to trigger profile recreation on next login
+    await client.query(
+      `UPDATE users SET
+        cash = 500000,
+        actions = 0,
+        player_name = NULL,
+        gender = NULL,
+        age = NULL,
+        starting_state = NULL,
+        bio = NULL,
+        profile_image_url = NULL
+      WHERE id = $1`,
+      [userId]
+    );
+
+    await client.query('COMMIT');
+
+    // Send system message explaining what happened
+    await MessageModel.create({
+      sender_id: 1, // System user ID
+      recipient_id: userId,
+      subject: 'Account Reset by Administrator',
+      body: `Your account has been reset by an administrator. Here's what this means:\n\n` +
+        `• All ${corporations.length} corporation(s) you founded have been dissolved\n` +
+        `• All shareholder positions in other companies have been liquidated\n` +
+        `• Your profile has been cleared and will need to be recreated\n` +
+        `• Your starting cash has been restored to $500,000\n\n` +
+        `When you next log in, you will be prompted to set up your profile again and can start fresh.\n\n` +
+        `If you believe this was done in error, please contact an administrator.`,
+    });
+
+    console.log(`[Admin] User ${userId} reset complete. Deleted ${corporations.length} corporations, ${shareholderRecords.length} shareholder positions.`);
+
+    res.json({
+      success: true,
+      message: `User ${user.username} has been reset`,
+      corporations_deleted: corporations.length,
+      corporation_names: corporations.map(c => c.name),
+      shareholder_positions_cleared: shareholderRecords.length,
+    });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Reset user error:', error);
+    res.status(500).json({ error: 'Failed to reset user' });
+  } finally {
+    client.release();
+  }
+});
+
 // POST /api/admin/migrate-manufacturing-to-light-industry - Migrate all manufacturing sectors to light industry
 router.post('/migrate-manufacturing-to-light-industry', async (req: AuthRequest, res: Response) => {
   try {

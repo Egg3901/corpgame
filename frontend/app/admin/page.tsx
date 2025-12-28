@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Trash2, Shield, ShieldOff, Eye, EyeOff, AlertTriangle, Flag, CheckCircle2, X, ChevronDown, ChevronUp, MessageSquare, Play, RefreshCw, DollarSign, Clock, Receipt, Search, ArrowUpRight, ArrowDownLeft, Scissors, CalendarClock, Database, ArrowRight } from 'lucide-react';
+import { Trash2, Shield, ShieldOff, Eye, EyeOff, AlertTriangle, Flag, CheckCircle2, X, ChevronDown, ChevronUp, MessageSquare, Play, RefreshCw, DollarSign, Clock, Receipt, Search, ArrowUpRight, ArrowDownLeft, Scissors, CalendarClock, Database, ArrowRight, RotateCcw } from 'lucide-react';
 import AppNavigation from '@/components/AppNavigation';
 import SectorConfigPanel from '@/components/admin/SectorConfigPanel';
 import { authAPI, adminAPI, AdminUser, ReportedChat, Transaction, TransactionType, normalizeImageUrl, gameAPI, AdminGameTimeResetResponse } from '@/lib/api';
@@ -18,6 +18,9 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [revealedUsers, setRevealedUsers] = useState<Set<number>>(new Set());
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
+  const [resetConfirm, setResetConfirm] = useState<number | null>(null);
+  const [resettingUser, setResettingUser] = useState(false);
+  const [resetResult, setResetResult] = useState<{ username: string; corporations_deleted: number; corporation_names: string[]; shareholder_positions_cleared: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [reportedChats, setReportedChats] = useState<ReportedChat[]>([]);
   const [showReviewed, setShowReviewed] = useState(false);
@@ -195,6 +198,32 @@ export default function AdminPage() {
       console.error('Delete user error:', err);
       alert(err?.response?.data?.error || 'Failed to delete user');
       setDeleteConfirm(null);
+    }
+  };
+
+  const handleResetUser = async (userId: number) => {
+    const user = users.find(u => u.id === userId);
+    if (!user) return;
+
+    try {
+      setResettingUser(true);
+      const result = await adminAPI.resetUser(userId);
+      setResetResult({
+        username: user.username,
+        corporations_deleted: result.corporations_deleted,
+        corporation_names: result.corporation_names,
+        shareholder_positions_cleared: result.shareholder_positions_cleared,
+      });
+      // Update user in list to clear their player_name (showing they need profile setup)
+      setUsers((prev) => prev.map((u) =>
+        u.id === userId ? { ...u, player_name: undefined } : u
+      ));
+      setResetConfirm(null);
+    } catch (err: any) {
+      console.error('Reset user error:', err);
+      alert(err?.response?.data?.error || 'Failed to reset user');
+    } finally {
+      setResettingUser(false);
     }
   };
 
@@ -1985,6 +2014,13 @@ export default function AdminPage() {
                       {!isCurrentUser && (
                         <div className="flex flex-col gap-2">
                           <button
+                            onClick={() => setResetConfirm(user.id)}
+                            className="p-2 rounded-md text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors"
+                            title="Reset user and delete corporations"
+                          >
+                            <RotateCcw className="w-5 h-5" />
+                          </button>
+                          <button
                             onClick={() => setDeleteConfirm(user.id)}
                             className="p-2 rounded-md text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
                             title="Delete user"
@@ -2075,6 +2111,100 @@ export default function AdminPage() {
                 className="px-4 py-2 text-sm font-medium rounded-md bg-red-600 text-white hover:bg-red-700"
               >
                 Delete User
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reset User Confirmation Modal */}
+      {resetConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 p-6 max-w-lg mx-4">
+            <div className="flex items-center gap-3 mb-4">
+              <RotateCcw className="w-6 h-6 text-amber-600 dark:text-amber-400" />
+              <h3 className="text-lg font-semibold">Reset User & Delete Corporations</h3>
+            </div>
+            <div className="space-y-3 mb-6">
+              <p className="text-gray-600 dark:text-gray-400">
+                This will reset the user&apos;s account while keeping their login credentials. The following will happen:
+              </p>
+              <ul className="text-sm text-gray-600 dark:text-gray-400 list-disc list-inside space-y-1">
+                <li>All corporations they founded will be <strong className="text-red-600 dark:text-red-400">permanently deleted</strong></li>
+                <li>All their shareholder positions in other companies will be removed</li>
+                <li>Their profile will be cleared (name, bio, avatar)</li>
+                <li>Their cash will be reset to $500,000</li>
+                <li>They will be prompted to recreate their profile on next login</li>
+              </ul>
+              <p className="text-sm text-amber-600 dark:text-amber-400 font-medium">
+                This action cannot be undone. The user will be notified via system message.
+              </p>
+            </div>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setResetConfirm(null)}
+                disabled={resettingUser}
+                className="px-4 py-2 text-sm font-medium rounded-md border border-gray-200 text-gray-700 hover:bg-gray-100 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-700 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleResetUser(resetConfirm)}
+                disabled={resettingUser}
+                className="px-4 py-2 text-sm font-medium rounded-md bg-amber-600 text-white hover:bg-amber-700 disabled:opacity-50 flex items-center gap-2"
+              >
+                {resettingUser && (
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                )}
+                Reset User
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reset Result Modal */}
+      {resetResult && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 p-6 max-w-lg mx-4">
+            <div className="flex items-center gap-3 mb-4">
+              <CheckCircle2 className="w-6 h-6 text-green-600 dark:text-green-400" />
+              <h3 className="text-lg font-semibold">User Reset Complete</h3>
+            </div>
+            <div className="space-y-3 mb-6">
+              <p className="text-gray-600 dark:text-gray-400">
+                <strong>{resetResult.username}</strong> has been reset successfully.
+              </p>
+              <div className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4 space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-500 dark:text-gray-400">Corporations deleted:</span>
+                  <span className="font-medium">{resetResult.corporations_deleted}</span>
+                </div>
+                {resetResult.corporation_names.length > 0 && (
+                  <div className="text-gray-500 dark:text-gray-400">
+                    <span className="block mb-1">Deleted corporations:</span>
+                    <ul className="list-disc list-inside text-gray-600 dark:text-gray-300">
+                      {resetResult.corporation_names.map((name, i) => (
+                        <li key={i}>{name}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                <div className="flex justify-between">
+                  <span className="text-gray-500 dark:text-gray-400">Shareholder positions cleared:</span>
+                  <span className="font-medium">{resetResult.shareholder_positions_cleared}</span>
+                </div>
+              </div>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                The user has been notified via system message and will be prompted to set up their profile again on their next login.
+              </p>
+            </div>
+            <div className="flex justify-end">
+              <button
+                onClick={() => setResetResult(null)}
+                className="px-4 py-2 text-sm font-medium rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+              >
+                Close
               </button>
             </div>
           </div>

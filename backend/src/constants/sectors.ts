@@ -1404,7 +1404,11 @@ export function getDynamicUnitEconomics(
     // Calculate output revenue from produced product
     if (producedProduct) {
       productProducedAmount = PRODUCTION_OUTPUT_RATE;
-      productRevenue = productProducedAmount * getProductUnitPrice(producedProduct);
+      const referenceValue = PRODUCT_REFERENCE_VALUES[producedProduct];
+      const marketPrice = getProductUnitPrice(producedProduct);
+      // Match frontend formula: referenceValue + (marketPrice × outputRate)
+      // Frontend: SectorCard.tsx line 310
+      productRevenue = referenceValue + (productProducedAmount * marketPrice);
       productProduced = producedProduct;
     } else {
       // No product output - use base revenue
