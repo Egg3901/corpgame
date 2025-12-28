@@ -9,6 +9,8 @@ import { authAPI, adminAPI, AdminUser, ReportedChat, Transaction, TransactionTyp
 import Link from 'next/link';
 import { calculateGameTime, GameTime } from '@/lib/gameTime';
 
+type AdminTabType = 'game-control' | 'finance' | 'moderation' | 'configuration';
+
 export default function AdminPage() {
   const router = useRouter();
   const [currentUser, setCurrentUser] = useState<any>(null);
@@ -20,8 +22,7 @@ export default function AdminPage() {
   const [reportedChats, setReportedChats] = useState<ReportedChat[]>([]);
   const [showReviewed, setShowReviewed] = useState(false);
   const [clearingReport, setClearingReport] = useState<number | null>(null);
-  const [matchingIpUsersExpanded, setMatchingIpUsersExpanded] = useState(false);
-  const [allUsersExpanded, setAllUsersExpanded] = useState(false);
+  const [activeTab, setActiveTab] = useState<AdminTabType>('game-control');
   const [runningTurn, setRunningTurn] = useState(false);
   const [recalculatingPrices, setRecalculatingPrices] = useState(false);
   const [turnResult, setTurnResult] = useState<{
@@ -65,7 +66,6 @@ export default function AdminPage() {
     votes: { aye: number; nay: number; total: number };
   } | null>(null);
   // Transactions state
-  const [transactionsExpanded, setTransactionsExpanded] = useState(false);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [transactionsLoading, setTransactionsLoading] = useState(false);
   const [transactionsTotal, setTransactionsTotal] = useState(0);
@@ -146,6 +146,21 @@ export default function AdminPage() {
 
     loadData();
   }, [router]);
+
+  // Load active tab from localStorage on mount
+  useEffect(() => {
+    const savedTab = localStorage.getItem('admin-panel-active-tab');
+    if (savedTab && ['game-control', 'finance', 'moderation', 'configuration'].includes(savedTab)) {
+      setActiveTab(savedTab as AdminTabType);
+    }
+  }, []);
+
+  // Load transactions when Finance tab is first activated (will be set up after loadTransactions is defined)
+
+  const handleTabChange = (tab: AdminTabType) => {
+    setActiveTab(tab);
+    localStorage.setItem('admin-panel-active-tab', tab);
+  };
 
   const toggleReveal = (userId: number) => {
     setRevealedUsers((prev) => {
@@ -391,12 +406,12 @@ export default function AdminPage() {
     }
   }, [transactionSearch, transactionTypeFilter]);
 
-  // Load transactions when expanded or filters change
+  // Load transactions when Finance tab is first activated
   useEffect(() => {
-    if (transactionsExpanded && currentUser?.is_admin) {
+    if (activeTab === 'finance' && transactions.length === 0 && !transactionsLoading) {
       loadTransactions(0);
     }
-  }, [transactionsExpanded, loadTransactions, currentUser?.is_admin]);
+  }, [activeTab, transactions.length, transactionsLoading, loadTransactions]);
 
   // Cash Management Handlers
   const handleAddCashToAll = async () => {
@@ -661,7 +676,7 @@ export default function AdminPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm uppercase tracking-wide text-gray-500 dark:text-gray-400">Administration</p>
-              <h1 className="text-3xl font-semibold">User Panel</h1>
+              <h1 className="text-3xl font-semibold">Admin Panel</h1>
             </div>
             <button
               onClick={() => router.back()}
@@ -671,15 +686,15 @@ export default function AdminPage() {
             </button>
           </div>
 
-          {/* Game Actions Section */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700/50 mb-6">
+          {/* Sticky Critical Actions Section */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700/50">
             <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700/60">
               <h2 className="text-lg font-semibold flex items-center gap-2">
                 <Clock className="w-5 h-5 text-corporate-blue" />
-                Game Actions
+                Critical Game Actions
               </h2>
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                Manually trigger game events and recalculations
+                Most frequently used admin actions
               </p>
             </div>
             <div className="p-6 space-y-4">
@@ -780,9 +795,62 @@ export default function AdminPage() {
                   </div>
                 </div>
               )}
+            </div>
+          </div>
 
+          {/* Tab Navigation */}
+          <div className="flex gap-2 border-b border-gray-200 dark:border-gray-700">
+            <button
+              onClick={() => handleTabChange('game-control')}
+              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === 'game-control'
+                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
+              }`}
+            >
+              <Play className="w-4 h-4 inline-block mr-1" />
+              Game Control
+            </button>
+            <button
+              onClick={() => handleTabChange('finance')}
+              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === 'finance'
+                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
+              }`}
+            >
+              <DollarSign className="w-4 h-4 inline-block mr-1" />
+              Finance
+            </button>
+            <button
+              onClick={() => handleTabChange('moderation')}
+              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === 'moderation'
+                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
+              }`}
+            >
+              <Shield className="w-4 h-4 inline-block mr-1" />
+              Moderation
+            </button>
+            <button
+              onClick={() => handleTabChange('configuration')}
+              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === 'configuration'
+                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
+              }`}
+            >
+              <Database className="w-4 h-4 inline-block mr-1" />
+              Configuration
+            </button>
+          </div>
+
+          {/* Game Control Tab */}
+          {activeTab === 'game-control' && (
+            <div className="space-y-6">
               {/* Game Time Reset */}
-              <div className="border-t border-gray-200 dark:border-gray-700 pt-4 mt-4">
+              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700/50 p-6">
                 <div className="flex items-start justify-between gap-4 mb-3">
                   <div>
                     <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-2">
@@ -1022,20 +1090,13 @@ export default function AdminPage() {
                   </div>
                 </div>
               )}
-
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                <strong>Run Turn:</strong> Triggers hourly actions (+2 for all, +1 extra for CEOs), processes market revenue, and pays CEO salaries. Stock prices update automatically.
-                <br />
-                <strong>Recalculate Prices:</strong> Forces recalculation of all stock prices based on current book value (80%) and trade history (20%).
-                <br />
-                <strong>Set Game Time:</strong> Resets the in-game calendar to the chosen year and quarter (1 real day = 1 quarter).
-                <br />
-                <strong>Force Stock Split:</strong> Executes a 2:1 stock split on a corporation (doubles shares, halves price). Use with caution.
-              </p>
             </div>
-          </div>
+          )}
 
-          {/* Cash & Capital Management Section */}
+          {/* Finance Tab */}
+          {activeTab === 'finance' && (
+            <div className="space-y-6">
+              {/* Cash & Capital Management Section */}
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700/50 mb-6">
             <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700/60">
               <h2 className="text-lg font-semibold flex items-center gap-2">
@@ -1351,228 +1412,176 @@ export default function AdminPage() {
             </div>
           </div>
 
-          {/* Data Migrations Section */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700/50 mb-6">
+          {/* Transactions Section */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700/50">
             <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700/60">
               <h2 className="text-lg font-semibold flex items-center gap-2">
-                <Database className="w-5 h-5 text-purple-500" />
-                Data Migrations
+                <Receipt className="w-5 h-5 text-corporate-blue" />
+                Transactions
               </h2>
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                One-time data migrations for fixing legacy data
+                {transactionsTotal} total transactions
               </p>
             </div>
-            <div className="p-6 space-y-4">
-              <div className="p-4 rounded-lg bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700">
-                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2 uppercase">Migrate Manufacturing to Light Industry</p>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
-                  Updates all corporations and market entries with sector &quot;Manufacturing&quot; to &quot;Light Industry&quot;
-                </p>
-                <button
-                  onClick={handleMigrateManufacturing}
-                  disabled={migratingManufacturing}
-                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {migratingManufacturing ? (
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  ) : (
-                    <ArrowRight className="w-4 h-4" />
-                  )}
-                  Run Migration
-                </button>
-                {migrationResult && (
-                  <div className="mt-3 p-2 rounded bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800">
-                    <p className="text-sm text-emerald-700 dark:text-emerald-300">{migrationResult.message}</p>
-                    <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-1">
-                      Corporations updated: {migrationResult.corporations_updated} | Market entries updated: {migrationResult.market_entries_updated}
-                    </p>
+            <div className="p-6">
+              {/* Filters */}
+              <div className="flex flex-wrap gap-4 mb-4">
+                <div className="flex-1 min-w-[200px]">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <input
+                      type="text"
+                      placeholder="Search by user, corporation, or description..."
+                      value={transactionSearch}
+                      onChange={(e) => setTransactionSearch(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-corporate-blue"
+                    />
                   </div>
-                )}
+                </div>
+                <select
+                  value={transactionTypeFilter}
+                  onChange={(e) => setTransactionTypeFilter(e.target.value as TransactionType | '')}
+                  className="px-4 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-corporate-blue"
+                >
+                  <option value="">All Types</option>
+                  <option value="corp_revenue">Corp Revenue</option>
+                  <option value="ceo_salary">CEO Salary</option>
+                  <option value="user_transfer">User Transfer</option>
+                  <option value="share_purchase">Share Purchase</option>
+                  <option value="share_sale">Share Sale</option>
+                  <option value="share_issue">Share Issue</option>
+                  <option value="market_entry">Market Entry</option>
+                  <option value="unit_build">Unit Build</option>
+                  <option value="corp_founding">Corp Founding</option>
+                </select>
               </div>
+
+              {/* Transactions Table */}
+              {transactionsLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="w-6 h-6 border-2 border-corporate-blue border-t-transparent rounded-full animate-spin" />
+                </div>
+              ) : transactions.length === 0 ? (
+                <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                  <Receipt className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                  <p>No transactions found</p>
+                </div>
+              ) : (
+                <>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead className="text-xs text-gray-500 dark:text-gray-400 uppercase border-b border-gray-200 dark:border-gray-700">
+                        <tr>
+                          <th className="text-left py-3 px-2">Date</th>
+                          <th className="text-left py-3 px-2">Type</th>
+                          <th className="text-right py-3 px-2">Amount</th>
+                          <th className="text-left py-3 px-2">From</th>
+                          <th className="text-left py-3 px-2">To</th>
+                          <th className="text-left py-3 px-2">Description</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100 dark:divide-gray-700/60">
+                        {transactions.map((tx) => (
+                          <tr key={tx.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/30">
+                            <td className="py-2 px-2 whitespace-nowrap text-gray-600 dark:text-gray-400">
+                              {formatDate(tx.created_at)}
+                            </td>
+                            <td className="py-2 px-2">
+                              <span className={`px-2 py-1 text-xs font-medium rounded ${getTransactionTypeColor(tx.transaction_type)}`}>
+                                {getTransactionTypeLabel(tx.transaction_type)}
+                              </span>
+                            </td>
+                            <td className={`py-2 px-2 text-right font-mono whitespace-nowrap ${
+                              (tx.to_user_id && !tx.from_user_id) || tx.transaction_type === 'corp_revenue' ? 'text-emerald-600 dark:text-emerald-400' : tx.from_user_id && !tx.to_user_id ? 'text-red-600 dark:text-red-400' : 'text-gray-600 dark:text-gray-400'
+                            }`}>
+                              {(tx.to_user_id && !tx.from_user_id) || tx.transaction_type === 'corp_revenue' ? '+' : tx.from_user_id && !tx.to_user_id ? '-' : ''}
+                              ${Math.abs(tx.amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </td>
+                            <td className="py-2 px-2">
+                              {tx.from_user ? (
+                                <div className="flex items-center gap-2">
+                                  <img
+                                    src={tx.from_user.profile_image_url || '/defaultpfp.jpg'}
+                                    alt=""
+                                    className="w-6 h-6 rounded-full object-cover"
+                                    onError={(e) => { e.currentTarget.src = '/defaultpfp.jpg'; }}
+                                  />
+                                  <span className="text-gray-900 dark:text-gray-100">
+                                    {tx.from_user.player_name || tx.from_user.username}
+                                  </span>
+                                </div>
+                              ) : tx.corporation ? (
+                                <span className="text-gray-600 dark:text-gray-400 italic">
+                                  {tx.corporation.name}
+                                </span>
+                              ) : (
+                                <span className="text-gray-400">—</span>
+                              )}
+                            </td>
+                            <td className="py-2 px-2">
+                              {tx.to_user ? (
+                                <div className="flex items-center gap-2">
+                                  <img
+                                    src={tx.to_user.profile_image_url || '/defaultpfp.jpg'}
+                                    alt=""
+                                    className="w-6 h-6 rounded-full object-cover"
+                                    onError={(e) => { e.currentTarget.src = '/defaultpfp.jpg'; }}
+                                  />
+                                  <span className="text-gray-900 dark:text-gray-100">
+                                    {tx.to_user.player_name || tx.to_user.username}
+                                  </span>
+                                </div>
+                              ) : tx.corporation && !tx.from_user ? (
+                                <span className="text-gray-600 dark:text-gray-400 italic">
+                                  {tx.corporation.name}
+                                </span>
+                              ) : (
+                                <span className="text-gray-400">—</span>
+                              )}
+                            </td>
+                            <td className="py-2 px-2 text-gray-600 dark:text-gray-400 max-w-xs truncate">
+                              {tx.description || '—'}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Pagination */}
+                  <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      Showing {transactionPage * TRANSACTIONS_PER_PAGE + 1} - {Math.min((transactionPage + 1) * TRANSACTIONS_PER_PAGE, transactionsTotal)} of {transactionsTotal} transactions
+                    </p>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => loadTransactions(transactionPage - 1)}
+                        disabled={transactionPage === 0}
+                        className="px-3 py-1 text-sm font-medium rounded border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Previous
+                      </button>
+                      <button
+                        onClick={() => loadTransactions(transactionPage + 1)}
+                        disabled={(transactionPage + 1) * TRANSACTIONS_PER_PAGE >= transactionsTotal}
+                        className="px-3 py-1 text-sm font-medium rounded border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Next
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           </div>
+            </div>
+          )}
 
-          {/* Sector Configuration Section */}
-          <SectorConfigPanel />
-
-          {/* Transactions Section */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700/50 mb-6">
-            <button
-              onClick={() => setTransactionsExpanded(!transactionsExpanded)}
-              className="w-full px-6 py-4 border-b border-gray-100 dark:border-gray-700/60 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors"
-            >
-              <div>
-                <h2 className="text-lg font-semibold flex items-center gap-2">
-                  <Receipt className="w-5 h-5 text-corporate-blue" />
-                  Transactions
-                </h2>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  View all money movements in the system
-                </p>
-              </div>
-              {transactionsExpanded ? (
-                <ChevronUp className="w-5 h-5 text-gray-400" />
-              ) : (
-                <ChevronDown className="w-5 h-5 text-gray-400" />
-              )}
-            </button>
-
-            {transactionsExpanded && (
-              <div className="p-6">
-                {/* Filters */}
-                <div className="flex flex-wrap gap-4 mb-4">
-                  <div className="flex-1 min-w-[200px]">
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                      <input
-                        type="text"
-                        placeholder="Search by user, corporation, or description..."
-                        value={transactionSearch}
-                        onChange={(e) => setTransactionSearch(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-corporate-blue"
-                      />
-                    </div>
-                  </div>
-                  <select
-                    value={transactionTypeFilter}
-                    onChange={(e) => setTransactionTypeFilter(e.target.value as TransactionType | '')}
-                    className="px-4 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-corporate-blue"
-                  >
-                    <option value="">All Types</option>
-                    <option value="corp_revenue">Corp Revenue</option>
-                    <option value="ceo_salary">CEO Salary</option>
-                    <option value="user_transfer">User Transfer</option>
-                    <option value="share_purchase">Share Purchase</option>
-                    <option value="share_sale">Share Sale</option>
-                    <option value="share_issue">Share Issue</option>
-                    <option value="market_entry">Market Entry</option>
-                    <option value="unit_build">Unit Build</option>
-                    <option value="corp_founding">Corp Founding</option>
-                  </select>
-                </div>
-
-                {/* Transactions Table */}
-                {transactionsLoading ? (
-                  <div className="flex items-center justify-center py-8">
-                    <div className="w-6 h-6 border-2 border-corporate-blue border-t-transparent rounded-full animate-spin" />
-                  </div>
-                ) : transactions.length === 0 ? (
-                  <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-                    <Receipt className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                    <p>No transactions found</p>
-                  </div>
-                ) : (
-                  <>
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
-                        <thead className="text-xs text-gray-500 dark:text-gray-400 uppercase border-b border-gray-200 dark:border-gray-700">
-                          <tr>
-                            <th className="text-left py-3 px-2">Date</th>
-                            <th className="text-left py-3 px-2">Type</th>
-                            <th className="text-right py-3 px-2">Amount</th>
-                            <th className="text-left py-3 px-2">From</th>
-                            <th className="text-left py-3 px-2">To</th>
-                            <th className="text-left py-3 px-2">Description</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-100 dark:divide-gray-700/60">
-                          {transactions.map((tx) => (
-                            <tr key={tx.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/30">
-                              <td className="py-2 px-2 whitespace-nowrap text-gray-600 dark:text-gray-400">
-                                {formatDate(tx.created_at)}
-                              </td>
-                              <td className="py-2 px-2">
-                                <span className={`px-2 py-1 text-xs font-medium rounded ${getTransactionTypeColor(tx.transaction_type)}`}>
-                                  {getTransactionTypeLabel(tx.transaction_type)}
-                                </span>
-                              </td>
-                              <td className={`py-2 px-2 text-right font-mono whitespace-nowrap ${
-                                (tx.to_user_id && !tx.from_user_id) || tx.transaction_type === 'corp_revenue' ? 'text-emerald-600 dark:text-emerald-400' : tx.from_user_id && !tx.to_user_id ? 'text-red-600 dark:text-red-400' : 'text-gray-600 dark:text-gray-400'
-                              }`}>
-                                {(tx.to_user_id && !tx.from_user_id) || tx.transaction_type === 'corp_revenue' ? '+' : tx.from_user_id && !tx.to_user_id ? '-' : ''}
-                                ${Math.abs(tx.amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                              </td>
-                              <td className="py-2 px-2">
-                                {tx.from_user ? (
-                                  <div className="flex items-center gap-2">
-                                    <img
-                                      src={tx.from_user.profile_image_url || '/defaultpfp.jpg'}
-                                      alt=""
-                                      className="w-6 h-6 rounded-full object-cover"
-                                      onError={(e) => { e.currentTarget.src = '/defaultpfp.jpg'; }}
-                                    />
-                                    <span className="text-gray-900 dark:text-gray-100">
-                                      {tx.from_user.player_name || tx.from_user.username}
-                                    </span>
-                                  </div>
-                                ) : tx.corporation ? (
-                                  <span className="text-gray-600 dark:text-gray-400 italic">
-                                    {tx.corporation.name}
-                                  </span>
-                                ) : (
-                                  <span className="text-gray-400">—</span>
-                                )}
-                              </td>
-                              <td className="py-2 px-2">
-                                {tx.to_user ? (
-                                  <div className="flex items-center gap-2">
-                                    <img
-                                      src={tx.to_user.profile_image_url || '/defaultpfp.jpg'}
-                                      alt=""
-                                      className="w-6 h-6 rounded-full object-cover"
-                                      onError={(e) => { e.currentTarget.src = '/defaultpfp.jpg'; }}
-                                    />
-                                    <span className="text-gray-900 dark:text-gray-100">
-                                      {tx.to_user.player_name || tx.to_user.username}
-                                    </span>
-                                  </div>
-                                ) : tx.corporation && !tx.from_user ? (
-                                  <span className="text-gray-600 dark:text-gray-400 italic">
-                                    {tx.corporation.name}
-                                  </span>
-                                ) : (
-                                  <span className="text-gray-400">—</span>
-                                )}
-                              </td>
-                              <td className="py-2 px-2 text-gray-600 dark:text-gray-400 max-w-xs truncate">
-                                {tx.description || '—'}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-
-                    {/* Pagination */}
-                    <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                      <p className="text-sm text-gray-500 dark:text-gray-400">
-                        Showing {transactionPage * TRANSACTIONS_PER_PAGE + 1} - {Math.min((transactionPage + 1) * TRANSACTIONS_PER_PAGE, transactionsTotal)} of {transactionsTotal} transactions
-                      </p>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => loadTransactions(transactionPage - 1)}
-                          disabled={transactionPage === 0}
-                          className="px-3 py-1 text-sm font-medium rounded border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          Previous
-                        </button>
-                        <button
-                          onClick={() => loadTransactions(transactionPage + 1)}
-                          disabled={(transactionPage + 1) * TRANSACTIONS_PER_PAGE >= transactionsTotal}
-                          className="px-3 py-1 text-sm font-medium rounded border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          Next
-                        </button>
-                      </div>
-                    </div>
-                  </>
-                )}
-              </div>
-            )}
-          </div>
-
+          {/* Moderation Tab */}
+          {activeTab === 'moderation' && (
+            <div className="space-y-6">
           {/* Reported Chats Section */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700/50 mb-6">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700/50">
             <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700/60 flex items-center justify-between">
               <div>
                 <h2 className="text-lg font-semibold flex items-center gap-2">
@@ -1730,26 +1739,14 @@ export default function AdminPage() {
 
           {/* Matching IP Addresses Section */}
           {matchingIpGroups.length > 0 && (
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700/50 mb-6">
-              <button
-                onClick={() => setMatchingIpUsersExpanded(!matchingIpUsersExpanded)}
-                className="w-full px-6 py-4 border-b border-gray-100 dark:border-gray-700/60 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors"
-              >
-                <div>
-                  <h2 className="text-lg font-semibold">Matching IP Addresses</h2>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    {matchingIpGroups.length} IP{matchingIpGroups.length !== 1 ? 's' : ''} with multiple users
-                  </p>
-                </div>
-                {matchingIpUsersExpanded ? (
-                  <ChevronUp className="w-5 h-5 text-gray-400" />
-                ) : (
-                  <ChevronDown className="w-5 h-5 text-gray-400" />
-                )}
-              </button>
-
-              {matchingIpUsersExpanded && (
-                <div className="divide-y divide-gray-100 dark:divide-gray-700/60">
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700/50">
+              <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700/60">
+                <h2 className="text-lg font-semibold">Matching IP Addresses</h2>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  {matchingIpGroups.length} IP{matchingIpGroups.length !== 1 ? 's' : ''} with multiple users
+                </p>
+              </div>
+              <div className="divide-y divide-gray-100 dark:divide-gray-700/60">
                   {matchingIpGroups.map((group) => (
                     <div key={group.ip} className="p-6">
                       <div className="mb-4">
@@ -1838,31 +1835,18 @@ export default function AdminPage() {
                     </div>
                   ))}
                 </div>
-              )}
             </div>
           )}
 
           {/* All Users Section */}
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700/50">
-            <button
-              onClick={() => setAllUsersExpanded(!allUsersExpanded)}
-              className="w-full px-6 py-4 border-b border-gray-100 dark:border-gray-700/60 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors"
-            >
-              <div>
-                <h2 className="text-lg font-semibold">All Users</h2>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  {users.length} total user{users.length !== 1 ? 's' : ''}
-                </p>
-              </div>
-              {allUsersExpanded ? (
-                <ChevronUp className="w-5 h-5 text-gray-400" />
-              ) : (
-                <ChevronDown className="w-5 h-5 text-gray-400" />
-              )}
-            </button>
-
-            {allUsersExpanded && (
-              <div className="divide-y divide-gray-100 dark:divide-gray-700/60">
+            <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700/60">
+              <h2 className="text-lg font-semibold">All Users</h2>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                {users.length} total user{users.length !== 1 ? 's' : ''}
+              </p>
+            </div>
+            <div className="divide-y divide-gray-100 dark:divide-gray-700/60">
               {users.map((user) => {
                 const isRevealed = revealedUsers.has(user.id);
                 const isCurrentUser = currentUser?.id === user.id;
@@ -2013,9 +1997,59 @@ export default function AdminPage() {
                   </div>
                 );
               })}
-              </div>
-            )}
+            </div>
           </div>
+            </div>
+          )}
+
+          {/* Configuration Tab */}
+          {activeTab === 'configuration' && (
+            <div className="space-y-6">
+          {/* Sector Configuration Section */}
+          <SectorConfigPanel />
+
+          {/* Data Migrations Section */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700/50">
+            <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700/60">
+              <h2 className="text-lg font-semibold flex items-center gap-2">
+                <Database className="w-5 h-5 text-purple-500" />
+                Data Migrations
+              </h2>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                One-time data migrations for fixing legacy data
+              </p>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="p-4 rounded-lg bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700">
+                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2 uppercase">Migrate Manufacturing to Light Industry</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                  Updates all corporations and market entries with sector &quot;Manufacturing&quot; to &quot;Light Industry&quot;
+                </p>
+                <button
+                  onClick={handleMigrateManufacturing}
+                  disabled={migratingManufacturing}
+                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {migratingManufacturing ? (
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <ArrowRight className="w-4 h-4" />
+                  )}
+                  Run Migration
+                </button>
+                {migrationResult && (
+                  <div className="mt-3 p-2 rounded bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800">
+                    <p className="text-sm text-emerald-700 dark:text-emerald-300">{migrationResult.message}</p>
+                    <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-1">
+                      Corporations updated: {migrationResult.corporations_updated} | Market entries updated: {migrationResult.market_entries_updated}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+            </div>
+          )}
         </div>
       </div>
 
