@@ -1365,7 +1365,7 @@ export default function AdminPage() {
               <div className="p-4 rounded-lg bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700">
                 <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2 uppercase">Migrate Manufacturing to Light Industry</p>
                 <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
-                  Updates all corporations and market entries with sector "Manufacturing" to "Light Industry"
+                  Updates all corporations and market entries with sector &quot;Manufacturing&quot; to &quot;Light Industry&quot;
                 </p>
                 <button
                   onClick={handleMigrateManufacturing}
