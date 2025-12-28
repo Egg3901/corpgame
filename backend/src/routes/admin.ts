@@ -13,6 +13,12 @@ import { updateStockPrice } from '../utils/valuation';
 import { resetGameTime } from '../utils/gameTime';
 import { BoardModel, BoardVoteModel, BoardProposalModel } from '../models/BoardProposal';
 import pool from '../db/connection';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+import path from 'path';
+import fs from 'fs';
+
+const execAsync = promisify(exec);
 
 const router = express.Router();
 
@@ -1289,6 +1295,113 @@ router.post('/migrate-manufacturing-to-light-industry', async (req: AuthRequest,
   } catch (error) {
     console.error('Migrate manufacturing to light industry error:', error);
     res.status(500).json({ error: 'Failed to migrate manufacturing to light industry' });
+  }
+});
+
+// POST /api/admin/deploy - Trigger deployment
+router.post('/deploy', async (req: AuthRequest, res: Response) => {
+  try {
+    console.log('[Admin] Deployment triggered by user:', req.userId);
+
+    const scriptPath = path.resolve(process.cwd(), '..', 'scripts', 'deploy.sh');
+    const logPath = path.resolve(process.cwd(), '..', 'logs', 'deployment.log');
+
+    // Ensure logs directory exists
+    const logsDir = path.dirname(logPath);
+    if (!fs.existsSync(logsDir)) {
+      fs.mkdirSync(logsDir, { recursive: true });
+    }
+
+    // Execute deployment script
+    const { stdout, stderr } = await execAsync(`bash "${scriptPath}"`, {
+      cwd: path.resolve(process.cwd(), '..'),
+      timeout: 600000, // 10 minute timeout
+      maxBuffer: 10 * 1024 * 1024 // 10MB buffer
+    });
+
+    console.log('[Admin] Deployment completed successfully');
+
+    res.json({
+      success: true,
+      message: 'Deployment completed successfully',
+      output: stdout,
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error: any) {
+    console.error('[Admin] Deployment failed:', error);
+
+    res.status(500).json({
+      success: false,
+      error: 'Deployment failed',
+      message: error.message,
+      output: error.stdout || '',
+      errorOutput: error.stderr || '',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// GET /api/admin/deploy/last - Get last deployment status
+router.get('/deploy/last', async (req: AuthRequest, res: Response) => {
+  try {
+    const logPath = path.resolve(process.cwd(), '..', 'logs', 'deployment.log');
+
+    if (!fs.existsSync(logPath)) {
+      return res.json({
+        success: true,
+        lastDeployment: null
+      });
+    }
+
+    // Read last 100 lines of log file
+    const logContent = fs.readFileSync(logPath, 'utf-8');
+    const lines = logContent.split('\n').filter(line => line.trim());
+
+    // Find last deployment block
+    let lastDeploymentLines: string[] = [];
+    let inDeployment = false;
+
+    for (let i = lines.length - 1; i >= 0; i--) {
+      const line = lines[i];
+
+      if (line.includes('DEPLOYMENT STARTED')) {
+        lastDeploymentLines.unshift(line);
+        inDeployment = true;
+        break;
+      }
+
+      if (line.includes('DEPLOYMENT COMPLETED') || line.includes('DEPLOYMENT FAILED')) {
+        inDeployment = true;
+      }
+
+      if (inDeployment) {
+        lastDeploymentLines.unshift(line);
+      }
+    }
+
+    const lastLog = lastDeploymentLines.join('\n');
+    const success = lastLog.includes('DEPLOYMENT COMPLETED SUCCESSFULLY');
+
+    // Extract timestamp from first line
+    const timestampMatch = lastLog.match(/\[([^\]]+)\]/);
+    const timestamp = timestampMatch ? timestampMatch[1] : null;
+
+    res.json({
+      success: true,
+      lastDeployment: {
+        success,
+        timestamp,
+        log: lastLog || 'No deployment history found'
+      }
+    });
+
+  } catch (error: any) {
+    console.error('[Admin] Failed to read deployment log:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to read deployment log'
+    });
   }
 });
 

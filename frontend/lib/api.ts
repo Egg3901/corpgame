@@ -779,6 +779,29 @@ export const adminAPI = {
     const response = await api.post(`/api/admin/users/${userId}/reset`);
     return response.data;
   },
+
+  deploy: async (): Promise<{
+    success: boolean;
+    message?: string;
+    output?: string;
+    errorOutput?: string;
+    timestamp: string;
+  }> => {
+    const response = await api.post('/api/admin/deploy');
+    return response.data;
+  },
+
+  getLastDeployment: async (): Promise<{
+    success: boolean;
+    lastDeployment: {
+      success: boolean;
+      timestamp: string | null;
+      log: string;
+    } | null;
+  }> => {
+    const response = await api.get('/api/admin/deploy/last');
+    return response.data;
+  },
 };
 
 export interface MessageResponse {
