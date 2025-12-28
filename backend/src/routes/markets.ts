@@ -64,6 +64,7 @@ import {
   CONSTRUCTION_STEEL_CONSUMPTION,
 } from '../constants/sectors';
 import { SectorCalculator } from '../services/SectorCalculator';
+import { SectorConfigService } from '../services/SectorConfigService';
 import { marketDataService } from '../services/MarketDataService';
 import fs from 'fs';
 import path from 'path';
@@ -213,125 +214,116 @@ router.get('/metadata', async (req: Request, res: Response) => {
       outputs: { resources: Record<string, number>; products: Record<string, number> };
     };
 
+    // FID-20251228-002: Use unified sector config instead of hardcoded constants
+    const config = await SectorConfigService.getConfiguration();
+
     const sector_unit_flows: Record<string, Record<UnitType, UnitFlow>> = {};
 
-    for (const sector of SECTORS) {
-      const requiredResource = SECTOR_RESOURCES[sector] ?? null;
-      const producedProduct = SECTOR_PRODUCTS[sector] ?? null;
-      const productionProductDemands = SECTOR_PRODUCT_DEMANDS[sector] ?? null;
-      const retailDemands = SECTOR_RETAIL_DEMANDS[sector] ?? null;
-      const serviceDemands = SECTOR_SERVICE_DEMANDS[sector] ?? null;
-      const extractableResources = SECTOR_EXTRACTION[sector] ?? null;
-
-      const productionInputsResources: Record<string, number> = {};
-      // Construction sector consumes multiple resources (Lumber + Steel)
-      if (sector === 'Construction') {
-        productionInputsResources['Lumber'] = CONSTRUCTION_LUMBER_CONSUMPTION;
-        productionInputsResources['Steel'] = CONSTRUCTION_STEEL_CONSUMPTION;
-      } else if (requiredResource) {
-        productionInputsResources[requiredResource] = PRODUCTION_RESOURCE_CONSUMPTION;
-      }
-
-      const productionInputsProducts: Record<string, number> = {};
-      if (PRODUCTION_ELECTRICITY_CONSUMPTION > 0) {
-        productionInputsProducts['Electricity'] = PRODUCTION_ELECTRICITY_CONSUMPTION;
-      }
-      if (productionProductDemands) {
-        for (const product of productionProductDemands) {
-          productionInputsProducts[product] = PRODUCTION_PRODUCT_CONSUMPTION;
-        }
-      }
-
-      // Sector-specific production product demands
-      if (sector === 'Construction') {
-        productionInputsProducts['Manufactured Goods'] = CONSTRUCTION_MANUFACTURED_GOODS_CONSUMPTION;
-      }
-      if (sector === 'Energy') {
-        productionInputsProducts['Logistics Capacity'] = ENERGY_LOGISTICS_CONSUMPTION;
-      }
-      if (sector === 'Light Industry') {
-        productionInputsProducts['Logistics Capacity'] = MANUFACTURING_LOGISTICS_CONSUMPTION;
-      }
-      if (sector === 'Agriculture') {
-        productionInputsProducts['Manufactured Goods'] = AGRICULTURE_MANUFACTURED_GOODS_CONSUMPTION;
-      }
-      if (sector === 'Pharmaceuticals') {
-        productionInputsProducts['Technology Products'] = PHARMACEUTICALS_TECHNOLOGY_CONSUMPTION;
-      }
-      if (sector === 'Defense') {
-        productionInputsProducts['Technology Products'] = DEFENSE_TECHNOLOGY_CONSUMPTION;
-      }
-
-      const productionOutputsProducts: Record<string, number> = {};
-      if (producedProduct) {
-        productionOutputsProducts[producedProduct] = PRODUCTION_OUTPUT_RATE;
-      }
-
-      const retailInputsProducts: Record<string, number> = {};
-      if (retailDemands) {
-        for (const product of retailDemands) {
-          let consumed = RETAIL_PRODUCT_CONSUMPTION;
-          if (sector === 'Defense') consumed = 1.0;
-          retailInputsProducts[product] = consumed;
-        }
-      }
-
-      const serviceInputsProducts: Record<string, number> = {};
-      if (serviceDemands) {
-        for (const product of serviceDemands) {
-          let consumed = product === 'Electricity' ? SERVICE_ELECTRICITY_CONSUMPTION : SERVICE_PRODUCT_CONSUMPTION;
-          if (sector === 'Defense' && product !== 'Electricity') {
-            consumed = 1.0;
-          }
-          // Note: Light Industry is production-only and cannot build service units
-          serviceInputsProducts[product] = consumed;
-        }
-      }
-
-      // Sector-specific service product demands
-      if (sector === 'Healthcare') {
-        serviceInputsProducts['Technology Products'] = HEALTHCARE_TECHNOLOGY_CONSUMPTION;
-      }
-      if (sector === 'Retail') {
-        serviceInputsProducts['Logistics Capacity'] = RETAIL_LOGISTICS_CONSUMPTION;
-      }
-      if (sector === 'Real Estate') {
-        serviceInputsProducts['Logistics Capacity'] = REAL_ESTATE_LOGISTICS_CONSUMPTION;
-      }
-
-      const extractionInputsProducts: Record<string, number> = {};
-      if (EXTRACTION_ELECTRICITY_CONSUMPTION > 0) {
-        extractionInputsProducts['Electricity'] = EXTRACTION_ELECTRICITY_CONSUMPTION;
-      }
-
-      // Sector-specific extraction product demands
-      if (sector === 'Mining') {
-        extractionInputsProducts['Manufactured Goods'] = MINING_MANUFACTURED_GOODS_CONSUMPTION;
-      }
-
-      const extractionOutputsResources: Record<string, number> = {};
-      if (extractableResources) {
-        for (const resource of extractableResources) {
-          extractionOutputsResources[resource] = EXTRACTION_OUTPUT_RATE;
-        }
-      }
-
-      sector_unit_flows[sector] = {
+    for (const [sectorName, sectorData] of Object.entries(config.sectors)) {
+      sector_unit_flows[sectorName] = {
         retail: {
-          inputs: { resources: {}, products: retailInputsProducts },
-          outputs: { resources: {}, products: {} },
+          inputs: {
+            resources: Object.fromEntries(
+              sectorData.units.retail.inputs
+                .filter(i => i.type === 'resource')
+                .map(i => [i.name, i.rate])
+            ),
+            products: Object.fromEntries(
+              sectorData.units.retail.inputs
+                .filter(i => i.type === 'product')
+                .map(i => [i.name, i.rate])
+            ),
+          },
+          outputs: {
+            resources: Object.fromEntries(
+              sectorData.units.retail.outputs
+                .filter(o => o.type === 'resource')
+                .map(o => [o.name, o.rate])
+            ),
+            products: Object.fromEntries(
+              sectorData.units.retail.outputs
+                .filter(o => o.type === 'product')
+                .map(o => [o.name, o.rate])
+            ),
+          },
         },
         production: {
-          inputs: { resources: productionInputsResources, products: productionInputsProducts },
-          outputs: { resources: {}, products: productionOutputsProducts },
+          inputs: {
+            resources: Object.fromEntries(
+              sectorData.units.production.inputs
+                .filter(i => i.type === 'resource')
+                .map(i => [i.name, i.rate])
+            ),
+            products: Object.fromEntries(
+              sectorData.units.production.inputs
+                .filter(i => i.type === 'product')
+                .map(i => [i.name, i.rate])
+            ),
+          },
+          outputs: {
+            resources: Object.fromEntries(
+              sectorData.units.production.outputs
+                .filter(o => o.type === 'resource')
+                .map(o => [o.name, o.rate])
+            ),
+            products: Object.fromEntries(
+              sectorData.units.production.outputs
+                .filter(o => o.type === 'product')
+                .map(o => [o.name, o.rate])
+            ),
+          },
         },
         service: {
-          inputs: { resources: {}, products: serviceInputsProducts },
-          outputs: { resources: {}, products: {} },
+          inputs: {
+            resources: Object.fromEntries(
+              sectorData.units.service.inputs
+                .filter(i => i.type === 'resource')
+                .map(i => [i.name, i.rate])
+            ),
+            products: Object.fromEntries(
+              sectorData.units.service.inputs
+                .filter(i => i.type === 'product')
+                .map(i => [i.name, i.rate])
+            ),
+          },
+          outputs: {
+            resources: Object.fromEntries(
+              sectorData.units.service.outputs
+                .filter(o => o.type === 'resource')
+                .map(o => [o.name, o.rate])
+            ),
+            products: Object.fromEntries(
+              sectorData.units.service.outputs
+                .filter(o => o.type === 'product')
+                .map(o => [o.name, o.rate])
+            ),
+          },
         },
         extraction: {
-          inputs: { resources: {}, products: extractionInputsProducts },
-          outputs: { resources: extractionOutputsResources, products: {} },
+          inputs: {
+            resources: Object.fromEntries(
+              sectorData.units.extraction.inputs
+                .filter(i => i.type === 'resource')
+                .map(i => [i.name, i.rate])
+            ),
+            products: Object.fromEntries(
+              sectorData.units.extraction.inputs
+                .filter(i => i.type === 'product')
+                .map(i => [i.name, i.rate])
+            ),
+          },
+          outputs: {
+            resources: Object.fromEntries(
+              sectorData.units.extraction.outputs
+                .filter(o => o.type === 'resource')
+                .map(o => [o.name, o.rate])
+            ),
+            products: Object.fromEntries(
+              sectorData.units.extraction.outputs
+                .filter(o => o.type === 'product')
+                .map(o => [o.name, o.rate])
+            ),
+          },
         },
       };
     }
