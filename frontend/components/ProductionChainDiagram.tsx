@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useCallback } from 'react';
+import React, { useMemo, useCallback, useEffect } from 'react';
 import ReactFlow, {
   Background,
   Controls,
@@ -11,7 +11,9 @@ import ReactFlow, {
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 
-import { getProductionChainData, ChainNodeData } from '@/lib/productionChain';
+// FID-20251228-003: Use config-aware function for dynamic data
+import { getProductionChainDataWithConfig, ChainNodeData } from '@/lib/productionChain';
+import { useSectorConfig } from '@/hooks/useSectorConfig';
 import ChainNode from './ChainNode';
 
 // Register custom node types
@@ -25,16 +27,36 @@ interface ProductionChainDiagramProps {
 }
 
 export default function ProductionChainDiagram({ type, name }: ProductionChainDiagramProps) {
-  // Generate chain data based on type and name
+  // FID-20251228-003: Get sector config for dynamic data
+  const { config, loading: isLoading } = useSectorConfig();
+
+  // Generate chain data based on type, name, and config
   const chainData = useMemo(() => {
-    return getProductionChainData(type, name);
-  }, [type, name]);
+    return getProductionChainDataWithConfig(type, name, config);
+  }, [type, name, config]);
 
   const [nodes, setNodes, onNodesChange] = useNodesState(chainData.nodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(chainData.edges);
 
+  // FID-20251228-003: Update nodes and edges when chainData changes (config updates)
+  useEffect(() => {
+    setNodes(chainData.nodes);
+    setEdges(chainData.edges);
+  }, [chainData, setNodes, setEdges]);
+
   // Determine if we have data to show
-  const hasData = nodes.length > 0;
+  const hasData = chainData.nodes.length > 0;
+
+  // Show loading state while config is loading
+  if (isLoading) {
+    return (
+      <div className="h-[250px] w-full rounded-2xl border border-gray-200/50 dark:border-gray-700/50 bg-gradient-to-br from-white via-white to-gray-50/50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800/50 shadow-lg flex items-center justify-center">
+        <p className="text-gray-500 dark:text-gray-400 text-sm">
+          Loading production chain...
+        </p>
+      </div>
+    );
+  }
 
   if (!hasData) {
     return (

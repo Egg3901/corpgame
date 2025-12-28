@@ -1134,11 +1134,11 @@ router.post('/migrate-manufacturing-to-light-industry', async (req: AuthRequest,
   try {
     console.log(`[Admin] Migrating manufacturing to light industry by user:`, req.userId);
 
-    // Update corporations with sector 'Manufacturing' to 'Light Industry'
+    // Update corporations with type 'Manufacturing' to 'Light Industry' (note: column is 'type' not 'sector')
     const corpResult = await pool.query(
       `UPDATE corporations
-       SET sector = 'Light Industry'
-       WHERE LOWER(sector) = 'manufacturing'
+       SET type = 'Light Industry'
+       WHERE LOWER(type) = 'manufacturing'
        RETURNING id, name`
     );
 

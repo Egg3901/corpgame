@@ -283,6 +283,54 @@ export class SectorConfigModel {
     return result.rows[0] || null;
   }
 
+  /**
+   * FID-20251228-003: Create a new input for a sector unit
+   */
+  static async createInput(params: {
+    sectorName: string;
+    unitType: UnitType;
+    inputName: string;
+    inputType: 'resource' | 'product';
+    consumptionRate: number;
+  }): Promise<SectorUnitInput> {
+    const { sectorName, unitType, inputName, inputType, consumptionRate } = params;
+
+    // Check for duplicate
+    const existing = await pool.query(
+      `SELECT id FROM sector_unit_inputs
+       WHERE sector_name = $1 AND unit_type = $2 AND input_name = $3 AND input_type = $4`,
+      [sectorName, unitType, inputName, inputType]
+    );
+
+    if (existing.rows.length > 0) {
+      throw new Error(`Input ${inputName} already exists for ${sectorName} ${unitType}`);
+    }
+
+    // Insert new input
+    const result = await pool.query(
+      `INSERT INTO sector_unit_inputs (sector_name, unit_type, input_name, input_type, consumption_rate)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING *`,
+      [sectorName, unitType, inputName, inputType, consumptionRate]
+    );
+
+    return result.rows[0];
+  }
+
+  /**
+   * FID-20251228-003: Delete an input by ID
+   */
+  static async deleteInput(inputId: number): Promise<void> {
+    const result = await pool.query(
+      'DELETE FROM sector_unit_inputs WHERE id = $1',
+      [inputId]
+    );
+
+    if (result.rowCount === 0) {
+      throw new Error(`Input ${inputId} not found`);
+    }
+  }
+
   // --------------------------------------------------------------------------
   // OUTPUT QUERIES
   // --------------------------------------------------------------------------
@@ -319,6 +367,92 @@ export class SectorConfigModel {
       [id]
     );
     return result.rows[0] || null;
+  }
+
+  /**
+   * FID-20251228-003: Create a new output for a sector unit
+   */
+  static async createOutput(params: {
+    sectorName: string;
+    unitType: UnitType;
+    outputName: string;
+    outputType: 'resource' | 'product';
+    outputRate: number;
+  }): Promise<SectorUnitOutput> {
+    const { sectorName, unitType, outputName, outputType, outputRate } = params;
+
+    // Check for duplicate
+    const existing = await pool.query(
+      `SELECT id FROM sector_unit_outputs
+       WHERE sector_name = $1 AND unit_type = $2 AND output_name = $3 AND output_type = $4`,
+      [sectorName, unitType, outputName, outputType]
+    );
+
+    if (existing.rows.length > 0) {
+      throw new Error(`Output ${outputName} already exists for ${sectorName} ${unitType}`);
+    }
+
+    // Insert new output
+    const result = await pool.query(
+      `INSERT INTO sector_unit_outputs (sector_name, unit_type, output_name, output_type, output_rate)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING *`,
+      [sectorName, unitType, outputName, outputType, outputRate]
+    );
+
+    return result.rows[0];
+  }
+
+  /**
+   * FID-20251228-003: Delete an output by ID
+   * Prevents deleting the last output for a unit type
+   */
+  static async deleteOutput(outputId: number): Promise<void> {
+    // Get the output to find sector_name and unit_type
+    const output = await pool.query(
+      'SELECT sector_name, unit_type FROM sector_unit_outputs WHERE id = $1',
+      [outputId]
+    );
+
+    if (output.rows.length === 0) {
+      throw new Error(`Output ${outputId} not found`);
+    }
+
+    const { sector_name, unit_type } = output.rows[0];
+
+    // Check if this is the last output for this unit type
+    const count = await pool.query(
+      `SELECT COUNT(*) as count FROM sector_unit_outputs
+       WHERE sector_name = $1 AND unit_type = $2`,
+      [sector_name, unit_type]
+    );
+
+    if (parseInt(count.rows[0].count) <= 1) {
+      throw new Error(`Cannot delete the last output for ${sector_name} ${unit_type}`);
+    }
+
+    // Delete the output
+    const result = await pool.query(
+      'DELETE FROM sector_unit_outputs WHERE id = $1',
+      [outputId]
+    );
+
+    if (result.rowCount === 0) {
+      throw new Error(`Output ${outputId} not found`);
+    }
+  }
+
+  /**
+   * FID-20251228-003: Get count of outputs for a specific unit
+   */
+  static async getOutputCountForUnit(sectorName: string, unitType: UnitType): Promise<number> {
+    const result = await pool.query(
+      `SELECT COUNT(*) as count FROM sector_unit_outputs
+       WHERE sector_name = $1 AND unit_type = $2`,
+      [sectorName, unitType]
+    );
+
+    return parseInt(result.rows[0].count);
   }
 
   // --------------------------------------------------------------------------

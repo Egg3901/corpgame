@@ -279,6 +279,165 @@ adminRouter.put('/resources/:name', async (req: AuthRequest, res: Response) => {
   }
 });
 
+// ============================================================================
+// FID-20251228-003: CRUD ENDPOINTS FOR INPUTS/OUTPUTS
+// ============================================================================
+
+/**
+ * POST /api/sector-config/admin/input
+ * Create a new input for a sector unit
+ */
+adminRouter.post('/input', async (req: AuthRequest, res: Response) => {
+  try {
+    const { sectorName, unitType, inputName, inputType, consumptionRate } = req.body;
+
+    // Validation
+    if (!sectorName || !unitType || !inputName || !inputType || consumptionRate === undefined) {
+      return res.status(400).json({ error: 'Missing required fields: sectorName, unitType, inputName, inputType, consumptionRate' });
+    }
+
+    if (consumptionRate <= 0) {
+      return res.status(400).json({ error: 'Consumption rate must be positive' });
+    }
+
+    if (!['resource', 'product'].includes(inputType)) {
+      return res.status(400).json({ error: 'Input type must be resource or product' });
+    }
+
+    const validUnitTypes: UnitType[] = ['production', 'retail', 'service', 'extraction'];
+    if (!validUnitTypes.includes(unitType as UnitType)) {
+      return res.status(400).json({ error: 'Invalid unit type' });
+    }
+
+    const created = await SectorConfigModel.createInput({
+      sectorName,
+      unitType: unitType as UnitType,
+      inputName,
+      inputType,
+      consumptionRate: Number(consumptionRate),
+    });
+
+    SectorConfigService.invalidateCache();
+    res.status(201).json({ id: created.id, message: 'Input created successfully', input: created });
+  } catch (error) {
+    console.error('Failed to create input:', error);
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+/**
+ * DELETE /api/sector-config/admin/input/:id
+ * Delete an input by ID
+ */
+adminRouter.delete('/input/:id', async (req: AuthRequest, res: Response) => {
+  try {
+    const inputId = parseInt(req.params.id);
+
+    if (isNaN(inputId)) {
+      return res.status(400).json({ error: 'Invalid input ID' });
+    }
+
+    await SectorConfigModel.deleteInput(inputId);
+    SectorConfigService.invalidateCache();
+    res.json({ message: 'Input deleted successfully' });
+  } catch (error) {
+    console.error('Failed to delete input:', error);
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+/**
+ * POST /api/sector-config/admin/output
+ * Create a new output for a sector unit
+ */
+adminRouter.post('/output', async (req: AuthRequest, res: Response) => {
+  try {
+    const { sectorName, unitType, outputName, outputType, outputRate } = req.body;
+
+    // Validation
+    if (!sectorName || !unitType || !outputName || !outputType || outputRate === undefined) {
+      return res.status(400).json({ error: 'Missing required fields: sectorName, unitType, outputName, outputType, outputRate' });
+    }
+
+    if (outputRate <= 0) {
+      return res.status(400).json({ error: 'Output rate must be positive' });
+    }
+
+    if (!['resource', 'product'].includes(outputType)) {
+      return res.status(400).json({ error: 'Output type must be resource or product' });
+    }
+
+    const validUnitTypes: UnitType[] = ['production', 'retail', 'service', 'extraction'];
+    if (!validUnitTypes.includes(unitType as UnitType)) {
+      return res.status(400).json({ error: 'Invalid unit type' });
+    }
+
+    const created = await SectorConfigModel.createOutput({
+      sectorName,
+      unitType: unitType as UnitType,
+      outputName,
+      outputType,
+      outputRate: Number(outputRate),
+    });
+
+    SectorConfigService.invalidateCache();
+    res.status(201).json({ id: created.id, message: 'Output created successfully', output: created });
+  } catch (error) {
+    console.error('Failed to create output:', error);
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+/**
+ * DELETE /api/sector-config/admin/output/:id
+ * Delete an output by ID (prevents deleting the last output)
+ */
+adminRouter.delete('/output/:id', async (req: AuthRequest, res: Response) => {
+  try {
+    const outputId = parseInt(req.params.id);
+
+    if (isNaN(outputId)) {
+      return res.status(400).json({ error: 'Invalid output ID' });
+    }
+
+    await SectorConfigModel.deleteOutput(outputId);
+    SectorConfigService.invalidateCache();
+    res.json({ message: 'Output deleted successfully' });
+  } catch (error) {
+    console.error('Failed to delete output:', error);
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+/**
+ * PUT /api/sector-config/admin/sectors/:name/product
+ * Update the produced product for a sector
+ */
+adminRouter.put('/sectors/:name/product', async (req: AuthRequest, res: Response) => {
+  try {
+    const { name } = req.params;
+    const { producedProduct } = req.body;
+
+    if (!producedProduct) {
+      return res.status(400).json({ error: 'producedProduct is required' });
+    }
+
+    const updated = await SectorConfigModel.updateSector(name, {
+      produced_product: producedProduct,
+    });
+
+    if (!updated) {
+      return res.status(404).json({ error: 'Sector not found' });
+    }
+
+    SectorConfigService.invalidateCache();
+    res.json({ message: 'Produced product updated successfully', sector: updated });
+  } catch (error) {
+    console.error('Failed to update produced product:', error);
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
 // Mount admin router
 router.use('/admin', adminRouter);
 

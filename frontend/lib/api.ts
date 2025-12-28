@@ -1710,6 +1710,47 @@ export const sectorConfigAPI = {
     const response = await api.put(`/api/sector-config/admin/resources/${encodeURIComponent(name)}`, data);
     return response.data;
   },
+
+  // FID-20251228-003: CRUD operations for inputs/outputs
+  createInput: async (params: {
+    sectorName: string;
+    unitType: UnitType;
+    inputName: string;
+    inputType: 'resource' | 'product';
+    consumptionRate: number;
+  }): Promise<{ id: number; message: string; input: SectorUnitInput }> => {
+    const response = await api.post('/api/sector-config/admin/input', params);
+    return response.data;
+  },
+
+  deleteInput: async (inputId: number): Promise<{ message: string }> => {
+    const response = await api.delete(`/api/sector-config/admin/input/${inputId}`);
+    return response.data;
+  },
+
+  createOutput: async (params: {
+    sectorName: string;
+    unitType: UnitType;
+    outputName: string;
+    outputType: 'resource' | 'product';
+    outputRate: number;
+  }): Promise<{ id: number; message: string; output: SectorUnitOutput }> => {
+    const response = await api.post('/api/sector-config/admin/output', params);
+    return response.data;
+  },
+
+  deleteOutput: async (outputId: number): Promise<{ message: string }> => {
+    const response = await api.delete(`/api/sector-config/admin/output/${outputId}`);
+    return response.data;
+  },
+
+  updateProducedProduct: async (sectorName: string, producedProduct: string): Promise<{ message: string }> => {
+    const response = await api.put(
+      `/api/sector-config/admin/sectors/${encodeURIComponent(sectorName)}/product`,
+      { producedProduct }
+    );
+    return response.data;
+  },
 };
 
 export default api;
