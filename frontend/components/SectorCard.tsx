@@ -51,6 +51,8 @@ interface SectorCardProps {
   productPrices?: Record<string, { currentPrice: number; referenceValue?: number }>;
   EXTRACTION_OUTPUT_RATE?: number;
   unitFlows?: Record<'retail' | 'production' | 'service' | 'extraction', MarketUnitFlow>;
+  // FID-20251228-001: Optional config-driven product reference values
+  productReferenceValues?: Record<string, number>;
 }
 
 export default function SectorCard({
@@ -84,8 +86,10 @@ export default function SectorCard({
   productPrices,
   EXTRACTION_OUTPUT_RATE = 2.0,
   unitFlows,
+  productReferenceValues,
 }: SectorCardProps) {
-  const PRODUCT_BASE_PRICES: Record<string, number> = {
+  // FID-20251228-001: Use config-driven values with hardcoded fallback
+  const PRODUCT_BASE_PRICES: Record<string, number> = productReferenceValues || {
     'Technology Products': 5000,
     'Manufactured Goods': 1500,
     'Electricity': 200,

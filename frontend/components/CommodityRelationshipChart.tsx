@@ -39,6 +39,7 @@ const SECTOR_PRODUCTS: Record<Sector, Product | null> = {
   'Finance': null,
   'Healthcare': null,
   'Light Industry': 'Manufactured Goods',
+  'Manufacturing': 'Manufactured Goods',  // LEGACY - Same as Light Industry
   'Energy': 'Electricity',
   'Retail': null,
   'Real Estate': null,
@@ -61,6 +62,7 @@ const SECTOR_RESOURCES: Record<Sector, Resource | null> = {
   'Finance': null,
   'Healthcare': null,
   'Light Industry': null,
+  'Manufacturing': null,              // LEGACY - Same as Light Industry
   'Energy': null,
   'Retail': null,
   'Real Estate': null,
@@ -83,6 +85,7 @@ const SECTOR_EXTRACTION: Record<Sector, Resource[] | null> = {
   'Finance': null,
   'Healthcare': null,
   'Light Industry': null,
+  'Manufacturing': null,              // LEGACY - Same as Light Industry
   'Energy': ['Oil'],
   'Retail': null,
   'Real Estate': null,
@@ -108,6 +111,7 @@ const SECTOR_PRODUCT_DEMANDS: Record<Sector, Product[] | null> = {
   'Finance': ['Technology Products'],
   'Healthcare': ['Pharmaceutical Products'],
   'Light Industry': ['Steel'],
+  'Manufacturing': ['Steel'],         // LEGACY - Same as Light Industry
   'Energy': null,
   'Retail': ['Manufactured Goods'],
   'Real Estate': ['Construction Capacity'],

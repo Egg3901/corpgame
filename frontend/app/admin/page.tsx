@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Trash2, Shield, ShieldOff, Eye, EyeOff, AlertTriangle, Flag, CheckCircle2, X, ChevronDown, ChevronUp, MessageSquare, Play, RefreshCw, DollarSign, Clock, Receipt, Search, ArrowUpRight, ArrowDownLeft, Scissors, CalendarClock, Database, ArrowRight } from 'lucide-react';
 import AppNavigation from '@/components/AppNavigation';
+import SectorConfigPanel from '@/components/admin/SectorConfigPanel';
 import { authAPI, adminAPI, AdminUser, ReportedChat, Transaction, TransactionType, normalizeImageUrl, gameAPI, AdminGameTimeResetResponse } from '@/lib/api';
 import Link from 'next/link';
 import { calculateGameTime, GameTime } from '@/lib/gameTime';
@@ -1390,6 +1391,9 @@ export default function AdminPage() {
               </div>
             </div>
           </div>
+
+          {/* Sector Configuration Section */}
+          <SectorConfigPanel />
 
           {/* Transactions Section */}
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700/50 mb-6">

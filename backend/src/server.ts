@@ -17,6 +17,7 @@ import cashRoutes from './routes/cash';
 import boardRoutes from './routes/board';
 import marketsRoutes from './routes/markets';
 import corporateActionsRoutes from './routes/corporateActions';
+import sectorConfigRoutes from './routes/sectorConfig';
 import { startActionsCron } from './cron/actions';
 
 // Load .env from multiple possible locations
@@ -215,6 +216,7 @@ app.use('/api/cash', cashRoutes);
 app.use('/api/board', boardRoutes);
 app.use('/api/markets', marketsRoutes);
 app.use('/api/corporate-actions', corporateActionsRoutes);
+app.use('/api/sector-config', sectorConfigRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

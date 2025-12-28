@@ -11,6 +11,7 @@ import BoardTab from '@/components/BoardTab';
 import StockPriceChart from '@/components/StockPriceChart';
 import SectorCard from '@/components/SectorCard';
 import { computeFinancialStatements } from '@/lib/finance';
+import { useSectorConfig } from '@/hooks/useSectorConfig';
 
 // Sector to Resource mapping (must match backend)
 // Note: Steel is now a PRODUCT, not a resource
@@ -19,6 +20,7 @@ const SECTOR_RESOURCES: Record<string, string | null> = {
   'Finance': null,
   'Healthcare': null,
   'Light Industry': null,        // Consumes Steel PRODUCT
+  'Manufacturing': null,         // Legacy sector, now Light Industry - Consumes Steel PRODUCT
   'Energy': null,                // Special: consumes Oil + Coal via ENERGY_INPUTS
   'Retail': null,
   'Real Estate': null,
@@ -40,6 +42,7 @@ const SECTOR_PRODUCTS: Record<string, string | null> = {
   'Finance': null,
   'Healthcare': null,
   'Light Industry': 'Manufactured Goods',
+  'Manufacturing': 'Manufactured Goods',  // Legacy sector, now Light Industry
   'Energy': 'Electricity',
   'Retail': null,
   'Real Estate': null,
@@ -61,6 +64,7 @@ const SECTOR_PRODUCT_DEMANDS: Record<string, string[] | null> = {
   'Finance': ['Technology Products'],
   'Healthcare': ['Pharmaceutical Products'],
   'Light Industry': ['Steel'],
+  'Manufacturing': ['Steel'],  // Legacy sector, now Light Industry
   'Energy': null,
   'Retail': ['Manufactured Goods'],
   'Real Estate': ['Construction Capacity'],
@@ -156,6 +160,7 @@ const SECTORS_CAN_EXTRACT: Record<string, string[] | null> = {
   'Finance': null,
   'Healthcare': null,
   'Light Industry': null,
+  'Manufacturing': null,  // Legacy sector, now Light Industry
   'Energy': ['Oil'],
   'Retail': null,
   'Real Estate': null,
@@ -219,7 +224,10 @@ export default function CorporationDetailPage() {
   const router = useRouter();
   const params = useParams();
   const corpId = parseInt(params.id as string, 10);
-  
+
+  // FID-20251228-001: Use unified sector config
+  const { config: sectorConfig } = useSectorConfig();
+
   const [corporation, setCorporation] = useState<CorporationResponse | null>(null);
   const [viewerUserId, setViewerUserId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
@@ -509,6 +517,16 @@ export default function CorporationDetailPage() {
       dividendPercentage: corporation?.dividend_percentage || 0,
     });
   }, [corpFinances, marketEntries, marketMetadata, commodityPrices, productPrices, corporation]);
+
+  // FID-20251228-001: Build product reference values from unified config
+  const productReferenceValues = useMemo(() => {
+    if (!sectorConfig) return undefined;
+    const values: Record<string, number> = {};
+    for (const [name, product] of Object.entries(sectorConfig.products)) {
+      values[name] = product.referenceValue;
+    }
+    return values;
+  }, [sectorConfig]);
 
   // Calculate revenue and cost breakdown by sector and unit type
   const calculateRevenueCostBreakdown = () => {
@@ -1513,6 +1531,7 @@ export default function CorporationDetailPage() {
                                       productPrices={productPrices}
                                       EXTRACTION_OUTPUT_RATE={2.0}
                                       unitFlows={marketMetadata?.sector_unit_flows?.[entry.sector_type]}
+                                      productReferenceValues={productReferenceValues}
                                     />
                                   );
                                 })}

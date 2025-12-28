@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import AppNavigation from '@/components/AppNavigation';
 import { marketsAPI, StateDetailResponse, authAPI, MarketMetadataResponse, MarketUnitFlow } from '@/lib/api';
 import SectorCard from '@/components/SectorCard';
+import { useSectorConfig } from '@/hooks/useSectorConfig';
 import {
   MapPin,
   Building2,
@@ -79,6 +80,7 @@ const SECTOR_RESOURCES: Record<string, string | null> = {
   'Finance': null,
   'Healthcare': null,
   'Light Industry': null,
+  'Manufacturing': null,  // Legacy sector, now Light Industry
   'Energy': null,  // Energy uses multi-resource (Oil + Coal) via ENERGY_INPUTS
   'Retail': null,
   'Real Estate': null,
@@ -101,6 +103,7 @@ const SECTOR_PRODUCTS: Record<string, string | null> = {
   'Finance': null,
   'Healthcare': null,
   'Light Industry': 'Manufactured Goods',
+  'Manufacturing': 'Manufactured Goods',  // Legacy sector, now Light Industry
   'Energy': 'Electricity',
   'Retail': null,
   'Real Estate': null,
@@ -123,6 +126,7 @@ const SECTOR_PRODUCT_DEMANDS: Record<string, string[] | null> = {
   'Finance': ['Technology Products'],
   'Healthcare': ['Pharmaceutical Products'],
   'Light Industry': ['Steel'],
+  'Manufacturing': ['Steel'],  // Legacy sector, now Light Industry
   'Energy': null,
   'Retail': ['Manufactured Goods'],
   'Real Estate': ['Construction Capacity'],
@@ -181,6 +185,7 @@ const SECTORS_CAN_EXTRACT: Record<string, string[] | null> = {
   'Finance': null,
   'Healthcare': null,
   'Light Industry': null,
+  'Manufacturing': null,  // Legacy sector, now Light Industry
   'Energy': ['Oil'],
   'Retail': null,
   'Real Estate': null,
@@ -299,6 +304,9 @@ export default function StateDetailPage() {
   const router = useRouter();
   const stateCode = (params.code as string)?.toUpperCase();
 
+  // FID-20251228-001: Use unified sector config
+  const { config: sectorConfig } = useSectorConfig();
+
   const [stateData, setStateData] = useState<StateDetailResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -310,6 +318,16 @@ export default function StateDetailPage() {
   const [commodityPrices, setCommodityPrices] = useState<Record<string, { currentPrice: number }>>({});
   const [productPrices, setProductPrices] = useState<Record<string, { currentPrice: number }>>({});
   const [marketMetadata, setMarketMetadata] = useState<MarketMetadataResponse | null>(null);
+
+  // FID-20251228-001: Build product reference values from unified config
+  const productReferenceValues = useMemo(() => {
+    if (!sectorConfig) return undefined;
+    const values: Record<string, number> = {};
+    for (const [name, product] of Object.entries(sectorConfig.products)) {
+      values[name] = product.referenceValue;
+    }
+    return values;
+  }, [sectorConfig]);
 
   const getProductionFlow = (sector: string): MarketUnitFlow | null => {
     const flowFromMetadata = marketMetadata?.sector_unit_flows?.[sector]?.production;
@@ -904,6 +922,7 @@ export default function StateDetailPage() {
                         productPrices={productPrices}
                         EXTRACTION_OUTPUT_RATE={2.0}
                         unitFlows={marketMetadata?.sector_unit_flows?.[entry.sector_type]}
+                        productReferenceValues={productReferenceValues}
                       />
                     ))}
                   </div>

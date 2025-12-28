@@ -1571,4 +1571,145 @@ export interface DeletePublicSharesResponse {
   deleted_shares: number;
 }
 
+// ============================================================================
+// SECTOR CONFIG API TYPES
+// FID-20251228-001: Unified Sector Configuration System
+// ============================================================================
+
+export type UnitType = 'production' | 'retail' | 'service' | 'extraction';
+
+export interface SectorConfig {
+  id: number;
+  sector_name: string;
+  display_order: number;
+  is_production_only: boolean;
+  can_extract: boolean;
+  produced_product: string | null;
+  primary_resource: string | null;
+}
+
+export interface SectorUnitConfig {
+  id: number;
+  sector_name: string;
+  unit_type: UnitType;
+  is_enabled: boolean;
+  base_revenue: number;
+  base_cost: number;
+  labor_cost: number;
+  output_rate: number | null;
+}
+
+export interface SectorUnitInput {
+  id: number;
+  sector_name: string;
+  unit_type: UnitType;
+  input_type: 'resource' | 'product';
+  input_name: string;
+  consumption_rate: number;
+}
+
+export interface SectorUnitOutput {
+  id: number;
+  sector_name: string;
+  unit_type: UnitType;
+  output_type: 'resource' | 'product';
+  output_name: string;
+  output_rate: number;
+}
+
+export interface ProductConfig {
+  id: number;
+  product_name: string;
+  reference_value: number;
+  min_price: number;
+  display_order: number;
+}
+
+export interface ResourceConfig {
+  id: number;
+  resource_name: string;
+  base_price: number;
+  display_order: number;
+}
+
+export interface UnifiedSectorConfig {
+  version: string;
+  sectors: Record<string, {
+    displayOrder: number;
+    isProductionOnly: boolean;
+    canExtract: boolean;
+    producedProduct: string | null;
+    primaryResource: string | null;
+    units: Record<UnitType, {
+      isEnabled: boolean;
+      baseRevenue: number;
+      baseCost: number;
+      laborCost: number;
+      outputRate: number | null;
+      inputs: Array<{ type: 'resource' | 'product'; name: string; rate: number }>;
+      outputs: Array<{ type: 'resource' | 'product'; name: string; rate: number }>;
+    }>;
+  }>;
+  products: Record<string, {
+    referenceValue: number;
+    minPrice: number;
+    displayOrder: number;
+  }>;
+  resources: Record<string, {
+    basePrice: number;
+    displayOrder: number;
+  }>;
+}
+
+export interface AdminSectorConfigData {
+  sectors: SectorConfig[];
+  unitConfigs: SectorUnitConfig[];
+  inputs: SectorUnitInput[];
+  outputs: SectorUnitOutput[];
+  products: ProductConfig[];
+  resources: ResourceConfig[];
+}
+
+// Sector Config API
+export const sectorConfigAPI = {
+  // Public endpoints
+  getConfig: async (): Promise<UnifiedSectorConfig> => {
+    const response = await api.get('/api/sector-config');
+    return response.data;
+  },
+  getVersion: async (): Promise<{ version: string }> => {
+    const response = await api.get('/api/sector-config/version');
+    return response.data;
+  },
+  // Admin endpoints
+  getAdminConfig: async (): Promise<AdminSectorConfigData> => {
+    const response = await api.get('/api/sector-config/admin');
+    return response.data;
+  },
+  updateUnitConfig: async (
+    sector: string,
+    unitType: UnitType,
+    data: Partial<Pick<SectorUnitConfig, 'is_enabled' | 'base_revenue' | 'base_cost' | 'labor_cost' | 'output_rate'>>
+  ): Promise<SectorUnitConfig> => {
+    const response = await api.put(`/api/sector-config/admin/unit/${encodeURIComponent(sector)}/${unitType}`, data);
+    return response.data;
+  },
+  updateInput: async (id: number, consumption_rate: number): Promise<SectorUnitInput> => {
+    const response = await api.put(`/api/sector-config/admin/input/${id}`, { consumption_rate });
+    return response.data;
+  },
+  updateOutput: async (id: number, output_rate: number): Promise<SectorUnitOutput> => {
+    const response = await api.put(`/api/sector-config/admin/output/${id}`, { output_rate });
+    return response.data;
+  },
+  updateProduct: async (name: string, data: Partial<Pick<ProductConfig, 'reference_value' | 'min_price'>>): Promise<ProductConfig> => {
+    const response = await api.put(`/api/sector-config/admin/products/${encodeURIComponent(name)}`, data);
+    return response.data;
+  },
+  updateResource: async (name: string, data: { base_price: number }): Promise<ResourceConfig> => {
+    const response = await api.put(`/api/sector-config/admin/resources/${encodeURIComponent(name)}`, data);
+    return response.data;
+  },
+};
+
 export default api;
