@@ -919,8 +919,8 @@ export const HEALTHCARE_TECHNOLOGY_CONSUMPTION = 0.4;     // Medical devices, di
 export const RETAIL_LOGISTICS_CONSUMPTION = 0.3;          // Supply chain, deliveries
 export const REAL_ESTATE_LOGISTICS_CONSUMPTION = 0.25;    // Moving services, maintenance logistics
 
-export const RETAIL_WHOLESALE_DISCOUNT = 0.995;
-export const SERVICE_WHOLESALE_DISCOUNT = 0.995;
+export const RETAIL_WHOLESALE_DISCOUNT = 0.90;
+export const SERVICE_WHOLESALE_DISCOUNT = 0.90;
 export const DEFENSE_WHOLESALE_DISCOUNT = 0.8;
 export const DEFENSE_REVENUE_ON_COST_MULTIPLIER = 1.0;
 export const RETAIL_MIN_GROSS_MARGIN_PCT = 0.0005;

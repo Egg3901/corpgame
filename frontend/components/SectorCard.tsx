@@ -110,8 +110,8 @@ export default function SectorCard({
 
   const DEFENSE_WHOLESALE_DISCOUNT = 0.8;
   const DEFENSE_REVENUE_MULTIPLIER = 1.0;
-  const RETAIL_WHOLESALE_DISCOUNT = 0.995;
-  const SERVICE_WHOLESALE_DISCOUNT = 0.995;
+  const RETAIL_WHOLESALE_DISCOUNT = 0.90;
+  const SERVICE_WHOLESALE_DISCOUNT = 0.90;
 
   const isDefense = sectorType === 'Defense';
   const isLightIndustry = sectorType === 'Light Industry';
