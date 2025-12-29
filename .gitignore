@@ -1,2 +1,11 @@
 node_modules
 package-lock.json
+logs/
+*.log
+.pm2
+backend/uploads/
+INSTRUCTIONS.md
+instructions.md
+
+# Claude Code local settings
+.claude/settings.local.json
