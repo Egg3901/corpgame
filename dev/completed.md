@@ -1,5 +1,15 @@
 # Completed Features
 
+## 📦 Archive Index
+
+*Archived entries will appear here when AUTO_ARCHIVE_CHECK() executes (triggered at 10+ entries)*
+
+| Archive File | Period | Entries | Total LOC | Total Time | Link |
+|--------------|--------|---------|-----------|------------|------|
+| *No archives yet* | - | - | - | - | - |
+
+---
+
 ## [FID-20251225-001] Unified BusinessUnit Economics Calculator
 **Status:** COMPLETED **Priority:** H **Complexity:** 3
 **Created:** 2025-12-25 **Completed:** 2025-12-25 12:30
