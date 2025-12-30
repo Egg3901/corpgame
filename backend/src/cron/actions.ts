@@ -1,4 +1,4 @@
-import cron from 'node-cron';
+import cron, { ScheduledTask } from 'node-cron';
 import { UserModel } from '../models/User';
 import { CorporationModel } from '../models/Corporation';
 import { BoardProposalModel, BoardVoteModel, BoardModel } from '../models/BoardProposal';
@@ -16,14 +16,32 @@ import pool from '../db/connection';
 // Default CEO salary constants (used only as fallback)
 const DEFAULT_CEO_SALARY_PER_96H = 100000; // $100,000 per 96 hours
 
+// Store active cron jobs to prevent duplicates on hot reload
+let activeCronJobs: ScheduledTask[] = [];
+
+/**
+ * Stop all active cron jobs
+ * Called before scheduling new jobs to prevent duplicates
+ */
+export function stopActionsCron() {
+  if (activeCronJobs.length > 0) {
+    console.log(`[Cron] Stopping ${activeCronJobs.length} existing cron jobs...`);
+    activeCronJobs.forEach(job => job.stop());
+    activeCronJobs = [];
+  }
+}
+
 /**
  * Hourly cron job to add actions to all users
  * - All users get +2 actions per hour
  * - CEOs (users who are the ceo_id of any corporation) get an additional +1 action
  */
 export function startActionsCron() {
+  // Stop any existing cron jobs first to prevent duplicates
+  stopActionsCron();
+  
   // Run every hour at the start of the hour
-  cron.schedule('0 * * * *', async () => {
+  const hourlyCron = cron.schedule('0 * * * *', async () => {
     console.log('[Cron] Running hourly actions increment...');
     
     try {
@@ -51,11 +69,12 @@ export function startActionsCron() {
       console.error('[Cron] Error incrementing actions:', error);
     }
   });
+  activeCronJobs.push(hourlyCron);
 
-  console.log('[Cron] Actions cron job scheduled (runs every hour at :00)');
+  console.log('[Cron] Hourly actions cron job scheduled (runs every hour at :00)');
 
   // Run every 5 minutes to check for expired proposals
-  cron.schedule('*/5 * * * *', async () => {
+  const proposalCron = cron.schedule('*/5 * * * *', async () => {
     console.log('[Cron] Running proposal resolution check...');
     
     try {
@@ -80,11 +99,12 @@ export function startActionsCron() {
       console.error('[Cron] Error in proposal resolution:', error);
     }
   });
+  activeCronJobs.push(proposalCron);
 
   console.log('[Cron] Proposal resolution cron job scheduled (runs every 5 minutes)');
 
   // Run every 10 minutes to record market prices (stock-style history)
-  cron.schedule('*/10 * * * *', async () => {
+  const priceCron = cron.schedule('*/10 * * * *', async () => {
     console.log('[Cron] Recording market prices...');
     try {
       await recordMarketPrices();
@@ -92,8 +112,10 @@ export function startActionsCron() {
       console.error('[Cron] Error recording market prices:', error);
     }
   });
+  activeCronJobs.push(priceCron);
 
   console.log('[Cron] Market price history cron job scheduled (runs every 10 minutes)');
+  console.log(`[Cron] Total active cron jobs: ${activeCronJobs.length}`);
 }
 
 /**
