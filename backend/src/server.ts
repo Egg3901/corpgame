@@ -18,7 +18,7 @@ import boardRoutes from './routes/board';
 import marketsRoutes from './routes/markets';
 import corporateActionsRoutes from './routes/corporateActions';
 import sectorConfigRoutes from './routes/sectorConfig';
-import { startActionsCron } from './cron/actions';
+import { startActionsCron, stopActionsCron } from './cron/actions';
 
 // Load .env from multiple possible locations
 const possibleEnvPaths = [
@@ -279,6 +279,19 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on http://0.0.0.0:${PORT}`);
   console.log(`Accessible at http://localhost:${PORT} and from external IPs`);
   
-  // Start cron jobs
+  // Start cron jobs (will clean up any existing ones first)
   startActionsCron();
+});
+
+// Graceful shutdown handlers
+process.on('SIGTERM', () => {
+  console.log('SIGTERM received, stopping cron jobs...');
+  stopActionsCron();
+  process.exit(0);
+});
+
+process.on('SIGINT', () => {
+  console.log('SIGINT received, stopping cron jobs...');
+  stopActionsCron();
+  process.exit(0);
 });
