@@ -380,7 +380,7 @@ async function processCeoSalaries(): Promise<void> {
 
       try {
         const currentCapital = typeof corp.capital === 'string' ? parseFloat(corp.capital) : corp.capital;
-        const ceoSalaryPer96h = typeof corp.ceo_salary === 'string' ? parseFloat(corp.ceo_salary) : (corp.ceo_salary || DEFAULT_CEO_SALARY_PER_96H);
+        const ceoSalaryPer96h = typeof corp.ceo_salary === 'string' ? parseFloat(corp.ceo_salary) : (corp.ceo_salary ?? DEFAULT_CEO_SALARY_PER_96H);
         
         // Skip if salary is already 0
         if (ceoSalaryPer96h <= 0) continue;
@@ -441,7 +441,7 @@ export async function triggerCeoSalaries(): Promise<{ ceosPaid: number; totalPai
     if (!corp.ceo_id) continue;
 
     const currentCapital = typeof corp.capital === 'string' ? parseFloat(corp.capital) : corp.capital;
-    const ceoSalaryPer96h = typeof corp.ceo_salary === 'string' ? parseFloat(corp.ceo_salary) : (corp.ceo_salary || DEFAULT_CEO_SALARY_PER_96H);
+    const ceoSalaryPer96h = typeof corp.ceo_salary === 'string' ? parseFloat(corp.ceo_salary) : (corp.ceo_salary ?? DEFAULT_CEO_SALARY_PER_96H);
     
     // Skip if salary is already 0
     if (ceoSalaryPer96h <= 0) continue;
