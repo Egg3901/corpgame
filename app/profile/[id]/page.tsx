@@ -1,11 +1,13 @@
 "use client";
 
+import { use } from 'react';
 import ProfileDashboard from '@/components/ProfileDashboard';
 
 interface ProfileIdPageProps {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 
 export default function ProfileIdPage({ params }: ProfileIdPageProps) {
-  return <ProfileDashboard profileId={params.id} />;
+  const { id } = use(params);
+  return <ProfileDashboard profileId={id} />;
 }

@@ -1,6 +1,7 @@
 /** @type {import('next').NextConfig} */
 const fs = require('fs');
 const fsPromises = require('fs/promises');
+const path = require('path');
 
 if (!global.__CORPGAME_READLINK_WORKAROUND__) {
   const originalReadlink = fs.readlink;
@@ -72,12 +73,50 @@ if (!global.__CORPGAME_READLINK_WORKAROUND__) {
 
 const nextConfig = {
   reactStrictMode: true,
-  webpack: (config) => {
+  outputFileTracingRoot: path.join(__dirname),
+  webpack: (config, { isServer, webpack }) => {
     config.infrastructureLogging = {
       level: 'error',
     };
     config.resolve = config.resolve || {};
     config.resolve.symlinks = false;
+    
+    // Ignore MongoDB's optional dependencies for ALL builds (server and client)
+    config.plugins.push(
+      new webpack.IgnorePlugin({
+        resourceRegExp: /^(kerberos|@mongodb-js\/zstd|@aws-sdk\/credential-providers|gcp-metadata|snappy|socks|aws4|mongodb-client-encryption)$/,
+      })
+    );
+    
+    if (!isServer) {
+      // For client-side: replace mongodb with empty module
+      config.plugins.push(
+        new webpack.NormalModuleReplacementPlugin(
+          /^mongodb$/,
+          path.resolve(__dirname, 'lib/utils/empty.js')
+        )
+      );
+      
+      // Fallback for Node.js built-ins on client
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        net: false,
+        tls: false,
+        dns: false,
+        child_process: false,
+        timers: false,
+        'timers/promises': false,
+        stream: false,
+        crypto: false,
+        http: false,
+        https: false,
+        os: false,
+        path: false,
+        zlib: false,
+      };
+    }
+    
     return config;
   },
 }

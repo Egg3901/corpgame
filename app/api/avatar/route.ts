@@ -4,6 +4,7 @@ import { UserModel } from '@/lib/models/User';
 import { getErrorMessage } from '@/lib/utils';
 import { writeFile, mkdir } from 'fs/promises';
 import path from 'path';
+import crypto from 'crypto';
 
 export async function POST(req: NextRequest) {
   try {
@@ -19,28 +20,27 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
     }
 
-    // Validate file type (inline - FormData files can't use Zod directly)
-    if (!file.type.startsWith('image/')) {
-      return NextResponse.json(
-        { error: 'Validation failed', details: [{ message: 'File must be an image', path: ['avatar'] }] },
-        { status: 400 }
-      );
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      return NextResponse.json({ error: 'Only JPG, PNG, or WEBP images are allowed' }, { status: 400 });
     }
 
-    // Validate file size (5MB max)
-    if (file.size > 5 * 1024 * 1024) {
-      return NextResponse.json(
-        { error: 'Validation failed', details: [{ message: 'File size must not exceed 5MB', path: ['avatar'] }] },
-        { status: 400 }
-      );
+    // Validate file size (2MB max)
+    if (file.size > 2 * 1024 * 1024) {
+      return NextResponse.json({ error: 'Image is too large (max 2MB)' }, { status: 400 });
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
     
-    // Generate filename
-    // Sanitize original name
-    const originalName = file.name.replace(/[^a-zA-Z0-9.-]/g, '');
-    const filename = `${Date.now()}-${originalName}`;
+    // Generate secure filename using UUID to prevent path traversal
+    const extMap: Record<string, string> = {
+      'image/jpeg': '.jpg',
+      'image/png': '.png',
+      'image/webp': '.webp',
+    };
+    const ext = extMap[file.type] || '.jpg';
+    const filename = `${crypto.randomUUID()}${ext}`;
     const publicPath = '/uploads/avatars/' + filename;
     const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'avatars');
     const filePath = path.join(uploadDir, filename);
@@ -51,9 +51,10 @@ export async function POST(req: NextRequest) {
     // Update user profile
     await UserModel.updateProfileImage(userId, publicPath);
 
-    return NextResponse.json({ 
-      message: 'Avatar uploaded successfully', 
-      imageUrl: publicPath 
+    return NextResponse.json({
+      message: 'Avatar uploaded successfully',
+      imageUrl: publicPath,
+      profile_image_url: publicPath,
     });
   } catch (error: unknown) {
     console.error('Avatar upload error:', error);

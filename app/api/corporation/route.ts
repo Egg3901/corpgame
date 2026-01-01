@@ -123,7 +123,7 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    const { name, sector } = validated.data;
+    const { name, sector, focus } = validated.data;
 
     // Check if user already has a corporation
     const existingCorporations = await CorporationModel.findByCeoId(userId);
@@ -141,8 +141,8 @@ export async function POST(request: NextRequest) {
     const corporation = await CorporationModel.create({
       ceo_id: userId,
       name,
-      type: sector || null,
-      focus: 'diversified', // Default focus
+      type: sector,
+      focus: (focus as CorpFocus) || 'diversified', // Default focus
       shares: 500000,
       public_shares: 100000,
       share_price: 1.00,

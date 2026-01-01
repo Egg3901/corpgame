@@ -1,6 +1,6 @@
-# Metrics
+﻿# Development Metrics
 
-**Last Updated:** 2025-12-31  
+**Last Updated:** 2026-01-01
 **Baseline:** Post-Migration Audit (AUDIT_REPORT_QA_CONTROL_20251231.md)
 
 ---
@@ -51,3 +51,9 @@
 | Missing .env.example | Open | P0 | Phase 3 |
 | No rate limiting | Open | P2 | Phase 6 |
 | No CORS config | Open | P2 | Phase 6 |
+
+---
+
+## Recent Completed Work
+
+- **2026-01-01:** FID-20260101-001 completed (avatar upload 405 fix + standardized upload policy)

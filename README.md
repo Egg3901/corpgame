@@ -151,7 +151,7 @@ This project maintains **AAA quality standards** with comprehensive testing, doc
 | `npm test` | Run Vitest test suite (209 tests) |
 | `npm run lint` | Run ESLint code quality checks |
 | `npm run db:reset` | Reset and seed database with initial data |
-| `npm run type-check` | Run TypeScript compiler (no emit) |
+| `npm run typecheck` | Run TypeScript compiler (no emit) |
 
 ---
 
@@ -429,4 +429,4 @@ If you find this project useful, please consider giving it a star! ⭐
 
 **Built with ❤️ using modern web technologies and AAA quality standards**
 
-*Last Updated: December 31, 2025*
+*Last Updated: January 1, 2026*

@@ -1,16 +1,13 @@
-# Planned Features
+﻿# Planned Features
 
-**Last Updated:** 2025-12-31  
+**Last Updated:** 2026-01-01
 **Archive:** Old FID-001 archived to `archives/2025-12/archived_planned_20251231.md`
 
 ---
 
-## No Planned Features
+*No planned features currently.*
 
-*All current work has been completed! 🎉*
-
-**Recent Completion:**
-- FID-20251231-001 (Quality Perfection - 8 Phases) - Moved to `completed.md`
+---
 
 **To Plan New Work:**
 1. Review `dev/issues.md` for identified problems

@@ -1,6 +1,7 @@
 import bcrypt from 'bcryptjs';
 import { getDb, getNextId } from '../db/mongo';
 import { ACTIONS_CONFIG } from '../constants/actions';
+import DOMPurify from 'isomorphic-dompurify';
 
 export interface User {
   id: number;
@@ -79,7 +80,8 @@ export class UserModel {
     const cleanGender = (gender && gender.trim() !== '' && ['m', 'f', 'nonbinary'].includes(gender)) ? gender as 'm' | 'f' | 'nonbinary' : null;
     const cleanAge = age !== undefined && age !== null ? age : null;
     const cleanStartingState = starting_state && starting_state.trim() !== '' ? starting_state.trim() : null;
-    const cleanBio = bio && bio.trim() !== '' ? bio.trim() : 'I\'m a new user, say hi!';
+    // Sanitize bio to prevent XSS attacks
+    const cleanBio = bio && bio.trim() !== '' ? DOMPurify.sanitize(bio.trim(), { ALLOWED_TAGS: [], ALLOWED_ATTR: [] }) : 'I\'m a new user, say hi!';
     
     const db = getDb();
     const now = new Date();
@@ -219,9 +221,11 @@ export class UserModel {
   }
 
   static async updateBio(userId: number, bio: string): Promise<void> {
+    // Sanitize bio to prevent XSS attacks - strip all HTML tags
+    const sanitizedBio = DOMPurify.sanitize(bio, { ALLOWED_TAGS: [], ALLOWED_ATTR: [] });
     await getDb().collection<User>('users').updateOne(
       { id: userId },
-      { $set: { bio } }
+      { $set: { bio: sanitizedBio } }
     );
   }
 

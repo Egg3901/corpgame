@@ -87,7 +87,7 @@ export default function PortfolioPage() {
   }
 
   // Sort holdings by value (highest first)
-  const sortedHoldings = [...portfolio.holdings].sort((a, b) => b.current_value - a.current_value);
+  const sortedHoldings = portfolio.holdings ? [...portfolio.holdings].sort((a, b) => b.current_value - a.current_value) : [];
 
   return (
     <AppNavigation>

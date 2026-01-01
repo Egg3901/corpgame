@@ -609,19 +609,46 @@ export default function ProfileDashboard({ profileId }: ProfileDashboardProps) {
                 <div className="space-y-4 text-sm text-default-600">
                   <div className="flex items-center justify-between rounded-xl border border-default-200 bg-surface-1/70 p-3 shadow-sm">
                     <span>Buy/Sell Investments</span>
-                    <Button size="sm" variant="bordered" className="border-default-200 text-default-600">
+                    <Button 
+                      size="sm" 
+                      variant="bordered" 
+                      className="border-default-200 text-default-600"
+                      onPress={() => router.push('/portfolio')}
+                    >
                       Manage
                     </Button>
                   </div>
                   <div className="flex items-center justify-between rounded-xl border border-default-200 bg-surface-1/70 p-3 shadow-sm">
                     <span>Build Production Units</span>
-                    <Button size="sm" variant="bordered" className="border-default-200 text-default-600">
+                    <Button 
+                      size="sm" 
+                      variant="bordered" 
+                      className="border-default-200 text-default-600"
+                      onPress={() => {
+                        if (!primaryCorporation) {
+                          router.push('/corporation/create');
+                        } else {
+                          router.push('/corporate-actions');
+                        }
+                      }}
+                    >
                       Build
                     </Button>
                   </div>
                   <div className="flex items-center justify-between rounded-xl border border-default-200 bg-surface-1/70 p-3 shadow-sm">
                     <span>Set Corporate Policy</span>
-                    <Button size="sm" variant="bordered" className="border-default-200 text-default-600">
+                    <Button 
+                      size="sm" 
+                      variant="bordered" 
+                      className="border-default-200 text-default-600"
+                      onPress={() => {
+                        if (!primaryCorporation) {
+                          router.push('/corporation/create');
+                        } else {
+                          router.push('/corporate-actions');
+                        }
+                      }}
+                    >
                       Configure
                     </Button>
                   </div>

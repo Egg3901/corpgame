@@ -77,7 +77,7 @@ const RATE_LIMITS: Array<{ pattern: RegExp; config: RateLimitConfig }> = [
     pattern: /^\/api\/auth\//,
     config: { 
       windowMs: 15 * 60 * 1000, // 15 minutes
-      max: 20,
+      max: 200,
       description: 'Authentication operations'
     }
   },

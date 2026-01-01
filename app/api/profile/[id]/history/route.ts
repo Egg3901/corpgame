@@ -8,13 +8,14 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await connectMongo();
-    
+
     // History is only available by ID currently
-    const userId = parseInt(params.id, 10);
+    const { id } = await params;
+    const userId = parseInt(id, 10);
 
     if (isNaN(userId)) {
       // If we want to support slug, we'd need to lookup user by slug here

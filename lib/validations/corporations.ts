@@ -41,14 +41,25 @@ export const CreateCorporationSchema = z.object({
     .regex(/^[a-zA-Z0-9\s&.-]+$/, 'Corporation name can only contain letters, numbers, spaces, &, ., and -'),
   sector: z
     .string()
+    .trim()
     .min(1, 'Sector is required')
     .max(50, 'Sector must not exceed 50 characters'),
+  type: z
+    .string()
+    .max(50, 'Type must not exceed 50 characters')
+    .optional(),
+  focus: z
+    .string()
+    .max(50, 'Focus must not exceed 50 characters')
+    .optional(),
   initial_capital: z
     .number()
     .positive('Initial capital must be positive')
     .min(100000, 'Initial capital must be at least $100,000')
     .max(100000000, 'Initial capital must not exceed $100,000,000')
-    .refine((val) => Number.isFinite(val), 'Initial capital must be a finite number'),
+    .refine((val) => Number.isFinite(val), 'Initial capital must be a finite number')
+    .optional()
+    .default(500000),
   ticker: z
     .string()
     .length(4, 'Ticker must be exactly 4 characters')

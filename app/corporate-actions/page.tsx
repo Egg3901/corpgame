@@ -36,9 +36,8 @@ export default function CorporateActionsPage() {
         );
 
         if (!myCorp) {
-          setError('You are not the CEO of any corporation.');
-          setCorporation(null);
-          setActiveActions([]);
+          // User is not a CEO - redirect to create corporation page
+          window.location.href = '/corporation/create';
           return;
         }
 

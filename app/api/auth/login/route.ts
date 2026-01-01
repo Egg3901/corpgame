@@ -77,14 +77,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
     }
 
-    // Rate limit check (basic)
-    if (user.last_login_at) {
-      const lastLoginTime = new Date(user.last_login_at).getTime();
-      const now = new Date().getTime();
-      if (now - lastLoginTime < 1000) { // 1 second cooldown
-        return NextResponse.json({ error: 'Too many login attempts. Please wait.' }, { status: 429 });
-      }
-    }
+    // Rate limiting is handled by middleware - removed per-user cooldown
+    // The rate limit middleware already enforces 5 attempts per 15 minutes per IP
 
     await UserModel.updateLastLogin(user.id, clientIp);
 

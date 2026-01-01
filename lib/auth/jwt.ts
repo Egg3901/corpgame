@@ -1,22 +1,17 @@
 import jwt, { JwtPayload, SignOptions, VerifyOptions } from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.JWT_SECRET;
-const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET;
+const isProduction = process.env.NODE_ENV === 'production';
+
+const JWT_SECRET = process.env.JWT_SECRET ?? (isProduction ? undefined : 'insecure-dev-jwt-secret');
+const JWT_REFRESH_SECRET =
+  process.env.JWT_REFRESH_SECRET ?? (isProduction ? undefined : 'insecure-dev-jwt-refresh-secret');
 
 if (!JWT_SECRET) {
-  if (process.env.NODE_ENV === 'production') {
-    throw new Error('JWT_SECRET is not defined in environment variables.');
-  } else {
-    console.warn('JWT_SECRET is not defined. Using insecure fallback for development.');
-  }
+  throw new Error('JWT_SECRET is not defined in environment variables.');
 }
 
 if (!JWT_REFRESH_SECRET) {
-  if (process.env.NODE_ENV === 'production') {
-    throw new Error('JWT_REFRESH_SECRET is not defined in environment variables.');
-  } else {
-    console.warn('JWT_REFRESH_SECRET is not defined. Using insecure fallback for development.');
-  }
+  throw new Error('JWT_REFRESH_SECRET is not defined in environment variables.');
 }
 
 export interface TokenPayload {
@@ -39,7 +34,7 @@ const ALGORITHM = 'HS256';
  * Signs a JWT access token.
  */
 export const signAccessToken = (payload: TokenPayload): string => {
-  const secret = JWT_SECRET || 'fallback-secret';
+  const secret = JWT_SECRET;
   const options: SignOptions = {
     expiresIn: ACCESS_TOKEN_EXPIRY,
     algorithm: ALGORITHM,
@@ -54,7 +49,7 @@ export const signAccessToken = (payload: TokenPayload): string => {
  * Signs a JWT refresh token.
  */
 export const signRefreshToken = (payload: TokenPayload): string => {
-  const secret = JWT_REFRESH_SECRET || 'fallback-refresh-secret';
+  const secret = JWT_REFRESH_SECRET;
   const refreshPayload: RefreshTokenPayload = { ...payload, tokenType: 'refresh' };
   
   const options: SignOptions = {
@@ -71,7 +66,7 @@ export const signRefreshToken = (payload: TokenPayload): string => {
  * Verifies a JWT access token.
  */
 export const verifyAccessToken = (token: string): TokenPayload => {
-  const secret = JWT_SECRET || 'fallback-secret';
+  const secret = JWT_SECRET;
   const options: VerifyOptions = {
     algorithms: [ALGORITHM],
     issuer: 'corpgame-api',
@@ -94,7 +89,7 @@ export const verifyAccessToken = (token: string): TokenPayload => {
  * Verifies a JWT refresh token.
  */
 export const verifyRefreshToken = (token: string): RefreshTokenPayload => {
-  const secret = JWT_REFRESH_SECRET || 'fallback-refresh-secret';
+  const secret = JWT_REFRESH_SECRET;
   const options: VerifyOptions = {
     algorithms: [ALGORITHM],
     issuer: 'corpgame-api',

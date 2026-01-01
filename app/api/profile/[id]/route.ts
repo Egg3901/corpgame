@@ -8,11 +8,11 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await connectMongo();
-    const { id: idOrSlug } = params;
+    const { id: idOrSlug } = await params;
     let user;
 
     // Try to parse as ID first

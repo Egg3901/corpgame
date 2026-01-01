@@ -7,7 +7,6 @@ import {
   NavbarBrand, 
   NavbarContent, 
   NavbarItem, 
-  NavbarMenuToggle,
   NavbarMenu,
   NavbarMenuItem,
   Button,
@@ -208,7 +207,7 @@ export default function AppNavigation({ children }: AppNavigationProps) {
       >
         Skip to main content
       </a>
-      <div className="pointer-events-none absolute inset-0 opacity-80 dark:opacity-0 bloomberg:opacity-0">
+      <div className="pointer-events-none fixed inset-0 opacity-80 dark:opacity-0 bloomberg:opacity-0 -z-10">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(59,130,246,0.12),transparent_35%),radial-gradient(circle_at_80%_0%,rgba(30,64,175,0.1),transparent_30%),radial-gradient(circle_at_50%_80%,rgba(15,23,42,0.06),transparent_40%)]" />
       </div>
 
@@ -217,18 +216,29 @@ export default function AppNavigation({ children }: AppNavigationProps) {
         isMenuOpen={isMenuOpen}
         maxWidth="xl" 
         position="sticky" 
-        className="bg-background/70 backdrop-blur-md border-b border-divider"
-        shouldHideOnScroll
+        className="bg-background/70 backdrop-blur-md border-b border-divider relative"
+        shouldHideOnScroll={false}
       >
-        <NavbarContent>
-          <NavbarMenuToggle
-            aria-label={isMenuOpen ? "Close menu" : "Open menu"}
-            className="sm:hidden"
-          />
+        <NavbarContent className="gap-2">
           <NavbarBrand className="gap-2">
-            <div className="p-2 bg-primary/10 rounded-lg">
-              <Menu className="w-5 h-5 text-primary" />
-            </div>
+            {/* Single menu toggle (matches original blue hamburger styling) */}
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setIsMenuOpen((prev) => !prev);
+              }}
+              className="p-2 bg-primary/10 rounded-lg transition-colors hover:bg-primary/15"
+              style={{ pointerEvents: 'auto' }}
+              aria-label={isMenuOpen ? 'Close menu' : 'Open menu'}
+              type="button"
+            >
+              {isMenuOpen ? (
+                <X className="w-5 h-5 text-primary" />
+              ) : (
+                <Menu className="w-5 h-5 text-primary" />
+              )}
+            </button>
             <div className="leading-tight">
               <p className="text-[10px] uppercase tracking-[0.2em] text-default-500 hidden sm:block">Navigation</p>
               <p className="text-sm font-bold text-foreground truncate">Corporate Warfare</p>

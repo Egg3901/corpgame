@@ -1,5 +1,12 @@
 import { NextRequest } from 'next/server';
-import { BannedIpModel } from '../models/BannedIp';
+
+/**
+ * Normalize IP address
+ * Removes IPv6 prefix and trims whitespace
+ */
+const normalizeIp = (ip: string): string => {
+  return (ip || '').trim().replace(/^::ffff:/, '');
+};
 
 /**
  * Extracts the client IP address from a Next.js request
@@ -42,17 +49,17 @@ export const getClientIp = (request: NextRequest): string => {
   const forwarded = request.headers.get('x-forwarded-for');
   if (forwarded) {
     const clientIp = forwarded.split(',')[0].trim();
-    return BannedIpModel.normalize(clientIp);
+    return normalizeIp(clientIp);
   }
   
   // Priority 2: x-real-ip (alternative proxy header)
   const realIp = request.headers.get('x-real-ip');
   if (realIp) {
-    return BannedIpModel.normalize(realIp.trim());
+    return normalizeIp(realIp.trim());
   }
   
   // Fallback: '0.0.0.0'
   // Note: Next.js Edge Runtime does not expose socket/connection info
   // In production behind a proxy, headers should always be available
-  return BannedIpModel.normalize('0.0.0.0');
+  return normalizeIp('0.0.0.0');
 };
