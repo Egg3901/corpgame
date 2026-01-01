@@ -1,6 +1,5 @@
 # Suggestions
 
-- Optimization:
-- Patterns:
-- Tooling:
-
+| Topic | Suggestion | Status |
+|-------|------------|--------|
+| | | |

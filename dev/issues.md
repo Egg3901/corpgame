@@ -1,6 +1,5 @@
-# Issues
+# Issues Log
 
-- Open:
-- In Review:
-- Closed:
-
+| ID | Title | Status | Severity | Description |
+|----|-------|--------|----------|-------------|
+| | | | | |

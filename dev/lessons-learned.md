@@ -1,7 +1,5 @@
 # Lessons Learned
 
-- Date:
-- Context:
-- Lesson:
-- Action:
-
+| Date | Topic | Lesson | Action Item |
+|------|-------|--------|-------------|
+| | | | |

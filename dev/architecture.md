@@ -1,8 +1,11 @@
-# Architecture Documentation Moved
+# System Architecture
 
-This file has been consolidated into the unified documentation structure.
+## Tech Stack
+- **Frontend**: Next.js 14 (App Router)
+- **Database**: MongoDB
+- **Styling**: Tailwind CSS
+- **Authentication**: JWT (Custom Implementation)
+- **State Management**: React Context / Hooks
 
-Please see: **[dev/docs/architecture.md](docs/architecture.md)**
-
-For all documentation, visit the **[Documentation Hub](docs/README.md)**
-
+## Core Components
+[To be populated]
