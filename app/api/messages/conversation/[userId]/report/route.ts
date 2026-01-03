@@ -7,7 +7,7 @@ import { getErrorMessage } from '@/lib/utils';
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { userId: string } }
+  { params }: { params: Promise<{ userId: string }> }
 ) {
   try {
     const reporterId = await getAuthUserId(request);
@@ -15,7 +15,8 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const reportedUserId = parseInt(params.userId, 10);
+    const { userId: userIdParam } = await params;
+    const reportedUserId = parseInt(userIdParam, 10);
     if (isNaN(reportedUserId)) {
       return NextResponse.json({ error: 'Invalid user ID' }, { status: 400 });
     }

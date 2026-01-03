@@ -6,11 +6,12 @@ import { getErrorMessage } from '@/lib/utils';
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { corpId: string; proposalId: string } }
+  { params }: { params: Promise<{ corpId: string; proposalId: string }> }
 ) {
   try {
-    const corpId = parseInt(params.corpId, 10);
-    const proposalId = parseInt(params.proposalId, 10);
+    const { corpId: corpIdParam, proposalId: proposalIdParam } = await params;
+    const corpId = parseInt(corpIdParam, 10);
+    const proposalId = parseInt(proposalIdParam, 10);
     if (isNaN(corpId) || isNaN(proposalId)) {
       return NextResponse.json({ error: 'Invalid IDs' }, { status: 400 });
     }

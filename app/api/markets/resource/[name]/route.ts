@@ -11,16 +11,18 @@ import {
   getResourceInfo,
   EXTRACTION_OUTPUT_RATE,
   PRODUCTION_RESOURCE_CONSUMPTION,
+  RESOURCE_BASE_PRICES,
 } from '@/lib/constants/sectors';
 import { getErrorMessage } from '@/lib/utils';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { name: string } }
+  { params }: { params: Promise<{ name: string }> }
 ) {
   try {
     await connectMongo();
-    const resourceName = decodeURIComponent(params.name) as Resource;
+    const { name } = await params;
+    const resourceName = decodeURIComponent(name) as Resource;
 
     // Validate resource exists
     if (!RESOURCES.includes(resourceName)) {
@@ -65,8 +67,16 @@ export async function GET(
 
     // Unified demand and price
     const actualDemand = detail.demand;
-    const commodityPrice = detail.price;
     const resourceInfo = getResourceInfo(resourceName);
+
+    // Calculate full price info including scarcityFactor and basePrice
+    const basePrice = RESOURCE_BASE_PRICES[resourceName] || 100;
+    const scarcityFactor = actualDemand / Math.max(0.01, actualSupply) || 1;
+    const commodityPrice = {
+      currentPrice: detail.price.currentPrice,
+      basePrice,
+      scarcityFactor,
+    };
 
     // Get top producers (corporations extracting this resource) or top demanders based on filter
     let listData = [];

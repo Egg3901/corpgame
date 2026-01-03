@@ -204,15 +204,15 @@ export default function SectorCard({
     producedProductContext?: string | null,
     isDefenseSector: boolean = false
   ) => {
-    const items: Array<{ name: string; amount: number; price: number; costHr: number }> = [];
+    const items: Array<{ name: string; quantity: number; unitPrice: number; costHr: number }> = [];
     Object.entries(inputs.resources || {}).forEach(([name, amount]) => {
       const price = commodityPrices?.[name]?.currentPrice ?? 0;
-      items.push({ name, amount, price, costHr: amount * price });
+      items.push({ name, quantity: amount, unitPrice: price, costHr: amount * price });
     });
     Object.entries(inputs.products || {}).forEach(([name, amount]) => {
       const price = productPrices?.[name]?.currentPrice ?? PRODUCT_BASE_PRICES[name] ?? 0;
       let mult = producedProductContext === 'Electricity' && name === 'Electricity' ? 0.1 : 1;
-      
+
       // Apply Defense wholesale discount for non-electricity products
       if (isDefenseSector && name !== 'Electricity') {
         mult *= DEFENSE_WHOLESALE_DISCOUNT;
@@ -220,8 +220,23 @@ export default function SectorCard({
         // Align Light Industry service/retail (if applicable) with retail discount
         mult = RETAIL_WHOLESALE_DISCOUNT;
       }
-      
-      items.push({ name, amount, price, costHr: amount * price * mult });
+
+      items.push({ name, quantity: amount, unitPrice: price * mult, costHr: amount * price * mult });
+    });
+    return items;
+  };
+
+  const computeOutputRevenue = (
+    outputs: { resources: Record<string, number>; products: Record<string, number> }
+  ) => {
+    const items: Array<{ name: string; quantity: number; unitPrice: number; revenueHr: number }> = [];
+    Object.entries(outputs.resources || {}).forEach(([name, amount]) => {
+      const price = commodityPrices?.[name]?.currentPrice ?? 0;
+      items.push({ name, quantity: amount, unitPrice: price, revenueHr: amount * price });
+    });
+    Object.entries(outputs.products || {}).forEach(([name, amount]) => {
+      const price = productPrices?.[name]?.currentPrice ?? PRODUCT_BASE_PRICES[name] ?? 0;
+      items.push({ name, quantity: amount, unitPrice: price, revenueHr: amount * price });
     });
     return items;
   };
@@ -505,12 +520,8 @@ export default function SectorCard({
                         costHr={retailCostHr}
                         profitHr={retailProfit}
                         outputSoldUnits={Math.round((retailFlow?.inputs.products || []).reduce((s, p) => s + p.total, 0))}
-                        costItems={retailInputItems.map(it => ({ name: it.name, costHr: it.costHr }))}
-                        breakdown={[
-                          { label: 'Base', value: isDefense ? 0 : UNIT_ECONOMICS.retail.baseRevenue },
-                          { label: isDefense ? 'Cost-Plus Revenue' : 'Price × Output', value: retailRevenueFromFlow },
-                        ]}
-                        note={isDefense ? 'Defense sector: 1.0 consumption, 0.8x wholesale price, 1.0x cost revenue' : `Demand-based cost factor applied: ÷ Growth ${stateGrowthFactor.toFixed(2)}x (1 + 25% × sector growth avg)`}
+                        costItems={retailInputItems}
+                        note={isDefense ? 'Defense sector: 0.8x wholesale price' : `Growth factor: ${stateGrowthFactor.toFixed(2)}x`}
                       />
                     }
                   >
@@ -573,16 +584,16 @@ export default function SectorCard({
                         costHr={productionCost}
                         profitHr={productionProfit}
                         outputSoldUnits={Math.round(((productionFlow?.outputs.products || []).reduce((s, p) => s + p.total, 0) + (productionFlow?.outputs.resources || []).reduce((s, r) => s + r.total, 0)))}
+                        outputItems={computeOutputRevenue({
+                          resources: Object.fromEntries((productionFlow?.outputs.resources || []).map(i => [i.name, i.perUnit])),
+                          products: Object.fromEntries((productionFlow?.outputs.products || []).map(i => [i.name, i.perUnit]))
+                        })}
                         costItems={[
                           ...computeInputCosts({
                             resources: Object.fromEntries((productionFlow?.inputs.resources || []).map(i => [i.name, i.perUnit])),
                             products: Object.fromEntries((productionFlow?.inputs.products || []).map(i => [i.name, i.perUnit]))
-                          }, producedProduct).map(it => ({ name: it.name, costHr: it.costHr })),
-                          { name: 'Labor/Operations', costHr: PRODUCTION_LABOR_COST },
-                        ]}
-                        breakdown={[
-                          { label: 'Base', value: productionProductBase },
-                          { label: 'Price × Output', value: productionProductPrice * productionOutputRate },
+                          }, producedProduct),
+                          { name: 'Labor/Operations', quantity: 1, unitPrice: PRODUCTION_LABOR_COST, costHr: PRODUCTION_LABOR_COST },
                         ]}
                       />
                     }
@@ -646,12 +657,8 @@ export default function SectorCard({
                         costHr={serviceCostHr}
                         profitHr={serviceProfit}
                         outputSoldUnits={Math.round((serviceFlow?.inputs.products || []).reduce((s, p) => s + p.total, 0))}
-                        costItems={serviceInputItems.map(it => ({ name: it.name, costHr: it.costHr }))}
-                        breakdown={[
-                          { label: 'Base', value: isDefense ? 0 : UNIT_ECONOMICS.service.baseRevenue },
-                          { label: isDefense ? 'Cost-Plus Revenue' : 'Price × Output', value: serviceRevenueFromFlow },
-                        ]}
-                        note={isDefense ? 'Defense sector: 1.0 consumption, 0.8x wholesale price, 1.0x cost revenue' : `Demand-based cost factor applied: ÷ Growth ${stateGrowthFactor.toFixed(2)}x (1 + 25% × sector growth avg)`}
+                        costItems={serviceInputItems}
+                        note={isDefense ? 'Defense sector: 0.8x wholesale price' : `Growth factor: ${stateGrowthFactor.toFixed(2)}x`}
                       />
                     }
                   >
@@ -714,17 +721,16 @@ export default function SectorCard({
                         costHr={extractionCost}
                         profitHr={extractionProfit}
                         outputSoldUnits={Math.round((extractionFlow?.outputs.resources || []).reduce((s, r) => s + r.total, 0))}
+                        outputItems={computeOutputRevenue({
+                          resources: Object.fromEntries((extractionFlow?.outputs.resources || []).map(i => [i.name, i.perUnit])),
+                          products: {}
+                        })}
                         costItems={[
                           ...computeInputCosts({
                             resources: Object.fromEntries((extractionFlow?.inputs.resources || []).map(i => [i.name, i.perUnit])),
                             products: Object.fromEntries((extractionFlow?.inputs.products || []).map(i => [i.name, i.perUnit]))
-                          }).map(it => ({ name: it.name, costHr: it.costHr })),
-                          { name: 'Labor', costHr: UNIT_ECONOMICS.extraction.baseCost },
-                        ]}
-                        breakdown={[
-                          { label: 'Base Price', value: extractionBasePrice },
-                          { label: 'Market Revenue', value: getExtractionRevenue() },
-                          { label: 'Total Cost/Unit', value: extractionUnitCost },
+                          }),
+                          { name: 'Labor', quantity: 1, unitPrice: UNIT_ECONOMICS.extraction.baseCost, costHr: UNIT_ECONOMICS.extraction.baseCost },
                         ]}
                       />
                     }

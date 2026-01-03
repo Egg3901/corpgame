@@ -6,11 +6,11 @@ import { getErrorMessage } from '@/lib/utils';
 
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { sector: string; unitType: string } }
+  { params }: { params: Promise<{ sector: string; unitType: string }> }
 ) {
   try {
     await requireAdmin(req);
-    const { sector, unitType } = params;
+    const { sector, unitType } = await params;
     const validUnitTypes: UnitType[] = ['production', 'retail', 'service', 'extraction'];
 
     if (!validUnitTypes.includes(unitType as UnitType)) {

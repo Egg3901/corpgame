@@ -10,6 +10,9 @@ import { getErrorMessage } from '@/lib/utils';
 import { SECTORS, isValidSector, CORP_FOCUS_TYPES, isValidCorpFocus, CorpFocus } from '@/lib/constants/sectors';
 import { CreateCorporationSchema } from '@/lib/validations/corporations';
 
+// Corporation founding cost - deducted from user's cash, becomes corporation capital
+const FOUNDING_COST = 400000;
+
 // GET /api/corporation - List all corporations
 export async function GET(request: NextRequest) {
   try {
@@ -139,7 +142,23 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // Create corporation with defaults: 500k shares, 100k public, $1.00 price, 500k capital
+    // Check if user has enough cash for founding cost
+    const user = await UserModel.findById(userId);
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    const userCash = typeof user.cash === 'string' ? parseFloat(user.cash) : (user.cash || 0);
+    if (userCash < FOUNDING_COST) {
+      return NextResponse.json({
+        error: `Insufficient funds. You need $${FOUNDING_COST.toLocaleString()} to found a corporation. You have $${userCash.toLocaleString()}.`
+      }, { status: 400 });
+    }
+
+    // Deduct founding cost from user's cash
+    await UserModel.updateCash(userId, -FOUNDING_COST);
+
+    // Create corporation with defaults: 500k shares, 100k public, $1.00 price, founding cost as capital
     const corporation = await CorporationModel.create({
       ceo_id: userId,
       name,
@@ -148,23 +167,26 @@ export async function POST(request: NextRequest) {
       shares: 500000,
       public_shares: 100000,
       share_price: 1.00,
-      capital: 500000.00,
+      capital: FOUNDING_COST,
     });
 
     // Create shareholder record for CEO with 400,000 shares (80%)
-    await ShareholderModel.create({
+    const founderShares = corporation.shares - corporation.public_shares;
+    console.log(`[Corporation Create] Creating shareholder record: corp=${corporation.id}, user=${userId}, shares=${founderShares}`);
+    const shareholderRecord = await ShareholderModel.create({
       corporation_id: corporation.id,
       user_id: userId,
-      shares: 400000,
+      shares: founderShares,
     });
+    console.log(`[Corporation Create] Shareholder record created:`, shareholderRecord);
 
     // Record corporation founding transaction
     await TransactionModel.create({
       transaction_type: 'corp_founding',
-      amount: 500000, // Initial capital
+      amount: FOUNDING_COST,
       from_user_id: userId,
       corporation_id: corporation.id,
-      description: `Founded ${corporation.name} with $500,000 initial capital`,
+      description: `Founded ${corporation.name} with $${FOUNDING_COST.toLocaleString()} initial capital`,
     });
 
     return NextResponse.json(corporation, { status: 201 });

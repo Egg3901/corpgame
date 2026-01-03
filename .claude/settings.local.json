@@ -13,7 +13,9 @@
       "Bash(npm install:*)",
       "Bash(git rm:*)",
       "Bash(git config:*)",
-      "Bash(npm run build:*)"
+      "Bash(npm run build:*)",
+      "Bash(npm run test:*)",
+      "Bash(findstr:*)"
     ]
   }
 }

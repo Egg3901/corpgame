@@ -198,8 +198,8 @@ export default function CommodityDetailPage() {
               <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
                 <p className="text-sm text-white/70">Scarcity</p>
                 <p className="text-2xl font-bold">
-                  {data.price.scarcityFactor >= 1.5 ? 'High' : data.price.scarcityFactor >= 1.0 ? 'Normal' : 'Low'}
-                  <span className="text-sm font-mono ml-2 text-white/70">({data.price.scarcityFactor.toFixed(2)}x)</span>
+                  {(data.price.scarcityFactor ?? 1) >= 1.5 ? 'High' : (data.price.scarcityFactor ?? 1) >= 1.0 ? 'Normal' : 'Low'}
+                  <span className="text-sm font-mono ml-2 text-white/70">({(data.price.scarcityFactor ?? 1).toFixed(2)}x)</span>
                 </p>
               </div>
               <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
@@ -492,40 +492,42 @@ export default function CommodityDetailPage() {
               </div>
             </div>
 
-            {/* Resource-Rich States */}
-            <div className="relative rounded-2xl border border-gray-200/50 dark:border-gray-700/50 bg-gradient-to-br from-white via-white to-gray-50/50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800/50 shadow-xl overflow-hidden backdrop-blur-sm">
-              <div className="relative p-6">
-                <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                  <MapPin className="h-5 w-5 text-corporate-blue" />
-                  Resource-Rich States
-                </h3>
-                <div className="space-y-3">
-                  {data.info.topStates.map((state, idx) => (
-                    <Link
-                      key={state.stateCode}
-                      href={`/states/${state.stateCode}`}
-                      className="flex items-center justify-between p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-corporate-blue/30 dark:hover:border-corporate-blue/30 transition-colors"
-                    >
-                      <div className="flex items-center gap-3">
-                        <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
-                          idx === 0 ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300' :
-                          idx === 1 ? 'bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300' :
-                          idx === 2 ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/50 dark:text-orange-300' :
-                          'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
-                        }`}>
-                          {idx + 1}
-                        </span>
-                        <span className="font-medium text-gray-900 dark:text-white">{state.stateName}</span>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-mono font-semibold text-gray-900 dark:text-white">{formatNumber(state.amount)}</p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">{state.percentage.toFixed(1)}%</p>
-                      </div>
-                    </Link>
-                  ))}
+            {/* Resource-Rich States - only show if data exists */}
+            {data.info.topStates && data.info.topStates.length > 0 && (
+              <div className="relative rounded-2xl border border-gray-200/50 dark:border-gray-700/50 bg-gradient-to-br from-white via-white to-gray-50/50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800/50 shadow-xl overflow-hidden backdrop-blur-sm">
+                <div className="relative p-6">
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                    <MapPin className="h-5 w-5 text-corporate-blue" />
+                    Resource-Rich States
+                  </h3>
+                  <div className="space-y-3">
+                    {data.info.topStates.map((state, idx) => (
+                      <Link
+                        key={state.stateCode}
+                        href={`/states/${state.stateCode}`}
+                        className="flex items-center justify-between p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-corporate-blue/30 dark:hover:border-corporate-blue/30 transition-colors"
+                      >
+                        <div className="flex items-center gap-3">
+                          <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+                            idx === 0 ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300' :
+                            idx === 1 ? 'bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300' :
+                            idx === 2 ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/50 dark:text-orange-300' :
+                            'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
+                          }`}>
+                            {idx + 1}
+                          </span>
+                          <span className="font-medium text-gray-900 dark:text-white">{state.stateName}</span>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-mono font-semibold text-gray-900 dark:text-white">{formatNumber(state.amount)}</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">{state.percentage.toFixed(1)}%</p>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
 
             {/* Supplying Sectors */}
             <div className="relative rounded-2xl border border-gray-200/50 dark:border-gray-700/50 bg-gradient-to-br from-white via-white to-gray-50/50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800/50 shadow-xl overflow-hidden backdrop-blur-sm">
@@ -580,7 +582,7 @@ export default function CommodityDetailPage() {
                   </p>
                   <div className="mt-4 p-3 rounded-lg bg-gray-100 dark:bg-gray-800">
                     <p className="font-mono text-xs text-gray-700 dark:text-gray-300">
-                      {formatCurrency(data.price.basePrice)} × {data.price.scarcityFactor.toFixed(2)} = {formatCurrency(data.price.currentPrice)}
+                      {formatCurrency(data.price.basePrice)} × {(data.price.scarcityFactor ?? 1).toFixed(2)} = {formatCurrency(data.price.currentPrice)}
                     </p>
                   </div>
                 </div>

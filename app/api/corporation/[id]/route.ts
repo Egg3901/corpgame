@@ -28,11 +28,12 @@ async function isCeo(corporationId: number, userId: number): Promise<boolean> {
 // GET /api/corporation/:id - Get corporation details
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await connectMongo();
-    const id = parseInt(params.id, 10);
+    const { id: idParam } = await params;
+    const id = parseInt(idParam, 10);
     if (isNaN(id)) {
       return NextResponse.json({ error: 'Invalid corporation ID' }, { status: 400 });
     }
@@ -111,7 +112,7 @@ export async function GET(
 // PATCH /api/corporation/:id - Update corporation
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await connectMongo();
@@ -120,7 +121,8 @@ export async function PATCH(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const id = parseInt(params.id, 10);
+    const { id: idParam } = await params;
+    const id = parseInt(idParam, 10);
     if (isNaN(id)) {
       return NextResponse.json({ error: 'Invalid corporation ID' }, { status: 400 });
     }
@@ -228,7 +230,7 @@ export async function PATCH(
 // DELETE /api/corporation/:id - Delete corporation
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await connectMongo();
@@ -237,7 +239,8 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const id = parseInt(params.id, 10);
+    const { id: idParam } = await params;
+    const id = parseInt(idParam, 10);
     if (isNaN(id)) {
       return NextResponse.json({ error: 'Invalid corporation ID' }, { status: 400 });
     }

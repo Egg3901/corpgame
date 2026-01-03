@@ -5,7 +5,7 @@ import { CorporationModel } from '@/lib/models/Corporation';
 import { getErrorMessage } from '@/lib/utils';
 import { updateStockPrice } from '@/lib/utils/valuation';
 
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const userId = await getAuthUserId(req);
     if (!userId) {
@@ -17,7 +17,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const corpId = parseInt(params.id, 10);
+    const { id } = await params;
+    const corpId = parseInt(id, 10);
     const { amount } = await req.json();
     const parsedAmount = parseFloat(amount);
 

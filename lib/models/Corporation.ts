@@ -1,5 +1,6 @@
 import { getDb, getNextId } from '../db/mongo';
 import { isValidSector, isValidCorpFocus, CorpFocus, Sector } from '@/lib/constants/sectors';
+import { ShareholderModel } from './Shareholder';
 
 export interface Corporation {
   id: number;
@@ -184,6 +185,13 @@ export class CorporationModel {
   }
 
   static async delete(id: number): Promise<void> {
+    // Clean up related data
+    await ShareholderModel.deleteByCorporationId(id);
+    await getDb().collection('board_appointments').deleteMany({ corporation_id: id });
+    await getDb().collection('board_proposals').deleteMany({ corporation_id: id });
+    await getDb().collection('board_votes').deleteMany({ corporation_id: id });
+    await getDb().collection('board_messages').deleteMany({ corporation_id: id });
+    // Delete the corporation
     await getDb().collection('corporations').deleteOne({ id });
   }
 

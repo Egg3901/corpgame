@@ -21,12 +21,13 @@ import { marketDataService } from '@/lib/services/MarketDataService';
 // GET /api/markets/states/:code - Get state details
 export async function GET(
   req: NextRequest,
-  { params }: { params: { code: string } }
+  { params }: { params: Promise<{ code: string }> }
 ) {
   try {
     await connectMongo();
     const db = getDb();
-    const stateCode = params.code.toUpperCase();
+    const { code } = await params;
+    const stateCode = code.toUpperCase();
 
     // Validate state code
     if (!isValidStateCode(stateCode)) {

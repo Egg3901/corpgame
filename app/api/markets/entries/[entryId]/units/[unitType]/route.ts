@@ -17,12 +17,13 @@ async function getStateLabel(stateCode: string): Promise<string> {
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { entryId: string; unitType: string } }
+  { params }: { params: Promise<{ entryId: string; unitType: string }> }
 ) {
   try {
     await connectMongo();
-    const entryId = parseInt(params.entryId, 10);
-    const unitType = params.unitType as UnitType;
+    const { entryId: entryIdParam, unitType: unitTypeParam } = await params;
+    const entryId = parseInt(entryIdParam, 10);
+    const unitType = unitTypeParam as UnitType;
     const userId = await getAuthUserId(request);
 
     if (!userId) {

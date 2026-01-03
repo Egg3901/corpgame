@@ -49,10 +49,12 @@ export class ShareholderModel {
   }
 
   static async findByCorporationId(corporationId: number): Promise<Shareholder[]> {
-    return await getDb().collection<Shareholder>('shareholders')
+    const result = await getDb().collection<Shareholder>('shareholders')
       .find({ corporation_id: corporationId })
       .sort({ shares: -1 })
       .toArray();
+    console.log(`[ShareholderModel.findByCorporationId] corpId=${corporationId}, found=${result.length} shareholders`);
+    return result;
   }
 
   static async findByUserId(userId: number): Promise<Shareholder[]> {
@@ -63,7 +65,9 @@ export class ShareholderModel {
   }
 
   static async getShareholder(corporationId: number, userId: number): Promise<Shareholder | null> {
-    return await getDb().collection<Shareholder>('shareholders').findOne({ corporation_id: corporationId, user_id: userId });
+    const result = await getDb().collection<Shareholder>('shareholders').findOne({ corporation_id: corporationId, user_id: userId });
+    console.log(`[ShareholderModel.getShareholder] corpId=${corporationId}, userId=${userId}, found=${!!result}, shares=${result?.shares}`);
+    return result;
   }
 
   static async updateShares(
@@ -83,6 +87,12 @@ export class ShareholderModel {
     await getDb().collection('shareholders').deleteOne({
       corporation_id: corporationId,
       user_id: userId
+    });
+  }
+
+  static async deleteByCorporationId(corporationId: number): Promise<void> {
+    await getDb().collection('shareholders').deleteMany({
+      corporation_id: corporationId
     });
   }
 }

@@ -1,25 +1,29 @@
 import { Suspense } from 'react';
 import { notFound } from 'next/navigation';
-import { connectMongo } from '@/lib/db/mongo';
+import { connectMongo, getDb } from '@/lib/db/mongo';
 import { CorporationModel } from '@/lib/models/Corporation';
 import { MarketEntryModel } from '@/lib/models/MarketEntry';
+import { ShareholderModel } from '@/lib/models/Shareholder';
+import { UserModel } from '@/lib/models/User';
 import { marketDataService, MarketItemSummary } from '@/lib/services/MarketDataService';
 import { calculateStockPrice, calculateBalanceSheet } from '@/lib/utils/valuation';
 import { SectorConfigService } from '@/lib/services/SectorConfigService';
 import CorporationDashboard from '@/components/corporation/CorporationDashboard';
 import { MarketMetadataResponse } from '@/lib/api';
+import { normalizeImageUrl } from '@/lib/utils/imageUrl';
 
 // Force dynamic rendering since data changes frequently
 export const dynamic = 'force-dynamic';
 
 interface PageProps {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 }
 
 export default async function CorporationPage({ params }: PageProps) {
-  const corpId = parseInt(params.id, 10);
+  const { id } = await params;
+  const corpId = parseInt(id, 10);
 
   if (isNaN(corpId)) {
     notFound();
@@ -52,6 +56,56 @@ export default async function CorporationPage({ params }: PageProps) {
   if (!corporation) {
     notFound();
   }
+
+  // Fetch shareholders with user details
+  let shareholders = await ShareholderModel.findByCorporationId(corpId);
+
+  // Self-healing: If CEO has no shares, assign founder shares
+  const ceoShareholding = shareholders.find(sh => sh.user_id === corporation.ceo_id);
+  if (!ceoShareholding && corporation.ceo_id) {
+    const founderShares = corporation.shares - corporation.public_shares;
+    if (founderShares > 0) {
+      console.log(`[Self-healing] Assigning ${founderShares} founder shares to CEO ${corporation.ceo_id} for corp ${corpId}`);
+      await ShareholderModel.create({
+        corporation_id: corpId,
+        user_id: corporation.ceo_id,
+        shares: founderShares,
+      });
+      shareholders = await ShareholderModel.findByCorporationId(corpId);
+    }
+  }
+
+  // Batch fetch user details for shareholders
+  const shareholderUserIds = [...new Set([...shareholders.map(sh => sh.user_id), corporation.ceo_id])];
+  const shareholderUsers = await UserModel.findByIds(shareholderUserIds);
+  const userMap = new Map(shareholderUsers.map(u => [u.id, u]));
+
+  const shareholdersWithUsers = shareholders.map(sh => ({
+    ...sh,
+    user: userMap.get(sh.user_id) ? {
+      id: userMap.get(sh.user_id)!.id,
+      profile_id: userMap.get(sh.user_id)!.profile_id,
+      username: userMap.get(sh.user_id)!.username,
+      player_name: userMap.get(sh.user_id)!.player_name,
+      profile_slug: userMap.get(sh.user_id)!.profile_slug,
+      profile_image_url: normalizeImageUrl(userMap.get(sh.user_id)!.profile_image_url),
+    } : null,
+  }));
+
+  const ceoUser = userMap.get(corporation.ceo_id);
+  const corporationWithDetails = {
+    ...corporation,
+    logo: normalizeImageUrl(corporation.logo),
+    ceo: ceoUser ? {
+      id: ceoUser.id,
+      profile_id: ceoUser.profile_id,
+      username: ceoUser.username,
+      player_name: ceoUser.player_name,
+      profile_slug: ceoUser.profile_slug,
+      profile_image_url: normalizeImageUrl(ceoUser.profile_image_url),
+    } : null,
+    shareholders: shareholdersWithUsers,
+  };
 
   // Format commodity prices for the dashboard
   const commodityPrices: Record<string, any> = {};
@@ -149,7 +203,7 @@ export default async function CorporationPage({ params }: PageProps) {
   return (
     <Suspense fallback={<div className="p-8 text-center">Loading corporation data...</div>}>
       <CorporationDashboard
-        initialCorporation={JSON.parse(JSON.stringify(corporation))}
+        initialCorporation={JSON.parse(JSON.stringify(corporationWithDetails))}
         initialFinances={JSON.parse(JSON.stringify(finances))}
         initialBalanceSheet={JSON.parse(JSON.stringify(balanceSheet))}
         initialMarketEntries={JSON.parse(JSON.stringify(entries))}

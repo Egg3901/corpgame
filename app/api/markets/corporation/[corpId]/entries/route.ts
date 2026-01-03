@@ -6,11 +6,12 @@ import { getErrorMessage } from '@/lib/utils';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { corpId: string } }
+  { params }: { params: Promise<{ corpId: string }> }
 ) {
   try {
     await connectMongo();
-    const corpId = parseInt(params.corpId, 10);
+    const { corpId: corpIdParam } = await params;
+    const corpId = parseInt(corpIdParam, 10);
     
     if (isNaN(corpId)) {
       return NextResponse.json({ error: 'Invalid corporation ID' }, { status: 400 });

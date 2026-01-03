@@ -13,11 +13,12 @@ import { getErrorMessage } from '@/lib/utils';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { name: string } }
+  { params }: { params: Promise<{ name: string }> }
 ) {
   try {
     await connectMongo();
-    const productName = decodeURIComponent(params.name) as Product;
+    const { name } = await params;
+    const productName = decodeURIComponent(name) as Product;
 
     // Validate product exists
     if (!PRODUCTS.includes(productName)) {

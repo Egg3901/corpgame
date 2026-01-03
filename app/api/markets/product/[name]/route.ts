@@ -10,16 +10,18 @@ import {
   getProductInfo,
   Product,
   Sector,
+  PRODUCT_REFERENCE_VALUES,
 } from '@/lib/constants/sectors';
 import { getErrorMessage } from '@/lib/utils';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { name: string } }
+  { params }: { params: Promise<{ name: string }> }
 ) {
   try {
     await connectMongo();
-    const productName = decodeURIComponent(params.name) as Product;
+    const { name } = await params;
+    const productName = decodeURIComponent(name) as Product;
 
     // Validate product exists
     if (!PRODUCTS.includes(productName)) {
@@ -52,8 +54,16 @@ export async function GET(
     const detail = await marketDataService.getProductDetail(productName);
     const totalSupply = detail.supply;
     const totalDemand = detail.demand;
-    const productPrice = detail.price;
     const productInfo = getProductInfo(productName);
+
+    // Calculate full price info including scarcityFactor and referenceValue
+    const referenceValue = PRODUCT_REFERENCE_VALUES[productName] || 1000;
+    const scarcityFactor = totalDemand / Math.max(0.01, totalSupply) || 1;
+    const productPrice = {
+      currentPrice: detail.price.currentPrice,
+      referenceValue,
+      scarcityFactor,
+    };
 
     interface MarketListItem {
       corporation_id: number;

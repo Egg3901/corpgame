@@ -1313,8 +1313,11 @@ export interface ResourceDetailResponse {
   price: CommodityPrice;
   info: {
     name: string;
-    totalPool: number;
-    topStates: Array<{
+    basePrice: number;
+    extractingSectors: string[];
+    demandingSectors: string[];
+    totalPool?: number;
+    topStates?: Array<{
       stateCode: string;
       stateName: string;
       amount: number;

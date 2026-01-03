@@ -208,8 +208,8 @@ export default function ProductDetailPage() {
               <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
                 <p className="text-sm text-white/70">Scarcity</p>
                 <p className="text-2xl font-bold">
-                  {data.price.scarcityFactor >= 1.5 ? 'High' : data.price.scarcityFactor >= 1.0 ? 'Normal' : 'Low'}
-                  <span className="text-sm font-mono ml-2 text-white/70">({data.price.scarcityFactor.toFixed(2)}x)</span>
+                  {(data.price.scarcityFactor ?? 1) >= 1.5 ? 'High' : (data.price.scarcityFactor ?? 1) >= 1.0 ? 'Normal' : 'Low'}
+                  <span className="text-sm font-mono ml-2 text-white/70">({(data.price.scarcityFactor ?? 1).toFixed(2)}x)</span>
                 </p>
               </div>
             </div>
@@ -538,7 +538,7 @@ export default function ProductDetailPage() {
                   </p>
                   <div className="mt-4 p-3 rounded-lg bg-gray-100 dark:bg-gray-800">
                     <p className="font-mono text-xs text-gray-700 dark:text-gray-300">
-                      {formatCurrency(data.price.referenceValue)} × {data.price.scarcityFactor.toFixed(2)} = {formatCurrency(data.price.currentPrice)}
+                      {formatCurrency(data.price.referenceValue)} × {(data.price.scarcityFactor ?? 1).toFixed(2)} = {formatCurrency(data.price.currentPrice)}
                     </p>
                   </div>
                 </div>

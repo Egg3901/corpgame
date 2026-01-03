@@ -4,10 +4,11 @@ import { calculateStockPrice, calculateBalanceSheet } from '@/lib/utils/valuatio
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const corporationId = parseInt(params.id, 10);
+    const { id } = await params;
+    const corporationId = parseInt(id, 10);
 
     if (isNaN(corporationId)) {
       return NextResponse.json({ error: 'Invalid corporation ID' }, { status: 400 });

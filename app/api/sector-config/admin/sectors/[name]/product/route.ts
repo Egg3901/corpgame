@@ -6,11 +6,11 @@ import { getErrorMessage } from '@/lib/utils';
 
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { name: string } }
+  { params }: { params: Promise<{ name: string }> }
 ) {
   try {
     await requireAdmin(req);
-    const { name } = params;
+    const { name } = await params;
     const body = await req.json();
     const { producedProduct } = body;
 

@@ -5,11 +5,12 @@ import { getErrorMessage } from '@/lib/utils';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { name: string } }
+  { params }: { params: Promise<{ name: string }> }
 ) {
   try {
     await connectMongo();
-    const productName = decodeURIComponent(params.name);
+    const { name } = await params;
+    const productName = decodeURIComponent(name);
     const searchParams = request.nextUrl.searchParams;
     const hours = parseInt(searchParams.get('hours') || '96', 10);
     const limit = parseInt(searchParams.get('limit') || '1000', 10);

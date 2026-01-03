@@ -22,7 +22,7 @@ import {
 // POST /api/markets/entries/:entryId/build - Build a unit
 export async function POST(
   req: NextRequest,
-  { params }: { params: { entryId: string } }
+  { params }: { params: Promise<{ entryId: string }> }
 ) {
   try {
     await connectMongo();
@@ -31,7 +31,8 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const entryId = parseInt(params.entryId, 10);
+    const { entryId: entryIdParam } = await params;
+    const entryId = parseInt(entryIdParam, 10);
     if (isNaN(entryId)) {
       return NextResponse.json({ error: 'Invalid entry ID' }, { status: 400 });
     }

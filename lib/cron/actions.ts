@@ -142,34 +142,36 @@ export async function triggerMarketRevenue(): Promise<{ processed: number; total
  * - Checks if 96h has passed since last salary payment
  * - Deducts from corp capital, adds to CEO cash
  */
-export async function triggerCeoSalaries(): Promise<void> {
+export async function triggerCeoSalaries(): Promise<{ ceos_paid: number; total_paid: number; salaries_zeroed: number }> {
   try {
     // This logic is complex because we need to track when salary was last paid
     // For now, let's assume this is triggered by an external scheduler that handles the 96h interval
     // OR we can implement a check here if we store 'last_salary_paid_at' on the corp
-    
+
     const corporations = await CorporationModel.findAll();
-    
+
     let paidCount = 0;
-    
+    let totalPaid = 0;
+    let salariesZeroed = 0;
+
     for (const corp of corporations) {
       if (!corp.ceo_id) continue;
-      
+
       // Determine salary amount (use default if not set)
       const salary = corp.ceo_salary || DEFAULT_CEO_SALARY_PER_96H;
-      
+
       // Check if corp has enough capital
       if (corp.capital < salary) {
         console.log(`[Cron] Corp ${corp.id} cannot afford CEO salary (${salary}). Capital: ${corp.capital}`);
-        // Optionally: CEO could be fired or salary unpaid
+        salariesZeroed++;
         continue;
       }
-      
+
       // Pay CEO
       try {
         await CorporationModel.update(corp.id, { capital: corp.capital - salary });
         await UserModel.updateCash(corp.ceo_id, salary);
-        
+
         await TransactionModel.create({
           corporation_id: corp.id,
           transaction_type: 'ceo_salary',
@@ -177,16 +179,19 @@ export async function triggerCeoSalaries(): Promise<void> {
           description: `CEO Salary Payment`,
           to_user_id: corp.ceo_id
         });
-        
+
         paidCount++;
+        totalPaid += salary;
       } catch (err: unknown) {
         console.error(`[Cron] Error paying CEO of corp ${corp.id}:`, getErrorMessage(err));
       }
     }
-    
+
     console.log(`[Cron] Paid salaries for ${paidCount} CEOs`);
+    return { ceos_paid: paidCount, total_paid: totalPaid, salaries_zeroed: salariesZeroed };
   } catch (error: unknown) {
     console.error('[Cron] Error in CEO salary job:', getErrorMessage(error));
+    return { ceos_paid: 0, total_paid: 0, salaries_zeroed: 0 };
   }
 }
 

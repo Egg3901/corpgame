@@ -3,7 +3,7 @@ import { getAuthUserId } from '@/lib/auth';
 import { UserModel } from '@/lib/models/User';
 import { getErrorMessage } from '@/lib/utils';
 
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const userId = await getAuthUserId(req);
     if (!userId) {
@@ -15,7 +15,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const targetUserId = parseInt(params.id, 10);
+    const { id } = await params;
+    const targetUserId = parseInt(id, 10);
     
     if (isNaN(targetUserId)) {
       return NextResponse.json({ error: 'Invalid user ID' }, { status: 400 });

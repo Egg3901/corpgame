@@ -6,6 +6,15 @@ import { Card, CardBody, Chip, Divider } from "@heroui/react";
 type CostItem = {
   name: string;
   costHr: number;
+  quantity?: number;
+  unitPrice?: number;
+};
+
+type OutputItem = {
+  name: string;
+  revenueHr: number;
+  quantity?: number;
+  unitPrice?: number;
 };
 
 type Props = {
@@ -15,6 +24,7 @@ type Props = {
   profitHr: number;
   outputSoldUnits: number;
   costItems: CostItem[];
+  outputItems?: OutputItem[];
   loading?: boolean;
   note?: string;
   breakdown?: Array<{ label: string; value: number }>;
@@ -27,15 +37,17 @@ export default function FinancialTooltip({
   profitHr,
   outputSoldUnits,
   costItems,
+  outputItems,
   loading,
   note,
   breakdown,
 }: Props) {
-  const formatCurrency = (v: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(v);
+  const formatCurrency = (v: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(v);
+  const formatCurrencyPrecise = (v: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(v);
   const formatNumber = (v: number) => new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 }).format(v);
 
   const totalCost = costHr > 0 ? costHr : costItems.reduce((s, i) => s + i.costHr, 0);
-  const itemsWithPct = costItems.map((i) => ({ ...i, pct: totalCost > 0 ? (i.costHr / totalCost) * 100 : 0 }));
+  const totalOutputRevenue = outputItems ? outputItems.reduce((s, i) => s + i.revenueHr, 0) : 0;
 
   const breakdownTotal = (propsBreakdown?: Array<{ label: string; value: number }>) => {
     if (!propsBreakdown || propsBreakdown.length === 0) return null;
@@ -86,7 +98,32 @@ export default function FinancialTooltip({
             <p className="font-mono">{formatNumber(outputSoldUnits)}</p>
           </div>
         </div>
-        {breakdown && breakdown.length > 0 && (
+        {/* Output Revenue Section */}
+        {outputItems && outputItems.length > 0 && (
+          <div>
+            <Divider className="my-2 bg-gray-700" />
+            <p className="text-[11px] text-green-400 font-medium mb-1">Output Revenue</p>
+            <div className="space-y-1">
+              {outputItems.map((it) => (
+                <div key={it.name} className="flex items-center justify-between gap-2">
+                  <span className="text-[11px] text-gray-300 truncate flex-1">{it.name}</span>
+                  {it.quantity !== undefined && it.unitPrice !== undefined ? (
+                    <span className="font-mono text-[10px] text-gray-400">
+                      {formatNumber(it.quantity)}/hr × {formatCurrency(it.unitPrice)}
+                    </span>
+                  ) : null}
+                  <span className="font-mono text-[11px] text-green-400">{formatCurrencyPrecise(it.revenueHr)}</span>
+                </div>
+              ))}
+              <div className="flex items-center justify-between border-t border-gray-700 pt-1 mt-1">
+                <span className="text-[11px] text-gray-400">Total Revenue</span>
+                <span className="font-mono text-[11px] text-green-400">{formatCurrencyPrecise(totalOutputRevenue)}</span>
+              </div>
+            </div>
+          </div>
+        )}
+        {/* Legacy breakdown for backwards compatibility */}
+        {(!outputItems || outputItems.length === 0) && breakdown && breakdown.length > 0 && (
           <div>
             <Divider className="my-2 bg-gray-700" />
             <p className="text-[11px] text-gray-300 mb-1">Revenue Breakdown</p>
@@ -94,33 +131,39 @@ export default function FinancialTooltip({
               {breakdown.map((b) => (
                 <div key={b.label} className="flex items-center justify-between">
                   <span className="text-[11px] text-gray-300">{b.label}</span>
-                  <span className="font-mono text-[11px]">{formatCurrency(b.value)}</span>
+                  <span className="font-mono text-[11px]">{formatCurrencyPrecise(b.value)}</span>
                 </div>
               ))}
               <div className="flex items-center justify-between border-t border-gray-700 pt-1 mt-1">
                 <span className="text-[11px] text-gray-400">Total</span>
-                <span className="font-mono text-[11px]">{formatCurrency(expectedTotal || 0)}</span>
+                <span className="font-mono text-[11px]">{formatCurrencyPrecise(expectedTotal || 0)}</span>
               </div>
             </div>
           </div>
         )}
+        {/* Input Cost Section */}
         <div>
-          {breakdown && breakdown.length > 0 && <Divider className="my-2 bg-gray-700" />}
-          <p className="text-[11px] text-gray-300 mb-1">Cost Breakdown</p>
+          <Divider className="my-2 bg-gray-700" />
+          <p className="text-[11px] text-red-400 font-medium mb-1">Input Costs</p>
           <div className="space-y-1">
-            {itemsWithPct.length === 0 ? (
-              <p className="text-[11px] text-gray-500">No input cost components</p>
+            {costItems.length === 0 ? (
+              <p className="text-[11px] text-gray-500">No input costs</p>
             ) : (
             <>
-              {itemsWithPct.map((it) => (
-                <div key={it.name} className="flex items-center justify-between">
-                  <span className="text-[11px] text-gray-300">{it.name}</span>
-                  <span className="font-mono text-[11px]">{formatCurrency(it.costHr)} ({formatNumber(it.pct)}%)</span>
+              {costItems.map((it) => (
+                <div key={it.name} className="flex items-center justify-between gap-2">
+                  <span className="text-[11px] text-gray-300 truncate flex-1">{it.name}</span>
+                  {it.quantity !== undefined && it.unitPrice !== undefined ? (
+                    <span className="font-mono text-[10px] text-gray-400">
+                      {formatNumber(it.quantity)}/hr × {formatCurrency(it.unitPrice)}
+                    </span>
+                  ) : null}
+                  <span className="font-mono text-[11px] text-red-400">{formatCurrencyPrecise(it.costHr)}</span>
                 </div>
               ))}
               <div className="flex items-center justify-between border-t border-gray-700 pt-1 mt-1">
-                <span className="text-[11px] text-gray-400">Total</span>
-                <span className="font-mono text-[11px]">{formatCurrency(totalCost)}</span>
+                <span className="text-[11px] text-gray-400">Total Cost</span>
+                <span className="font-mono text-[11px] text-red-400">{formatCurrencyPrecise(totalCost)}</span>
               </div>
             </>
           )}

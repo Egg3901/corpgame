@@ -47,8 +47,7 @@ describe('POST /api/corporation', () => {
         method: 'POST',
         body: {
           name: 'Test Corporation',
-          sector: 'Technology',
-          initial_capital: 500000,
+          type: 'Technology',
         },
         headers: authHeaders,
       });
@@ -72,8 +71,7 @@ describe('POST /api/corporation', () => {
         method: 'POST',
         body: {
           name: 'Default Corp',
-          sector: 'Energy',
-          initial_capital: 500000,
+          type: 'Energy',
         },
         headers: authHeaders,
       });
@@ -86,10 +84,10 @@ describe('POST /api/corporation', () => {
       expect(body.share_price).toBe(1.00);
       expect(body.focus).toBe('diversified');
       
-      const capital = typeof body.capital === 'string' 
-        ? parseFloat(body.capital) 
+      const capital = typeof body.capital === 'string'
+        ? parseFloat(body.capital)
         : body.capital;
-      expect(capital).toBe(500000.00);
+      expect(capital).toBe(400000.00);
     });
 
     it('should create shareholder record for CEO with 400,000 shares', async () => {
@@ -101,8 +99,7 @@ describe('POST /api/corporation', () => {
         method: 'POST',
         body: {
           name: 'Shareholder Test Corp',
-          sector: 'Finance',
-          initial_capital: 500000,
+          type: 'Finance',
         },
         headers: authHeaders,
       });
@@ -123,8 +120,7 @@ describe('POST /api/corporation', () => {
         method: 'POST',
         body: {
           name: 'Transaction Test Corp',
-          sector: 'Light Industry',
-          initial_capital: 500000,
+          type: 'Light Industry',
         },
         headers: authHeaders,
       });
@@ -141,9 +137,54 @@ describe('POST /api/corporation', () => {
       });
 
       expect(transaction).toBeDefined();
-      expect(transaction?.amount).toBe(500000);
+      expect(transaction?.amount).toBe(400000);
       expect(transaction?.description).toContain('Founded');
       expect(transaction?.description).toContain(body.name);
+    });
+
+    it('should deduct founding cost from user cash', async () => {
+      const user = await createTestUser({ cash: 500000 });
+      const token = createTestAccessToken(user.id, user.username, user.email, 'user');
+      const authHeaders = createAuthHeader(token);
+
+      const request = createTestRequest('http://localhost:3000/api/corporation', {
+        method: 'POST',
+        body: {
+          name: 'Cash Deduction Test Corp',
+          type: 'Finance',
+        },
+        headers: authHeaders,
+      });
+
+      await POST(request);
+
+      // Check user's cash was deducted
+      const { UserModel } = await import('@/lib/models/User');
+      const updatedUser = await UserModel.findById(user.id);
+      const userCash = typeof updatedUser?.cash === 'string'
+        ? parseFloat(updatedUser.cash)
+        : (updatedUser?.cash || 0);
+      expect(userCash).toBe(100000); // 500000 - 400000 = 100000
+    });
+
+    it('should reject corporation creation if user has insufficient funds', async () => {
+      const user = await createTestUser({ cash: 100000 }); // Less than 400k
+      const token = createTestAccessToken(user.id, user.username, user.email, 'user');
+      const authHeaders = createAuthHeader(token);
+
+      const request = createTestRequest('http://localhost:3000/api/corporation', {
+        method: 'POST',
+        body: {
+          name: 'Poor Corp',
+          type: 'Technology',
+        },
+        headers: authHeaders,
+      });
+
+      const response = await POST(request);
+      expect(response.status).toBe(400);
+      const body = await getResponseBody(response);
+      expect(body.error).toContain('Insufficient funds');
     });
 
     it('should handle special characters in corporation name', async () => {
@@ -155,8 +196,7 @@ describe('POST /api/corporation', () => {
         method: 'POST',
         body: {
           name: 'Smith & Johnson Co.',
-          sector: 'Retail',
-          initial_capital: 500000,
+          type: 'Retail',
         },
         headers: authHeaders,
       });
@@ -178,7 +218,7 @@ describe('POST /api/corporation', () => {
       const request = createTestRequest('http://localhost:3000/api/corporation', {
         method: 'POST',
         body: {
-          sector: 'Technology',
+          type: 'Technology',
         },
         headers: authHeaders,
       });
@@ -199,8 +239,7 @@ describe('POST /api/corporation', () => {
         method: 'POST',
         body: {
           name: 'AB',
-          sector: 'Technology',
-          initial_capital: 500000,
+          type: 'Technology',
         },
         headers: authHeaders,
       });
@@ -222,8 +261,7 @@ describe('POST /api/corporation', () => {
         method: 'POST',
         body: {
           name: 'A'.repeat(101),
-          sector: 'Technology',
-          initial_capital: 500000,
+          type: 'Technology',
         },
         headers: authHeaders,
       });
@@ -245,8 +283,7 @@ describe('POST /api/corporation', () => {
         method: 'POST',
         body: {
           name: 'Corp@Name!',
-          sector: 'Technology',
-          initial_capital: 500000,
+          type: 'Technology',
         },
         headers: authHeaders,
       });
@@ -258,11 +295,11 @@ describe('POST /api/corporation', () => {
       assertValidationError(body);
     });
 
-    it('should reject creation without sector', async () => {
+    it('should reject creation without type', async () => {
       const user = await createTestUser();
       const token = createTestAccessToken(user.id, user.username, user.email, 'user');
       const authHeaders = createAuthHeader(token);
-      
+
       const request = createTestRequest('http://localhost:3000/api/corporation', {
         method: 'POST',
         body: {
@@ -278,17 +315,16 @@ describe('POST /api/corporation', () => {
       assertValidationError(body);
     });
 
-    it('should reject empty sector', async () => {
+    it('should reject empty type', async () => {
       const user = await createTestUser();
       const token = createTestAccessToken(user.id, user.username, user.email, 'user');
       const authHeaders = createAuthHeader(token);
-      
+
       const request = createTestRequest('http://localhost:3000/api/corporation', {
         method: 'POST',
         body: {
           name: 'Test Corp',
-          sector: '',
-          initial_capital: 500000,
+          type: '',
         },
         headers: authHeaders,
       });
@@ -313,7 +349,8 @@ describe('POST /api/corporation', () => {
         method: 'POST',
         body: {
           name: 'Second Corp',
-          sector: 'Technology',          initial_capital: 500000,        },
+          type: 'Technology',
+        },
         headers: authHeaders,
       });
 
@@ -339,7 +376,8 @@ describe('POST /api/corporation', () => {
         method: 'POST',
         body: {
           name: 'Attempt Corp',
-          sector: 'Energy',          initial_capital: 500000,        },
+          type: 'Energy',
+        },
         headers: authHeaders,
       });
 
@@ -357,8 +395,7 @@ describe('POST /api/corporation', () => {
         method: 'POST',
         body: {
           name: 'Test Corp',
-          sector: 'Technology',
-          initial_capital: 500000,
+          type: 'Technology',
         },
       });
 
@@ -374,7 +411,8 @@ describe('POST /api/corporation', () => {
         method: 'POST',
         body: {
           name: 'Test Corp',
-          sector: 'Technology',          initial_capital: 500000,        },
+          type: 'Technology',
+        },
         headers: { 'Authorization': 'Bearer invalid.jwt.token' },
       });
 
@@ -393,8 +431,7 @@ describe('POST /api/corporation', () => {
         method: 'POST',
         body: {
           name: '  Trimmed Corp  ',
-          sector: 'Technology',
-          initial_capital: 500000,
+          type: 'Technology',
         },
         headers: authHeaders,
       });
@@ -406,17 +443,16 @@ describe('POST /api/corporation', () => {
       expect(body.name).toBe('Trimmed Corp');
     });
 
-    it('should handle sector case variations', async () => {
+    it('should handle type case variations', async () => {
       const user = await createTestUser();
       const token = createTestAccessToken(user.id, user.username, user.email, 'user');
       const authHeaders = createAuthHeader(token);
-      
+
       const request = createTestRequest('http://localhost:3000/api/corporation', {
         method: 'POST',
         body: {
           name: 'Case Test Corp',
-          sector: 'Technology',
-          initial_capital: 500000,
+          type: 'Technology',
         },
         headers: authHeaders,
       });
@@ -432,13 +468,13 @@ describe('POST /api/corporation', () => {
       const user = await createTestUser();
       const token = createTestAccessToken(user.id, user.username, user.email, 'user');
       const authHeaders = createAuthHeader(token);
-      
-      // Create with extremely long sector to trigger potential DB error
+
+      // Create with extremely long type to trigger potential DB error
       const request = createTestRequest('http://localhost:3000/api/corporation', {
         method: 'POST',
         body: {
           name: 'Error Test Corp',
-          sector: 'A'.repeat(51),
+          type: 'A'.repeat(51),
         },
         headers: authHeaders,
       });

@@ -4,7 +4,7 @@ import { UserModel } from '@/lib/models/User';
 import { ReportedChatModel } from '@/lib/models/ReportedChat';
 import { getErrorMessage } from '@/lib/utils';
 
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const userId = await getAuthUserId(req);
     if (!userId) {
@@ -16,7 +16,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const reportId = parseInt(params.id, 10);
+    const { id } = await params;
+    const reportId = parseInt(id, 10);
     if (isNaN(reportId)) {
       return NextResponse.json({ error: 'Invalid report ID' }, { status: 400 });
     }

@@ -18,7 +18,7 @@ import {
 // POST /api/markets/states/:code/enter - Enter a market
 export async function POST(
   req: NextRequest,
-  { params }: { params: { code: string } }
+  { params }: { params: Promise<{ code: string }> }
 ) {
   try {
     await connectMongo();
@@ -27,7 +27,8 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const stateCode = params.code.toUpperCase();
+    const { code } = await params;
+    const stateCode = code.toUpperCase();
     const body = await req.json();
     const { sector_type, corporation_id } = body;
 

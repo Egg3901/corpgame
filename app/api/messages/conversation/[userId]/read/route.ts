@@ -6,7 +6,7 @@ import { getErrorMessage } from '@/lib/utils';
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { userId: string } }
+  { params }: { params: Promise<{ userId: string }> }
 ) {
   try {
     const userId = await getAuthUserId(request);
@@ -14,7 +14,8 @@ export async function PATCH(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const otherUserId = parseInt(params.userId, 10);
+    const { userId: userIdParam } = await params;
+    const otherUserId = parseInt(userIdParam, 10);
     if (isNaN(otherUserId)) {
       return NextResponse.json({ error: 'Invalid user ID' }, { status: 400 });
     }
