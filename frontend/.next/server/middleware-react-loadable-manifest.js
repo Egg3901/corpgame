@@ -1,1 +1,0 @@
-self.__REACT_LOADABLE_MANIFEST='{"components\\\\SendCashModal.tsx -> @/lib/api":{"id":64790,"files":[]}}';
