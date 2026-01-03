@@ -7,7 +7,6 @@ import { normalizeImageUrl } from '@/lib/utils/imageUrl';
 import { MessageModel } from '@/lib/models/Message';
 import { connectMongo } from '@/lib/db/mongo';
 import { signAccessToken, signRefreshToken } from '@/lib/auth/jwt';
-import { CorporationService } from '@/lib/services/CorporationService';
 import { RegisterSchema } from '@/lib/validations/auth';
 
 // Force Node.js runtime (required for MongoDB and crypto)
@@ -75,20 +74,6 @@ export async function POST(req: NextRequest) {
       last_login_ip: clientIp,
       last_login_at: new Date()
     });
-
-    // Auto-create corporation for new player
-    try {
-      await CorporationService.createForUser({
-        id: user.id,
-        player_name: user.player_name || user.username,
-        starting_state: user.starting_state || starting_state || 'Unknown',
-        username: user.username
-      });
-    } catch (corpError: unknown) {
-      console.error('Failed to auto-create corporation:', corpError);
-      // We don't fail registration, just log it. 
-      // User can create corp manually later.
-    }
 
     // Generate token
     const tokenPayload = { userId: user.id, email: user.email, username: user.username, is_admin: user.is_admin };
