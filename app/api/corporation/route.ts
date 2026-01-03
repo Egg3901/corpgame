@@ -125,12 +125,12 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    const { name, sector, focus } = validated.data;
+    const { name, type, focus } = validated.data;
 
     // Check if user already has a corporation
     const existingCorporations = await CorporationModel.findByCeoId(userId);
     if (existingCorporations.length > 0) {
-      return NextResponse.json({ 
+      return NextResponse.json({
         error: 'You can only be CEO of one corporation at a time',
         existingCorporation: {
           id: existingCorporations[0].id,
@@ -143,7 +143,7 @@ export async function POST(request: NextRequest) {
     const corporation = await CorporationModel.create({
       ceo_id: userId,
       name,
-      type: sector,
+      type,
       focus: (focus as CorpFocus) || 'diversified', // Default focus
       shares: 500000,
       public_shares: 100000,

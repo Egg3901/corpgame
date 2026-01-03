@@ -42,12 +42,13 @@ export const CreateCorporationSchema = z.object({
   sector: z
     .string()
     .trim()
-    .min(1, 'Sector is required')
-    .max(50, 'Sector must not exceed 50 characters'),
+    .max(50, 'Sector must not exceed 50 characters')
+    .optional(),
   type: z
     .string()
-    .max(50, 'Type must not exceed 50 characters')
-    .optional(),
+    .trim()
+    .min(1, 'Sector/Type is required')
+    .max(50, 'Type must not exceed 50 characters'),
   focus: z
     .string()
     .max(50, 'Focus must not exceed 50 characters')
