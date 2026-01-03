@@ -8,6 +8,9 @@ import { signAccessToken, signRefreshToken } from '@/lib/auth/jwt';
 import { getErrorMessage } from '@/lib/utils';
 import { LoginSchema } from '@/lib/validations/auth';
 
+// Force Node.js runtime (required for MongoDB and crypto)
+export const runtime = 'nodejs';
+
 export async function POST(req: NextRequest) {
   try {
     await connectMongo();
