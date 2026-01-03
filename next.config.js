@@ -80,6 +80,12 @@ const nextConfig = {
     };
     config.resolve = config.resolve || {};
     config.resolve.symlinks = false;
+
+    // Add path aliases for webpack
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      '@': path.resolve(__dirname),
+    };
     
     // Ignore MongoDB's optional dependencies for ALL builds (server and client)
     config.plugins.push(
