@@ -77,6 +77,7 @@ export default function CommoditiesView({ commodities, products, supply, demand 
   const [activeTab, setActiveTab] = useState('resources');
 
   const formatCurrency = (value: number) => {
+    if (value == null || isNaN(value)) value = 0;
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
@@ -86,6 +87,7 @@ export default function CommoditiesView({ commodities, products, supply, demand 
   };
 
   const formatCompactNumber = (value: number) => {
+    if (value == null || isNaN(value)) return '0';
     if (value >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(1)}B`;
     if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
     if (value >= 1_000) return `${(value / 1_000).toFixed(1)}K`;
@@ -99,12 +101,12 @@ export default function CommoditiesView({ commodities, products, supply, demand 
         const colors = type === 'resource' ? RESOURCE_COLORS[name] : PRODUCT_COLORS[name];
         const Icon = type === 'resource' ? RESOURCE_ICONS[name] : PRODUCT_ICONS[name];
 
-        const price = item.currentPrice || 0;
-        const change = item.priceChange || 0;
+        const price = item.currentPrice ?? 0;
+        const change = item.priceChange ?? 0;
         const isPositive = change >= 0;
 
-        const itemSupply = supply[name] || 0;
-        const itemDemand = demand[name] || 0;
+        const itemSupply = supply?.[name] ?? 0;
+        const itemDemand = demand?.[name] ?? 0;
 
         // Calculate fill percentage for supply bar (relative to demand or max)
         const maxVal = Math.max(itemSupply, itemDemand, 1);

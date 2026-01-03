@@ -778,17 +778,6 @@ export const adminAPI = {
     const response = await api.post(`/api/admin/corporations/${corpId}/add-capital`, { amount });
     return response.data;
   },
-  migrateManufacturingToLightIndustry: async (): Promise<{
-    success: boolean;
-    corporations_updated: number;
-    corporations: Array<{ id: number; name: string }>;
-    market_entries_updated: number;
-    market_entries: Array<{ id: number; state_code: string; corporation_id: number }>;
-    message: string;
-  }> => {
-    const response = await api.post('/api/admin/migrate-manufacturing-to-light-industry');
-    return response.data;
-  },
   resetUser: async (userId: number): Promise<{
     success: boolean;
     message: string;
@@ -797,29 +786,6 @@ export const adminAPI = {
     shareholder_positions_cleared: number;
   }> => {
     const response = await api.post(`/api/admin/users/${userId}/reset`);
-    return response.data;
-  },
-
-  deploy: async (): Promise<{
-    success: boolean;
-    message?: string;
-    output?: string;
-    errorOutput?: string;
-    timestamp: string;
-  }> => {
-    const response = await api.post('/api/admin/deploy');
-    return response.data;
-  },
-
-  getLastDeployment: async (): Promise<{
-    success: boolean;
-    lastDeployment: {
-      success: boolean;
-      timestamp: string | null;
-      log: string;
-    } | null;
-  }> => {
-    const response = await api.get('/api/admin/deploy/last');
     return response.data;
   },
 };

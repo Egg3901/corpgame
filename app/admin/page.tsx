@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Input, Button, Select, SelectItem, Card, CardBody, CardHeader, Divider, Chip, Table, TableHeader, TableBody, TableColumn, TableRow, TableCell, User, Pagination, Checkbox } from "@heroui/react";
-import { Trash2, Shield, ShieldOff, Eye, EyeOff, AlertTriangle, Flag, CheckCircle2, X, ChevronDown, ChevronUp, MessageSquare, Play, RefreshCw, DollarSign, Clock, Receipt, Search, ArrowUpRight, ArrowDownLeft, Scissors, CalendarClock, Database, ArrowRight, RotateCcw, Rocket } from 'lucide-react';
+import { Trash2, Shield, ShieldOff, Eye, EyeOff, AlertTriangle, Flag, CheckCircle2, X, ChevronDown, ChevronUp, MessageSquare, Play, RefreshCw, DollarSign, Clock, Receipt, Search, ArrowUpRight, ArrowDownLeft, Scissors, CalendarClock, Database, RotateCcw } from 'lucide-react';
 import AppNavigation from '@/components/AppNavigation';
 import SectorConfigPanel from '@/components/admin/SectorConfigPanel';
 import { authAPI, adminAPI, AdminUser, ReportedChat, Transaction, TransactionType, normalizeImageUrl, gameAPI, AdminGameTimeResetResponse, ProfileResponse } from '@/lib/api';
@@ -98,23 +98,6 @@ export default function AdminPage() {
   const [corpCapitalAmount, setCorpCapitalAmount] = useState('');
   const [addingCapitalToCorp, setAddingCapitalToCorp] = useState(false);
   const [corpCapitalResult, setCorpCapitalResult] = useState<{ corporation_name: string; old_capital: number; new_capital: number; new_share_price: number; amount: number } | null>(null);
-  // Migration state
-  const [migratingManufacturing, setMigratingManufacturing] = useState(false);
-  const [migrationResult, setMigrationResult] = useState<{ corporations_updated: number; market_entries_updated: number; message: string } | null>(null);
-  // Deployment state
-  const [deploymentLoading, setDeploymentLoading] = useState(false);
-  const [deploymentResult, setDeploymentResult] = useState<{
-    success: boolean;
-    message?: string;
-    output?: string;
-    errorOutput?: string;
-    timestamp: string;
-  } | null>(null);
-  const [lastDeployment, setLastDeployment] = useState<{
-    success: boolean;
-    timestamp: string | null;
-    log: string;
-  } | null>(null);
 
   useEffect(() => {
     const loadData = async () => {
@@ -174,24 +157,6 @@ export default function AdminPage() {
       setActiveTab(savedTab as AdminTabType);
     }
   }, []);
-
-  // Load last deployment on mount
-  useEffect(() => {
-    const fetchLastDeployment = async () => {
-      try {
-        const result = await adminAPI.getLastDeployment();
-        if (result.lastDeployment) {
-          setLastDeployment(result.lastDeployment);
-        }
-      } catch (err: unknown) {
-        console.error('Failed to fetch last deployment:', err);
-      }
-    };
-
-    if (currentUser?.is_admin) {
-      fetchLastDeployment();
-    }
-  }, [currentUser?.is_admin]);
 
   // Load transactions when Finance tab is first activated (will be set up after loadTransactions is defined)
 
@@ -623,84 +588,6 @@ export default function AdminPage() {
     }
   };
 
-  const handleMigrateManufacturing = async () => {
-    if (!confirm('Are you sure you want to migrate all Manufacturing corporations and market entries to Light Industry? This cannot be undone.')) {
-      return;
-    }
-
-    try {
-      setMigratingManufacturing(true);
-      setMigrationResult(null);
-      const result = await adminAPI.migrateManufacturingToLightIndustry();
-      setMigrationResult({
-        corporations_updated: result.corporations_updated,
-        market_entries_updated: result.market_entries_updated,
-        message: result.message,
-      });
-    } catch (err: unknown) {
-      console.error('Migrate manufacturing error:', err);
-      alert(getErrorMessage(err, 'Failed to migrate manufacturing'));
-    } finally {
-      setMigratingManufacturing(false);
-    }
-  };
-
-  const handleDeploy = async () => {
-    const confirmed = confirm(
-      '⚠️ DEPLOYMENT WARNING\n\n' +
-      'This will:\n' +
-      '• Pull latest code from current branch\n' +
-      '• Rebuild frontend and backend\n' +
-      '• Restart all PM2 processes\n' +
-      '• Cause brief downtime (~30-60 seconds)\n\n' +
-      'Continue with deployment?'
-    );
-
-    if (!confirmed) {
-      return;
-    }
-
-    try {
-      setDeploymentLoading(true);
-      setDeploymentResult(null);
-
-      const result = await adminAPI.deploy();
-      setDeploymentResult(result);
-
-      // Refresh last deployment status
-      const lastResult = await adminAPI.getLastDeployment();
-      if (lastResult.lastDeployment) {
-        setLastDeployment(lastResult.lastDeployment);
-      }
-
-      if (result.success) {
-        alert('✅ Deployment completed successfully!\n\nThe server will restart momentarily.');
-      }
-    } catch (err: unknown) {
-      const errorResult = {
-        success: false,
-        message: getErrorMessage(err, 'Deployment failed'),
-        errorOutput: '',
-        output: '',
-        timestamp: new Date().toISOString()
-      };
-
-      // Safely attempt to extract detailed deployment info if available
-      if (typeof err === 'object' && err !== null && 'response' in err) {
-        const errWithResponse = err as { response?: { data?: { errorOutput?: string, output?: string } } };
-        if (errWithResponse.response?.data) {
-          errorResult.errorOutput = errWithResponse.response.data.errorOutput || '';
-          errorResult.output = errWithResponse.response.data.output || '';
-        }
-      }
-
-      setDeploymentResult(errorResult);
-      alert('❌ Deployment failed!\n\nCheck the error details below.');
-    } finally {
-      setDeploymentLoading(false);
-    }
-  };
-
   const getTransactionTypeLabel = (type: TransactionType): string => {
     const labels: Record<TransactionType, string> = {
       corp_revenue: 'Corp Revenue',
@@ -963,105 +850,6 @@ export default function AdminPage() {
           {/* Game Control Tab */}
           {activeTab === 'game-control' && (
             <div className="space-y-6">
-              {/* DEPLOYMENT SECTION */}
-              <div className="p-4 rounded-lg bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 border-2 border-purple-200 dark:border-purple-700">
-                <div className="flex items-start justify-between mb-4">
-                  <div>
-                    <p className="text-xs font-bold text-purple-700 dark:text-purple-300 mb-1 uppercase tracking-wide flex items-center gap-2">
-                      <Rocket className="w-4 h-4" />
-                      Server Deployment
-                    </p>
-                    <p className="text-xs text-gray-600 dark:text-gray-400">
-                      Pull latest code, rebuild, and restart PM2 processes
-                    </p>
-                  </div>
-                  <Button
-                    onClick={handleDeploy}
-                    disabled={deploymentLoading}
-                    className="font-medium bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg"
-                    isLoading={deploymentLoading}
-                    startContent={!deploymentLoading && <Rocket className="w-4 h-4" />}
-                  >
-                    {deploymentLoading ? "Deploying..." : "Deploy Now"}
-                  </Button>
-                </div>
-
-                {/* Last Deployment Status */}
-                {lastDeployment && (
-                  <div className={`p-3 rounded-md border ${
-                    lastDeployment.success
-                      ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800'
-                      : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800'
-                  }`}>
-                    <div className="flex items-center justify-between mb-2">
-                      <p className={`text-xs font-medium ${
-                        lastDeployment.success
-                          ? 'text-emerald-700 dark:text-emerald-300'
-                          : 'text-red-700 dark:text-red-300'
-                      }`}>
-                        {lastDeployment.success ? '✅ Last Deployment: Success' : '❌ Last Deployment: Failed'}
-                      </p>
-                      {lastDeployment.timestamp && (
-                        <p className="text-xs text-gray-500 dark:text-gray-400">
-                          {lastDeployment.timestamp}
-                        </p>
-                      )}
-                    </div>
-                    <details className="text-xs">
-                      <summary className="cursor-pointer text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200">
-                        View deployment log
-                      </summary>
-                      <pre className="mt-2 p-2 rounded bg-gray-900 text-gray-100 text-[10px] overflow-x-auto max-h-40 overflow-y-auto font-mono">
-                        {lastDeployment.log}
-                      </pre>
-                    </details>
-                  </div>
-                )}
-
-                {/* Current Deployment Result */}
-                {deploymentResult && (
-                  <div className={`mt-3 p-3 rounded-md border ${
-                    deploymentResult.success
-                      ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800'
-                      : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800'
-                  }`}>
-                    <p className={`text-sm font-medium mb-2 ${
-                      deploymentResult.success
-                        ? 'text-emerald-700 dark:text-emerald-300'
-                        : 'text-red-700 dark:text-red-300'
-                    }`}>
-                      {deploymentResult.message || (deploymentResult.success ? 'Deployment successful!' : 'Deployment failed!')}
-                    </p>
-                    {deploymentResult.output && (
-                      <details className="text-xs">
-                        <summary className="cursor-pointer text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200">
-                          View deployment output
-                        </summary>
-                        <pre className="mt-2 p-2 rounded bg-gray-900 text-gray-100 text-[10px] overflow-x-auto max-h-60 overflow-y-auto font-mono">
-                          {deploymentResult.output}
-                        </pre>
-                      </details>
-                    )}
-                    {deploymentResult.errorOutput && (
-                      <details className="text-xs mt-2">
-                        <summary className="cursor-pointer text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-200">
-                          View error output
-                        </summary>
-                        <pre className="mt-2 p-2 rounded bg-red-900 text-red-100 text-[10px] overflow-x-auto max-h-60 overflow-y-auto font-mono">
-                          {deploymentResult.errorOutput}
-                        </pre>
-                      </details>
-                    )}
-                  </div>
-                )}
-
-                <div className="mt-3 p-2 rounded bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800">
-                  <p className="text-xs text-yellow-800 dark:text-yellow-200">
-                    ⚠️ <strong>Warning:</strong> This will cause brief downtime. The page may disconnect during deployment.
-                  </p>
-                </div>
-              </div>
-
               {/* Game Time Reset */}
               <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700/50 p-6">
                 <div className="flex items-start justify-between gap-4 mb-3">
@@ -2228,44 +2016,6 @@ export default function AdminPage() {
             <div className="space-y-6">
           {/* Sector Configuration Section */}
           <SectorConfigPanel />
-
-          {/* Data Migrations Section */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700/50">
-            <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700/60">
-              <h2 className="text-lg font-semibold flex items-center gap-2">
-                <Database className="w-5 h-5 text-purple-500" />
-                Data Migrations
-              </h2>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                One-time data migrations for fixing legacy data
-              </p>
-            </div>
-            <div className="p-6 space-y-4">
-              <div className="p-4 rounded-lg bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700">
-                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2 uppercase">Migrate Manufacturing to Light Industry</p>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
-                  Updates all corporations and market entries with sector &quot;Manufacturing&quot; to &quot;Light Industry&quot;
-                </p>
-                <Button
-                  onClick={handleMigrateManufacturing}
-                  disabled={migratingManufacturing}
-                  className="font-medium bg-purple-600 text-white"
-                  isLoading={migratingManufacturing}
-                  startContent={!migratingManufacturing && <ArrowRight className="w-4 h-4" />}
-                >
-                  Run Migration
-                </Button>
-                {migrationResult && (
-                  <div className="mt-3 p-2 rounded bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800">
-                    <p className="text-sm text-emerald-700 dark:text-emerald-300">{migrationResult.message}</p>
-                    <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-1">
-                      Corporations updated: {migrationResult.corporations_updated} | Market entries updated: {migrationResult.market_entries_updated}
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
             </div>
           )}
         </div>

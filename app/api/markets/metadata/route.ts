@@ -2,11 +2,13 @@ import { NextResponse } from 'next/server';
 import { SectorConfigService } from '@/lib/services/SectorConfigService';
 import { SECTORS, PRODUCTS, RESOURCES } from '@/lib/constants/sectors';
 import { getErrorMessage } from '@/lib/utils';
+import { connectMongo } from '@/lib/db/mongo';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
+    await connectMongo();
     const config = await SectorConfigService.getConfiguration();
     
     // Build sector_unit_flows

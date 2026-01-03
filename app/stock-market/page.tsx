@@ -103,14 +103,14 @@ async function StockMarketContent({ searchParams }: PageProps) {
   // Prepare commodity data
   const commodities = commodityData?.summary.map((c: MarketItemSummary) => ({
     name: c.resource || '',
-    currentPrice: c.price.currentPrice,
+    currentPrice: c.price?.currentPrice ?? 0,
     priceChange: 0,
   })) || [];
 
   // Prepare product data
   const products = productData?.summary.map((p: MarketItemSummary) => ({
     name: p.product || '',
-    currentPrice: p.price.currentPrice,
+    currentPrice: p.price?.currentPrice ?? 0,
     priceChange: 0,
   })) || [];
 
