@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { connectMongo } from '@/lib/db/mongo';
 import { MarketEntryModel } from '@/lib/models/MarketEntry';
 import { StateMetadataModel } from '@/lib/models/StateMetadata';
 import { getErrorMessage } from '@/lib/utils';
@@ -8,6 +9,7 @@ export async function GET(
   { params }: { params: { corpId: string } }
 ) {
   try {
+    await connectMongo();
     const corpId = parseInt(params.corpId, 10);
     
     if (isNaN(corpId)) {

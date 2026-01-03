@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { connectMongo } from '@/lib/db/mongo';
 import { getAuthUserId } from '@/lib/auth';
 import { MarketEntryModel } from '@/lib/models/MarketEntry';
 import { CorporationModel } from '@/lib/models/Corporation';
@@ -21,6 +22,7 @@ export async function DELETE(
   { params }: { params: { entryId: string } }
 ) {
   try {
+    await connectMongo();
     const entryId = parseInt(params.entryId, 10);
     const userId = await getAuthUserId(request);
 

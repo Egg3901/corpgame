@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { connectMongo } from '@/lib/db/mongo';
 import { CorporationModel } from '@/lib/models/Corporation';
 import { MarketEntryModel } from '@/lib/models/MarketEntry';
 import { calculateBalanceSheet } from '@/lib/utils/valuation';
@@ -10,6 +11,7 @@ export async function GET(
   { params }: { params: { corpId: string } }
 ) {
   try {
+    await connectMongo();
     const corpId = parseInt(params.corpId, 10);
 
     if (isNaN(corpId)) {

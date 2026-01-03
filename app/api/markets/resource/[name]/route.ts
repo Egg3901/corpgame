@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { connectMongo } from '@/lib/db/mongo';
 import { MarketEntryModel } from '@/lib/models/MarketEntry';
 import { marketDataService } from '@/lib/services/MarketDataService';
 import {
@@ -18,6 +19,7 @@ export async function GET(
   { params }: { params: { name: string } }
 ) {
   try {
+    await connectMongo();
     const resourceName = decodeURIComponent(params.name) as Resource;
 
     // Validate resource exists

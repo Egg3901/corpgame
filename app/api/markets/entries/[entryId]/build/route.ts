@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { connectMongo } from '@/lib/db/mongo';
 import { getAuthUserId } from '@/lib/auth';
 import { CorporationModel } from '@/lib/models/Corporation';
 import { UserModel } from '@/lib/models/User';
@@ -24,6 +25,7 @@ export async function POST(
   { params }: { params: { entryId: string } }
 ) {
   try {
+    await connectMongo();
     const userId = await getAuthUserId(req);
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

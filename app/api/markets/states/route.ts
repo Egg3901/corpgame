@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { connectMongo } from '@/lib/db/mongo';
 import { StateMetadataModel } from '@/lib/models/StateMetadata';
 import { MarketEntryModel } from '@/lib/models/MarketEntry';
 import { TransactionModel } from '@/lib/models/Transaction';
@@ -14,6 +15,8 @@ import { getErrorMessage } from '@/lib/utils';
 // GET /api/markets/states - List all states with region grouping
 export async function GET() {
   try {
+    await connectMongo();
+
     // Get state metadata from database
     const stateMeta = await StateMetadataModel.findAll();
 

@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { connectMongo } from '@/lib/db/mongo';
 import { MarketEntryModel } from '@/lib/models/MarketEntry';
 import { BusinessUnitCalculator } from '@/lib/services/BusinessUnitCalculator';
-import { 
-  PRODUCTS, 
-  SECTOR_PRODUCTS, 
-  PRODUCTION_OUTPUT_RATE, 
-  type Sector, 
-  type Product 
+import {
+  PRODUCTS,
+  SECTOR_PRODUCTS,
+  PRODUCTION_OUTPUT_RATE,
+  type Sector,
+  type Product
 } from '@/lib/constants/sectors';
 import { getErrorMessage } from '@/lib/utils';
 
@@ -15,6 +16,7 @@ export async function GET(
   { params }: { params: { name: string } }
 ) {
   try {
+    await connectMongo();
     const productName = decodeURIComponent(params.name) as Product;
 
     // Validate product exists

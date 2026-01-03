@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { connectMongo } from '@/lib/db/mongo';
 import { MarketEntryModel } from '@/lib/models/MarketEntry';
 import { marketDataService } from '@/lib/services/MarketDataService';
 import { businessUnitCalculator } from '@/lib/services/BusinessUnitCalculator';
@@ -17,6 +18,7 @@ export async function GET(
   { params }: { params: { name: string } }
 ) {
   try {
+    await connectMongo();
     const productName = decodeURIComponent(params.name) as Product;
 
     // Validate product exists

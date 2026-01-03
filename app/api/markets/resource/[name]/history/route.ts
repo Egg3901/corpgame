@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { connectMongo } from '@/lib/db/mongo';
 import { CommodityPriceHistoryModel } from '@/lib/models/CommodityPriceHistory';
 import { getErrorMessage } from '@/lib/utils';
 
@@ -7,6 +8,7 @@ export async function GET(
   { params }: { params: { name: string } }
 ) {
   try {
+    await connectMongo();
     const resourceName = decodeURIComponent(params.name);
     const searchParams = request.nextUrl.searchParams;
     const hours = parseInt(searchParams.get('hours') || '96', 10);
