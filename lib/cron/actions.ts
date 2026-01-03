@@ -1,4 +1,4 @@
-import cron from 'node-cron';
+import cron, { ScheduledTask } from 'node-cron';
 import { UserModel } from '../models/User';
 import { CorporationModel } from '../models/Corporation';
 import { BoardProposalModel } from '../models/BoardProposal';
@@ -17,6 +17,9 @@ import { RESOURCES, PRODUCTS } from '../constants/sectors';
 
 // Default CEO salary constants (used only as fallback)
 const DEFAULT_CEO_SALARY_PER_96H = 100000; // $100,000 per 96 hours
+
+// Store cron job references to prevent duplicate jobs on hot reload
+let scheduledTasks: ScheduledTask[] = [];
 
 /**
  * Hourly cron job to add actions to all users
@@ -143,34 +146,47 @@ export async function triggerMarketRevenue(): Promise<{ processed: number; total
  * - Checks if 96h has passed since last salary payment
  * - Deducts from corp capital, adds to CEO cash
  */
-export async function triggerCeoSalaries(): Promise<{ ceos_paid: number; total_paid: number; salaries_zeroed: number }> {
+export async function triggerCeoSalaries(): Promise<{ ceos_paid: number; total_paid: number; salaries_zeroed: number; skipped_recently_paid: number }> {
   try {
-    // This logic is complex because we need to track when salary was last paid
-    // For now, let's assume this is triggered by an external scheduler that handles the 96h interval
-    // OR we can implement a check here if we store 'last_salary_paid_at' on the corp
-
     const corporations = await CorporationModel.findAll();
+    const now = new Date();
+    const SALARY_INTERVAL_HOURS = 96; // 4 days
 
     let paidCount = 0;
     let totalPaid = 0;
     let salariesZeroed = 0;
+    let skippedRecentlyPaid = 0;
 
     for (const corp of corporations) {
       if (!corp.ceo_id) continue;
+
+      // Check if salary was paid recently (within 96 hours) to prevent double-payment
+      if (corp.ceo_salary_last_paid_at) {
+        const lastPaid = new Date(corp.ceo_salary_last_paid_at);
+        const hoursSinceLast = (now.getTime() - lastPaid.getTime()) / (1000 * 60 * 60);
+        if (hoursSinceLast < SALARY_INTERVAL_HOURS) {
+          skippedRecentlyPaid++;
+          continue;
+        }
+      }
 
       // Determine salary amount (use default if not set)
       const salary = corp.ceo_salary || DEFAULT_CEO_SALARY_PER_96H;
 
       // Check if corp has enough capital
-      if (corp.capital < salary) {
-        console.log(`[Cron] Corp ${corp.id} cannot afford CEO salary (${salary}). Capital: ${corp.capital}`);
+      const corpCapital = typeof corp.capital === 'string' ? parseFloat(String(corp.capital)) : (corp.capital || 0);
+      if (corpCapital < salary) {
+        console.log(`[Cron] Corp ${corp.id} cannot afford CEO salary (${salary}). Capital: ${corpCapital}`);
         salariesZeroed++;
         continue;
       }
 
-      // Pay CEO
+      // Pay CEO and record payment time
       try {
-        await CorporationModel.update(corp.id, { capital: corp.capital - salary });
+        await CorporationModel.update(corp.id, {
+          capital: corpCapital - salary,
+          ceo_salary_last_paid_at: now
+        });
         await UserModel.updateCash(corp.ceo_id, salary);
 
         await TransactionModel.create({
@@ -188,11 +204,11 @@ export async function triggerCeoSalaries(): Promise<{ ceos_paid: number; total_p
       }
     }
 
-    console.log(`[Cron] Paid salaries for ${paidCount} CEOs`);
-    return { ceos_paid: paidCount, total_paid: totalPaid, salaries_zeroed: salariesZeroed };
+    console.log(`[Cron] Paid salaries for ${paidCount} CEOs (${skippedRecentlyPaid} skipped - recently paid)`);
+    return { ceos_paid: paidCount, total_paid: totalPaid, salaries_zeroed: salariesZeroed, skipped_recently_paid: skippedRecentlyPaid };
   } catch (error: unknown) {
     console.error('[Cron] Error in CEO salary job:', getErrorMessage(error));
-    return { ceos_paid: 0, total_paid: 0, salaries_zeroed: 0 };
+    return { ceos_paid: 0, total_paid: 0, salaries_zeroed: 0, skipped_recently_paid: 0 };
   }
 }
 
@@ -343,73 +359,91 @@ export async function resolveExpiredProposals(): Promise<void> {
 }
 
 /**
+ * Stop all scheduled cron jobs
+ * Call this before starting new jobs to prevent duplicates
+ */
+export function stopAllCronJobs(): void {
+  if (scheduledTasks.length > 0) {
+    console.log(`[Cron] Stopping ${scheduledTasks.length} existing cron jobs...`);
+    for (const task of scheduledTasks) {
+      task.stop();
+    }
+    scheduledTasks = [];
+  }
+}
+
+/**
  * Start all cron jobs
  * Should be called from instrumentation.ts or server startup
+ * Automatically stops existing jobs first to prevent duplicates on hot reload
  */
 export function startActionsCron() {
+  // Stop any existing jobs first to prevent duplicates on hot reload
+  stopAllCronJobs();
+
   console.log('[Cron] Initializing cron jobs...');
 
   // 1. Actions Increment: Every hour
-  cron.schedule('0 * * * *', async () => {
+  scheduledTasks.push(cron.schedule('0 * * * *', async () => {
     if (!await GameSettingsModel.isCronEnabled()) {
       console.log('[Cron] Skipping actions increment (cron disabled)');
       return;
     }
     console.log('[Cron] Running hourly actions increment...');
     await triggerActionsIncrement();
-  });
+  }));
 
   // 2. Market Revenue: Every hour (at minute 30 to distribute load)
-  cron.schedule('30 * * * *', async () => {
+  scheduledTasks.push(cron.schedule('30 * * * *', async () => {
     if (!await GameSettingsModel.isCronEnabled()) {
       console.log('[Cron] Skipping market revenue (cron disabled)');
       return;
     }
     console.log('[Cron] Running hourly market revenue...');
     await triggerMarketRevenue();
-  });
+  }));
 
   // 3. Proposal Resolution: Every 10 minutes
-  cron.schedule('*/10 * * * *', async () => {
+  scheduledTasks.push(cron.schedule('*/10 * * * *', async () => {
     if (!await GameSettingsModel.isCronEnabled()) {
       console.log('[Cron] Skipping proposal resolution (cron disabled)');
       return;
     }
     console.log('[Cron] Checking for expired proposals...');
     await resolveExpiredProposals();
-  });
+  }));
 
   // 4. Price History Recording: Every hour (at minute 15 to distribute load)
-  cron.schedule('15 * * * *', async () => {
+  scheduledTasks.push(cron.schedule('15 * * * *', async () => {
     if (!await GameSettingsModel.isCronEnabled()) {
       console.log('[Cron] Skipping price history recording (cron disabled)');
       return;
     }
     console.log('[Cron] Recording market price history...');
     await triggerPriceHistoryRecording();
-  });
+  }));
 
   // 5. CEO Salaries: Every 4 days (at midnight)
   // 0 0 */4 * * -> At 00:00 on every 4th day-of-month
   // This is approximation.
-  cron.schedule('0 0 */4 * *', async () => {
+  scheduledTasks.push(cron.schedule('0 0 */4 * *', async () => {
     if (!await GameSettingsModel.isCronEnabled()) {
       console.log('[Cron] Skipping CEO salaries (cron disabled)');
       return;
     }
     console.log('[Cron] Running CEO salary check...');
     await triggerCeoSalaries();
-  });
+  }));
 
   // 6. Dividends: Daily at 12:00
-  cron.schedule('0 12 * * *', async () => {
+  scheduledTasks.push(cron.schedule('0 12 * * *', async () => {
     if (!await GameSettingsModel.isCronEnabled()) {
       console.log('[Cron] Skipping dividends (cron disabled)');
       return;
     }
     console.log('[Cron] Running daily dividend check...');
     await triggerDividends();
-  });
+  }));
 
   console.log('[Cron] Jobs scheduled: Actions(1h), Market(1h), Proposals(10m), Prices(1h), Salaries(4d), Dividends(24h)');
 }

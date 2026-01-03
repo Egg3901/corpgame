@@ -355,7 +355,7 @@ export default function AppNavigation({ children }: AppNavigationProps) {
               </div>
             </div>
 
-            {navSections.slice(0, 2).map((item) => (
+            {navSections.slice(0, 3).map((item) => (
               <NavbarMenuItem key={item.id}>
                 <Link
                   className={`w-full flex items-center py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
@@ -396,7 +396,7 @@ export default function AppNavigation({ children }: AppNavigationProps) {
               </div>
             </NavbarMenuItem>
 
-            {navSections.slice(3).map((item) => (
+            {navSections.slice(4).map((item) => (
               <NavbarMenuItem key={item.id}>
                 <Link
                   className={`w-full flex items-center py-2 px-4 rounded-lg text-sm font-medium transition-colors ${

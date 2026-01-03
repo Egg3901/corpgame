@@ -70,7 +70,6 @@ export {
   UpdateBoardMemberSchema,
   ListCorporationsSchema,
   UpdateCapitalSchema,
-  IssueSharesSchema,
   type CreateCorporationRequest,
   type UpdateCorporationRequest,
   type AddBoardMemberRequest,
@@ -78,7 +77,6 @@ export {
   type UpdateBoardMemberRequest,
   type ListCorporationsQuery,
   type UpdateCapitalRequest,
-  type IssueSharesRequest,
 } from './corporations';
 
 // ============================================================================

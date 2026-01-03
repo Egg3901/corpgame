@@ -1555,8 +1555,9 @@ export function calculateProductPrice(
     scarcityFactor = 1.0;
   }
   
-  // Calculate price: referenceValue * scarcityFactor (no floor)
-  let currentPrice = Math.round(referenceValue * scarcityFactor * 100) / 100;
+  // Calculate price: referenceValue * scarcityFactor with minimum floor of 10
+  const rawPrice = Math.round(referenceValue * scarcityFactor * 100) / 100;
+  const currentPrice = Math.max(10, rawPrice); // Use minimum floor to prevent worthless products
   
   return {
     product,

@@ -41,6 +41,13 @@ export async function POST(
       return NextResponse.json({ error: 'Corporation not found' }, { status: 404 });
     }
 
+    // Private corporations cannot issue shares directly - must use board proposal
+    if (corporation.structure === 'private') {
+      return NextResponse.json({
+        error: 'Private corporations must issue shares through a board proposal. Create an "Issue Shares" proposal instead.'
+      }, { status: 403 });
+    }
+
     // Check permissions: Must be CEO or Admin
     const isCEO = corporation.ceo_id === userId || corporation.elected_ceo_id === userId;
     const user = await UserModel.findById(userId);

@@ -168,9 +168,75 @@ module.exports = async function seedSectors(db, getNextId) {
   }
   console.log(`Seeded ${SECTOR_CONFIGS.length * 4} unit configs (4 types x ${SECTOR_CONFIGS.length} sectors)`);
 
-  // Note: Inputs/Outputs are complex to seed without full logic.
-  // Leaving them empty might mean units don't consume/produce anything until configured.
-  // However, `is_production_only` etc flags might be enough for basic logic, 
-  // or the game falls back to hardcoded logic if DB is empty.
-  // Given the complexity, this is a "Foundational" seed.
+  // 5. Seed Unit Inputs - Resource consumption for production units
+  const unitInputs = db.collection('sector_unit_inputs');
+  await unitInputs.deleteMany({});
+
+  // Define resource inputs for production units
+  // Format: { sector, unit_type, input_type, input_name, consumption_rate }
+  const PRODUCTION_RESOURCE_INPUTS = [
+    // Energy sector consumes Oil and Coal to produce Electricity
+    { sector: 'Energy', unit_type: 'production', input_type: 'resource', input_name: 'Oil', consumption_rate: 0.5 },
+    { sector: 'Energy', unit_type: 'production', input_type: 'resource', input_name: 'Coal', consumption_rate: 0.3 },
+    // Technology sector consumes Rare Earth
+    { sector: 'Technology', unit_type: 'production', input_type: 'resource', input_name: 'Rare Earth', consumption_rate: 0.5 },
+    // Telecommunications consumes Copper
+    { sector: 'Telecommunications', unit_type: 'production', input_type: 'resource', input_name: 'Copper', consumption_rate: 0.5 },
+    // Agriculture consumes Fertile Land
+    { sector: 'Agriculture', unit_type: 'production', input_type: 'resource', input_name: 'Fertile Land', consumption_rate: 0.5 },
+    // Pharmaceuticals consumes Chemical Compounds
+    { sector: 'Pharmaceuticals', unit_type: 'production', input_type: 'resource', input_name: 'Chemical Compounds', consumption_rate: 0.5 },
+    // Heavy Industry consumes Iron Ore and Coal
+    { sector: 'Heavy Industry', unit_type: 'production', input_type: 'resource', input_name: 'Iron Ore', consumption_rate: 0.5 },
+    { sector: 'Heavy Industry', unit_type: 'production', input_type: 'resource', input_name: 'Coal', consumption_rate: 0.3 },
+  ];
+
+  for (const input of PRODUCTION_RESOURCE_INPUTS) {
+    await unitInputs.insertOne({
+      id: await getNextId(db, 'sector_unit_inputs_id'),
+      sector_name: input.sector,
+      unit_type: input.unit_type,
+      input_type: input.input_type,
+      input_name: input.input_name,
+      consumption_rate: input.consumption_rate,
+      created_at: now,
+      updated_at: now
+    });
+  }
+  console.log(`Seeded ${PRODUCTION_RESOURCE_INPUTS.length} unit inputs`);
+
+  // 6. Seed Unit Outputs - For extraction units
+  const unitOutputs = db.collection('sector_unit_outputs');
+  await unitOutputs.deleteMany({});
+
+  // Define resource outputs for extraction units
+  const EXTRACTION_OUTPUTS = [
+    // Energy sector extracts Oil
+    { sector: 'Energy', unit_type: 'extraction', output_type: 'resource', output_name: 'Oil', output_rate: 1.0 },
+    // Mining extracts multiple resources
+    { sector: 'Mining', unit_type: 'extraction', output_type: 'resource', output_name: 'Iron Ore', output_rate: 1.0 },
+    { sector: 'Mining', unit_type: 'extraction', output_type: 'resource', output_name: 'Rare Earth', output_rate: 1.0 },
+    { sector: 'Mining', unit_type: 'extraction', output_type: 'resource', output_name: 'Copper', output_rate: 1.0 },
+    { sector: 'Mining', unit_type: 'extraction', output_type: 'resource', output_name: 'Coal', output_rate: 1.0 },
+    // Agriculture extracts Fertile Land
+    { sector: 'Agriculture', unit_type: 'extraction', output_type: 'resource', output_name: 'Fertile Land', output_rate: 1.0 },
+    // Pharmaceuticals extracts Chemical Compounds
+    { sector: 'Pharmaceuticals', unit_type: 'extraction', output_type: 'resource', output_name: 'Chemical Compounds', output_rate: 1.0 },
+    // Forestry extracts Lumber
+    { sector: 'Forestry', unit_type: 'extraction', output_type: 'resource', output_name: 'Lumber', output_rate: 1.0 },
+  ];
+
+  for (const output of EXTRACTION_OUTPUTS) {
+    await unitOutputs.insertOne({
+      id: await getNextId(db, 'sector_unit_outputs_id'),
+      sector_name: output.sector,
+      unit_type: output.unit_type,
+      output_type: output.output_type,
+      output_name: output.output_name,
+      output_rate: output.output_rate,
+      created_at: now,
+      updated_at: now
+    });
+  }
+  console.log(`Seeded ${EXTRACTION_OUTPUTS.length} unit outputs`);
 };

@@ -61,7 +61,7 @@ export async function POST(
     }
 
     // Validate proposal type
-    const validTypes: ProposalType[] = ['ceo_nomination', 'sector_change', 'hq_change', 'board_size', 'appoint_member', 'ceo_salary_change', 'dividend_change', 'special_dividend', 'stock_split', 'focus_change'];
+    const validTypes: ProposalType[] = ['ceo_nomination', 'sector_change', 'hq_change', 'board_size', 'appoint_member', 'ceo_salary_change', 'dividend_change', 'special_dividend', 'stock_split', 'focus_change', 'issue_shares', 'go_public', 'buyback_shares'];
     if (!validTypes.includes(proposal_type)) {
       return NextResponse.json({ error: 'Invalid proposal type' }, { status: 400 });
     }
@@ -180,9 +180,19 @@ export async function POST(
       }
 
       case 'stock_split': {
-        // Stock split doubles all shares (2:1 split)
-        // No additional data needed
-        validatedData = {};
+        // Default to 2:1 split if no ratio provided
+        const splitRatio = proposal_data.split_ratio ?? 2;
+        if (typeof splitRatio !== 'number' || splitRatio <= 0) {
+          return NextResponse.json({ error: 'Split ratio must be a positive number' }, { status: 400 });
+        }
+        // Valid ratios: 2, 3, 4 for regular splits; 0.5, 0.333, 0.25 for reverse splits
+        const validRatios = [0.25, 0.333, 0.5, 2, 3, 4];
+        if (!validRatios.includes(splitRatio)) {
+          return NextResponse.json({
+            error: 'Invalid split ratio. Use 2, 3, or 4 for splits; 0.5, 0.333, or 0.25 for reverse splits.'
+          }, { status: 400 });
+        }
+        validatedData = { split_ratio: splitRatio };
         break;
       }
 
@@ -193,6 +203,74 @@ export async function POST(
           return NextResponse.json({ error: 'Invalid focus type. Must be extraction, production, retail, service, or diversified.' }, { status: 400 });
         }
         validatedData = { new_focus: newFocus };
+        break;
+      }
+
+      case 'issue_shares': {
+        const sharesToIssue = proposal_data.shares_to_issue;
+        if (!sharesToIssue || typeof sharesToIssue !== 'number' || sharesToIssue <= 0) {
+          return NextResponse.json({ error: 'Shares to issue must be a positive number' }, { status: 400 });
+        }
+        // Limit dilution to 50% of current shares
+        if (sharesToIssue > corporation.shares * 0.5) {
+          return NextResponse.json({
+            error: `Cannot issue more than 50% of current shares (${Math.floor(corporation.shares * 0.5).toLocaleString()} max)`
+          }, { status: 400 });
+        }
+        validatedData = { shares_to_issue: sharesToIssue };
+        break;
+      }
+
+      case 'go_public': {
+        // Only private corporations can go public
+        if (corporation.structure !== 'private') {
+          return NextResponse.json({ error: 'Only private corporations can go public' }, { status: 400 });
+        }
+        const initialPublicShares = proposal_data.initial_public_shares;
+        if (!initialPublicShares || typeof initialPublicShares !== 'number' || initialPublicShares <= 0) {
+          return NextResponse.json({ error: 'Initial public shares must be a positive number' }, { status: 400 });
+        }
+        // Cannot make more shares public than total shares
+        if (initialPublicShares > corporation.shares) {
+          return NextResponse.json({
+            error: `Cannot make more shares public than total shares (${corporation.shares.toLocaleString()} max)`
+          }, { status: 400 });
+        }
+        validatedData = { initial_public_shares: initialPublicShares };
+        break;
+      }
+
+      case 'buyback_shares': {
+        // Only public corporations can buy back shares
+        if (corporation.structure !== 'public') {
+          return NextResponse.json({ error: 'Only public corporations can buy back shares' }, { status: 400 });
+        }
+        const sharesToBuyback = proposal_data.shares_to_buyback;
+        const maxPricePerShare = proposal_data.max_price_per_share;
+
+        if (!sharesToBuyback || typeof sharesToBuyback !== 'number' || sharesToBuyback <= 0) {
+          return NextResponse.json({ error: 'Shares to buy back must be a positive number' }, { status: 400 });
+        }
+        if (!maxPricePerShare || typeof maxPricePerShare !== 'number' || maxPricePerShare <= 0) {
+          return NextResponse.json({ error: 'Max price per share must be a positive number' }, { status: 400 });
+        }
+        // Cannot buy back more than available public shares
+        if (sharesToBuyback > corporation.public_shares) {
+          return NextResponse.json({
+            error: `Cannot buy back more than available public shares (${corporation.public_shares.toLocaleString()} available)`
+          }, { status: 400 });
+        }
+        // Check if corporation has enough capital
+        const estimatedCost = sharesToBuyback * maxPricePerShare;
+        const corpCapital = typeof corporation.capital === 'string'
+          ? parseFloat(String(corporation.capital))
+          : (corporation.capital || 0);
+        if (estimatedCost > corpCapital) {
+          return NextResponse.json({
+            error: `Insufficient capital. Estimated cost: $${estimatedCost.toLocaleString()}, Available: $${corpCapital.toLocaleString()}`
+          }, { status: 400 });
+        }
+        validatedData = { shares_to_buyback: sharesToBuyback, max_price_per_share: maxPricePerShare };
         break;
       }
 

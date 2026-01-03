@@ -1,6 +1,6 @@
 import { getDb, getNextId, connectMongo } from '../db/mongo';
 import { Document } from 'mongodb';
-import { 
+import {
   DISPLAY_PERIOD_HOURS,
   calculateMarketEntryEconomics,
   calculateCommodityPrice,
@@ -27,6 +27,7 @@ import {
   type Resource,
   type Sector,
 } from '../constants/sectors';
+import { SectorConfigService } from '../services/SectorConfigService';
 
 export interface MarketEntry {
   id: number;
@@ -144,6 +145,9 @@ export class MarketEntryModel {
       sectorExtractionUnits[sector] = row.extraction_units || 0;
     }
 
+    // Get sector config for resource consumption rates
+    const sectorConfig = await SectorConfigService.getConfiguration();
+
     const commoditySupply: Record<Resource, number> = {} as Record<Resource, number>;
     const commodityDemand: Record<Resource, number> = {} as Record<Resource, number>;
     for (const resource of RESOURCES) {
@@ -156,9 +160,14 @@ export class MarketEntryModel {
         }
       }
 
-      for (const [sector, requiredResource] of Object.entries(SECTOR_RESOURCES)) {
-        if (requiredResource === resource) {
-          demand += (sectorProductionUnits[sector] || 0) * PRODUCTION_RESOURCE_CONSUMPTION;
+      // Calculate demand from sector config inputs (supports multi-resource sectors like Energy)
+      for (const [sectorName, sectorData] of Object.entries(sectorConfig.sectors)) {
+        const productionInputs = sectorData.units.production.inputs;
+        const resourceInput = productionInputs.find(
+          input => input.type === 'resource' && input.name === resource
+        );
+        if (resourceInput) {
+          demand += (sectorProductionUnits[sectorName] || 0) * resourceInput.rate;
         }
       }
 

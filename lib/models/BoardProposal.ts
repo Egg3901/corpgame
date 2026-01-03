@@ -9,7 +9,7 @@ import { MessageModel } from './Message';
 import { getErrorMessage } from '../utils';
 
 // Proposal types
-export type ProposalType = 'ceo_nomination' | 'sector_change' | 'hq_change' | 'board_size' | 'appoint_member' | 'ceo_salary_change' | 'dividend_change' | 'special_dividend' | 'stock_split' | 'focus_change';
+export type ProposalType = 'ceo_nomination' | 'sector_change' | 'hq_change' | 'board_size' | 'appoint_member' | 'ceo_salary_change' | 'dividend_change' | 'special_dividend' | 'stock_split' | 'focus_change' | 'issue_shares' | 'go_public' | 'buyback_shares';
 
 // Proposal data structures
 export interface CeoNominationData {
@@ -47,14 +47,27 @@ export interface SpecialDividendData {
 }
 
 export interface StockSplitData {
-  // 2:1 split - doubles shares, halves price
+  split_ratio: number; // Multiplier (2 = 2:1 split, 3 = 3:1 split, 0.5 = 1:2 reverse split)
 }
 
 export interface FocusChangeData {
   new_focus: 'extraction' | 'production' | 'retail' | 'service' | 'diversified';
 }
 
-export type ProposalData = CeoNominationData | SectorChangeData | HqChangeData | BoardSizeData | AppointMemberData | CeoSalaryChangeData | DividendChangeData | SpecialDividendData | StockSplitData | FocusChangeData;
+export interface IssueSharesData {
+  shares_to_issue: number; // Number of new shares to issue
+}
+
+export interface GoPublicData {
+  initial_public_shares: number; // Shares to make public in IPO
+}
+
+export interface BuybackSharesData {
+  shares_to_buyback: number; // Number of shares to buy back from market
+  max_price_per_share: number; // Maximum price to pay per share
+}
+
+export type ProposalData = CeoNominationData | SectorChangeData | HqChangeData | BoardSizeData | AppointMemberData | CeoSalaryChangeData | DividendChangeData | SpecialDividendData | StockSplitData | FocusChangeData | IssueSharesData | GoPublicData | BuybackSharesData;
 
 export interface BoardProposal {
   id: number;
@@ -544,26 +557,30 @@ export class BoardProposalModel {
         break;
 
       case 'stock_split':
-        // 2:1 split
+        // Flexible stock split (2:1, 3:1, or reverse splits like 1:2)
+        const splitRatio = 'split_ratio' in data ? data.split_ratio : 2; // Default 2:1 for backwards compatibility
         const splitCorp = await CorporationModel.findById(corpId);
         if (splitCorp) {
-          // Double shares for all shareholders
+          // Apply ratio to all shareholders
           const shareholders = await ShareholderModel.findByCorporationId(corpId);
           for (const sh of shareholders) {
-            await ShareholderModel.updateShares(corpId, sh.user_id, sh.shares * 2);
+            const newShares = Math.floor(sh.shares * splitRatio);
+            await ShareholderModel.updateShares(corpId, sh.user_id, newShares);
           }
-          
-          // Double public shares
-          const newPublicShares = splitCorp.public_shares * 2;
-          // Halve share price
+
+          // Apply ratio to public shares and total shares
+          const newPublicShares = Math.floor(splitCorp.public_shares * splitRatio);
+          const newTotalShares = Math.floor(splitCorp.shares * splitRatio);
+
+          // Adjust share price inversely
           const currentPrice = typeof splitCorp.share_price === 'string' ? parseFloat(String(splitCorp.share_price)) : (splitCorp.share_price || 0);
-          const newPrice = currentPrice / 2;
-          
+          const newPrice = currentPrice / splitRatio;
+
           // Update corporation
           await CorporationModel.update(corpId, {
             public_shares: newPublicShares,
             share_price: newPrice,
-            shares: splitCorp.shares * 2 // Total shares doubled
+            shares: newTotalShares
           });
         }
         break;
@@ -571,6 +588,104 @@ export class BoardProposalModel {
       case 'focus_change':
         if ('new_focus' in data) {
           await CorporationModel.update(corpId, { focus: data.new_focus });
+        }
+        break;
+
+      case 'issue_shares':
+        if ('shares_to_issue' in data) {
+          const issueCorp = await CorporationModel.findById(corpId);
+          if (issueCorp) {
+            const sharesToIssue = data.shares_to_issue;
+
+            // Calculate capital raised at current share price
+            const currentPrice = typeof issueCorp.share_price === 'string'
+              ? parseFloat(String(issueCorp.share_price))
+              : (issueCorp.share_price || 1);
+            const capitalRaised = sharesToIssue * currentPrice;
+
+            // Increase total shares
+            await CorporationModel.incrementShares(corpId, sharesToIssue);
+            // For public corps, increase public shares; for private corps, shares stay private
+            if (issueCorp.structure === 'public') {
+              await CorporationModel.incrementPublicShares(corpId, sharesToIssue);
+            }
+            // Increase capital
+            await CorporationModel.incrementCapital(corpId, capitalRaised);
+
+            // Record transaction
+            await TransactionModel.create({
+              transaction_type: 'share_issue',
+              amount: capitalRaised,
+              description: `Issued ${sharesToIssue.toLocaleString()} new shares at $${currentPrice.toFixed(2)}/share`,
+              corporation_id: corpId,
+              from_user_id: null,
+              to_user_id: null
+            });
+          }
+        }
+        break;
+
+      case 'go_public':
+        if ('initial_public_shares' in data) {
+          const ipoCorp = await CorporationModel.findById(corpId);
+          if (ipoCorp && ipoCorp.structure === 'private') {
+            // Convert to public
+            await CorporationModel.update(corpId, {
+              structure: 'public',
+              public_shares: data.initial_public_shares,
+              ipo_date: new Date()
+            });
+
+            // Record transaction
+            await TransactionModel.create({
+              transaction_type: 'corporate_action',
+              amount: 0,
+              description: `IPO completed - ${data.initial_public_shares.toLocaleString()} shares made public`,
+              corporation_id: corpId,
+              from_user_id: null,
+              to_user_id: null
+            });
+          }
+        }
+        break;
+
+      case 'buyback_shares':
+        if ('shares_to_buyback' in data && 'max_price_per_share' in data) {
+          const buybackCorp = await CorporationModel.findById(corpId);
+          if (buybackCorp && buybackCorp.public_shares >= data.shares_to_buyback) {
+            const sharesToBuy = data.shares_to_buyback;
+            const currentPrice = typeof buybackCorp.share_price === 'string'
+              ? parseFloat(String(buybackCorp.share_price))
+              : (buybackCorp.share_price || 1);
+
+            // Use the lower of max price or current price
+            const buyPrice = Math.min(data.max_price_per_share, currentPrice);
+            const totalCost = sharesToBuy * buyPrice;
+
+            // Check if corporation has enough capital
+            const corpCapital = typeof buybackCorp.capital === 'string'
+              ? parseFloat(String(buybackCorp.capital))
+              : (buybackCorp.capital || 0);
+
+            if (corpCapital >= totalCost) {
+              // Reduce public shares
+              await CorporationModel.update(corpId, {
+                public_shares: buybackCorp.public_shares - sharesToBuy,
+                shares: buybackCorp.shares - sharesToBuy,
+                capital: corpCapital - totalCost
+              });
+
+              // Record transaction
+              await TransactionModel.create({
+                transaction_type: 'corporate_action',
+                amount: totalCost,
+                description: `Bought back ${sharesToBuy.toLocaleString()} shares at $${buyPrice.toFixed(2)}/share`,
+                corporation_id: corpId,
+                from_user_id: null,
+                to_user_id: null
+              });
+            }
+          }
         }
         break;
     }
@@ -587,8 +702,18 @@ export class BoardProposalModel {
       case 'ceo_salary_change': return `Change CEO salary to $${'new_salary' in data ? data.new_salary : 'unknown'}`;
       case 'dividend_change': return `Change dividend to ${'new_percentage' in data ? data.new_percentage : 'unknown'}%`;
       case 'special_dividend': return `Pay special dividend of ${'capital_percentage' in data ? data.capital_percentage : 'unknown'}% capital`;
-      case 'stock_split': return `2:1 Stock Split`;
+      case 'stock_split': {
+        const ratio = 'split_ratio' in data ? data.split_ratio : 2;
+        if (ratio < 1) {
+          // Reverse split: 0.5 = 1:2 reverse split
+          return `1:${Math.round(1 / ratio)} Reverse Stock Split`;
+        }
+        return `${ratio}:1 Stock Split`;
+      }
       case 'focus_change': return `Change focus to ${'new_focus' in data ? data.new_focus : 'unknown'}`;
+      case 'issue_shares': return `Issue ${'shares_to_issue' in data ? data.shares_to_issue.toLocaleString() : 'unknown'} new shares`;
+      case 'go_public': return `Go public (IPO) with ${'initial_public_shares' in data ? data.initial_public_shares.toLocaleString() : 'unknown'} public shares`;
+      case 'buyback_shares': return `Buy back ${'shares_to_buyback' in data ? data.shares_to_buyback.toLocaleString() : 'unknown'} shares`;
       default: return type;
     }
   }

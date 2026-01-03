@@ -316,31 +316,3 @@ export const UpdateCapitalSchema = z.object({
 });
 
 export type UpdateCapitalRequest = z.infer<typeof UpdateCapitalSchema>;
-
-/**
- * Issue shares validation schema
- * 
- * Allows board to issue new shares, diluting existing ownership.
- * 
- * @example
- * ```typescript
- * const data = {
- *   shares: 100000,
- *   makePublic: true
- * };
- * const result = IssueSharesSchema.safeParse(data);
- * ```
- */
-export const IssueSharesSchema = z.object({
-  shares: z
-    .number()
-    .int('Shares must be a whole number')
-    .positive('Shares must be positive')
-    .max(1000000, 'Cannot issue more than 1,000,000 shares at once'),
-  makePublic: z
-    .boolean()
-    .optional()
-    .default(false),
-});
-
-export type IssueSharesRequest = z.infer<typeof IssueSharesSchema>;

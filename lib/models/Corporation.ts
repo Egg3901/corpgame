@@ -19,10 +19,12 @@ export interface Corporation {
   board_size: number;
   elected_ceo_id: number | null;
   ceo_salary: number;
+  ceo_salary_last_paid_at: Date | null;
   dividend_percentage: number;
   special_dividend_last_paid_at: Date | null;
   special_dividend_last_amount: number | null;
   focus: CorpFocus;
+  ipo_date: Date | null;
   created_at: Date;
 }
 
@@ -52,10 +54,12 @@ export interface UpdateCorporationData {
   board_size?: number;
   elected_ceo_id?: number | null;
   ceo_salary?: number;
+  ceo_salary_last_paid_at?: Date | null;
   dividend_percentage?: number;
   special_dividend_last_paid_at?: Date | null;
   special_dividend_last_amount?: number | null;
   focus?: CorpFocus;
+  ipo_date?: Date | null;
 }
 
 export class CorporationModel {
@@ -102,9 +106,11 @@ export class CorporationModel {
       board_size: 0, // Default? Postgres didn't specify default in insert, so it was likely DB default or null. Interface says number.
       elected_ceo_id: null,
       ceo_salary: 0, // Default?
+      ceo_salary_last_paid_at: null,
       dividend_percentage: 0, // Default?
       special_dividend_last_paid_at: null,
       special_dividend_last_amount: null,
+      ipo_date: null,
       created_at: now,
     };
 

@@ -126,19 +126,73 @@ export default function SectorConfigPanel({ onError }: SectorConfigPanelProps) {
   // FID-20260103-005: Sector toggle state
   const [togglingSector, setTogglingSector] = useState<string | null>(null);
 
-  // Export config as JSON file
+  // Export config as JSON file with nested structure for readability
   const handleExport = useCallback(() => {
     if (!data) return;
 
+    // Build nested structure that matches the UI
+    const nestedSectors = data.sectors.map(sector => {
+      const unitConfigs = data.unitConfigs.filter(uc => uc.sector_name === sector.sector_name);
+      const sectorInputs = data.inputs.filter(i => i.sector_name === sector.sector_name);
+      const sectorOutputs = data.outputs.filter(o => o.sector_name === sector.sector_name);
+
+      const units: Record<string, {
+        is_enabled: boolean;
+        base_revenue: number;
+        base_cost: number;
+        labor_cost: number;
+        output_rate: number | null;
+        inputs: Array<{ input_name: string; input_type: string; consumption_rate: number }>;
+        outputs: Array<{ output_name: string; output_type: string; output_rate: number }>;
+      }> = {};
+
+      for (const uc of unitConfigs) {
+        const unitInputs = sectorInputs.filter(i => i.unit_type === uc.unit_type);
+        const unitOutputs = sectorOutputs.filter(o => o.unit_type === uc.unit_type);
+
+        units[uc.unit_type] = {
+          is_enabled: uc.is_enabled,
+          base_revenue: uc.base_revenue,
+          base_cost: uc.base_cost,
+          labor_cost: uc.labor_cost,
+          output_rate: uc.output_rate,
+          inputs: unitInputs.map(i => ({
+            input_name: i.input_name,
+            input_type: i.input_type,
+            consumption_rate: i.consumption_rate,
+          })),
+          outputs: unitOutputs.map(o => ({
+            output_name: o.output_name,
+            output_type: o.output_type,
+            output_rate: o.output_rate,
+          })),
+        };
+      }
+
+      return {
+        sector_name: sector.sector_name,
+        is_enabled: sector.is_enabled,
+        is_production_only: sector.is_production_only,
+        can_extract: sector.can_extract,
+        produced_product: sector.produced_product,
+        primary_resource: sector.primary_resource,
+        units,
+      };
+    });
+
     const exportData = {
       exportedAt: new Date().toISOString(),
-      version: '1.0',
-      sectors: data.sectors,
-      unitConfigs: data.unitConfigs,
-      inputs: data.inputs,
-      outputs: data.outputs,
-      products: data.products,
-      resources: data.resources,
+      version: '2.0',
+      sectors: nestedSectors,
+      products: data.products.map(p => ({
+        product_name: p.product_name,
+        reference_value: p.reference_value,
+        min_price: p.min_price,
+      })),
+      resources: data.resources.map(r => ({
+        resource_name: r.resource_name,
+        base_price: r.base_price,
+      })),
     };
 
     const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });

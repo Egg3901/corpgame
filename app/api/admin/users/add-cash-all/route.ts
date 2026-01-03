@@ -27,10 +27,11 @@ export async function POST(req: NextRequest) {
     // Add cash to all users
     const result = await UserModel.addCashToAll(parsedAmount);
 
-    return NextResponse.json({ 
-      success: true, 
+    return NextResponse.json({
+      success: true,
       message: `Successfully added $${parsedAmount.toLocaleString()} to ${result.updated} users`,
-      updated_count: result.updated
+      users_updated: result.updated,
+      amount: parsedAmount
     });
   } catch (error: unknown) {
     console.error('Add cash to all error:', error);
