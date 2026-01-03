@@ -29,11 +29,8 @@ export interface LeaderboardResponse {
 
 export async function GET(req: NextRequest) {
   try {
-    // Require authentication
+    // Auth is optional - if logged in, we include viewer's rank
     const viewerId = await getAuthUserId(req);
-    if (!viewerId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
 
     await connectMongo();
     const db = getDb();
@@ -141,13 +138,17 @@ export async function GET(req: NextRequest) {
       net_worth: entry.net_worth
     }));
 
-    // Check if viewer is in the results
-    const viewerInResults = entries.find(e => e.user_id === viewerId);
-
     let viewer_rank: number | undefined;
     let viewer_entry: LeaderboardEntry | undefined;
 
-    if (!viewerInResults) {
+    // Only check viewer rank if authenticated
+    if (viewerId) {
+      const viewerInResults = entries.find(e => e.user_id === viewerId);
+
+      if (viewerInResults) {
+        viewer_rank = viewerInResults.rank;
+        viewer_entry = viewerInResults;
+      } else {
       // Get viewer's rank separately
       const viewerPipeline = [
         { $match: { is_banned: { $ne: true } } },
@@ -226,6 +227,7 @@ export async function GET(req: NextRequest) {
           portfolio_value: viewer.portfolio_value,
           net_worth: viewer.net_worth
         };
+      }
       }
     }
 

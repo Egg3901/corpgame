@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { triggerMarketRevenue } from '@/lib/cron/actions';
 import { GameSettingsModel } from '@/lib/models/GameSettings';
+import { connectMongo } from '@/lib/db/mongo';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -13,6 +14,8 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    await connectMongo();
+
     // Check if cron is enabled
     const cronEnabled = await GameSettingsModel.isCronEnabled();
     if (!cronEnabled) {
