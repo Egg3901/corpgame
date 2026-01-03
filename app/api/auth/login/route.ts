@@ -1,8 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-// Force Node.js runtime
-export const runtime = 'nodejs';
-
 // Temporarily simplified for debugging
 export async function POST(req: NextRequest) {
   try {
