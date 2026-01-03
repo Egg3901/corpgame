@@ -44,9 +44,53 @@ import {
  * @returns NextResponse (continue or error)
  */
 export async function middleware(request: NextRequest) {
-  // TEMPORARILY DISABLED - debugging 405 error
-  // Just pass through all requests
-  return NextResponse.next();
+  // Start timing for request logging
+  const startTime = Date.now();
+
+  // Step 1: Rate Limiting
+  const rateLimitResult = rateLimitMiddleware(request);
+  if (rateLimitResult.status === 429) {
+    await loggingMiddleware(request, rateLimitResult, startTime);
+    return rateLimitResult;
+  }
+
+  // Step 2: CORS
+  const corsResult = corsMiddleware(request);
+
+  // Handle preflight OPTIONS request
+  if (request.method === 'OPTIONS') {
+    await loggingMiddleware(request, corsResult, startTime);
+    return corsResult;
+  }
+
+  // Handle CORS rejection (status 403)
+  if (corsResult.status === 403) {
+    await loggingMiddleware(request, corsResult, startTime);
+    return corsResult;
+  }
+
+  // Step 3: Build response with all headers combined
+  const response = NextResponse.next();
+
+  // Copy CORS headers from corsResult
+  corsResult.headers.forEach((value, key) => {
+    response.headers.set(key, value);
+  });
+
+  // Copy rate limit headers from rateLimitResult
+  rateLimitResult.headers.forEach((value, key) => {
+    response.headers.set(key, value);
+  });
+
+  // Step 4: Security Headers
+  const finalResponse = securityHeadersMiddleware(request, response);
+
+  // Step 5: Logging (async, doesn't block response)
+  loggingMiddleware(request, finalResponse, startTime).catch((error) => {
+    console.error('Logging middleware error:', error);
+  });
+
+  return finalResponse;
 }
 
 /**

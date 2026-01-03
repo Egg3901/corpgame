@@ -1,7 +1,22 @@
 import bcrypt from 'bcryptjs';
 import { getDb, getNextId } from '../db/mongo';
 import { ACTIONS_CONFIG } from '../constants/actions';
-import DOMPurify from 'isomorphic-dompurify';
+
+/**
+ * Strip all HTML tags from a string (simple server-side sanitization)
+ * This replaces isomorphic-dompurify which has jsdom dependency issues on Vercel
+ */
+function stripHtmlTags(str: string): string {
+  return str
+    .replace(/<[^>]*>/g, '') // Remove HTML tags
+    .replace(/&lt;/g, '<')   // Decode common entities
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#039;/g, "'")
+    .replace(/&nbsp;/g, ' ')
+    .trim();
+}
 
 export interface User {
   id: number;
@@ -81,7 +96,7 @@ export class UserModel {
     const cleanAge = age !== undefined && age !== null ? age : null;
     const cleanStartingState = starting_state && starting_state.trim() !== '' ? starting_state.trim() : null;
     // Sanitize bio to prevent XSS attacks
-    const cleanBio = bio && bio.trim() !== '' ? DOMPurify.sanitize(bio.trim(), { ALLOWED_TAGS: [], ALLOWED_ATTR: [] }) : 'I\'m a new user, say hi!';
+    const cleanBio = bio && bio.trim() !== '' ? stripHtmlTags(bio.trim()) : 'I\'m a new user, say hi!';
     
     const db = getDb();
     const now = new Date();
@@ -222,7 +237,7 @@ export class UserModel {
 
   static async updateBio(userId: number, bio: string): Promise<void> {
     // Sanitize bio to prevent XSS attacks - strip all HTML tags
-    const sanitizedBio = DOMPurify.sanitize(bio, { ALLOWED_TAGS: [], ALLOWED_ATTR: [] });
+    const sanitizedBio = stripHtmlTags(bio);
     await getDb().collection<User>('users').updateOne(
       { id: userId },
       { $set: { bio: sanitizedBio } }
