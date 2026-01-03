@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { UserModel } from '@/lib/models/User';
 import { normalizeImageUrl } from '@/lib/utils/imageUrl';
-import { connectMongo } from '@/lib/db/mongo';
+import { connectMongo, getDb } from '@/lib/db/mongo';
 import { getErrorMessage } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
@@ -37,9 +37,36 @@ export async function GET(
     }
 
     // Determine if user is online (active within last 5 minutes)
-    const isOnline = user.last_seen_at 
+    const isOnline = user.last_seen_at
       ? (Date.now() - new Date(user.last_seen_at).getTime()) < 5 * 60 * 1000
       : false;
+
+    // Calculate portfolio value
+    const db = getDb();
+    const holdings = await db.collection('shareholders').aggregate([
+      { $match: { user_id: user.id } },
+      {
+        $lookup: {
+          from: 'corporations',
+          localField: 'corporation_id',
+          foreignField: 'id',
+          as: 'corporation'
+        }
+      },
+      { $unwind: '$corporation' },
+      {
+        $group: {
+          _id: null,
+          portfolio_value: {
+            $sum: { $multiply: ['$shares', '$corporation.share_price'] }
+          }
+        }
+      }
+    ]).toArray();
+
+    const cash = user.cash ?? 0;
+    const portfolio_value = holdings[0]?.portfolio_value ?? 0;
+    const net_worth = cash + portfolio_value;
 
     // Return public profile data
     return NextResponse.json({
@@ -54,6 +81,9 @@ export async function GET(
       profile_image_url: normalizeImageUrl(user.profile_image_url),
       bio: user.bio,
       actions: user.actions ?? 0,
+      cash,
+      portfolio_value,
+      net_worth,
       is_admin: user.is_admin,
       last_seen_at: user.last_seen_at,
       is_online: isOnline,
