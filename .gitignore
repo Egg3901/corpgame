@@ -11,6 +11,8 @@
 # next.js
 /.next/
 /out/
+frontend/.next/
+backend/dist/
 
 # production
 /build
@@ -37,3 +39,4 @@ next-env.d.ts
 
 # Security
 .env
+.env2

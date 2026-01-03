@@ -77,6 +77,7 @@ interface StoredCredentials {
   username: string;
   email: string;
   password: string;
+  registration_secret?: string;
 }
 
 export default function RegisterProfilePage() {
@@ -155,6 +156,7 @@ export default function RegisterProfilePage() {
         gender: formData.gender as 'm' | 'f' | 'nonbinary',
         age: parseInt(formData.age),
         starting_state: formData.starting_state,
+        ...(credentials.registration_secret && { registration_secret: credentials.registration_secret }),
       };
 
       await authAPI.register(registerData);

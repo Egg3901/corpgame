@@ -112,7 +112,7 @@ export default function PortfolioPage() {
               </div>
               <div>
                 <p className="text-xs font-bold uppercase tracking-[0.15em] text-gray-600 dark:text-gray-400 mb-2">Holdings</p>
-                <p className="text-4xl font-bold text-gray-900 dark:text-white">{portfolio.holdings.length}</p>
+                <p className="text-4xl font-bold text-gray-900 dark:text-white">{portfolio.holdings?.length ?? 0}</p>
               </div>
               <div>
                 <p className="text-xs font-bold uppercase tracking-[0.15em] text-gray-600 dark:text-gray-400 mb-2">Dividend Income</p>

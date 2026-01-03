@@ -62,6 +62,8 @@ function loadEnv() {
     if (fs.existsSync(envPath)) {
       const content = fs.readFileSync(envPath, 'utf8');
       content.split('\n').forEach(line => {
+        // Remove Windows \r characters
+        line = line.replace(/\r/g, '');
         const match = line.match(/^([^=]+)=(.*)$/);
         if (match) {
           const key = match[1].trim();

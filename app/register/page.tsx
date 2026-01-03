@@ -11,6 +11,7 @@ interface CredentialsData {
   email: string;
   password: string;
   confirmPassword: string;
+  inviteCode: string;
 }
 
 export default function RegisterPage() {
@@ -20,17 +21,24 @@ export default function RegisterPage() {
     email: '',
     password: '',
     confirmPassword: '',
+    inviteCode: '',
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState('');
 
+  // Password validation
   const passwordsMatch = formData.password === formData.confirmPassword;
-  const passwordLongEnough = formData.password.length >= 6;
+  const passwordLongEnough = formData.password.length >= 8;
+  const hasUppercase = /[A-Z]/.test(formData.password);
+  const hasLowercase = /[a-z]/.test(formData.password);
+  const hasNumber = /[0-9]/.test(formData.password);
+  const hasSpecial = /[^A-Za-z0-9]/.test(formData.password);
+  const passwordValid = passwordLongEnough && hasUppercase && hasLowercase && hasNumber && hasSpecial;
   const canProceed =
     formData.username.trim().length >= 3 &&
     formData.email.includes('@') &&
-    passwordLongEnough &&
+    passwordValid &&
     passwordsMatch;
 
   const handleSubmit = (e: FormEvent) => {
@@ -47,8 +55,8 @@ export default function RegisterPage() {
       return;
     }
 
-    if (!passwordLongEnough) {
-      setError('Password must be at least 6 characters');
+    if (!passwordValid) {
+      setError('Password must be 8+ chars with uppercase, lowercase, number, and special character');
       return;
     }
 
@@ -62,6 +70,7 @@ export default function RegisterPage() {
       username: formData.username.trim(),
       email: formData.email.trim(),
       password: formData.password,
+      registration_secret: formData.inviteCode.trim(),
     }));
 
     router.push('/register/profile');
@@ -144,6 +153,20 @@ export default function RegisterPage() {
             />
 
             <Input
+              label="Invite Code"
+              labelPlacement="outside"
+              name="inviteCode"
+              value={formData.inviteCode}
+              onChange={handleChange}
+              variant="bordered"
+              placeholder="Enter invite code (if you have one)"
+              description="Required if the server has invite-only registration enabled"
+              classNames={{
+                inputWrapper: "bg-default-50 hover:bg-default-100",
+              }}
+            />
+
+            <Input
               label="Password"
               labelPlacement="outside"
               name="password"
@@ -210,23 +233,25 @@ export default function RegisterPage() {
               />
               
               {formData.password && (
-                <div className="flex flex-wrap gap-2 mt-1">
-                  <Chip
-                    size="sm"
-                    color={passwordLongEnough ? "success" : "danger"}
-                    variant="flat"
-                    startContent={passwordLongEnough ? <Check size={14} /> : <X size={14} />}
-                  >
-                    6+ characters
+                <div className="flex flex-wrap gap-1.5 mt-1">
+                  <Chip size="sm" color={passwordLongEnough ? "success" : "danger"} variant="flat" startContent={passwordLongEnough ? <Check size={12} /> : <X size={12} />}>
+                    8+ chars
+                  </Chip>
+                  <Chip size="sm" color={hasUppercase ? "success" : "danger"} variant="flat" startContent={hasUppercase ? <Check size={12} /> : <X size={12} />}>
+                    Uppercase
+                  </Chip>
+                  <Chip size="sm" color={hasLowercase ? "success" : "danger"} variant="flat" startContent={hasLowercase ? <Check size={12} /> : <X size={12} />}>
+                    Lowercase
+                  </Chip>
+                  <Chip size="sm" color={hasNumber ? "success" : "danger"} variant="flat" startContent={hasNumber ? <Check size={12} /> : <X size={12} />}>
+                    Number
+                  </Chip>
+                  <Chip size="sm" color={hasSpecial ? "success" : "danger"} variant="flat" startContent={hasSpecial ? <Check size={12} /> : <X size={12} />}>
+                    Special (!@#$)
                   </Chip>
                   {formData.confirmPassword && (
-                    <Chip
-                      size="sm"
-                      color={passwordsMatch ? "success" : "danger"}
-                      variant="flat"
-                      startContent={passwordsMatch ? <Check size={14} /> : <X size={14} />}
-                    >
-                      Passwords match
+                    <Chip size="sm" color={passwordsMatch ? "success" : "danger"} variant="flat" startContent={passwordsMatch ? <Check size={12} /> : <X size={12} />}>
+                      Match
                     </Chip>
                   )}
                 </div>
