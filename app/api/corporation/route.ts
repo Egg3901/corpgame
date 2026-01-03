@@ -4,7 +4,7 @@ import { CorporationModel } from '@/lib/models/Corporation';
 import { ShareholderModel } from '@/lib/models/Shareholder';
 import { TransactionModel } from '@/lib/models/Transaction';
 import { UserModel } from '@/lib/models/User';
-import { getDb } from '@/lib/db/mongo';
+import { connectMongo, getDb } from '@/lib/db/mongo';
 import { normalizeImageUrl } from '@/lib/utils/imageUrl';
 import { getErrorMessage } from '@/lib/utils';
 import { SECTORS, isValidSector, CORP_FOCUS_TYPES, isValidCorpFocus, CorpFocus } from '@/lib/constants/sectors';
@@ -13,6 +13,7 @@ import { CreateCorporationSchema } from '@/lib/validations/corporations';
 // GET /api/corporation - List all corporations
 export async function GET(request: NextRequest) {
   try {
+    await connectMongo();
     const corporations = await CorporationModel.findAll();
 
     // Get all unique CEO IDs
@@ -107,6 +108,7 @@ export async function GET(request: NextRequest) {
 // POST /api/corporation - Create corporation
 export async function POST(request: NextRequest) {
   try {
+    await connectMongo();
     const userId = await getAuthUserId(request);
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

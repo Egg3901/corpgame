@@ -6,7 +6,7 @@ import { UserModel } from '@/lib/models/User';
 import { normalizeImageUrl } from '@/lib/utils/imageUrl';
 import { isValidSector, isValidCorpFocus, SECTORS, CORP_FOCUS_TYPES, CorpFocus } from '@/lib/constants/sectors';
 import { ACTIONS_CONFIG } from '@/lib/constants/actions';
-import { getDb } from '@/lib/db/mongo';
+import { connectMongo, getDb } from '@/lib/db/mongo';
 import { getErrorMessage } from '@/lib/utils';
 import { UpdateCorporationSchema } from '@/lib/validations/corporations';
 
@@ -31,6 +31,7 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
+    await connectMongo();
     const id = parseInt(params.id, 10);
     if (isNaN(id)) {
       return NextResponse.json({ error: 'Invalid corporation ID' }, { status: 400 });
@@ -97,6 +98,7 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
+    await connectMongo();
     const userId = await getAuthUserId(request);
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -213,6 +215,7 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
+    await connectMongo();
     const userId = await getAuthUserId(request);
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

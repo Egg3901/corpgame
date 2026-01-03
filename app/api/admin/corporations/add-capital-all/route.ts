@@ -3,10 +3,11 @@ import { getAuthUserId } from '@/lib/auth';
 import { UserModel } from '@/lib/models/User';
 import { CorporationModel } from '@/lib/models/Corporation';
 import { getErrorMessage } from '@/lib/utils';
-import { getDb } from '@/lib/db/mongo';
+import { connectMongo, getDb } from '@/lib/db/mongo';
 
 export async function POST(req: NextRequest) {
   try {
+    await connectMongo();
     const userId = await getAuthUserId(req);
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

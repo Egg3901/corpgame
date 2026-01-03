@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb } from '@/lib/db/mongo';
+import { connectMongo, getDb } from '@/lib/db/mongo';
 import { Corporation } from '@/lib/models/Corporation';
 import { MarketEntryModel } from '@/lib/models/MarketEntry';
 import { calculateBalanceSheet } from '@/lib/utils/valuation';
@@ -18,6 +18,7 @@ interface CorporationUser {
 
 export async function GET(request: NextRequest) {
   try {
+    await connectMongo();
     const searchParams = request.nextUrl.searchParams;
     const page = parseInt(searchParams.get('page') || '1', 10);
     const limit = parseInt(searchParams.get('limit') || '25', 10);
