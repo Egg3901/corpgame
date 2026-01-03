@@ -3,6 +3,7 @@ import AppNavigation from '@/components/AppNavigation';
 import TickerTape from '@/components/TickerTape';
 import StockMarketTable from '@/components/stock-market/StockMarketTable';
 import CommoditiesView from '@/components/stock-market/CommoditiesView';
+import { connectMongo } from '@/lib/db/mongo';
 import { CorporationModel } from '@/lib/models/Corporation';
 import { SharePriceHistoryModel } from '@/lib/models/SharePriceHistory';
 import { marketDataService, MarketItemSummary } from '@/lib/services/MarketDataService';
@@ -50,7 +51,10 @@ const calculateTrailing4PeriodChange = (history: SharePriceHistoryResponse[]): n
 
 async function StockMarketContent({ searchParams }: PageProps) {
   const tab = searchParams.tab || 'stocks';
-  
+
+  // Ensure MongoDB is connected before querying
+  await connectMongo();
+
   // Parallel data fetching based on tab
   const corporationsPromise = CorporationModel.findAll();
   

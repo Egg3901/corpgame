@@ -1,5 +1,6 @@
 import { Suspense } from 'react';
 import { notFound } from 'next/navigation';
+import { connectMongo } from '@/lib/db/mongo';
 import { CorporationModel } from '@/lib/models/Corporation';
 import { MarketEntryModel } from '@/lib/models/MarketEntry';
 import { marketDataService, MarketItemSummary } from '@/lib/services/MarketDataService';
@@ -23,6 +24,9 @@ export default async function CorporationPage({ params }: PageProps) {
   if (isNaN(corpId)) {
     notFound();
   }
+
+  // Ensure MongoDB is connected before querying
+  await connectMongo();
 
   // Fetch all required data in parallel
   const [
