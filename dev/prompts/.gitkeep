@@ -1,0 +1,17 @@
+# Prompts Directory
+
+This directory contains prompt templates and AI interaction patterns.
+
+**Purpose:** Store reusable prompts for common development tasks and AI-assisted workflows.
+
+**Contents:**
+- Feature implementation prompts
+- Code review prompts
+- Debugging prompts
+- Refactoring prompts
+
+**Status:** Currently empty - add prompts as patterns emerge.
+
+---
+
+*Part of ECHO v1.3.4 Development Tracking System*

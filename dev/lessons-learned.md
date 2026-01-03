@@ -1,21 +1,5 @@
 # Lessons Learned
 
-**Auto-Updated By:** ECHO v1.4.0 AUTO_UPDATE_COMPLETED() → CAPTURE_LESSONS_LEARNED()
-
-## Format
-
-Each lesson follows this structure:
-- **Date:** YYYY-MM-DD
-- **Context:** Feature/FID where lesson was learned
-- **Impact:** What this lesson affects (future features, architecture, patterns)
-- **Lesson:** Key insight or best practice
-- **Action:** How to apply this lesson going forward
-
----
-
-## Lessons
-
-*Lessons will be automatically captured by CAPTURE_LESSONS_LEARNED() when features are completed.*
-
----
-*Auto-maintained by ECHO v1.4.0 with GUARDIAN PROTOCOL v2.1*
+| Date | Topic | Lesson | Action Item |
+|------|-------|--------|-------------|
+| 2026-01-01 | Next.js App Router route precedence | Dynamic routes like `/api/profile/[id]` can unintentionally capture reserved/static paths (e.g. `/api/profile/avatar`) and return 405 if the method isn't implemented. | Prefer explicit static routes for well-known subpaths and keep upload contracts (field name + response shape) documented and stable. |

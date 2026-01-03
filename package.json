@@ -1,31 +1,70 @@
 {
-  "name": "corporate-sim",
+  "name": "corporate-sim-frontend",
   "version": "1.0.0",
-  "description": "Multiplayer corporate simulation game",
   "private": true,
-  "workspaces": [
-    "frontend",
-    "backend"
-  ],
+  "eslintConfig": {
+    "extends": "next/core-web-vitals"
+  },
   "scripts": {
-    "dev:frontend": "cd frontend && npm run dev",
-    "dev:backend": "cd backend && npm run dev",
-    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
-    "start": "npm run dev",
-    "start:pm2": "pm2 start ecosystem.config.js",
-    "start:pm2:prod": "NODE_ENV=production pm2 start ecosystem.config.js",
-    "stop:pm2": "pm2 stop ecosystem.config.js",
-    "restart:pm2": "pm2 restart ecosystem.config.js",
-    "logs:pm2": "pm2 logs",
-    "install:all": "npm install && cd frontend && npm install && cd ../backend && npm install",
-    "migrate": "cd backend && npm run migrate"
+    "dev": "next dev -H 0.0.0.0",
+    "build": "next build",
+    "start": "next start -H 0.0.0.0",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest",
+    "test:watch": "vitest --watch",
+    "test:run": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:legacy": "node tests/run-tests.js && node tests/finance-tests.js && node tests/revenue-breakdown-tests.js && node tests/admin-security-test.js && node tests/jwt-security-test.js",
+    "test:full": "npm run lint && npm run typecheck && npm run test:coverage",
+    "audit": "powershell -ExecutionPolicy Bypass -File ./scripts/dev-audit.ps1 quick",
+    "audit:full": "powershell -ExecutionPolicy Bypass -File ./scripts/dev-audit.ps1 full",
+    "audit:echo": "powershell -ExecutionPolicy Bypass -File ./scripts/dev-audit.ps1 echo",
+    "audit:fix": "powershell -ExecutionPolicy Bypass -File ./scripts/dev-audit.ps1 fix",
+    "admin": "node scripts/admin-manager.js",
+    "db:reset": "node scripts/master-reset.js",
+    "db:reset:force": "node scripts/master-reset.js --force"
+  },
+  "dependencies": {
+    "@heroui/react": "^2.8.7",
+    "@types/multer": "^2.0.0",
+    "@types/node-cron": "^3.0.11",
+    "axios": "^1.6.2",
+    "bcryptjs": "^3.0.3",
+    "framer-motion": "^12.23.26",
+    "isomorphic-dompurify": "^2.18.0",
+    "jsonwebtoken": "^9.0.3",
+    "lucide-react": "^0.561.0",
+    "mongodb": "^7.0.0",
+    "multer": "^2.0.2",
+    "next": "^15.5.9",
+    "node-cron": "^4.2.1",
+    "rate-limiter-flexible": "^9.0.1",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "reactflow": "^11.11.4",
+    "recharts": "^3.6.0",
+    "zod": "^4.3.3"
   },
   "devDependencies": {
-    "concurrently": "^8.2.2"
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.1",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/node": "^20.10.5",
+    "@types/react": "^18.2.45",
+    "@types/react-dom": "^18.2.18",
+    "@vitejs/plugin-react": "^5.1.2",
+    "@vitest/coverage-v8": "^4.0.16",
+    "autoprefixer": "^10.4.16",
+    "eslint": "8.57.1",
+    "eslint-config-next": "14.0.4",
+    "jsdom": "^27.4.0",
+    "mongodb-memory-server": "^11.0.1",
+    "postcss": "^8.4.32",
+    "tailwindcss": "^3.4.0",
+    "typescript": "^5.3.3",
+    "vitest": "^4.0.16"
   }
 }
-
-
-
-
-
