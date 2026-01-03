@@ -3,6 +3,7 @@ import { MarketEntryModel } from '../models/MarketEntry';
 import { BusinessUnitModel } from '../models/BusinessUnit';
 import { UserModel } from '../models/User';
 import { MessageModel } from '../models/Message';
+import { ShareholderModel } from '../models/Shareholder';
 import { connectMongo, getDb } from '../db/mongo';
 import { calculateBalanceSheet } from '../utils/valuation';
 import { normalizeImageUrl } from '../utils/imageUrl';
@@ -224,7 +225,15 @@ export class CorporationService {
 
     const corporation = await CorporationModel.create(corpData);
 
-    // 4. Create initial Market Entry in starting state
+    // 4. Assign founder shares to CEO (total shares - public shares)
+    const founderShares = corporation.shares - corporation.public_shares;
+    await ShareholderModel.create({
+      corporation_id: corporation.id,
+      user_id: user.id,
+      shares: founderShares,
+    });
+
+    // 5. Create initial Market Entry in starting state
     // Default to 'Retail' sector as it's generally accessible
     const marketEntry = await MarketEntryModel.create({
       corporation_id: corporation.id,
@@ -232,7 +241,7 @@ export class CorporationService {
       sector_type: 'Retail',
     });
 
-    // 5. Create initial Business Unit
+    // 6. Create initial Business Unit
     // Give them 1 Retail unit to start
     await BusinessUnitModel.create({
       market_entry_id: marketEntry.id,
@@ -240,7 +249,7 @@ export class CorporationService {
       count: 1,
     });
 
-    // 6. Notify the user
+    // 7. Notify the user
     try {
       await MessageModel.create({
         sender_id: 1, // System
