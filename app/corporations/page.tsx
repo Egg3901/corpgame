@@ -1,5 +1,5 @@
 import AppNavigation from '@/components/AppNavigation';
-import { corporationAPI } from '@/lib/api';
+import { CorporationService } from '@/lib/services/CorporationService';
 import CorporationsTable from '@/components/corporations/CorporationsTable';
 import { Suspense } from 'react';
 import { Building2 } from 'lucide-react';
@@ -33,8 +33,8 @@ async function CorporationsContent({ searchParams }: PageProps) {
   const q = searchParams.q || '';
   const ceo = searchParams.ceo || '';
 
-  // Server-side data fetching
-  const data = await corporationAPI.getList({
+  // Server-side data fetching - direct database call (no HTTP)
+  const data = await CorporationService.getCorporationsList({
     page,
     limit,
     sort,

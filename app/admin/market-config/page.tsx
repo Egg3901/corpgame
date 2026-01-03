@@ -41,7 +41,7 @@ export default function MarketConfigPage() {
 
   return (
     <AppNavigation>
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-gray-100 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950">
+      <div className="min-h-screen bg-surface-0">
         <div className="max-w-4xl mx-auto p-6">
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Market Sector Rules</h1>
           {loading ? (

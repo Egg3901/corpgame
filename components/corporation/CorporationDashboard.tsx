@@ -753,7 +753,7 @@ export default function CorporationDashboard({
 
   return (
     <AppNavigation>
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-gray-100 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 pb-20">
+      <div className="min-h-screen bg-surface-0 pb-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
           {/* Header Section */}
           <div className="flex flex-col md:flex-row md:items-center justify-between mb-8">

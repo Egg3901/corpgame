@@ -153,7 +153,7 @@ export default function CorporateActionsPage() {
   if (error && !corporation) {
     return (
       <AppNavigation>
-        <div className="min-h-screen bg-gradient-to-br from-blue-50 to-gray-100 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 flex items-center justify-center">
+        <div className="min-h-screen bg-surface-0 flex items-center justify-center">
           <div className="text-center max-w-lg px-6">
             <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
             <p className="text-xl text-red-600 dark:text-red-400 mb-6">{error}</p>
@@ -180,7 +180,7 @@ export default function CorporateActionsPage() {
   if (!corporation) {
     return (
       <AppNavigation>
-        <div className="min-h-screen bg-gradient-to-br from-blue-50 to-gray-100 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 flex items-center justify-center">
+        <div className="min-h-screen bg-surface-0 flex items-center justify-center">
           <div className="text-center max-w-lg px-6">
             <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
             <p className="text-xl text-gray-700 dark:text-gray-200 mb-6">No corporation found.</p>

@@ -152,7 +152,7 @@ export default function CreateCorporationPage() {
   if (existingCorporation) {
     return (
       <AppNavigation>
-        <div className="min-h-screen bg-gradient-to-br from-blue-50 to-gray-100 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950">
+        <div className="min-h-screen bg-surface-0">
           <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
             <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-8 shadow-lg text-center">
               <div className="mb-6">
@@ -200,7 +200,7 @@ export default function CreateCorporationPage() {
 
   return (
     <AppNavigation>
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-gray-100 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950">
+      <div className="min-h-screen bg-surface-0">
       <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-2">Create Corporation</h1>
