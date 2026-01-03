@@ -12,6 +12,7 @@ import { ProductPriceHistoryModel } from '../models/ProductPriceHistory';
 import { getDb } from '../db/mongo';
 import { ACTIONS_CONFIG } from '../constants/actions';
 import { getErrorMessage } from '../utils';
+import { RESOURCES, PRODUCTS } from '../constants/sectors';
 
 // Default CEO salary constants (used only as fallback)
 const DEFAULT_CEO_SALARY_PER_96H = 100000; // $100,000 per 96 hours
@@ -246,6 +247,68 @@ export async function triggerDividends(): Promise<void> {
 }
 
 /**
+ * Record price history for all commodities and products
+ * - Runs every hour
+ * - Saves current prices along with supply/demand for historical tracking
+ */
+export async function triggerPriceHistoryRecording(): Promise<{ commodities: number; products: number }> {
+  try {
+    console.log('[Cron] Recording market price history...');
+
+    // Get current market data (prices, supply, demand)
+    const marketData = await MarketEntryModel.getMarketData();
+    const { commodityPrices, commoditySupply, commodityDemand, productPrices, productSupply, productDemand } = marketData;
+
+    let commoditiesRecorded = 0;
+    let productsRecorded = 0;
+
+    // Record commodity prices
+    for (const resource of RESOURCES) {
+      try {
+        const price = commodityPrices[resource] || 0;
+        const supply = commoditySupply[resource] || 0;
+        const demand = commodityDemand[resource] || 0;
+
+        await CommodityPriceHistoryModel.create({
+          resource_name: resource,
+          price,
+          supply,
+          demand,
+        });
+        commoditiesRecorded++;
+      } catch (err: unknown) {
+        console.error(`[Cron] Error recording commodity price for ${resource}:`, getErrorMessage(err));
+      }
+    }
+
+    // Record product prices
+    for (const product of PRODUCTS) {
+      try {
+        const price = productPrices[product] || 0;
+        const supply = productSupply[product] || 0;
+        const demand = productDemand[product] || 0;
+
+        await ProductPriceHistoryModel.create({
+          product_name: product,
+          price,
+          supply,
+          demand,
+        });
+        productsRecorded++;
+      } catch (err: unknown) {
+        console.error(`[Cron] Error recording product price for ${product}:`, getErrorMessage(err));
+      }
+    }
+
+    console.log(`[Cron] Recorded prices for ${commoditiesRecorded} commodities and ${productsRecorded} products`);
+    return { commodities: commoditiesRecorded, products: productsRecorded };
+  } catch (error: unknown) {
+    console.error('[Cron] Error in price history recording:', getErrorMessage(error));
+    return { commodities: 0, products: 0 };
+  }
+}
+
+/**
  * Check for expired board proposals and resolve them
  * - Runs every hour
  */
@@ -297,20 +360,26 @@ export function startActionsCron() {
     console.log('[Cron] Checking for expired proposals...');
     await resolveExpiredProposals();
   });
-  
-  // 4. CEO Salaries: Every 4 days (at midnight)
+
+  // 4. Price History Recording: Every hour (at minute 15 to distribute load)
+  cron.schedule('15 * * * *', async () => {
+    console.log('[Cron] Recording market price history...');
+    await triggerPriceHistoryRecording();
+  });
+
+  // 5. CEO Salaries: Every 4 days (at midnight)
   // 0 0 */4 * * -> At 00:00 on every 4th day-of-month
   // This is approximation.
   cron.schedule('0 0 */4 * *', async () => {
     console.log('[Cron] Running CEO salary check...');
     await triggerCeoSalaries();
   });
-  
-  // 5. Dividends: Daily at 12:00
+
+  // 6. Dividends: Daily at 12:00
   cron.schedule('0 12 * * *', async () => {
     console.log('[Cron] Running daily dividend check...');
     await triggerDividends();
   });
 
-  console.log('[Cron] Jobs scheduled: Actions(1h), Market(1h), Proposals(10m), Salaries(4d), Dividends(24h)');
+  console.log('[Cron] Jobs scheduled: Actions(1h), Market(1h), Proposals(10m), Prices(1h), Salaries(4d), Dividends(24h)');
 }

@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { 
+import Link from 'next/link';
+import {
   Droplets, Mountain, Cpu, Zap, Wheat, Trees, FlaskConical, Flame,
   Wrench, Lightbulb, UtensilsCrossed, Building2, Pill, Shield, Truck, Package,
   TrendingUp, TrendingDown, ChevronRight
@@ -97,22 +98,28 @@ export default function CommoditiesView({ commodities, products, supply, demand 
         const name = item.name;
         const colors = type === 'resource' ? RESOURCE_COLORS[name] : PRODUCT_COLORS[name];
         const Icon = type === 'resource' ? RESOURCE_ICONS[name] : PRODUCT_ICONS[name];
-        
+
         const price = item.currentPrice;
         const change = item.priceChange;
         const isPositive = change >= 0;
-        
+
         const itemSupply = supply[name] || 0;
         const itemDemand = demand[name] || 0;
-        
+
         // Calculate fill percentage for supply bar (relative to demand or max)
         const maxVal = Math.max(itemSupply, itemDemand, 1);
         const supplyPct = (itemSupply / maxVal) * 100;
         const demandPct = (itemDemand / maxVal) * 100;
 
+        // Link to detail page
+        const href = type === 'resource'
+          ? `/commodity/${encodeURIComponent(name)}`
+          : `/product/${encodeURIComponent(name)}`;
+
         return (
-          <Card key={idx} className="w-full">
-            <CardBody className="p-4">
+          <Link key={idx} href={href} className="block group">
+            <Card className="w-full transition-all duration-200 hover:shadow-lg hover:scale-[1.02] cursor-pointer">
+              <CardBody className="p-4">
               <div className="flex justify-between items-start mb-4">
                 <div className="flex items-center gap-3">
                   <div className={`p-2 rounded-lg ${colors?.bg || 'bg-gray-100'} ${colors?.text || 'text-gray-600'}`}>
@@ -164,6 +171,7 @@ export default function CommoditiesView({ commodities, products, supply, demand 
               </div>
             </CardBody>
           </Card>
+        </Link>
         );
       })}
     </div>
