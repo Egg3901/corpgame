@@ -9,6 +9,7 @@ import { updateStockPrice } from '../utils/valuation';
 import { SharePriceHistoryModel } from '../models/SharePriceHistory';
 import { CommodityPriceHistoryModel } from '../models/CommodityPriceHistory';
 import { ProductPriceHistoryModel } from '../models/ProductPriceHistory';
+import { GameSettingsModel } from '../models/GameSettings';
 import { getDb } from '../db/mongo';
 import { ACTIONS_CONFIG } from '../constants/actions';
 import { getErrorMessage } from '../utils';
@@ -350,24 +351,40 @@ export function startActionsCron() {
 
   // 1. Actions Increment: Every hour
   cron.schedule('0 * * * *', async () => {
+    if (!await GameSettingsModel.isCronEnabled()) {
+      console.log('[Cron] Skipping actions increment (cron disabled)');
+      return;
+    }
     console.log('[Cron] Running hourly actions increment...');
     await triggerActionsIncrement();
   });
 
   // 2. Market Revenue: Every hour (at minute 30 to distribute load)
   cron.schedule('30 * * * *', async () => {
+    if (!await GameSettingsModel.isCronEnabled()) {
+      console.log('[Cron] Skipping market revenue (cron disabled)');
+      return;
+    }
     console.log('[Cron] Running hourly market revenue...');
     await triggerMarketRevenue();
   });
-  
+
   // 3. Proposal Resolution: Every 10 minutes
   cron.schedule('*/10 * * * *', async () => {
+    if (!await GameSettingsModel.isCronEnabled()) {
+      console.log('[Cron] Skipping proposal resolution (cron disabled)');
+      return;
+    }
     console.log('[Cron] Checking for expired proposals...');
     await resolveExpiredProposals();
   });
 
   // 4. Price History Recording: Every hour (at minute 15 to distribute load)
   cron.schedule('15 * * * *', async () => {
+    if (!await GameSettingsModel.isCronEnabled()) {
+      console.log('[Cron] Skipping price history recording (cron disabled)');
+      return;
+    }
     console.log('[Cron] Recording market price history...');
     await triggerPriceHistoryRecording();
   });
@@ -376,12 +393,20 @@ export function startActionsCron() {
   // 0 0 */4 * * -> At 00:00 on every 4th day-of-month
   // This is approximation.
   cron.schedule('0 0 */4 * *', async () => {
+    if (!await GameSettingsModel.isCronEnabled()) {
+      console.log('[Cron] Skipping CEO salaries (cron disabled)');
+      return;
+    }
     console.log('[Cron] Running CEO salary check...');
     await triggerCeoSalaries();
   });
 
   // 6. Dividends: Daily at 12:00
   cron.schedule('0 12 * * *', async () => {
+    if (!await GameSettingsModel.isCronEnabled()) {
+      console.log('[Cron] Skipping dividends (cron disabled)');
+      return;
+    }
     console.log('[Cron] Running daily dividend check...');
     await triggerDividends();
   });

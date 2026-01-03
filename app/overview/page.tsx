@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import AppNavigation from '@/components/AppNavigation';
-import { authAPI, portfolioAPI, corporationAPI, gameAPI, ServerTimeResponse } from '@/lib/api';
+import { authAPI, portfolioAPI, corporationAPI, gameAPI, profileAPI, marketsAPI, ServerTimeResponse, CorporationResponse } from '@/lib/api';
 import { formatCash, getErrorMessage } from '@/lib/utils';
 import {
   Clock,
@@ -24,6 +24,8 @@ import {
   Layers,
   CheckCircle2,
   PlayCircle,
+  Wallet,
+  MapPin,
 } from 'lucide-react';
 
 interface User {
@@ -43,6 +45,9 @@ export default function OverviewPage() {
   const [portfolioValue, setPortfolioValue] = useState<number | null>(null);
   const [corporationCount, setCorporationCount] = useState<number>(0);
   const [gameTime, setGameTime] = useState<ServerTimeResponse | null>(null);
+  const [actionPoints, setActionPoints] = useState<number>(0);
+  const [marketCount, setMarketCount] = useState<number>(0);
+  const [myCorporation, setMyCorporation] = useState<CorporationResponse | null>(null);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -78,6 +83,36 @@ export default function OverviewPage() {
           setGameTime(time);
         } catch (err: unknown) {
           console.log('Could not fetch game time:', getErrorMessage(err));
+        }
+
+        // Fetch action points from profile
+        try {
+          const profile = await profileAPI.getById(userData.profile_id.toString());
+          setActionPoints(profile.actions || 0);
+        } catch (err: unknown) {
+          console.log('Could not fetch profile:', getErrorMessage(err));
+        }
+
+        // Check if user is CEO and fetch market count
+        try {
+          const corporations = await corporationAPI.getAll();
+          const userCorp = corporations.find(
+            (corp: CorporationResponse) => corp.ceo?.profile_id === userData.profile_id || corp.ceo_id === userData.id
+          );
+          if (userCorp) {
+            setMyCorporation(userCorp);
+            // Fetch market entries for the corporation
+            try {
+              const entries = await marketsAPI.getCorporationEntries(userCorp.id);
+              // Count unique states from market entries
+              const uniqueStates = new Set(entries.map((entry) => entry.state_code));
+              setMarketCount(uniqueStates.size);
+            } catch (err: unknown) {
+              console.log('Could not fetch market entries:', getErrorMessage(err));
+            }
+          }
+        } catch (err: unknown) {
+          console.log('Could not check CEO status:', getErrorMessage(err));
         }
       } catch (error: unknown) {
         console.error('Auth check failed:', getErrorMessage(error));
@@ -185,6 +220,54 @@ export default function OverviewPage() {
                 Next turn: {Math.floor(gameTime.seconds_until_action_update / 60)}m {gameTime.seconds_until_action_update % 60}s
               </p>
             )}
+          </div>
+
+          {/* Action Points Card */}
+          <div className="bg-white dark:bg-gray-800/50 bloomberg:bg-black bloomberg:border-bloomberg-green rounded-xl border border-gray-200 dark:border-gray-700 p-6 shadow-sm hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between mb-2">
+              <div className="p-2 rounded-lg bg-yellow-100 dark:bg-yellow-900/30 bloomberg:bg-bloomberg-green/10">
+                <Zap className="w-5 h-5 text-yellow-600 dark:text-yellow-400 bloomberg:text-bloomberg-green" />
+              </div>
+            </div>
+            <h3 className="text-sm font-medium text-gray-600 dark:text-gray-400 bloomberg:text-bloomberg-green-dim mb-1">Action Points</h3>
+            <p className="text-2xl font-bold text-gray-900 dark:text-white bloomberg:text-bloomberg-green-bright">
+              {actionPoints}
+            </p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 bloomberg:text-bloomberg-green-dim mt-1">
+              Available to spend
+            </p>
+          </div>
+
+          {/* Net Worth Card */}
+          <div className="bg-white dark:bg-gray-800/50 bloomberg:bg-black bloomberg:border-bloomberg-green rounded-xl border border-gray-200 dark:border-gray-700 p-6 shadow-sm hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between mb-2">
+              <div className="p-2 rounded-lg bg-indigo-100 dark:bg-indigo-900/30 bloomberg:bg-bloomberg-green/10">
+                <Wallet className="w-5 h-5 text-indigo-600 dark:text-indigo-400 bloomberg:text-bloomberg-green" />
+              </div>
+            </div>
+            <h3 className="text-sm font-medium text-gray-600 dark:text-gray-400 bloomberg:text-bloomberg-green-dim mb-1">Net Worth</h3>
+            <p className="text-2xl font-bold text-gray-900 dark:text-white bloomberg:text-bloomberg-green-bright">
+              {formatCash((user?.cash ?? 0) + (portfolioValue ?? 0))}
+            </p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 bloomberg:text-bloomberg-green-dim mt-1">
+              Cash + Investments
+            </p>
+          </div>
+
+          {/* Market Presence Card */}
+          <div className="bg-white dark:bg-gray-800/50 bloomberg:bg-black bloomberg:border-bloomberg-green rounded-xl border border-gray-200 dark:border-gray-700 p-6 shadow-sm hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between mb-2">
+              <div className="p-2 rounded-lg bg-rose-100 dark:bg-rose-900/30 bloomberg:bg-bloomberg-green/10">
+                <MapPin className="w-5 h-5 text-rose-600 dark:text-rose-400 bloomberg:text-bloomberg-green" />
+              </div>
+            </div>
+            <h3 className="text-sm font-medium text-gray-600 dark:text-gray-400 bloomberg:text-bloomberg-green-dim mb-1">Market Presence</h3>
+            <p className="text-2xl font-bold text-gray-900 dark:text-white bloomberg:text-bloomberg-green-bright">
+              {myCorporation ? marketCount : '—'}
+            </p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 bloomberg:text-bloomberg-green-dim mt-1">
+              {myCorporation ? 'States with operations' : 'Become CEO to expand'}
+            </p>
           </div>
         </div>
 

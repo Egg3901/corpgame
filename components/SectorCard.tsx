@@ -53,6 +53,8 @@ interface SectorCardProps {
   unitFlows?: Record<'retail' | 'production' | 'service' | 'extraction', MarketUnitFlow>;
   // FID-20251228-001: Optional config-driven product reference values
   productReferenceValues?: Record<string, number>;
+  // FID-20260103-003: Unit enabled states from sector config database
+  unitEnabledStates?: Partial<Record<'retail' | 'production' | 'service' | 'extraction', boolean>>;
 }
 
 export default function SectorCard({
@@ -87,6 +89,7 @@ export default function SectorCard({
   EXTRACTION_OUTPUT_RATE = 2.0,
   unitFlows,
   productReferenceValues,
+  unitEnabledStates,
 }: SectorCardProps) {
   // FID-20251228-001: Use config-driven values with hardcoded fallback
   const PRODUCT_BASE_PRICES: Record<string, number> = productReferenceValues || {
@@ -119,12 +122,12 @@ export default function SectorCard({
   const isMining = sectorType === 'Mining';
   const isRetailSector = sectorType === 'Retail';
 
-  // Production-only sectors cannot build retail/service units
+  // FID-20260103-003: Respect database unit enabled states, with hardcoded fallback logic
   const isProductionOnly = isLightIndustry || isHeavyIndustry || isMining;
-  const showRetail = !isProductionOnly;
-  const showProduction = !!producedProduct;
-  const showService = true; // Always show service for now
-  const showExtraction = canExtract;
+  const showRetail = (unitEnabledStates?.retail !== false) && !isProductionOnly;
+  const showProduction = (unitEnabledStates?.production !== false) && !!producedProduct;
+  const showService = (unitEnabledStates?.service !== false) && !isProductionOnly;
+  const showExtraction = (unitEnabledStates?.extraction !== false) && canExtract;
 
   // Placeholder demand factor for retail/service to ensure slight profitability
   const applyDemandFactorCost = (baseCost: number) => baseCost / Math.max(1, stateGrowthFactor);

@@ -10,8 +10,11 @@ import { getErrorMessage } from '@/lib/utils';
 import { SECTORS, isValidSector, CORP_FOCUS_TYPES, isValidCorpFocus, CorpFocus } from '@/lib/constants/sectors';
 import { CreateCorporationSchema } from '@/lib/validations/corporations';
 
-// Corporation founding cost - deducted from user's cash, becomes corporation capital
-const FOUNDING_COST = 400000;
+// Corporation structure configuration
+const CORP_CONFIG = {
+  public: { cost: 400000, capital: 500000, publicShares: 100000 },
+  private: { cost: 500000, capital: 300000, publicShares: 0 },
+} as const;
 
 // GET /api/corporation - List all corporations
 export async function GET(request: NextRequest) {
@@ -128,7 +131,8 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    const { name, type, focus } = validated.data;
+    const { name, type, focus, structure } = validated.data;
+    const config = CORP_CONFIG[structure];
 
     // Check if user already has a corporation
     const existingCorporations = await CorporationModel.findByCeoId(userId);
@@ -149,25 +153,26 @@ export async function POST(request: NextRequest) {
     }
 
     const userCash = typeof user.cash === 'string' ? parseFloat(user.cash) : (user.cash || 0);
-    if (userCash < FOUNDING_COST) {
+    if (userCash < config.cost) {
       return NextResponse.json({
-        error: `Insufficient funds. You need $${FOUNDING_COST.toLocaleString()} to found a corporation. You have $${userCash.toLocaleString()}.`
+        error: `Insufficient funds. You need $${config.cost.toLocaleString()} to found a ${structure} corporation. You have $${userCash.toLocaleString()}.`
       }, { status: 400 });
     }
 
     // Deduct founding cost from user's cash
-    await UserModel.updateCash(userId, -FOUNDING_COST);
+    await UserModel.updateCash(userId, -config.cost);
 
-    // Create corporation with defaults: 500k shares, 100k public, $1.00 price, founding cost as capital
+    // Create corporation with structure-based config
     const corporation = await CorporationModel.create({
       ceo_id: userId,
       name,
       type,
-      focus: (focus as CorpFocus) || 'diversified', // Default focus
+      structure,
+      focus: (focus as CorpFocus) || 'diversified',
       shares: 500000,
-      public_shares: 100000,
+      public_shares: config.publicShares,
       share_price: 1.00,
-      capital: FOUNDING_COST,
+      capital: config.capital,
     });
 
     // Create shareholder record for CEO with 400,000 shares (80%)
@@ -183,10 +188,10 @@ export async function POST(request: NextRequest) {
     // Record corporation founding transaction
     await TransactionModel.create({
       transaction_type: 'corp_founding',
-      amount: FOUNDING_COST,
+      amount: config.cost,
       from_user_id: userId,
       corporation_id: corporation.id,
-      description: `Founded ${corporation.name} with $${FOUNDING_COST.toLocaleString()} initial capital`,
+      description: `Founded ${structure} corporation ${corporation.name} with $${config.capital.toLocaleString()} initial capital`,
     });
 
     return NextResponse.json(corporation, { status: 201 });

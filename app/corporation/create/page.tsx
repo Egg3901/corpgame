@@ -39,11 +39,19 @@ const FOCUS_OPTIONS: { value: CorpFocus; label: string; description: string }[] 
   { value: 'service', label: 'Service', description: 'Specializes in service operations only' },
 ];
 
+// Corporation structure options
+type CorpStructure = 'public' | 'private';
+const STRUCTURE_OPTIONS: { value: CorpStructure; label: string; cost: number; capital: number; ownerPercent: number; publicPercent: number }[] = [
+  { value: 'public', label: 'Public Corporation', cost: 400000, capital: 500000, ownerPercent: 80, publicPercent: 20 },
+  { value: 'private', label: 'Private Corporation', cost: 500000, capital: 300000, ownerPercent: 100, publicPercent: 0 },
+];
+
 export default function CreateCorporationPage() {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [name, setName] = useState('');
   const [type, setType] = useState('');
+  const [structure, setStructure] = useState<CorpStructure>('public');
   const [focus, setFocus] = useState<CorpFocus>('diversified');
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
@@ -117,6 +125,7 @@ export default function CreateCorporationPage() {
       const corporation = await corporationAPI.create({
         name: name.trim(),
         type: type.trim() || undefined,
+        structure,
         focus,
       });
 
@@ -205,7 +214,7 @@ export default function CreateCorporationPage() {
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-2">Create Corporation</h1>
           <p className="text-gray-600 dark:text-gray-400">
-            Start a new corporation. You&apos;ll own 80% of the shares (400,000 shares) at $1.00 per share.
+            Start a new corporation. Choose between public or private ownership structure.
           </p>
         </div>
 
@@ -229,6 +238,34 @@ export default function CreateCorporationPage() {
                 inputWrapper: "bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600",
               }}
             />
+
+            <div>
+              <div className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Corporation Type
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                {STRUCTURE_OPTIONS.map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => setStructure(option.value)}
+                    className={`p-4 rounded-lg border-2 text-left transition-all ${
+                      structure === option.value
+                        ? 'border-corporate-blue bg-blue-50 dark:bg-blue-900/20'
+                        : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
+                    }`}
+                  >
+                    <div className="font-semibold text-gray-900 dark:text-white">{option.label}</div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                      Cost: ${option.cost.toLocaleString()}
+                    </div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400">
+                      You own: {option.ownerPercent}%{option.publicPercent > 0 && ` • Public: ${option.publicPercent}%`}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
 
             <div>
               <Select
@@ -325,15 +362,26 @@ export default function CreateCorporationPage() {
               )}
             </div>
 
-            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-              <h3 className="text-sm font-semibold text-blue-900 dark:text-blue-200 mb-2">Default Settings</h3>
-              <ul className="text-sm text-blue-800 dark:text-blue-300 space-y-1">
-                <li>• Total Shares: 500,000</li>
-                <li>• Your Ownership: 400,000 shares (80%)</li>
-                <li>• Public Shares: 100,000 shares (20%)</li>
-                <li>• Initial Share Price: $1.00</li>
-              </ul>
-            </div>
+            {(() => {
+              const selectedOption = STRUCTURE_OPTIONS.find(o => o.value === structure)!;
+              const founderShares = 500000 * (selectedOption.ownerPercent / 100);
+              const publicShares = 500000 * (selectedOption.publicPercent / 100);
+              return (
+                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                  <h3 className="text-sm font-semibold text-blue-900 dark:text-blue-200 mb-2">
+                    {selectedOption.label} Summary
+                  </h3>
+                  <ul className="text-sm text-blue-800 dark:text-blue-300 space-y-1">
+                    <li>• Founding Cost: ${selectedOption.cost.toLocaleString()}</li>
+                    <li>• Starting Capital: ${selectedOption.capital.toLocaleString()}</li>
+                    <li>• Total Shares: 500,000</li>
+                    <li>• Your Ownership: {founderShares.toLocaleString()} shares ({selectedOption.ownerPercent}%)</li>
+                    {publicShares > 0 && <li>• Public Shares: {publicShares.toLocaleString()} shares ({selectedOption.publicPercent}%)</li>}
+                    <li>• Initial Share Price: $1.00</li>
+                  </ul>
+                </div>
+              );
+            })()}
 
             <div className="flex gap-4">
               <Button

@@ -1026,7 +1026,16 @@ export default function CorporationDashboard({
                         </p>
                       </div>
                     ) : (
-                      marketEntries.map((entry) => (
+                      marketEntries.map((entry) => {
+                        // FID-20260103-003: Extract unit enabled states from sector config
+                        const unitEnabledStates = sectorConfig ? {
+                          retail: sectorConfig.sectors[entry.sector_type]?.units?.retail?.isEnabled ?? true,
+                          production: sectorConfig.sectors[entry.sector_type]?.units?.production?.isEnabled ?? true,
+                          service: sectorConfig.sectors[entry.sector_type]?.units?.service?.isEnabled ?? true,
+                          extraction: sectorConfig.sectors[entry.sector_type]?.units?.extraction?.isEnabled ?? true,
+                        } : undefined;
+
+                        return (
                         <SectorCard
                           key={entry.id}
                           sectorType={entry.sector_type}
@@ -1091,8 +1100,10 @@ export default function CorporationDashboard({
                           EXTRACTION_OUTPUT_RATE={EXTRACTION_OUTPUT_RATE}
                           unitFlows={initialMarketMetadata?.sector_unit_flows?.[entry.sector_type] as Record<'retail' | 'production' | 'service' | 'extraction', MarketUnitFlow> | undefined}
                           productReferenceValues={productReferenceValues}
+                          unitEnabledStates={unitEnabledStates}
                         />
-                      ))
+                        );
+                      })
                     )}
                   </div>
                 )}

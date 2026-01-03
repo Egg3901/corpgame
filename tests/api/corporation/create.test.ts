@@ -83,11 +83,12 @@ describe('POST /api/corporation', () => {
       expect(body.public_shares).toBe(100000);
       expect(body.share_price).toBe(1.00);
       expect(body.focus).toBe('diversified');
-      
+      expect(body.structure).toBe('public');
+
       const capital = typeof body.capital === 'string'
         ? parseFloat(body.capital)
         : body.capital;
-      expect(capital).toBe(400000.00);
+      expect(capital).toBe(500000.00); // Public corps get $500k capital
     });
 
     it('should create shareholder record for CEO with 400,000 shares', async () => {
@@ -191,7 +192,7 @@ describe('POST /api/corporation', () => {
       const user = await createTestUser();
       const token = createTestAccessToken(user.id, user.username, user.email, 'user');
       const authHeaders = createAuthHeader(token);
-      
+
       const request = createTestRequest('http://localhost:3000/api/corporation', {
         method: 'POST',
         body: {
@@ -206,6 +207,106 @@ describe('POST /api/corporation', () => {
 
       const body = await getResponseBody(response);
       expect(body.name).toBe('Smith & Johnson Co.');
+    });
+  });
+
+  describe('Private Corporation Creation', () => {
+    it('should create private corporation with correct settings', async () => {
+      const user = await createTestUser({ cash: 600000 }); // Need 500k for private
+      const token = createTestAccessToken(user.id, user.username, user.email, 'user');
+      const authHeaders = createAuthHeader(token);
+
+      const request = createTestRequest('http://localhost:3000/api/corporation', {
+        method: 'POST',
+        body: {
+          name: 'Private Test Corp',
+          type: 'Technology',
+          structure: 'private',
+        },
+        headers: authHeaders,
+      });
+
+      const response = await POST(request);
+      assertSuccessResponse(response, 201);
+
+      const body = await getResponseBody(response);
+      expect(body.structure).toBe('private');
+      expect(body.public_shares).toBe(0);
+      expect(body.shares).toBe(500000);
+
+      const capital = typeof body.capital === 'string'
+        ? parseFloat(body.capital)
+        : body.capital;
+      expect(capital).toBe(300000); // Private corps get $300k capital
+    });
+
+    it('should give private corp founder 500,000 shares (100%)', async () => {
+      const user = await createTestUser({ cash: 600000 });
+      const token = createTestAccessToken(user.id, user.username, user.email, 'user');
+      const authHeaders = createAuthHeader(token);
+
+      const request = createTestRequest('http://localhost:3000/api/corporation', {
+        method: 'POST',
+        body: {
+          name: 'Private Shares Test',
+          type: 'Finance',
+          structure: 'private',
+        },
+        headers: authHeaders,
+      });
+
+      const response = await POST(request);
+      const body = await getResponseBody(response);
+
+      const ceoShares = await getUserShares(user.id, body.id);
+      expect(ceoShares).toBe(500000); // 100% ownership
+    });
+
+    it('should deduct $500,000 for private corporation', async () => {
+      const user = await createTestUser({ cash: 600000 });
+      const token = createTestAccessToken(user.id, user.username, user.email, 'user');
+      const authHeaders = createAuthHeader(token);
+
+      const request = createTestRequest('http://localhost:3000/api/corporation', {
+        method: 'POST',
+        body: {
+          name: 'Private Cost Test',
+          type: 'Energy',
+          structure: 'private',
+        },
+        headers: authHeaders,
+      });
+
+      await POST(request);
+
+      const { UserModel } = await import('@/lib/models/User');
+      const updatedUser = await UserModel.findById(user.id);
+      const userCash = typeof updatedUser?.cash === 'string'
+        ? parseFloat(updatedUser.cash)
+        : (updatedUser?.cash || 0);
+      expect(userCash).toBe(100000); // 600000 - 500000 = 100000
+    });
+
+    it('should reject private corp creation with insufficient funds', async () => {
+      const user = await createTestUser({ cash: 450000 }); // Enough for public, not private
+      const token = createTestAccessToken(user.id, user.username, user.email, 'user');
+      const authHeaders = createAuthHeader(token);
+
+      const request = createTestRequest('http://localhost:3000/api/corporation', {
+        method: 'POST',
+        body: {
+          name: 'Poor Private Corp',
+          type: 'Technology',
+          structure: 'private',
+        },
+        headers: authHeaders,
+      });
+
+      const response = await POST(request);
+      expect(response.status).toBe(400);
+      const body = await getResponseBody(response);
+      expect(body.error).toContain('Insufficient funds');
+      expect(body.error).toContain('500,000');
     });
   });
 

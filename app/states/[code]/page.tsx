@@ -886,7 +886,16 @@ export default function StateDetailPage() {
                     Your Markets in {state.name}
                   </h2>
                   <div className="space-y-4">
-                    {user_market_entries.map((entry) => (
+                    {user_market_entries.map((entry) => {
+                      // FID-20260103-003: Extract unit enabled states from sector config
+                      const unitEnabledStates = sectorConfig ? {
+                        retail: sectorConfig.sectors[entry.sector_type]?.units?.retail?.isEnabled ?? true,
+                        production: sectorConfig.sectors[entry.sector_type]?.units?.production?.isEnabled ?? true,
+                        service: sectorConfig.sectors[entry.sector_type]?.units?.service?.isEnabled ?? true,
+                        extraction: sectorConfig.sectors[entry.sector_type]?.units?.extraction?.isEnabled ?? true,
+                      } : undefined;
+
+                      return (
                       <SectorCard
                         key={entry.id}
                         sectorType={entry.sector_type}
@@ -918,8 +927,10 @@ export default function StateDetailPage() {
                         EXTRACTION_OUTPUT_RATE={2.0}
                         unitFlows={marketMetadata?.sector_unit_flows?.[entry.sector_type]}
                         productReferenceValues={productReferenceValues}
+                        unitEnabledStates={unitEnabledStates}
                       />
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               </div>

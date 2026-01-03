@@ -156,6 +156,7 @@ export interface CorporationResponse {
   capital?: number;
   cash?: number;
   type?: string | null;
+  structure?: 'public' | 'private';
   hq_state?: string | null;
   board_size?: number;
   elected_ceo_id?: number | null;
@@ -338,7 +339,7 @@ export const corporationAPI = {
     const response = await api.get(`/api/corporation/${id}`);
     return response.data;
   },
-  create: async (data: { name: string; type?: string; focus?: CorpFocus }): Promise<CorporationResponse> => {
+  create: async (data: { name: string; type?: string; structure?: 'public' | 'private'; focus?: CorpFocus }): Promise<CorporationResponse> => {
     const response = await api.post('/api/corporation', data);
     return response.data;
   },
@@ -786,6 +787,14 @@ export const adminAPI = {
     shareholder_positions_cleared: number;
   }> => {
     const response = await api.post(`/api/admin/users/${userId}/reset`);
+    return response.data;
+  },
+  getCronStatus: async (): Promise<{ enabled: boolean }> => {
+    const response = await api.get('/api/admin/cron/status');
+    return response.data;
+  },
+  setCronEnabled: async (enabled: boolean): Promise<{ enabled: boolean }> => {
+    const response = await api.post('/api/admin/cron/status', { enabled });
     return response.data;
   },
 };
@@ -1609,6 +1618,7 @@ export interface SectorConfig {
   id: number;
   sector_name: string;
   display_order: number;
+  is_enabled: boolean;  // FID-20260103-005: Allow disabling entire sectors
   is_production_only: boolean;
   can_extract: boolean;
   produced_product: string | null;
@@ -1776,6 +1786,55 @@ export const sectorConfigAPI = {
       `/api/sector-config/admin/sectors/${encodeURIComponent(sectorName)}/product`,
       { producedProduct }
     );
+    return response.data;
+  },
+
+  // FID-20260103-005: Import configuration
+  importConfig: async (configData: Partial<AdminSectorConfigData>): Promise<{ message: string }> => {
+    const response = await api.post('/api/sector-config/admin/import', configData);
+    return response.data;
+  },
+
+  // FID-20260103-005: Toggle sector enabled/disabled
+  updateSector: async (
+    sectorName: string,
+    data: { is_enabled: boolean }
+  ): Promise<SectorConfig> => {
+    const response = await api.put(`/api/sector-config/admin/sectors/${encodeURIComponent(sectorName)}`, data);
+    return response.data;
+  },
+};
+
+// Leaderboard types
+export interface LeaderboardEntry {
+  rank: number;
+  user_id: number;
+  username: string;
+  player_name: string | null;
+  profile_id: number;
+  profile_slug: string;
+  profile_image_url: string | null;
+  cash: number;
+  portfolio_value: number;
+  net_worth: number;
+}
+
+export interface LeaderboardResponse {
+  entries: LeaderboardEntry[];
+  total: number;
+  page: number;
+  limit: number;
+  viewer_rank?: number;
+  viewer_entry?: LeaderboardEntry;
+}
+
+export const leaderboardAPI = {
+  get: async (params?: { page?: number; limit?: number }): Promise<LeaderboardResponse> => {
+    const query = new URLSearchParams();
+    if (params?.page) query.append('page', String(params.page));
+    if (params?.limit) query.append('limit', String(params.limit));
+    const queryString = query.toString();
+    const response = await api.get(`/api/leaderboard${queryString ? `?${queryString}` : ''}`);
     return response.data;
   },
 };

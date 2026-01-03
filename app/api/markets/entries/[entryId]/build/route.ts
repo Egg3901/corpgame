@@ -60,13 +60,18 @@ export async function POST(
       return NextResponse.json({ error: 'Only the CEO can build units' }, { status: 403 });
     }
 
-    // Check if sector allows this unit type
-    // @ts-ignore - UnifiedSectorConfig has different structure, need to fix SectorConfigService type
-    const sectorConfig = await SectorConfigService.getConfiguration();
-    
-    // Check if can build this unit type
+    // Check if sector allows this unit type (hardcoded rules)
     if (!canBuildUnit(marketEntry.sector_type as Sector, corporation.focus as CorpFocus, unit_type as UnitType)) {
       return NextResponse.json({ error: `Cannot build ${unit_type} units in ${marketEntry.sector_type} sector with ${corporation.focus} focus` }, { status: 400 });
+    }
+
+    // FID-20260103-003: Check database is_enabled flag for unit type
+    const sectorConfig = await SectorConfigService.getConfiguration();
+    const sectorUnitConfig = sectorConfig.sectors[marketEntry.sector_type]?.units?.[unit_type as UnitType];
+    if (sectorUnitConfig && !sectorUnitConfig.isEnabled) {
+      return NextResponse.json({
+        error: `${unit_type} units are disabled for ${marketEntry.sector_type} sector`
+      }, { status: 400 });
     }
 
     // Check capacity

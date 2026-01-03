@@ -13,7 +13,7 @@
  */
 
 import { useState, useEffect, useCallback, Key } from 'react';
-import { Save, AlertCircle, CheckCircle2, Factory, Store, Briefcase, Pickaxe, Package, Gem, Plus, Trash2, X, ChevronDown, ChevronRight } from 'lucide-react';
+import { Save, AlertCircle, CheckCircle2, Factory, Store, Briefcase, Pickaxe, Package, Gem, Plus, Trash2, X, ChevronDown, ChevronRight, Download, Upload } from 'lucide-react';
 import {
   Table,
   TableHeader,
@@ -119,6 +119,70 @@ export default function SectorConfigPanel({ onError }: SectorConfigPanelProps) {
     outputRate: 1.0,
   });
 
+  // FID-20260103-005: Import/Export state
+  const [importing, setImporting] = useState(false);
+  const fileInputRef = useState<HTMLInputElement | null>(null);
+
+  // FID-20260103-005: Sector toggle state
+  const [togglingSector, setTogglingSector] = useState<string | null>(null);
+
+  // Export config as JSON file
+  const handleExport = useCallback(() => {
+    if (!data) return;
+
+    const exportData = {
+      exportedAt: new Date().toISOString(),
+      version: '1.0',
+      sectors: data.sectors,
+      unitConfigs: data.unitConfigs,
+      inputs: data.inputs,
+      outputs: data.outputs,
+      products: data.products,
+      resources: data.resources,
+    };
+
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `sector-config-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    showSuccess('Configuration exported successfully');
+  }, [data]);
+
+  // Import config from JSON file
+  const handleImport = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setImporting(true);
+    try {
+      const text = await file.text();
+      const importData = JSON.parse(text);
+
+      // Validate structure
+      if (!importData.products || !importData.unitConfigs) {
+        throw new Error('Invalid config file: missing required fields');
+      }
+
+      // Call import API
+      await sectorConfigAPI.importConfig(importData);
+      await loadData();
+      showSuccess('Configuration imported successfully');
+    } catch (err: unknown) {
+      console.error('Import failed:', err);
+      onError?.(getErrorMessage(err, 'Failed to import configuration'));
+    } finally {
+      setImporting(false);
+      // Reset file input
+      event.target.value = '';
+    }
+  }, [onError]);
+
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
@@ -139,6 +203,21 @@ export default function SectorConfigPanel({ onError }: SectorConfigPanelProps) {
   const showSuccess = (message: string) => {
     setSuccessMessage(message);
     setTimeout(() => setSuccessMessage(null), 3000);
+  };
+
+  // FID-20260103-005: Toggle sector enabled/disabled
+  const handleToggleSectorEnabled = async (sectorName: string, newEnabledState: boolean) => {
+    setTogglingSector(sectorName);
+    try {
+      await sectorConfigAPI.updateSector(sectorName, { is_enabled: newEnabledState });
+      await loadData();
+      showSuccess(`${sectorName} ${newEnabledState ? 'enabled' : 'disabled'}`);
+    } catch (err: unknown) {
+      console.error('Failed to toggle sector:', err);
+      onError?.(getErrorMessage(err, 'Failed to update sector status'));
+    } finally {
+      setTogglingSector(null);
+    }
   };
 
   // Save handlers
@@ -352,13 +431,11 @@ export default function SectorConfigPanel({ onError }: SectorConfigPanelProps) {
     }
   };
 
-  // FID-20251228-003: Resource and product lists for dropdowns
-  const RESOURCES = ['Coal', 'Oil', 'Iron Ore', 'Lumber', 'Natural Gas'];
-  const PRODUCTS = [
-    'Technology Products', 'Manufactured Goods', 'Electricity',
-    'Food Products', 'Construction Capacity', 'Pharmaceutical Products',
-    'Defense Equipment', 'Logistics Capacity', 'Steel'
-  ];
+  // FID-20260103-003: Resource and product lists from database for full configurability
+  const resourceNames = data?.resources?.map(r => r.resource_name) ?? [];
+  const productNames = data?.products?.map(p => p.product_name) ?? [];
+  // Combined list for dropdowns that allow any commodity type
+  const allCommodities = [...resourceNames, ...productNames];
 
   if (loading) {
     return (
@@ -391,6 +468,35 @@ export default function SectorConfigPanel({ onError }: SectorConfigPanelProps) {
         </div>
       )}
 
+      {/* FID-20260103-005: Import/Export Buttons */}
+      <div className="flex justify-end gap-2">
+        <Button
+          variant="flat"
+          color="primary"
+          startContent={<Download className="w-4 h-4" />}
+          onPress={handleExport}
+          isDisabled={!data}
+        >
+          Export Config
+        </Button>
+        <Button
+          variant="flat"
+          color="secondary"
+          startContent={importing ? <Spinner size="sm" /> : <Upload className="w-4 h-4" />}
+          isDisabled={importing}
+          onPress={() => document.getElementById('config-import-input')?.click()}
+        >
+          {importing ? 'Importing...' : 'Import Config'}
+        </Button>
+        <input
+          id="config-import-input"
+          type="file"
+          accept=".json"
+          className="hidden"
+          onChange={handleImport}
+        />
+      </div>
+
       <Tabs 
         aria-label="Configuration Options" 
         color="primary" 
@@ -418,9 +524,26 @@ export default function SectorConfigPanel({ onError }: SectorConfigPanelProps) {
                   <AccordionItem
                     key={sector.sector_name}
                     aria-label={sector.sector_name}
+                    classNames={{
+                      base: sector.is_enabled === false ? 'opacity-60' : '',
+                    }}
                     title={
                       <div className="flex items-center gap-3">
-                        <span className="font-medium">{sector.sector_name}</span>
+                        <div onClick={(e) => e.stopPropagation()}>
+                          <Switch
+                            size="sm"
+                            isSelected={sector.is_enabled !== false}
+                            onValueChange={(checked) => handleToggleSectorEnabled(sector.sector_name, checked)}
+                            isDisabled={togglingSector === sector.sector_name}
+                            aria-label={`Toggle ${sector.sector_name}`}
+                          />
+                        </div>
+                        <span className={`font-medium ${sector.is_enabled === false ? 'text-default-400' : ''}`}>
+                          {sector.sector_name}
+                        </span>
+                        {sector.is_enabled === false && (
+                          <Chip size="sm" color="danger" variant="flat">Disabled</Chip>
+                        )}
                         {sector.is_production_only && (
                           <Chip size="sm" color="warning" variant="flat">Production Only</Chip>
                         )}
@@ -969,7 +1092,7 @@ export default function SectorConfigPanel({ onError }: SectorConfigPanelProps) {
                   selectedKeys={newInputForm.inputName ? [newInputForm.inputName] : []}
                   onChange={(e) => setNewInputForm({ ...newInputForm, inputName: e.target.value })}
                 >
-                  {(newInputForm.inputType === 'resource' ? RESOURCES : PRODUCTS).map(name => (
+                  {(newInputForm.inputType === 'resource' ? resourceNames : productNames).map(name => (
                     <SelectItem key={name}>{name}</SelectItem>
                   ))}
                 </Select>
@@ -1026,7 +1149,7 @@ export default function SectorConfigPanel({ onError }: SectorConfigPanelProps) {
                   selectedKeys={newOutputForm.outputName ? [newOutputForm.outputName] : []}
                   onChange={(e) => setNewOutputForm({ ...newOutputForm, outputName: e.target.value })}
                 >
-                  {(newOutputForm.outputType === 'resource' ? RESOURCES : PRODUCTS).map(name => (
+                  {(newOutputForm.outputType === 'resource' ? resourceNames : productNames).map(name => (
                     <SelectItem key={name}>{name}</SelectItem>
                   ))}
                 </Select>

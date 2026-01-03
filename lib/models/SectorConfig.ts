@@ -10,6 +10,7 @@ export interface SectorConfig {
   id: number;
   sector_name: string;
   display_order: number;
+  is_enabled: boolean;  // FID-20260103-005: Allow disabling entire sectors
   is_production_only: boolean;
   can_extract: boolean;
   produced_product: string | null;
@@ -124,7 +125,7 @@ export class SectorConfigModel {
 
   static async updateSector(
     sectorName: string,
-    data: Partial<Pick<SectorConfig, 'is_production_only' | 'can_extract' | 'produced_product' | 'primary_resource'>>
+    data: Partial<Pick<SectorConfig, 'is_enabled' | 'is_production_only' | 'can_extract' | 'produced_product' | 'primary_resource'>>
   ): Promise<SectorConfig | null> {
     if (Object.keys(data).length === 0) return null;
 

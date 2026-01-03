@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Input, Button, Select, SelectItem, Card, CardBody, CardHeader, Divider, Chip, Table, TableHeader, TableBody, TableColumn, TableRow, TableCell, User, Pagination, Checkbox } from "@heroui/react";
-import { Trash2, Shield, ShieldOff, Eye, EyeOff, AlertTriangle, Flag, CheckCircle2, X, ChevronDown, ChevronUp, MessageSquare, Play, RefreshCw, DollarSign, Clock, Receipt, Search, ArrowUpRight, ArrowDownLeft, Scissors, CalendarClock, Database, RotateCcw } from 'lucide-react';
+import { Trash2, Shield, ShieldOff, Eye, EyeOff, AlertTriangle, Flag, CheckCircle2, X, ChevronDown, ChevronUp, MessageSquare, Play, Pause, RefreshCw, DollarSign, Clock, Receipt, Search, ArrowUpRight, ArrowDownLeft, Scissors, CalendarClock, Database, RotateCcw } from 'lucide-react';
 import AppNavigation from '@/components/AppNavigation';
 import SectorConfigPanel from '@/components/admin/SectorConfigPanel';
 import { authAPI, adminAPI, AdminUser, ReportedChat, Transaction, TransactionType, normalizeImageUrl, gameAPI, AdminGameTimeResetResponse, ProfileResponse } from '@/lib/api';
@@ -98,6 +98,9 @@ export default function AdminPage() {
   const [corpCapitalAmount, setCorpCapitalAmount] = useState('');
   const [addingCapitalToCorp, setAddingCapitalToCorp] = useState(false);
   const [corpCapitalResult, setCorpCapitalResult] = useState<{ corporation_name: string; old_capital: number; new_capital: number; new_share_price: number; amount: number } | null>(null);
+  // Cron state
+  const [cronEnabled, setCronEnabled] = useState<boolean | null>(null);
+  const [cronLoading, setCronLoading] = useState(false);
 
   useEffect(() => {
     const loadData = async () => {
@@ -116,12 +119,16 @@ export default function AdminPage() {
           return;
         }
 
-        const [allUsers, reportedChatsData, serverTimeData] = await Promise.all([
+        const [allUsers, reportedChatsData, serverTimeData, cronStatusData] = await Promise.all([
           adminAPI.getAllUsers(),
           adminAPI.getReportedChats(false), // Only get unreviewed by default
           gameAPI.getTime().catch(() => null),
+          adminAPI.getCronStatus().catch(() => null),
         ]);
         setUsers(allUsers);
+        if (cronStatusData) {
+          setCronEnabled(cronStatusData.enabled);
+        }
         setReportedChats(reportedChatsData);
 
         if (serverTimeData) {
@@ -288,6 +295,20 @@ export default function AdminPage() {
       alert(getErrorMessage(err, 'Failed to recalculate prices'));
     } finally {
       setRecalculatingPrices(false);
+    }
+  };
+
+  const handleToggleCron = async () => {
+    if (cronEnabled === null) return;
+    try {
+      setCronLoading(true);
+      const result = await adminAPI.setCronEnabled(!cronEnabled);
+      setCronEnabled(result.enabled);
+    } catch (err: unknown) {
+      console.error('Toggle cron error:', err);
+      alert(getErrorMessage(err, 'Failed to toggle cron'));
+    } finally {
+      setCronLoading(false);
     }
   };
 
@@ -723,6 +744,15 @@ export default function AdminPage() {
                   startContent={!recalculatingPrices && <RefreshCw className="w-4 h-4" />}
                 >
                   Recalculate Stock Prices
+                </Button>
+                <Button
+                  onClick={handleToggleCron}
+                  disabled={cronLoading || cronEnabled === null}
+                  className={`font-medium text-white ${cronEnabled ? 'bg-emerald-600' : 'bg-gray-500'}`}
+                  isLoading={cronLoading}
+                  startContent={!cronLoading && (cronEnabled ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />)}
+                >
+                  Cron: {cronEnabled === null ? '...' : cronEnabled ? 'On' : 'Off'}
                 </Button>
               </div>
 

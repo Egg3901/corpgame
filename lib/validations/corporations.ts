@@ -49,6 +49,12 @@ export const CreateCorporationSchema = z.object({
     .trim()
     .min(1, 'Sector/Type is required')
     .max(50, 'Type must not exceed 50 characters'),
+  structure: z
+    .enum(['public', 'private'], {
+      message: 'Structure must be either public or private',
+    })
+    .optional()
+    .default('public'),
   focus: z
     .string()
     .max(50, 'Focus must not exceed 50 characters')

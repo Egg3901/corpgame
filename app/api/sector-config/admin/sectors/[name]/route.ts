@@ -12,9 +12,10 @@ export async function PUT(
     await requireAdmin(req);
     const { name } = await params;
     const body = await req.json();
-    const { is_production_only, can_extract, produced_product, primary_resource } = body;
+    const { is_enabled, is_production_only, can_extract, produced_product, primary_resource } = body;
 
     const updated = await SectorConfigModel.updateSector(name, {
+      is_enabled,
       is_production_only,
       can_extract,
       produced_product,

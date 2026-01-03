@@ -2,6 +2,8 @@ import { getDb, getNextId } from '../db/mongo';
 import { isValidSector, isValidCorpFocus, CorpFocus, Sector } from '@/lib/constants/sectors';
 import { ShareholderModel } from './Shareholder';
 
+export type CorpStructure = 'public' | 'private';
+
 export interface Corporation {
   id: number;
   ceo_id: number;
@@ -12,6 +14,7 @@ export interface Corporation {
   share_price: number;
   capital: number;
   type: string | null;
+  structure: CorpStructure;
   hq_state: string | null;
   board_size: number;
   elected_ceo_id: number | null;
@@ -32,6 +35,7 @@ export interface CreateCorporationData {
   share_price?: number;
   capital?: number;
   type?: string | null;
+  structure?: CorpStructure;
   focus?: CorpFocus;
 }
 
@@ -39,6 +43,7 @@ export interface UpdateCorporationData {
   name?: string;
   logo?: string | null;
   type?: string | null;
+  structure?: CorpStructure;
   share_price?: number;
   capital?: number;
   public_shares?: number;
@@ -64,6 +69,7 @@ export class CorporationModel {
       share_price = 1.00,
       capital = 500000.00,
       type = null,
+      structure = 'public',
       focus = 'diversified',
     } = corpData;
 
@@ -90,6 +96,7 @@ export class CorporationModel {
       share_price,
       capital,
       type,
+      structure,
       focus,
       hq_state: null,
       board_size: 0, // Default? Postgres didn't specify default in insert, so it was likely DB default or null. Interface says number.
@@ -159,7 +166,7 @@ export class CorporationModel {
     }
 
     const allowedFields = [
-      'name', 'logo', 'type', 'share_price', 'capital', 'public_shares', 'shares',
+      'name', 'logo', 'type', 'structure', 'share_price', 'capital', 'public_shares', 'shares',
       'hq_state', 'board_size', 'elected_ceo_id', 'ceo_salary', 'dividend_percentage',
       'special_dividend_last_paid_at', 'special_dividend_last_amount', 'focus'
     ];
