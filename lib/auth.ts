@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { UserModel, User } from './models/User';
 import { verifyAccessToken } from './auth/jwt';
+import { connectMongo } from './db/mongo';
 
 export interface AuthResult {
   userId: number;
@@ -19,8 +20,10 @@ export const getAuthUserId = async (req: NextRequest): Promise<number | null> =>
     const decoded = verifyAccessToken(token);
     if (!decoded.userId) return null;
 
-    // Update last seen (fire and forget)
-    UserModel.updateLastSeen(decoded.userId).catch((err: unknown) => console.error('Failed to update last seen:', err));
+    // Update last seen (fire and forget) - ensure MongoDB is connected first
+    connectMongo()
+      .then(() => UserModel.updateLastSeen(decoded.userId))
+      .catch((err: unknown) => console.error('Failed to update last seen:', err));
 
     return decoded.userId;
   } catch (err: unknown) {
@@ -33,6 +36,7 @@ export const getOptionalAuthUserId = getAuthUserId;
 export const getAuthUser = async (req: NextRequest): Promise<User | null> => {
   const userId = await getAuthUserId(req);
   if (!userId) return null;
+  await connectMongo();
   return await UserModel.findById(userId);
 };
 
