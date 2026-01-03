@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const result = resetGameTime(parsedYear, parsedQuarter);
+    const result = await resetGameTime(parsedYear, parsedQuarter);
 
     return NextResponse.json({
       success: true,

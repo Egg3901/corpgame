@@ -4,7 +4,7 @@ import { getGameStartDate, calculateGameTimeFromStart } from '@/lib/utils/gameTi
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
-  const startDate = getGameStartDate();
+  const startDate = await getGameStartDate();
   const gameTime = calculateGameTimeFromStart(startDate);
   
   return NextResponse.json({

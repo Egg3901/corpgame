@@ -4,7 +4,7 @@ import { getGameStartDate, calculateGameTimeFromStart, calculateTimeUntilNextQua
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
-  const startDate = getGameStartDate();
+  const startDate = await getGameStartDate();
   const now = new Date();
   const gameTime = calculateGameTimeFromStart(startDate, now);
   // Next quarter is useful for game world progression (quarters/years)

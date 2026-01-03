@@ -1,0 +1,28 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/actions",
+      "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/cron/market",
+      "schedule": "30 * * * *"
+    },
+    {
+      "path": "/api/cron/prices",
+      "schedule": "15 * * * *"
+    },
+    {
+      "path": "/api/cron/proposals",
+      "schedule": "*/10 * * * *"
+    },
+    {
+      "path": "/api/cron/dividends",
+      "schedule": "0 12 * * *"
+    },
+    {
+      "path": "/api/cron/salaries",
+      "schedule": "0 0 * * *"
+    }
+  ]
+}
