@@ -43,7 +43,23 @@ export async function GET(
     }
 
     // Get shareholders
-    const shareholders = await ShareholderModel.findByCorporationId(id);
+    let shareholders = await ShareholderModel.findByCorporationId(id);
+
+    // Self-healing: If CEO has no shares, assign founder shares
+    const ceoShareholding = shareholders.find(sh => sh.user_id === corporation.ceo_id);
+    if (!ceoShareholding && corporation.ceo_id) {
+      const founderShares = corporation.shares - corporation.public_shares;
+      if (founderShares > 0) {
+        console.log(`[Self-healing] Assigning ${founderShares} founder shares to CEO ${corporation.ceo_id} for corp ${id}`);
+        await ShareholderModel.create({
+          corporation_id: id,
+          user_id: corporation.ceo_id,
+          shares: founderShares,
+        });
+        // Refetch shareholders
+        shareholders = await ShareholderModel.findByCorporationId(id);
+      }
+    }
 
     // Batch fetch all users (shareholders + CEO)
     const userIds = Array.from(new Set([...shareholders.map(sh => sh.user_id), corporation.ceo_id]));

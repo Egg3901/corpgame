@@ -99,8 +99,8 @@ export default function CommoditiesView({ commodities, products, supply, demand 
         const colors = type === 'resource' ? RESOURCE_COLORS[name] : PRODUCT_COLORS[name];
         const Icon = type === 'resource' ? RESOURCE_ICONS[name] : PRODUCT_ICONS[name];
 
-        const price = item.currentPrice;
-        const change = item.priceChange;
+        const price = item.currentPrice || 0;
+        const change = item.priceChange || 0;
         const isPositive = change >= 0;
 
         const itemSupply = supply[name] || 0;
