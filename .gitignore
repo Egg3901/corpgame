@@ -40,3 +40,6 @@ next-env.d.ts
 # Security
 .env
 .env2
+
+# Claude Code
+.claude/settings.local.json
